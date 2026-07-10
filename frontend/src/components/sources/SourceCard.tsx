@@ -2,8 +2,6 @@
 
 import React, { useState, useEffect, memo } from 'react'
 import { SourceListResponse } from '@/lib/types/api'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -23,7 +21,8 @@ import {
   CheckCircle,
   AlertTriangle,
   Loader2,
-  Unlink
+  Unlink,
+  Lightbulb
 } from 'lucide-react'
 import { useSourceStatus } from '@/lib/hooks/use-sources'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -56,42 +55,27 @@ const getStatusConfig = (t: TFunction) => ({
   new: {
     icon: Clock,
     color: 'text-blue-600',
-    bgColor: 'bg-blue-50',
-    borderColor: 'border-blue-200',
     label: t('sources.statusProcessing'),
-    description: t('sources.statusPreparingDesc')
   },
   queued: {
     icon: Clock,
     color: 'text-blue-600',
-    bgColor: 'bg-blue-50',
-    borderColor: 'border-blue-200',
     label: t('sources.statusQueued'),
-    description: t('sources.statusQueuedDesc')
   },
   running: {
     icon: Loader2,
     color: 'text-blue-600',
-    bgColor: 'bg-blue-50',
-    borderColor: 'border-blue-200',
     label: t('sources.statusProcessing'),
-    description: t('sources.statusProcessingDesc')
   },
   completed: {
     icon: CheckCircle,
     color: 'text-green-600',
-    bgColor: 'bg-green-50',
-    borderColor: 'border-green-200',
     label: t('sources.statusCompleted'),
-    description: t('sources.statusCompletedDesc')
   },
   failed: {
     icon: AlertTriangle,
     color: 'text-red-600',
-    bgColor: 'bg-red-50',
-    borderColor: 'border-red-200',
     label: t('sources.statusFailed'),
-    description: t('sources.statusFailedDesc')
   }
 } as const)
 
@@ -102,10 +86,15 @@ function isSourceStatus(status: unknown): status is SourceStatus {
 }
 
 function getSourceType(source: SourceListResponse): 'link' | 'upload' | 'text' {
-  // Determine type based on asset information
   if (source.asset?.url) return 'link'
   if (source.asset?.file_path) return 'upload'
   return 'text'
+}
+
+function getSourceTypeLabel(sourceType: 'link' | 'upload' | 'text', t: TFunction): string {
+  if (sourceType === 'link') return t('sources.type.link')
+  if (sourceType === 'upload') return t('sources.type.file')
+  return t('sources.type.text')
 }
 
 function SourceCardImpl({
@@ -123,8 +112,7 @@ function SourceCardImpl({
 }: SourceCardProps) {
   const { t } = useTranslation()
   const statusConfigMap = getStatusConfig(t)
-  
-  // Only fetch status for sources that might have async processing
+
   const sourceWithStatus = source as SourceListResponse & { command_id?: string; status?: string }
 
   // Track processing state to continue polling until we detect completion
@@ -144,47 +132,42 @@ function SourceCardImpl({
     sourceWithStatus.status === 'queued' ||
     sourceWithStatus.status === 'running' ||
     (!!sourceWithStatus.command_id && !sourceWithStatus.status) ||
-    wasProcessing // Keep polling if we were processing to catch the completion
+    wasProcessing
 
   const { data: statusData, isLoading: statusLoading } = useSourceStatus(
     source.id,
     shouldFetchStatus
   )
 
-  // Determine current status
-  // If source has a command_id but no status, treat as "new" (just created)
   const rawStatus = statusData?.status || sourceWithStatus.status
   const currentStatus: SourceStatus = isSourceStatus(rawStatus)
     ? rawStatus
     : (sourceWithStatus.command_id ? 'new' : 'completed')
 
-
-  // Track processing state and detect completion
   useEffect(() => {
     const currentStatusFromData = statusData?.status || sourceWithStatus.status
 
-    // If we're currently processing, mark that we were processing
     if (currentStatusFromData === 'new' || currentStatusFromData === 'running' || currentStatusFromData === 'queued') {
       setWasProcessing(true)
     }
 
-    // If we were processing and now completed/failed, trigger refresh and stop polling
     if (wasProcessing &&
         (currentStatusFromData === 'completed' || currentStatusFromData === 'failed')) {
-      setWasProcessing(false) // Stop polling
+      setWasProcessing(false)
 
       if (onRefresh) {
-        setTimeout(() => onRefresh(), 500) // Small delay to ensure API is updated
+        setTimeout(() => onRefresh(), 500)
       }
     }
   }, [statusData, sourceWithStatus.status, wasProcessing, onRefresh, source.id])
-  
+
   const statusConfig = statusConfigMap[currentStatus] || statusConfigMap.completed
   const StatusIcon = statusConfig.icon
   const sourceType = getSourceType(source)
   const SourceTypeIcon = SOURCE_TYPE_ICONS[sourceType]
-  
-   const title = source.title || t('sources.untitledSource')
+  const sourceTypeLabel = getSourceTypeLabel(sourceType, t)
+
+  const title = source.title || t('sources.untitledSource')
 
   const handleRetry = () => {
     if (onRetry) {
@@ -219,112 +202,81 @@ function SourceCardImpl({
   const isProcessing: boolean = currentStatus === 'new' || currentStatus === 'running' || currentStatus === 'queued'
   const isFailed: boolean = currentStatus === 'failed'
   const isCompleted: boolean = currentStatus === 'completed'
+  const progress =
+    typeof statusData?.processing_info?.progress === 'number'
+      ? Math.round(statusData.processing_info.progress as number)
+      : null
 
   return (
-    <Card
+    <div
+      role="button"
+      tabIndex={0}
       className={cn(
-        'transition-all duration-200 hover:shadow-md group relative cursor-pointer border border-border/60 dark:border-border/40',
+        'group relative flex flex-col gap-0.5 rounded-md px-2 py-1',
+        'cursor-pointer transition-colors',
+        'hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+        isFailed && 'bg-destructive/5 hover:bg-destructive/10',
+        isProcessing && 'bg-primary/5',
         className
       )}
       onClick={handleCardClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleCardClick()
+        }
+      }}
     >
-      <CardContent className="px-3 py-1">
-        {/* Header with status indicator */}
-        <div className="flex items-start justify-between gap-3 mb-1">
-          <div className="flex-1 min-w-0">
-            {/* Status badge - only show if not completed */}
-            {!isCompleted && (
-              <div className="flex items-center gap-2 mb-2">
-                <div className={cn(
-                  'flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium',
-                  statusConfig.bgColor,
-                  statusConfig.color
-                )}>
-                  <StatusIcon className={cn(
-                    'h-3 w-3',
-                    isProcessing && 'animate-spin'
-                  )} />
-                  {statusLoading && shouldFetchStatus ? t('sources.checking') : statusConfig.label}
-                </div>
+      <div className="flex items-center gap-2 min-w-0">
+        <SourceTypeIcon
+          className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+          aria-label={sourceTypeLabel}
+        />
 
-                {/* Source type indicator */}
-                <div className="flex items-center gap-1 text-gray-500">
-                  <SourceTypeIcon className="h-3 w-3" />
-                  <span className="text-xs capitalize">{t('common.source')}</span>
-                </div>
-              </div>
-            )}
+        <h4
+          className="min-w-0 flex-1 truncate text-sm font-medium leading-snug"
+          title={title}
+        >
+          {title}
+        </h4>
 
-            {/* Title */}
-            <div className={cn('mb-1.5', !isCompleted && 'mb-1')}>
-              <h4
-                className="text-sm font-medium leading-tight line-clamp-2 break-all"
-                title={title}
+        <div className="flex shrink-0 items-center gap-0.5">
+          {!isCompleted && (
+            <span
+              className={cn(
+                'mr-1 inline-flex items-center gap-1 text-[11px] font-medium',
+                statusConfig.color
+              )}
+              title={statusLoading && shouldFetchStatus ? t('sources.checking') : statusConfig.label}
+            >
+              <StatusIcon className={cn('h-3 w-3', isProcessing && 'animate-spin')} />
+              <span className="hidden sm:inline">
+                {statusLoading && shouldFetchStatus ? t('sources.checking') : statusConfig.label}
+              </span>
+            </span>
+          )}
+
+          {onContextModeChange && contextMode && (
+            <ContextToggle
+              mode={contextMode}
+              hasInsights={source.insights_count > 0}
+              onChange={onContextModeChange}
+              className="h-7 w-7"
+            />
+          )}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                onClick={(e) => e.stopPropagation()}
+                aria-label={t('common.actions')}
               >
-                {title}
-              </h4>
-            </div>
-
-            {/* Processing message for active statuses */}
-            {statusData?.message && (isProcessing || isFailed) && (
-              <p className="text-xs text-gray-600 mb-2 italic">
-                {statusData.message}
-              </p>
-            )}
-
-            {/* Metadata badges */}
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Source type badge */}
-              <Badge variant="secondary" className="text-xs flex items-center gap-1">
-                <SourceTypeIcon className="h-3 w-3" />
-                {sourceType === 'link' ? t('sources.addUrl') : sourceType === 'upload' ? t('sources.uploadFile') : t('sources.enterText')}
-              </Badge>
-
-              {isCompleted && source.insights_count > 0 && (
-                <Badge variant="outline" className="text-xs">
-                  {t('sources.insightsCount').replace('{count}', source.insights_count.toString())}
-                </Badge>
-              )}
-              {source.topics && source.topics.length > 0 && isCompleted && (
-                <>
-                  {source.topics.slice(0, 2).map((topic, index) => (
-                    <Badge key={index} variant="outline" className="text-xs">
-                      {topic}
-                    </Badge>
-                  ))}
-                  {source.topics.length > 2 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{source.topics.length - 2}
-                    </Badge>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Context toggle and actions */}
-          <div className="flex items-center gap-1">
-            {/* Context toggle - only show if handler provided */}
-            {onContextModeChange && contextMode && (
-              <ContextToggle
-                mode={contextMode}
-                hasInsights={source.insights_count > 0}
-                onChange={onContextModeChange}
-              />
-            )}
-
-            {/* Actions dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
+                <MoreVertical className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               {showRemoveFromNotebook && (
                 <>
@@ -386,47 +338,66 @@ function SourceCardImpl({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          </div>
         </div>
-        {/* Prominent retry action surfaced directly on failed cards so it's
-            discoverable without opening the dropdown menu (#726). */}
-        {isFailed ? (
-          <div className="flex gap-2 pt-2 border-t">
-            <Button
-              variant="default"
-              size="sm"
+      </div>
+
+      {/* Compact meta: type once + insights; status message only when useful */}
+      <div className="flex items-center gap-1.5 pl-[22px] text-[11px] text-muted-foreground min-w-0">
+        <span className="shrink-0">{sourceTypeLabel}</span>
+
+        {isCompleted && source.insights_count > 0 && (
+          <>
+            <span className="text-border" aria-hidden>·</span>
+            <span className="inline-flex items-center gap-0.5 shrink-0">
+              <Lightbulb className="h-3 w-3" />
+              {source.insights_count}
+            </span>
+          </>
+        )}
+
+        {statusData?.message && (isProcessing || isFailed) && (
+          <>
+            <span className="text-border" aria-hidden>·</span>
+            <span className="truncate italic" title={statusData.message}>
+              {statusData.message}
+            </span>
+          </>
+        )}
+
+        {isProcessing && progress !== null && (
+          <>
+            <span className="text-border" aria-hidden>·</span>
+            <span className="shrink-0 tabular-nums">{progress}%</span>
+          </>
+        )}
+
+        {isFailed && (
+          <>
+            <span className="text-border" aria-hidden>·</span>
+            <button
+              type="button"
+              className="shrink-0 font-medium text-primary hover:underline"
               onClick={(e) => {
                 e.stopPropagation()
                 handleRetry()
               }}
               disabled={!onRetry}
-              className="h-7 text-xs"
             >
-              <RefreshCw className="h-3 w-3 mr-1" />
               {t('sources.retryProcessing')}
-            </Button>
-          </div>
-        ) : null}
-
-        {/* Processing progress indicator */}
-        {isProcessing && typeof statusData?.processing_info?.progress === 'number' && (
-          <div className="mt-3 pt-2 border-t">
-            <div className="flex justify-between items-center mb-1">
-            <span className="text-xs text-gray-600">{t('common.progress')}</span>
-              <span className="text-xs text-gray-600">
-                {Math.round(statusData.processing_info.progress as number)}%
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-1.5">
-              <div
-                className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
-                style={{ width: `${statusData.processing_info.progress as number}%` }}
-              />
-            </div>
-          </div>
+            </button>
+          </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+
+      {isProcessing && progress !== null && (
+        <div className="ml-[22px] h-0.5 w-[calc(100%-22px)] overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -443,7 +414,7 @@ function SourceCardImpl({
 function topicsEqual(a?: string[], b?: string[]): boolean {
   if (a === b) return true
   if ((a?.length ?? 0) !== (b?.length ?? 0)) return false
-  if (!a || !b) return true // both empty/undefined (lengths matched above)
+  if (!a || !b) return true
   return a.every((topic, i) => topic === b[i])
 }
 

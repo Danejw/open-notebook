@@ -4,10 +4,9 @@ import { useState, useRef, useEffect, useId } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { Bot, User, Send, Loader2, FileText, Lightbulb, StickyNote, Clock } from 'lucide-react'
+import { Send, Loader2, FileText, Lightbulb, StickyNote, Clock } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
@@ -25,6 +24,14 @@ import { convertReferencesToCompactMarkdown, createCompactReferenceLinkComponent
 import { useModalManager } from '@/lib/hooks/use-modal-manager'
 import { toast } from 'sonner'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { cn } from '@/lib/utils'
+import {
+  ColumnHeader,
+  columnCardClassName,
+  columnFooterClassName,
+  columnHeaderGhostButtonClassName,
+  columnHeaderIconClassName,
+} from '@/components/notebooks/ColumnHeader'
 
 interface NotebookContextStats {
   sourcesInsights: number
@@ -90,15 +97,11 @@ export function ChatPanel({
 
     try {
       openModal(modalType, id)
-      // Note: The modal system uses URL parameters and doesn't throw errors for missing items.
-      // The modal component itself will handle displaying "not found" states.
-      // This try-catch is here for future enhancements or unexpected errors.
     } catch {
       toast.error(t('common.noResults'))
     }
   }
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
@@ -111,7 +114,6 @@ export function ChatPanel({
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Detect platform for correct modifier key
     const isMac = typeof navigator !== 'undefined' && navigator.userAgent.toUpperCase().indexOf('MAC') >= 0
     const isModifierPressed = isMac ? e.metaKey : e.ctrlKey
 
@@ -121,212 +123,196 @@ export function ChatPanel({
     }
   }
 
-  // Detect platform for placeholder text
   const isMac = typeof navigator !== 'undefined' && navigator.userAgent.toUpperCase().indexOf('MAC') >= 0
   const keyHint = isMac ? '⌘+Enter' : 'Ctrl+Enter'
+  const resolvedTitle =
+    title ||
+    (contextType === 'source'
+      ? t('chat.chatWith').replace('{name}', t('navigation.sources'))
+      : t('chat.chatWith').replace('{name}', t('common.notebook')))
 
   return (
     <>
-    <Card className="flex flex-col h-full flex-1 overflow-hidden">
-      <CardHeader className="pb-3 flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Bot className="h-5 w-5" />
-            {title || (contextType === 'source' ? t('chat.chatWith').replace('{name}', t('navigation.sources')) : t('chat.chatWith').replace('{name}', t('common.notebook')))}
-          </CardTitle>
-          {onSelectSession && onCreateSession && onDeleteSession && (
-            <Dialog open={sessionManagerOpen} onOpenChange={setSessionManagerOpen}>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-2"
-                onClick={() => setSessionManagerOpen(true)}
-                disabled={loadingSessions}
-              >
-                <Clock className="h-4 w-4" />
-                <span className="text-xs">{t('chat.sessions')}</span>
-              </Button>
-              <DialogContent className="sm:max-w-[420px] p-0 overflow-hidden">
-                <DialogTitle className="sr-only">{t('chat.sessionsTitle')}</DialogTitle>
-                <SessionManager
-                  sessions={sessions}
-                  currentSessionId={currentSessionId ?? null}
-                  onCreateSession={(title) => onCreateSession?.(title)}
-                  onSelectSession={(sessionId) => {
-                    onSelectSession(sessionId)
-                    setSessionManagerOpen(false)
-                  }}
-                  onUpdateSession={(sessionId, title) => onUpdateSession?.(sessionId, title)}
-                  onDeleteSession={(sessionId) => onDeleteSession?.(sessionId)}
-                  loadingSessions={loadingSessions}
-                />
-              </DialogContent>
-            </Dialog>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="flex-1 flex flex-col min-h-0 p-0">
-        <ScrollArea className="flex-1 min-h-0 px-4" ref={scrollAreaRef}>
-          <div className="space-y-4 py-4">
-            {messages.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8">
-                <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-sm">
-                  {t('chat.startConversation').replace('{type}', contextType === 'source' ? t('navigation.sources') : t('common.notebook'))}
-                </p>
-                <p className="text-xs mt-2">{t('chat.askQuestions')}</p>
-              </div>
-            ) : (
-              messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex gap-3 ${
-                    message.type === 'human' ? 'justify-end' : 'justify-start'
-                  }`}
+      <Card className={columnCardClassName}>
+        <ColumnHeader
+          title={resolvedTitle}
+          actions={
+            onSelectSession && onCreateSession && onDeleteSession ? (
+              <Dialog open={sessionManagerOpen} onOpenChange={setSessionManagerOpen}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={columnHeaderGhostButtonClassName}
+                  onClick={() => setSessionManagerOpen(true)}
+                  disabled={loadingSessions}
                 >
-                  {message.type === 'ai' && (
-                    <div className="flex-shrink-0">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Bot className="h-4 w-4" />
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex flex-col gap-2 max-w-[80%]">
+                  <Clock className={columnHeaderIconClassName} />
+                  {t('chat.sessions')}
+                </Button>
+                <DialogContent className="sm:max-w-[420px] p-0 overflow-hidden">
+                  <DialogTitle className="sr-only">{t('chat.sessionsTitle')}</DialogTitle>
+                  <SessionManager
+                    sessions={sessions}
+                    currentSessionId={currentSessionId ?? null}
+                    onCreateSession={(sessionTitle) => onCreateSession?.(sessionTitle)}
+                    onSelectSession={(sessionId) => {
+                      onSelectSession(sessionId)
+                      setSessionManagerOpen(false)
+                    }}
+                    onUpdateSession={(sessionId, sessionTitle) => onUpdateSession?.(sessionId, sessionTitle)}
+                    onDeleteSession={(sessionId) => onDeleteSession?.(sessionId)}
+                    loadingSessions={loadingSessions}
+                  />
+                </DialogContent>
+              </Dialog>
+            ) : undefined
+          }
+        />
+
+        <CardContent className="flex-1 flex flex-col min-h-0 p-0">
+          <ScrollArea className="flex-1 min-h-0 px-2" ref={scrollAreaRef}>
+            <div className="flex flex-col gap-1.5 py-0">
+              {messages.length === 0 ? (
+                <div className="text-center text-muted-foreground py-3 px-2">
+                  <p className="text-sm">
+                    {t('chat.startConversation').replace(
+                      '{type}',
+                      contextType === 'source' ? t('navigation.sources') : t('common.notebook')
+                    )}
+                  </p>
+                </div>
+              ) : (
+                messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={cn(
+                      'group flex',
+                      message.type === 'human' ? 'justify-end' : 'justify-start'
+                    )}
+                  >
                     <div
-                      className={`rounded-lg px-4 py-2 ${
-                        message.type === 'human'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted'
-                      }`}
+                      className={cn(
+                        'flex max-w-[88%] flex-col gap-0.5',
+                        message.type === 'human' ? 'items-end' : 'items-start'
+                      )}
                     >
-                      {message.type === 'ai' ? (
-                        <AIMessageContent
-                          content={message.content}
-                          onReferenceClick={handleReferenceClick}
-                        />
-                      ) : (
-                        <p className="text-sm break-all">{message.content}</p>
+                      <div
+                        className={cn(
+                          'rounded-lg px-3 py-1.5',
+                          message.type === 'human'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted'
+                        )}
+                      >
+                        {message.type === 'ai' ? (
+                          <AIMessageContent
+                            content={message.content}
+                            onReferenceClick={handleReferenceClick}
+                          />
+                        ) : (
+                          <p className="text-sm break-words whitespace-pre-wrap">{message.content}</p>
+                        )}
+                      </div>
+                      {message.type === 'ai' && (
+                        <div className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                          <MessageActions
+                            content={message.content}
+                            notebookId={notebookId}
+                          />
+                        </div>
                       )}
                     </div>
-                    {message.type === 'ai' && (
-                      <MessageActions
-                        content={message.content}
-                        notebookId={notebookId}
-                      />
-                    )}
                   </div>
-                  {message.type === 'human' && (
-                    <div className="flex-shrink-0">
-                      <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-                        <User className="h-4 w-4 text-primary-foreground" />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-            {isStreaming && (
-              <div className="flex gap-3 justify-start">
-                <div className="flex-shrink-0">
-                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Bot className="h-4 w-4" />
-                  </div>
-                </div>
-                <div className="rounded-lg px-4 py-2 bg-muted">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-        </ScrollArea>
+                ))
+              )}
 
-        {/* Context Indicators */}
-        {contextIndicators && (
-          <div className="border-t px-4 py-2">
-            <div className="flex flex-wrap gap-2 text-xs">
+              {isStreaming && (
+                <div className="flex justify-start">
+                  <div className="rounded-lg bg-muted px-3 py-1.5">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          </ScrollArea>
+
+          {/* Source-chat context counts (compact inline meta) */}
+          {contextIndicators && (
+            <div className={cn(columnFooterClassName, 'flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground')}>
               {contextIndicators.sources?.length > 0 && (
-                <Badge variant="outline" className="gap-1">
+                <span className="inline-flex items-center gap-0.5">
                   <FileText className="h-3 w-3" />
-                  {contextIndicators.sources.length} {t('navigation.sources')}
-                </Badge>
+                  {contextIndicators.sources.length}
+                </span>
               )}
               {contextIndicators.insights?.length > 0 && (
-                <Badge variant="outline" className="gap-1">
+                <span className="inline-flex items-center gap-0.5">
                   <Lightbulb className="h-3 w-3" />
-                  {contextIndicators.insights.length} {contextIndicators.insights.length === 1 ? t('common.insight') : t('common.insights')}
-                </Badge>
+                  {contextIndicators.insights.length}
+                </span>
               )}
               {contextIndicators.notes?.length > 0 && (
-                <Badge variant="outline" className="gap-1">
+                <span className="inline-flex items-center gap-0.5">
                   <StickyNote className="h-3 w-3" />
-                  {contextIndicators.notes.length} {contextIndicators.notes.length === 1 ? t('common.note') : t('common.notes')}
-                </Badge>
+                  {contextIndicators.notes.length}
+                </span>
               )}
-            </div>
-          </div>
-        )}
-
-        {/* Notebook Context Indicator */}
-        {notebookContextStats && (
-          <ContextIndicator
-            sourcesInsights={notebookContextStats.sourcesInsights}
-            sourcesFull={notebookContextStats.sourcesFull}
-            notesCount={notebookContextStats.notesCount}
-            tokenCount={notebookContextStats.tokenCount}
-            charCount={notebookContextStats.charCount}
-          />
-        )}
-
-        {/* Input Area */}
-        <div className="flex-shrink-0 p-4 space-y-3 border-t">
-          {/* Model selector */}
-          {onModelChange && (
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">{t('chat.model')}</span>
-              <ModelSelector
-                currentModel={modelOverride}
-                onModelChange={onModelChange}
-                disabled={isStreaming}
-              />
             </div>
           )}
 
-          <div className="flex gap-2 items-end min-w-0">
-            <Textarea
-              id={chatInputId}
-              name="chat-message"
-              autoComplete="off"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={`${t('chat.sendPlaceholder')} (${t('chat.pressToSend').replace('{key}', keyHint)})`}
-              disabled={isStreaming}
-              className="flex-1 min-h-[40px] max-h-[100px] resize-none py-2 px-3 min-w-0"
-              rows={1}
+          {notebookContextStats && (
+            <ContextIndicator
+              sourcesInsights={notebookContextStats.sourcesInsights}
+              sourcesFull={notebookContextStats.sourcesFull}
+              notesCount={notebookContextStats.notesCount}
+              tokenCount={notebookContextStats.tokenCount}
+              charCount={notebookContextStats.charCount}
             />
-            <Button
-              onClick={handleSend}
-              disabled={!input.trim() || isStreaming}
-              size="icon"
-              className="h-[40px] w-[40px] flex-shrink-0"
-            >
-              {isStreaming ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+          )}
 
+          {/* Input: model + composer on one compact strip */}
+          <div className={columnFooterClassName}>
+            <div className="flex items-end gap-1 min-w-0">
+              {onModelChange && (
+                <ModelSelector
+                  currentModel={modelOverride}
+                  onModelChange={onModelChange}
+                  disabled={isStreaming}
+                />
+              )}
+              <Textarea
+                id={chatInputId}
+                name="chat-message"
+                autoComplete="off"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={`${t('chat.sendPlaceholder')} (${keyHint})`}
+                disabled={isStreaming}
+                className="min-h-[32px] max-h-[88px] flex-1 resize-none px-2 py-1 text-sm min-w-0"
+                rows={1}
+              />
+              <Button
+                onClick={handleSend}
+                disabled={!input.trim() || isStreaming}
+                size="icon"
+                className="h-8 w-8 flex-shrink-0"
+              >
+                {isStreaming ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </>
   )
 }
 
-// Helper component to render AI messages with clickable references
 function AIMessageContent({
   content,
   onReferenceClick
@@ -335,39 +321,36 @@ function AIMessageContent({
   onReferenceClick: (type: string, id: string) => void
 }) {
   const { t } = useTranslation()
-  // Convert references to compact markdown with numbered citations
   const markdownWithCompactRefs = convertReferencesToCompactMarkdown(content, t('common.references'))
-
-  // Create custom link component for compact references
   const LinkComponent = createCompactReferenceLinkComponent(onReferenceClick)
 
   return (
-    <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none break-words prose-headings:font-semibold prose-a:text-blue-600 prose-a:break-all prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-p:mb-4 prose-p:leading-7 prose-li:mb-2">
+    <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none break-words prose-headings:font-semibold prose-a:text-blue-600 prose-a:break-all prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-p:mb-2 prose-p:leading-relaxed prose-li:mb-0.5">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}
         components={{
           a: LinkComponent,
-          p: ({ children }) => <p className="mb-4">{children}</p>,
-          h1: ({ children }) => <h1 className="mb-4 mt-6">{children}</h1>,
-          h2: ({ children }) => <h2 className="mb-3 mt-5">{children}</h2>,
-          h3: ({ children }) => <h3 className="mb-3 mt-4">{children}</h3>,
-          h4: ({ children }) => <h4 className="mb-2 mt-4">{children}</h4>,
-          h5: ({ children }) => <h5 className="mb-2 mt-3">{children}</h5>,
-          h6: ({ children }) => <h6 className="mb-2 mt-3">{children}</h6>,
-          li: ({ children }) => <li className="mb-1">{children}</li>,
-          ul: ({ children }) => <ul className="mb-4 space-y-1">{children}</ul>,
-          ol: ({ children }) => <ol className="mb-4 space-y-1">{children}</ol>,
+          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+          h1: ({ children }) => <h1 className="mb-2 mt-3 first:mt-0">{children}</h1>,
+          h2: ({ children }) => <h2 className="mb-2 mt-3 first:mt-0">{children}</h2>,
+          h3: ({ children }) => <h3 className="mb-1.5 mt-2.5 first:mt-0">{children}</h3>,
+          h4: ({ children }) => <h4 className="mb-1.5 mt-2 first:mt-0">{children}</h4>,
+          h5: ({ children }) => <h5 className="mb-1 mt-2 first:mt-0">{children}</h5>,
+          h6: ({ children }) => <h6 className="mb-1 mt-2 first:mt-0">{children}</h6>,
+          li: ({ children }) => <li className="mb-0.5">{children}</li>,
+          ul: ({ children }) => <ul className="mb-2 space-y-0.5 last:mb-0">{children}</ul>,
+          ol: ({ children }) => <ol className="mb-2 space-y-0.5 last:mb-0">{children}</ol>,
           table: ({ children }) => (
-            <div className="my-4 overflow-x-auto">
+            <div className="my-2 overflow-x-auto">
               <table className="min-w-full border-collapse border border-border">{children}</table>
             </div>
           ),
           thead: ({ children }) => <thead className="bg-muted">{children}</thead>,
           tbody: ({ children }) => <tbody>{children}</tbody>,
           tr: ({ children }) => <tr className="border-b border-border">{children}</tr>,
-          th: ({ children }) => <th className="border border-border px-3 py-2 text-left font-semibold">{children}</th>,
-          td: ({ children }) => <td className="border border-border px-3 py-2">{children}</td>,
+          th: ({ children }) => <th className="border border-border px-2 py-1 text-left font-semibold">{children}</th>,
+          td: ({ children }) => <td className="border border-border px-2 py-1">{children}</td>,
         }}
       >
         {markdownWithCompactRefs}

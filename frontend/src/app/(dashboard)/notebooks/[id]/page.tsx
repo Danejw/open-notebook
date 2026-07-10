@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
+import { useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 import { AppShell } from '@/components/layout/AppShell'
 import { NotebookHeader } from '../components/NotebookHeader'
 import { SourcesColumn } from '../components/SourcesColumn'
@@ -14,8 +15,12 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { useNotebookColumnsStore } from '@/lib/stores/notebook-columns-store'
 import { useIsDesktop } from '@/lib/hooks/use-media-query'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { cn } from '@/lib/utils'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from '@/components/ui/resizable'
 import { FileText, StickyNote, MessageSquare } from 'lucide-react'
 import {
   applyBulkSourceContext,
@@ -31,6 +36,11 @@ import {
 // components historically import these from this route file.
 import type { ContextMode, ContextSelections, NoteContextMode } from '@/lib/types/notebook-context'
 export type { ContextMode, ContextSelections, NoteContextMode }
+
+const NOTEBOOK_LAYOUT_STORAGE =
+  typeof window === 'undefined'
+    ? { getItem: () => null, setItem: () => {} }
+    : localStorage
 
 export default function NotebookPage() {
   const { t } = useTranslation()
@@ -51,10 +61,58 @@ export default function NotebookPage() {
   const { data: notes, isLoading: notesLoading } = useNotes(notebookId)
 
   // Get collapse states for dynamic layout
-  const { sourcesCollapsed, notesCollapsed } = useNotebookColumnsStore()
+  const { sourcesCollapsed, notesCollapsed, setSources, setNotes } = useNotebookColumnsStore()
 
   // Detect desktop to avoid double-mounting ChatColumn
   const isDesktop = useIsDesktop()
+
+  // Persist column widths across reloads (desktop only)
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
+    id: 'notebook-detail-columns',
+    panelIds: ['sources', 'notes', 'chat'],
+    storage: NOTEBOOK_LAYOUT_STORAGE,
+    onlySaveAfterUserInteractions: true,
+  })
+
+  const sourcesPanelRef = usePanelRef()
+  const notesPanelRef = usePanelRef()
+
+  // Keep resizable panels in sync with the existing collapse toggles
+  useEffect(() => {
+    if (!isDesktop) return
+    const panel = sourcesPanelRef.current
+    if (!panel) return
+    if (sourcesCollapsed && !panel.isCollapsed()) {
+      panel.collapse()
+    } else if (!sourcesCollapsed && panel.isCollapsed()) {
+      panel.expand()
+    }
+  }, [isDesktop, sourcesCollapsed, sourcesPanelRef])
+
+  useEffect(() => {
+    if (!isDesktop) return
+    const panel = notesPanelRef.current
+    if (!panel) return
+    if (notesCollapsed && !panel.isCollapsed()) {
+      panel.collapse()
+    } else if (!notesCollapsed && panel.isCollapsed()) {
+      panel.expand()
+    }
+  }, [isDesktop, notesCollapsed, notesPanelRef])
+
+  const handleSourcesPanelResize = () => {
+    const isCollapsed = sourcesPanelRef.current?.isCollapsed() ?? false
+    if (useNotebookColumnsStore.getState().sourcesCollapsed !== isCollapsed) {
+      setSources(isCollapsed)
+    }
+  }
+
+  const handleNotesPanelResize = () => {
+    const isCollapsed = notesPanelRef.current?.isCollapsed() ?? false
+    if (useNotebookColumnsStore.getState().notesCollapsed !== isCollapsed) {
+      setNotes(isCollapsed)
+    }
+  }
 
   // Mobile tab state (Sources, Notes, or Chat)
   const [mobileActiveTab, setMobileActiveTab] = useState<'sources' | 'notes' | 'chat'>('chat')
@@ -154,11 +212,11 @@ export default function NotebookPage() {
   return (
     <AppShell>
       <div className="flex flex-col flex-1 min-h-0">
-        <div className="flex-shrink-0 p-6 pb-0">
+        <div className="flex-shrink-0 px-3 pt-3 pb-0">
           <NotebookHeader notebook={notebook} />
         </div>
 
-        <div className="flex-1 p-6 pt-6 overflow-x-auto flex flex-col">
+        <div className="flex-1 px-3 py-2 overflow-x-auto flex flex-col min-h-0">
           {/* Mobile: Tabbed interface - only render on mobile to avoid double-mounting */}
           {!isDesktop && (
             <>
@@ -220,56 +278,87 @@ export default function NotebookPage() {
             </>
           )}
 
-          {/* Desktop: Collapsible columns layout */}
-          <div className={cn(
-            'hidden lg:flex h-full min-h-0 gap-6 transition-all duration-150',
-            'flex-row'
-          )}>
-            {/* Sources Column */}
-            <div className={cn(
-              'transition-all duration-150',
-              sourcesCollapsed ? 'w-12 flex-shrink-0' : 'flex-none basis-1/3'
-            )}>
-              <SourcesColumn
-                sources={sources}
-                isLoading={sourcesLoading}
-                notebookId={notebookId}
-                notebookName={notebook?.name}
-                onRefresh={refetchSources}
-                contextSelections={contextSelections.sources}
-                onContextModeChange={handleSourceContextModeChange}
-                onBulkContextModeChange={handleBulkSourceContext}
-                hasNextPage={hasNextPage}
-                isFetchingNextPage={isFetchingNextPage}
-                fetchNextPage={fetchNextPage}
-              />
-            </div>
+          {/* Desktop: Resizable collapsible columns */}
+          {isDesktop && (
+            <ResizablePanelGroup
+              id="notebook-detail-columns"
+              orientation="horizontal"
+              defaultLayout={defaultLayout}
+              onLayoutChanged={onLayoutChanged}
+              className="h-full min-h-0"
+            >
+              <ResizablePanel
+                id="sources"
+                panelRef={sourcesPanelRef}
+                defaultSize="28%"
+                minSize="14%"
+                collapsible
+                collapsedSize={48}
+                className="min-h-0"
+                onResize={handleSourcesPanelResize}
+              >
+                <SourcesColumn
+                  sources={sources}
+                  isLoading={sourcesLoading}
+                  notebookId={notebookId}
+                  notebookName={notebook?.name}
+                  onRefresh={refetchSources}
+                  contextSelections={contextSelections.sources}
+                  onContextModeChange={handleSourceContextModeChange}
+                  onBulkContextModeChange={handleBulkSourceContext}
+                  hasNextPage={hasNextPage}
+                  isFetchingNextPage={isFetchingNextPage}
+                  fetchNextPage={fetchNextPage}
+                />
+              </ResizablePanel>
 
-            {/* Notes Column */}
-            <div className={cn(
-              'transition-all duration-150',
-              notesCollapsed ? 'w-12 flex-shrink-0' : 'flex-none basis-1/3'
-            )}>
-              <NotesColumn
-                notes={notes}
-                isLoading={notesLoading}
-                notebookId={notebookId}
-                contextSelections={contextSelections.notes}
-                onContextModeChange={handleNoteContextModeChange}
-                onBulkContextModeChange={handleBulkNoteContext}
+              <ResizableHandle
+                withHandle
+                disabled={sourcesCollapsed}
+                className="mx-1 w-3 rounded-full bg-transparent hover:bg-border/60"
               />
-            </div>
 
-            {/* Chat Column - always expanded, takes remaining space */}
-            <div className="transition-all duration-150 flex-1 min-w-0 lg:pr-6 lg:-mr-6">
-              <ChatColumn
-                notebookId={notebookId}
-                contextSelections={contextSelections}
-                sources={sources}
-                sourcesLoading={sourcesLoading}
+              <ResizablePanel
+                id="notes"
+                panelRef={notesPanelRef}
+                defaultSize="28%"
+                minSize="14%"
+                collapsible
+                collapsedSize={48}
+                className="min-h-0"
+                onResize={handleNotesPanelResize}
+              >
+                <NotesColumn
+                  notes={notes}
+                  isLoading={notesLoading}
+                  notebookId={notebookId}
+                  contextSelections={contextSelections.notes}
+                  onContextModeChange={handleNoteContextModeChange}
+                  onBulkContextModeChange={handleBulkNoteContext}
+                />
+              </ResizablePanel>
+
+              <ResizableHandle
+                withHandle
+                disabled={notesCollapsed}
+                className="mx-1 w-3 rounded-full bg-transparent hover:bg-border/60"
               />
-            </div>
-          </div>
+
+              <ResizablePanel
+                id="chat"
+                defaultSize="44%"
+                minSize="24%"
+                className="min-h-0 min-w-0"
+              >
+                <ChatColumn
+                  notebookId={notebookId}
+                  contextSelections={contextSelections}
+                  sources={sources}
+                  sourcesLoading={sourcesLoading}
+                />
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          )}
         </div>
       </div>
     </AppShell>

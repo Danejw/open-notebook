@@ -3,14 +3,14 @@
 import { useState, useMemo } from 'react'
 import { NoteResponse } from '@/lib/types/api'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Plus, StickyNote, Bot, User, MoreVertical, Trash2, ListChecks, ChevronDown } from 'lucide-react'
+import { Plus, StickyNote, Bot, User, MoreVertical, Trash2, ListChecks } from 'lucide-react'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { EmptyState } from '@/components/common/EmptyState'
 import { Badge } from '@/components/ui/badge'
@@ -23,6 +23,14 @@ import type { NoteContextDefault } from '@/lib/utils/source-context'
 import { useDeleteNote } from '@/lib/hooks/use-notes'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { CollapsibleColumn, createCollapseButton } from '@/components/notebooks/CollapsibleColumn'
+import {
+  ColumnHeader,
+  columnBodyClassName,
+  columnCardClassName,
+  columnHeaderIconClassName,
+  columnHeaderIconButtonClassName,
+  columnHeaderPrimaryButtonClassName,
+} from '@/components/notebooks/ColumnHeader'
 import { useNotebookColumnsStore } from '@/lib/stores/notebook-columns-store'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
@@ -84,17 +92,21 @@ export function NotesColumn({
         collapsedIcon={StickyNote}
         collapsedLabel={notesLabel}
       >
-        <Card className="h-full flex flex-col flex-1 overflow-hidden">
-          <CardHeader className="pb-3 flex-shrink-0">
-            <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-lg">{notesLabel}</CardTitle>
-              <div className="flex items-center gap-2">
+        <Card className={columnCardClassName}>
+          <ColumnHeader
+            title={notesLabel}
+            actions={
+              <>
                 {onBulkContextModeChange && notes && notes.length > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" title={t('sources.bulkContext')}>
-                        <ListChecks className="h-4 w-4" />
-                        <ChevronDown className="h-4 w-4 ml-1" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={columnHeaderIconButtonClassName}
+                        title={t('sources.bulkContext')}
+                      >
+                        <ListChecks className={columnHeaderIconClassName} />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -109,22 +121,23 @@ export function NotesColumn({
                 )}
                 <Button
                   size="sm"
+                  className={columnHeaderPrimaryButtonClassName}
                   onClick={() => {
                     setEditingNote(null)
                     setShowAddDialog(true)
                   }}
                 >
-                  <Plus className="h-4 w-4 mr-2" />
+                  <Plus className={columnHeaderIconClassName} />
                   {t('common.writeNote')}
                 </Button>
                 {collapseButton}
-              </div>
-            </div>
-          </CardHeader>
+              </>
+            }
+          />
 
-          <CardContent className="flex-1 overflow-y-auto min-h-0">
+          <CardContent className={columnBodyClassName}>
             {isLoading ? (
-              <div className="flex items-center justify-center py-8">
+              <div className="flex items-center justify-center py-4">
                 <LoadingSpinner />
               </div>
             ) : !notes || notes.length === 0 ? (

@@ -79,10 +79,10 @@ export function createCollapseButton(onToggle: () => void, label: string) {
                 e.stopPropagation()
                 onToggle()
               }}
-              className="h-7 w-7 hover:bg-accent"
+              className="h-6 w-6 p-0 hover:bg-accent"
               aria-label={`Collapse ${label}`}
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>
           <TooltipContent>

@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import { SourceListResponse } from '@/lib/types/api'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +22,14 @@ import { useModalManager } from '@/lib/hooks/use-modal-manager'
 import { ContextMode } from '../[id]/page'
 import type { SourceBulkAction } from '@/lib/utils/source-context'
 import { CollapsibleColumn, createCollapseButton } from '@/components/notebooks/CollapsibleColumn'
+import {
+  ColumnHeader,
+  columnBodyClassName,
+  columnCardClassName,
+  columnHeaderIconClassName,
+  columnHeaderIconButtonClassName,
+  columnHeaderPrimaryButtonClassName,
+} from '@/components/notebooks/ColumnHeader'
 import { useNotebookColumnsStore } from '@/lib/stores/notebook-columns-store'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
@@ -156,17 +164,21 @@ export function SourcesColumn({
         collapsedIcon={FileText}
         collapsedLabel={t('navigation.sources')}
       >
-        <Card className="h-full flex flex-col flex-1 overflow-hidden">
-          <CardHeader className="pb-3 flex-shrink-0">
-            <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-lg">{t('navigation.sources')}</CardTitle>
-              <div className="flex items-center gap-2">
+        <Card className={columnCardClassName}>
+          <ColumnHeader
+            title={t('navigation.sources')}
+            actions={
+              <>
                 {onBulkContextModeChange && sources && sources.length > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" title={t('sources.bulkContext')}>
-                        <ListChecks className="h-4 w-4" />
-                        <ChevronDown className="h-4 w-4 ml-1" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={columnHeaderIconButtonClassName}
+                        title={t('sources.bulkContext')}
+                      >
+                        <ListChecks className={columnHeaderIconClassName} />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -184,10 +196,10 @@ export function SourcesColumn({
                 )}
                 <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                   <DropdownMenuTrigger asChild>
-                    <Button size="sm">
-                      <Plus className="h-4 w-4 mr-2" />
+                    <Button size="sm" className={columnHeaderPrimaryButtonClassName}>
+                      <Plus className={columnHeaderIconClassName} />
                       {t('sources.addSource')}
-                      <ChevronDown className="h-4 w-4 ml-2" />
+                      <ChevronDown className={columnHeaderIconClassName} />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -202,13 +214,13 @@ export function SourcesColumn({
                   </DropdownMenuContent>
                 </DropdownMenu>
                 {collapseButton}
-              </div>
-            </div>
-          </CardHeader>
+              </>
+            }
+          />
 
-          <CardContent ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0">
+          <CardContent ref={scrollContainerRef} className={columnBodyClassName}>
             {isLoading ? (
-              <div className="flex items-center justify-center py-8">
+              <div className="flex items-center justify-center py-4">
                 <LoadingSpinner />
               </div>
             ) : !sources || sources.length === 0 ? (
@@ -218,7 +230,7 @@ export function SourcesColumn({
                 description={t('sources.createFirstSource')}
               />
             ) : (
-              <div className="space-y-3">
+              <div className="flex flex-col divide-y divide-border/50">
                 {sources.map((source) => (
                   <SourceCard
                     key={source.id}
@@ -239,8 +251,8 @@ export function SourcesColumn({
                 ))}
                 {/* Loading indicator for infinite scroll */}
                 {isFetchingNextPage && (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  <div className="flex items-center justify-center py-3">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   </div>
                 )}
               </div>

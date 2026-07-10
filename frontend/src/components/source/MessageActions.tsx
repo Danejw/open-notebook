@@ -70,21 +70,21 @@ export function MessageActions({ content, notebookId }: MessageActionsProps) {
 
   return (
     <TooltipProvider>
-      <div className="flex gap-1">
+      <div className="flex gap-0.5">
         {notebookId && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2"
+                className="h-6 w-6 p-0"
                 onClick={handleSaveToNote}
                 disabled={createNote.isPending}
               >
                 {createNote.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="h-3 w-3 animate-spin" />
                 ) : (
-                  <Save className="h-3.5 w-3.5" />
+                  <Save className="h-3 w-3" />
                 )}
               </Button>
             </TooltipTrigger>
@@ -98,14 +98,14 @@ export function MessageActions({ content, notebookId }: MessageActionsProps) {
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 px-2"
+              className="h-6 w-6 p-0"
               onClick={handleCopyToClipboard}
               disabled={createNote.isPending}
             >
               {copySuccess ? (
-                <Check className="h-3.5 w-3.5 text-green-500" />
+                <Check className="h-3 w-3 text-green-500" />
               ) : (
-                <Copy className="h-3.5 w-3.5" />
+                <Copy className="h-3 w-3" />
               )}
             </Button>
           </TooltipTrigger>

@@ -1,8 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useDeferredValue, useEffect } from 'react'
 
-import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
 import { NotebookList } from './components/NotebookList'
 import { Button } from '@/components/ui/button'
@@ -18,12 +17,23 @@ export default function NotebooksPage() {
   const { t } = useTranslation()
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const deferredSearchTerm = useDeferredValue(searchTerm)
+  const [archivedEnabled, setArchivedEnabled] = useState(false)
   const viewMode = useNotebookViewStore((state) => state.viewMode)
   const setViewMode = useNotebookViewStore((state) => state.setViewMode)
   const { data: notebooks, isLoading, refetch } = useNotebooks(false)
-  const { data: archivedNotebooks } = useNotebooks(true)
+  const { data: archivedNotebooks } = useNotebooks(true, { enabled: archivedEnabled })
 
-  const normalizedQuery = searchTerm.trim().toLowerCase()
+  useEffect(() => {
+    if ('requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(() => setArchivedEnabled(true))
+      return () => window.cancelIdleCallback(id)
+    }
+    const timer = setTimeout(() => setArchivedEnabled(true), 1000)
+    return () => clearTimeout(timer)
+  }, [])
+
+  const normalizedQuery = deferredSearchTerm.trim().toLowerCase()
 
   const filteredActive = useMemo(() => {
     if (!notebooks) {
@@ -53,7 +63,7 @@ export default function NotebooksPage() {
   const isSearching = normalizedQuery.length > 0
 
   return (
-    <AppShell>
+    <>
       <div className="flex-1 overflow-y-auto">
         <div className={cn(pageContentClassName, 'space-y-6')}>
         <PageHeader
@@ -106,7 +116,7 @@ export default function NotebooksPage() {
           }
         />
         
-        <div className="space-y-6">
+        <div className="space-y-4">
           <NotebookList 
             notebooks={filteredActive} 
             isLoading={isLoading}
@@ -135,6 +145,6 @@ export default function NotebooksPage() {
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
       />
-    </AppShell>
+    </>
   )
 }

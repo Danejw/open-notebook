@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { LoaderIcon, CheckCircleIcon, XCircleIcon } from 'lucide-react'
+import { CheckCircleIcon, XCircleIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -472,19 +472,15 @@ export function AddSourceDialog({
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="flex items-center gap-3">
-              <LoaderIcon className="h-5 w-5 animate-spin text-primary" />
-              <span className="text-sm text-muted-foreground">
-                {processingStatus?.message || t('common.processing')}
-              </span>
-            </div>
+            <p className="text-sm text-muted-foreground">
+              {processingStatus?.message || t('common.processing')}
+            </p>
 
-            {/* Batch progress */}
             {batchProgress && (
               <>
-                <div className="w-full bg-muted rounded-full h-2">
+                <div className="h-2 w-full rounded-full bg-muted">
                   <div
-                    className="bg-primary h-2 rounded-full transition-all duration-300"
+                    className="h-2 rounded-full bg-primary transition-all duration-300"
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
@@ -502,28 +498,27 @@ export function AddSourceDialog({
                       </span>
                     )}
                   </div>
-                   <span className="text-muted-foreground">
+                  <span className="text-muted-foreground">
                     {batchProgress.completed + batchProgress.failed} / {batchProgress.total}
                   </span>
                 </div>
 
                 {batchProgress.currentItem && (
-                  <p className="text-xs text-muted-foreground truncate">
+                  <p className="truncate text-xs text-muted-foreground">
                     {t('common.current')}: {batchProgress.currentItem}
                   </p>
                 )}
               </>
             )}
 
-            {/* Single source progress */}
-            {!batchProgress && processingStatus?.progress && (
-              <div className="w-full bg-muted rounded-full h-2">
+            {!batchProgress && processingStatus?.progress ? (
+              <div className="h-2 w-full rounded-full bg-muted">
                 <div
-                  className="bg-primary h-2 rounded-full transition-all duration-300"
+                  className="h-2 rounded-full bg-primary transition-all duration-300"
                   style={{ width: `${processingStatus.progress}%` }}
                 />
               </div>
-            )}
+            ) : null}
           </div>
         </DialogContent>
       </Dialog>

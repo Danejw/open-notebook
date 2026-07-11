@@ -4,8 +4,8 @@ import { NotebookResponse } from '@/lib/types/api'
 import { NotebookCard } from './NotebookCard'
 import { NotebookRow } from './NotebookRow'
 import { useNotebookViewStore } from '@/lib/stores/notebook-view-store'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { EmptyState } from '@/components/common/EmptyState'
+import { ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
 import { Book, ChevronDown, ChevronRight, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
@@ -22,10 +22,10 @@ interface NotebookListProps {
   actionLabel?: string
 }
 
-export function NotebookList({ 
-  notebooks, 
-  isLoading, 
-  title, 
+export function NotebookList({
+  notebooks,
+  isLoading,
+  title,
   collapsible = false,
   emptyTitle,
   emptyDescription,
@@ -38,8 +38,9 @@ export function NotebookList({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <LoadingSpinner size="lg" />
+      <div className="space-y-2">
+        <div className="h-4 w-36 animate-pulse rounded bg-muted" />
+        <ListRowsSkeleton rows={4} withHeader={false} />
       </div>
     )
   }
@@ -50,51 +51,62 @@ export function NotebookList({
         icon={Book}
         title={emptyTitle ?? t('common.noResults')}
         description={emptyDescription ?? t('chat.startByCreating')}
-        action={onAction && actionLabel ? (
-          <Button onClick={onAction} variant="outline" className="mt-4">
-            <Plus className="h-4 w-4 mr-2" />
-            {actionLabel}
-          </Button>
-        ) : undefined}
+        action={
+          onAction && actionLabel ? (
+            <Button onClick={onAction} variant="outline" size="sm" className="mt-3 h-7 text-xs">
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              {actionLabel}
+            </Button>
+          ) : undefined
+        }
       />
     )
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        {collapsible && (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1">
+        {collapsible ? (
           <Button
             variant="ghost"
             size="sm"
+            className="h-7 w-7 p-0"
             onClick={() => setIsExpanded(!isExpanded)}
+            aria-expanded={isExpanded}
+            aria-label={title}
           >
             {isExpanded ? (
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="h-3.5 w-3.5" />
             ) : (
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-3.5 w-3.5" />
             )}
           </Button>
-        )}
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <span className="text-sm text-muted-foreground">({notebooks.length})</span>
+        ) : null}
+        <h2 className="text-sm font-semibold leading-none">
+          {title}{' '}
+          <span className="font-normal text-muted-foreground">({notebooks.length})</span>
+        </h2>
       </div>
 
-      {isExpanded && (
+      {isExpanded ? (
         viewMode === 'list' ? (
-          <div className="flex flex-col gap-2">
-            {notebooks.map((notebook) => (
-              <NotebookRow key={notebook.id} notebook={notebook} />
-            ))}
+          <div className="overflow-hidden rounded-md border">
+            <div className="divide-y">
+              {notebooks.map((notebook) => (
+                <NotebookRow key={notebook.id} notebook={notebook} />
+              ))}
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {notebooks.map((notebook) => (
-              <NotebookCard key={notebook.id} notebook={notebook} />
+              <div key={notebook.id} className="overflow-hidden rounded-md border">
+                <NotebookCard notebook={notebook} />
+              </div>
             ))}
           </div>
         )
-      )}
+      ) : null}
     </div>
   )
 }

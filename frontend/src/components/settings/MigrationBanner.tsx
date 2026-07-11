@@ -2,7 +2,8 @@
 
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { AlertTriangle, ArrowRight, Loader2 } from 'lucide-react'
+import { AlertTriangle, ArrowRight } from 'lucide-react'
+import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { useMigrateFromEnv } from '@/lib/hooks/use-credentials'
 
@@ -37,7 +38,7 @@ export function MigrationBanner({ providersToMigrate }: MigrationBannerProps) {
         >
           {migrate.isPending ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <InlineSkeleton className="mr-2" />
               {t('apiKeys.migrating')}
             </>
           ) : (

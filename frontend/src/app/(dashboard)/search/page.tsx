@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
@@ -20,10 +19,12 @@ import { useSearch } from '@/lib/hooks/use-search'
 import { useAsk } from '@/lib/hooks/use-ask'
 import { useModelDefaults, useModels } from '@/lib/hooks/use-models'
 import { useModalManager } from '@/lib/hooks/use-modal-manager'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { InlineSkeleton, PickerDialogSkeleton, SearchButtonSkeleton } from '@/components/common/LoadingSkeletons'
 import { StreamingResponse } from '@/components/search/StreamingResponse'
 import { AdvancedModelsDialog } from '@/components/search/AdvancedModelsDialog'
 import { SaveToNotebooksDialog } from '@/components/search/SaveToNotebooksDialog'
+
+const SEARCH_PAGE_SIZE = 30
 
 export default function SearchPage() {
   const { t } = useTranslation()
@@ -57,12 +58,23 @@ export default function SearchPage() {
 
   // Save to notebooks dialog
   const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [searchLimit, setSearchLimit] = useState(SEARCH_PAGE_SIZE)
+
+  const needsModelDefaults =
+    activeTab === 'ask' ||
+    urlMode === 'ask' ||
+    showAdvancedModels ||
+    (activeTab === 'search' && searchType === 'vector')
 
   // Hooks
   const searchMutation = useSearch()
   const ask = useAsk()
-  const { data: modelDefaults, isLoading: modelsLoading } = useModelDefaults()
-  const { data: availableModels } = useModels()
+  const { data: modelDefaults, isLoading: modelsLoading } = useModelDefaults({
+    enabled: needsModelDefaults,
+  })
+  const { data: availableModels } = useModels({
+    enabled: needsModelDefaults || showAdvancedModels,
+  })
   const { openModal } = useModalManager()
 
   const modelNameById = useMemo(() => {
@@ -86,15 +98,36 @@ export default function SearchPage() {
   const handleSearch = useCallback(() => {
     if (!searchQuery.trim()) return
 
+    setSearchLimit(SEARCH_PAGE_SIZE)
     searchMutation.mutate({
       query: searchQuery,
       type: searchType,
-      limit: 100,
+      limit: SEARCH_PAGE_SIZE,
       search_sources: searchSources,
       search_notes: searchNotes,
       minimum_score: 0.2
     })
   }, [searchQuery, searchType, searchSources, searchNotes, searchMutation])
+
+  const handleLoadMoreResults = useCallback(() => {
+    if (!searchQuery.trim() || !searchMutation.data) return
+
+    const nextLimit = Math.min(
+      searchMutation.data.total_count,
+      searchLimit + SEARCH_PAGE_SIZE
+    )
+    if (nextLimit <= searchLimit) return
+
+    setSearchLimit(nextLimit)
+    searchMutation.mutate({
+      query: searchQuery,
+      type: searchType,
+      limit: nextLimit,
+      search_sources: searchSources,
+      search_notes: searchNotes,
+      minimum_score: 0.2
+    })
+  }, [searchQuery, searchType, searchSources, searchNotes, searchLimit, searchMutation])
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -158,8 +191,7 @@ export default function SearchPage() {
   }, [searchParams])
 
   return (
-    <AppShell>
-      <div className={`flex-1 overflow-y-auto ${pageContentClassName}`}>
+          <div className={`flex-1 overflow-y-auto ${pageContentClassName}`}>
         <PageHeader bordered className="mb-6" title={t('searchPage.askAndSearch')} />
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'ask' | 'search')} className="w-full space-y-6">
@@ -254,7 +286,7 @@ export default function SearchPage() {
                       >
                         {ask.isStreaming ? (
                           <>
-                            <LoadingSpinner size="sm" className="mr-2" />
+                            <InlineSkeleton className="mr-2" />
                             {t('searchPage.processing')}
                           </>
                         ) : (
@@ -345,7 +377,7 @@ export default function SearchPage() {
                       className="w-full sm:w-auto"
                     >
                       {searchMutation.isPending ? (
-                        <LoadingSpinner size="sm" />
+                        <SearchButtonSkeleton />
                       ) : (
                         <Search className="h-4 w-4 mr-2" />
                       )}
@@ -491,6 +523,27 @@ export default function SearchPage() {
                         )})}
                       </div>
                     )}
+
+                    {searchMutation.data.results.length > 0 &&
+                    searchMutation.data.total_count > searchMutation.data.results.length ? (
+                      <div className="flex justify-center pt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleLoadMoreResults}
+                          disabled={searchMutation.isPending}
+                        >
+                          {searchMutation.isPending ? (
+                            <>
+                              <InlineSkeleton className="mr-2" />
+                              <span>{t('sources.loadingMore')}</span>
+                            </>
+                          ) : (
+                            t('sources.loadingMore')
+                          )}
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
                 )}
               </CardContent>
@@ -498,6 +551,5 @@ export default function SearchPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </AppShell>
   )
 }

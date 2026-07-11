@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Plus, StickyNote, Bot, User, MoreVertical, Trash2, ListChecks } from 'lucide-react'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { ColumnCardsSkeleton, CompactListRowSkeleton } from '@/components/common/LoadingSkeletons'
 import { EmptyState } from '@/components/common/EmptyState'
 import { Badge } from '@/components/ui/badge'
 import { NoteEditorDialog } from './NoteEditorDialog'
@@ -137,9 +137,7 @@ export function NotesColumn({
 
           <CardContent className={columnBodyClassName}>
             {isLoading ? (
-              <div className="flex items-center justify-center py-4">
-                <LoadingSpinner />
-              </div>
+              <ColumnCardsSkeleton count={3} />
             ) : !notes || notes.length === 0 ? (
               <EmptyState
                 icon={StickyNote}

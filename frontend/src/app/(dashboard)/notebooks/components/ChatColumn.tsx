@@ -2,44 +2,46 @@
 
 import { useMemo } from 'react'
 import { useNotebookChat } from '@/lib/hooks/useNotebookChat'
-import { useNotes } from '@/lib/hooks/use-notes'
 import { ChatPanel } from '@/components/source/ChatPanel'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 import { AlertCircle } from 'lucide-react'
 import { ContextSelections } from '../[id]/page'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { SourceListResponse } from '@/lib/types/api'
+import { NoteResponse, SourceListResponse } from '@/lib/types/api'
 
 interface ChatColumnProps {
   notebookId: string
   contextSelections: ContextSelections
   sources: SourceListResponse[]
   sourcesLoading: boolean
+  notes: NoteResponse[]
+  notesLoading: boolean
 }
 
-export function ChatColumn({ notebookId, contextSelections, sources, sourcesLoading }: ChatColumnProps) {
+export function ChatColumn({
+  notebookId,
+  contextSelections,
+  sources,
+  sourcesLoading,
+  notes,
+  notesLoading,
+}: ChatColumnProps) {
   const { t } = useTranslation()
 
-  // Fetch notes for this notebook
-  const { data: notes = [], isLoading: notesLoading } = useNotes(notebookId)
-
-  // Initialize notebook chat hook
   const chat = useNotebookChat({
     notebookId,
     sources,
     notes,
-    contextSelections
+    contextSelections,
   })
 
-  // Calculate context stats for indicator
   const contextStats = useMemo(() => {
     let sourcesInsights = 0
     let sourcesFull = 0
     let notesCount = 0
 
-    // Count sources by mode
-    sources.forEach(source => {
+    sources.forEach((source) => {
       const mode = contextSelections.sources[source.id]
       if (mode === 'insights') {
         sourcesInsights++
@@ -48,8 +50,7 @@ export function ChatColumn({ notebookId, contextSelections, sources, sourcesLoad
       }
     })
 
-    // Count notes that are included (not 'off')
-    notes.forEach(note => {
+    notes.forEach((note) => {
       const mode = contextSelections.notes[note.id]
       if (mode === 'full') {
         notesCount++
@@ -61,30 +62,32 @@ export function ChatColumn({ notebookId, contextSelections, sources, sourcesLoad
       sourcesFull,
       notesCount,
       tokenCount: chat.tokenCount,
-      charCount: chat.charCount
+      charCount: chat.charCount,
     }
   }, [sources, notes, contextSelections, chat.tokenCount, chat.charCount])
 
-  // Show loading state while sources/notes are being fetched
-  if (sourcesLoading || notesLoading) {
+  const showChatSkeleton = sourcesLoading && sources.length === 0
+
+  if (showChatSkeleton) {
     return (
-      <Card className="h-full flex flex-col">
-        <CardContent className="flex-1 flex items-center justify-center">
-          <LoadingSpinner size="lg" />
+      <Card className="flex h-full flex-col">
+        <CardContent className="flex flex-1 flex-col gap-3 p-3">
+          <Skeleton className="h-8 w-40" />
+          <Skeleton className="flex-1 rounded-lg" />
+          <Skeleton className="h-10 w-full" />
         </CardContent>
       </Card>
     )
   }
 
-  // Show error state if data fetch failed (unlikely but good to handle)
   if (!sources && !notes) {
     return (
-      <Card className="h-full flex flex-col">
-        <CardContent className="flex-1 flex items-center justify-center">
+      <Card className="flex h-full flex-col">
+        <CardContent className="flex flex-1 items-center justify-center">
           <div className="text-center text-muted-foreground">
-            <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <AlertCircle className="mx-auto mb-4 h-12 w-12 opacity-50" />
             <p className="text-sm">{t('chat.unableToLoadChat')}</p>
-            <p className="text-xs mt-2">{t('common.refreshPage') || 'Please try refreshing the page'}</p>
+            <p className="mt-2 text-xs">{t('common.refreshPage') || 'Please try refreshing the page'}</p>
           </div>
         </CardContent>
       </Card>
@@ -112,7 +115,7 @@ export function ChatColumn({ notebookId, contextSelections, sources, sourcesLoad
       onSelectSession={chat.switchSession}
       onUpdateSession={(sessionId, title) => chat.updateSession(sessionId, { title })}
       onDeleteSession={chat.deleteSession}
-      loadingSessions={chat.loadingSessions}
+      loadingSessions={chat.loadingSessions || notesLoading}
       notebookContextStats={contextStats}
       notebookId={notebookId}
       selectedSkillIds={chat.selectedSkillIds}

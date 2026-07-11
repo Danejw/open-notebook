@@ -22,7 +22,7 @@ import {
 import { Settings2, Sparkles } from 'lucide-react'
 import { useModelDefaults, useModels } from '@/lib/hooks/use-models'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { InlineSkeleton, PickerDialogSkeleton, SelectMenuSkeleton } from '@/components/common/LoadingSkeletons'
 
 interface ModelSelectorProps {
   currentModel?: string
@@ -129,9 +129,7 @@ export function ModelSelector({
                   </div>
                 </SelectItem>
                 {isLoading ? (
-                  <div className="flex items-center justify-center py-2">
-                    <LoadingSpinner size="sm" />
-                  </div>
+                  <SelectMenuSkeleton rows={3} />
                 ) : (
                   languageModels.map((model) => (
                     <SelectItem key={model.id} value={model.id}>

@@ -44,6 +44,42 @@ export function useSourceChat(sourceId: string) {
   const [activityLog, setActivityLog] = useState<string[]>([])
   const [liveMcpToolCalls, setLiveMcpToolCalls] = useState<ChatToolCall[]>([])
   const abortControllerRef = useRef<AbortController | null>(null)
+  const streamContentRef = useRef<Map<string, string>>(new Map())
+  const streamRafRef = useRef<number | null>(null)
+
+  const flushStreamingContent = useCallback(() => {
+    streamRafRef.current = null
+    const snapshot = new Map(streamContentRef.current)
+    if (snapshot.size === 0) return
+    setMessages((prev) =>
+      prev.map((msg) => {
+        const streamed = snapshot.get(msg.id)
+        return streamed !== undefined ? { ...msg, content: streamed } : msg
+      })
+    )
+  }, [])
+
+  const scheduleStreamingFlush = useCallback(() => {
+    if (streamRafRef.current != null) return
+    streamRafRef.current = requestAnimationFrame(flushStreamingContent)
+  }, [flushStreamingContent])
+
+  const appendStreamingDelta = useCallback(
+    (messageId: string, delta: string) => {
+      const prev = streamContentRef.current.get(messageId) ?? ''
+      streamContentRef.current.set(messageId, prev + delta)
+      scheduleStreamingFlush()
+    },
+    [scheduleStreamingFlush]
+  )
+
+  const clearStreamingBuffers = useCallback(() => {
+    if (streamRafRef.current != null) {
+      cancelAnimationFrame(streamRafRef.current)
+      streamRafRef.current = null
+    }
+    streamContentRef.current.clear()
+  }, [])
 
   // Fetch sessions
   const { data: sessions = [], isLoading: loadingSessions, refetch: refetchSessions } = useQuery<SourceChatSession[]>({
@@ -89,6 +125,17 @@ export function useSourceChat(sourceId: string) {
       setCurrentSessionId(mostRecentSession.id)
     }
   }, [sessions, currentSessionId])
+
+  // Prefetch the most recent session in parallel with session list resolution
+  useEffect(() => {
+    const firstSession = sessions[0]
+    if (!firstSession || !sourceId) return
+
+    void queryClient.prefetchQuery({
+      queryKey: ['sourceChatSession', sourceId, firstSession.id],
+      queryFn: () => sourceChatApi.getSession(sourceId, firstSession.id),
+    })
+  }, [sessions, sourceId, queryClient])
 
   // Create session mutation
   const createSessionMutation = useMutation({
@@ -175,13 +222,23 @@ export function useSourceChat(sourceId: string) {
     setActivityLog([])
     setLiveMcpToolCalls([])
 
+    clearStreamingBuffers()
+    abortControllerRef.current?.abort()
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
+
     try {
-      const response = await sourceChatApi.sendMessage(sourceId, sessionId, {
-        message,
-        model_override: modelOverride,
-        skill_ids: selectedSkillIds,
-        mcp_tool_ids: selectedMcpToolIds,
-      })
+      const response = await sourceChatApi.sendMessage(
+        sourceId,
+        sessionId,
+        {
+          message,
+          model_override: modelOverride,
+          skill_ids: selectedSkillIds,
+          mcp_tool_ids: selectedMcpToolIds,
+        },
+        abortController.signal
+      )
 
       if (!response) {
         throw new Error('No response body')
@@ -217,6 +274,7 @@ export function useSourceChat(sourceId: string) {
           }
           case 'TEXT_MESSAGE_START': {
             aiMessageId = (event.messageId as string) || `ai-${Date.now()}`
+            streamContentRef.current.set(aiMessageId, '')
             setMessages((prev) => [
               ...prev,
               {
@@ -241,6 +299,7 @@ export function useSourceChat(sourceId: string) {
             }
             if (!aiMessageId) {
               aiMessageId = (event.messageId as string) || `ai-${Date.now()}`
+              streamContentRef.current.set(aiMessageId, delta)
               setMessages((prev) => [
                 ...prev,
                 {
@@ -251,14 +310,7 @@ export function useSourceChat(sourceId: string) {
                 },
               ])
             } else {
-              const targetId = aiMessageId
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === targetId
-                    ? { ...msg, content: msg.content + delta }
-                    : msg
-                )
-              )
+              appendStreamingDelta(aiMessageId, delta)
             }
             break
           }
@@ -282,14 +334,19 @@ export function useSourceChat(sourceId: string) {
           default:
             break
         }
-      })
+      }, abortController.signal)
     } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return
+      }
       const error = err as { response?: { data?: { detail?: string } }, message?: string };
       console.error('Error sending message:', error)
       toast.error(getApiErrorMessage(error.response?.data?.detail || error.message, (key) => t(key), 'apiErrors.failedToSendMessage'))
       // Remove optimistic messages on error
       setMessages(prev => prev.filter(msg => !msg.id.startsWith('temp-')))
     } finally {
+      flushStreamingContent()
+      clearStreamingBuffers()
       setIsStreaming(false)
       setStreamStatus(null)
       setActivityLog([])
@@ -300,8 +357,11 @@ export function useSourceChat(sourceId: string) {
         })
       }
       setLiveMcpToolCalls([])
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null
+      }
     }
-  }, [sourceId, currentSessionId, selectedSkillIds, selectedMcpToolIds, refetchCurrentSession, queryClient, t])
+  }, [sourceId, currentSessionId, selectedSkillIds, selectedMcpToolIds, refetchCurrentSession, queryClient, t, appendStreamingDelta, flushStreamingContent, clearStreamingBuffers])
 
   // Cancel streaming
   const cancelStreaming = useCallback(() => {

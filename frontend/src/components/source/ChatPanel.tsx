@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useRef, useEffect, useId, useMemo } from 'react'
+import { useState, useId, useMemo, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { Send, Loader2, FileText, Lightbulb, StickyNote, Clock, Pencil } from 'lucide-react'
+import { Send, FileText, Lightbulb, StickyNote, Clock } from 'lucide-react'
+import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
 import {
   SourceChatMessage,
   SourceChatContextIndicator,
@@ -16,6 +16,7 @@ import { ModelSelector } from './ModelSelector'
 import { SkillPicker } from '@/components/skills/SkillPicker'
 import { ToolPicker } from '@/components/mcp/ToolPicker'
 import { ToolCallCard } from '@/components/mcp/ToolCallCard'
+import { ChatMessageList } from '@/components/source/ChatMessageList'
 import { useMcpSessionToolCalls } from '@/lib/hooks/use-mcp'
 import {
   groupToolCallsByMessage,
@@ -24,10 +25,7 @@ import {
 import { ChatToolCall } from '@/lib/types/mcp'
 import { ContextIndicator } from '@/components/common/ContextIndicator'
 import { AgentActivityStatus } from '@/components/common/AgentActivityStatus'
-import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
 import { SessionManager } from '@/components/source/SessionManager'
-import { MessageActions } from '@/components/source/MessageActions'
-import { convertReferencesToCompactMarkdown, createCompactReferenceLinkComponent } from '@/lib/utils/source-references'
 import { useModalManager } from '@/lib/hooks/use-modal-manager'
 import { toast } from 'sonner'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -133,23 +131,65 @@ export function ChatPanel({
   const [sessionManagerOpen, setSessionManagerOpen] = useState(false)
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState('')
-  const scrollAreaRef = useRef<HTMLDivElement>(null)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
   const { openModal } = useModalManager()
 
-  const handleReferenceClick = (type: string, id: string) => {
-    const modalType = type === 'source_insight' ? 'insight' : type as 'source' | 'note' | 'insight'
+  const handleReferenceClick = useCallback(
+    (type: string, id: string) => {
+      const modalType = type === 'source_insight' ? 'insight' : (type as 'source' | 'note' | 'insight')
 
-    try {
-      openModal(modalType, id)
-    } catch {
-      toast.error(t('common.noResults'))
-    }
-  }
+      try {
+        openModal(modalType, id)
+      } catch {
+        toast.error(t('common.noResults'))
+      }
+    },
+    [openModal, t]
+  )
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  const startEditingMessage = useCallback(
+    (messageId: string, content: string) => {
+      if (isStreaming || !onEditMessage) return
+      setEditingMessageId(messageId)
+      setEditDraft(content)
+    },
+    [isStreaming, onEditMessage]
+  )
+
+  const cancelEditingMessage = useCallback(() => {
+    setEditingMessageId(null)
+    setEditDraft('')
+  }, [])
+
+  const submitEditedMessage = useCallback(() => {
+    if (!editingMessageId || !editDraft.trim() || isStreaming || !onEditMessage) return
+    onEditMessage(editingMessageId, editDraft.trim(), modelOverride)
+    setEditingMessageId(null)
+    setEditDraft('')
+  }, [editDraft, editingMessageId, isStreaming, modelOverride, onEditMessage])
+
+  const handleEditKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      const isMac =
+        typeof navigator !== 'undefined' && navigator.userAgent.toUpperCase().indexOf('MAC') >= 0
+      const isModifierPressed = isMac ? e.metaKey : e.ctrlKey
+
+      if (e.key === 'Enter' && isModifierPressed) {
+        e.preventDefault()
+        submitEditedMessage()
+      }
+
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        cancelEditingMessage()
+      }
+    },
+    [cancelEditingMessage, submitEditedMessage]
+  )
+
+  const streamingMessageId =
+    isStreaming && messages.length > 0
+      ? [...messages].reverse().find((m) => m.type === 'ai')?.id
+      : undefined
 
   const handleSend = () => {
     if (input.trim() && !isStreaming) {
@@ -165,43 +205,6 @@ export function ChatPanel({
     if (e.key === 'Enter' && isModifierPressed) {
       e.preventDefault()
       handleSend()
-    }
-  }
-
-  const startEditingMessage = (messageId: string, content: string) => {
-    if (isStreaming || !onEditMessage) {
-      return
-    }
-    setEditingMessageId(messageId)
-    setEditDraft(content)
-  }
-
-  const cancelEditingMessage = () => {
-    setEditingMessageId(null)
-    setEditDraft('')
-  }
-
-  const submitEditedMessage = () => {
-    if (!editingMessageId || !editDraft.trim() || isStreaming || !onEditMessage) {
-      return
-    }
-    onEditMessage(editingMessageId, editDraft.trim(), modelOverride)
-    setEditingMessageId(null)
-    setEditDraft('')
-  }
-
-  const handleEditKeyDown = (e: React.KeyboardEvent) => {
-    const isMac = typeof navigator !== 'undefined' && navigator.userAgent.toUpperCase().indexOf('MAC') >= 0
-    const isModifierPressed = isMac ? e.metaKey : e.ctrlKey
-
-    if (e.key === 'Enter' && isModifierPressed) {
-      e.preventDefault()
-      submitEditedMessage()
-    }
-
-    if (e.key === 'Escape') {
-      e.preventDefault()
-      cancelEditingMessage()
     }
   }
 
@@ -251,140 +254,48 @@ export function ChatPanel({
           }
         />
 
-        <CardContent className="flex-1 flex flex-col min-h-0 p-0">
-          <ScrollArea className="flex-1 min-h-0 px-2" ref={scrollAreaRef}>
-            <div className="flex flex-col gap-1.5 py-0">
-              {messages.length === 0 ? (
-                <div className="text-center text-muted-foreground py-3 px-2">
-                  <p className="text-sm">
-                    {t('chat.startConversation').replace(
-                      '{type}',
-                      contextType === 'source' ? t('navigation.sources') : t('common.notebook')
-                    )}
-                  </p>
-                </div>
-              ) : (
-                messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={cn(
-                      'group flex',
-                      message.type === 'human' ? 'justify-end' : 'justify-start'
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        'flex max-w-[88%] flex-col gap-0.5',
-                        message.type === 'human' ? 'items-end' : 'items-start'
-                      )}
-                    >
-                      {message.type === 'human' && editingMessageId === message.id ? (
-                        <div className="w-full min-w-[220px] rounded-lg border bg-background p-2 shadow-sm">
-                          <Textarea
-                            value={editDraft}
-                            onChange={(e) => setEditDraft(e.target.value)}
-                            onKeyDown={handleEditKeyDown}
-                            disabled={isStreaming}
-                            className="min-h-[72px] resize-none border-0 bg-transparent px-0 py-0 text-sm shadow-none focus-visible:ring-0"
-                            autoFocus
-                          />
-                          <div className="mt-2 flex justify-end gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-xs"
-                              onClick={cancelEditingMessage}
-                              disabled={isStreaming}
-                            >
-                              {t('common.cancel')}
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              className="h-7 px-2 text-xs"
-                              onClick={submitEditedMessage}
-                              disabled={!editDraft.trim() || isStreaming}
-                            >
-                              {t('chat.resend')}
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div
-                            className={cn(
-                              'rounded-lg px-3 py-1.5',
-                              message.type === 'human'
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-muted'
-                            )}
-                          >
-                            {message.type === 'ai' ? (
-                              <AIMessageContent
-                                content={message.content}
-                                onReferenceClick={handleReferenceClick}
-                              />
-                            ) : (
-                              <p className="text-sm break-words whitespace-pre-wrap">{message.content}</p>
-                            )}
-                          </div>
-                          {message.type === 'human' && onEditMessage && (
-                            <div className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 px-1.5 text-[11px] text-muted-foreground"
-                                onClick={() => startEditingMessage(message.id, message.content)}
-                                disabled={isStreaming || editingMessageId !== null}
-                                aria-label={t('chat.editMessage')}
-                              >
-                                <Pencil className="mr-1 h-3 w-3" />
-                                {t('chat.edit')}
-                              </Button>
-                            </div>
-                          )}
-                          {message.type === 'ai' && (
-                            <div className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                              <MessageActions
-                                content={message.content}
-                                notebookId={notebookId}
-                              />
-                            </div>
-                          )}
-                          {message.type === 'ai' && (toolCallsByMessageId.get(message.id)?.length ?? 0) > 0 && (
-                            <div className="w-full space-y-1.5 pt-1">
-                              {toolCallsByMessageId.get(message.id)?.map((toolCall) => (
-                                <ToolCallCard key={toolCall.id} toolCall={toolCall} />
-                              ))}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-
-              {isStreaming && (
+        <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+          <ChatMessageList
+            messages={messages}
+            isStreaming={isStreaming}
+            streamingMessageId={streamingMessageId}
+            editingMessageId={editingMessageId}
+            editDraft={editDraft}
+            notebookId={notebookId}
+            toolCallsByMessageId={toolCallsByMessageId}
+            canEdit={Boolean(onEditMessage)}
+            editLocked={editingMessageId !== null}
+            onReferenceClick={handleReferenceClick}
+            onStartEdit={startEditingMessage}
+            onEditDraftChange={setEditDraft}
+            onCancelEdit={cancelEditingMessage}
+            onSubmitEdit={submitEditedMessage}
+            onEditKeyDown={handleEditKeyDown}
+            emptyState={
+              <div className="px-2 py-3 text-center text-muted-foreground">
+                <p className="text-sm">
+                  {t('chat.startConversation').replace(
+                    '{type}',
+                    contextType === 'source' ? t('navigation.sources') : t('common.notebook')
+                  )}
+                </p>
+              </div>
+            }
+            footer={
+              isStreaming ? (
                 <>
                   {pendingToolCalls.length > 0 && (
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 px-0">
                       {pendingToolCalls.map((toolCall) => (
                         <ToolCallCard key={toolCall.id} toolCall={toolCall} />
                       ))}
                     </div>
                   )}
-                  <AgentActivityStatus
-                    streamStatus={streamStatus}
-                    activityLog={activityLog}
-                  />
+                  <AgentActivityStatus streamStatus={streamStatus} activityLog={activityLog} />
                 </>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-          </ScrollArea>
+              ) : undefined
+            }
+          />
 
           {/* Source-chat context counts (compact inline meta) */}
           {contextIndicators && (
@@ -463,7 +374,7 @@ export function ChatPanel({
                 className="h-8 w-8 flex-shrink-0"
               >
                 {isStreaming ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <InlineSkeleton />
                 ) : (
                   <Send className="h-4 w-4" />
                 )}
@@ -473,26 +384,5 @@ export function ChatPanel({
         </CardContent>
       </Card>
     </>
-  )
-}
-
-function AIMessageContent({
-  content,
-  onReferenceClick
-}: {
-  content: string
-  onReferenceClick: (type: string, id: string) => void
-}) {
-  const { t } = useTranslation()
-  const markdownWithCompactRefs = convertReferencesToCompactMarkdown(content, t('common.references'))
-  const LinkComponent = createCompactReferenceLinkComponent(onReferenceClick)
-
-  return (
-    <MarkdownRenderer
-      size="sm"
-      components={{ a: LinkComponent }}
-    >
-      {markdownWithCompactRefs}
-    </MarkdownRenderer>
   )
 }

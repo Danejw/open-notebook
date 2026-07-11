@@ -9,7 +9,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Progress } from '@/components/ui/progress'
-import { Loader2, AlertCircle, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { AlertCircle, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Accordion,
   AccordionContent,
@@ -202,7 +204,7 @@ export function RebuildEmbeddings() {
             >
               {rebuildMutation.isPending ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <InlineSkeleton className="mr-2" />
                   {t('advanced.rebuild.starting')}
                 </>
               ) : (
@@ -227,7 +229,7 @@ export function RebuildEmbeddings() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {status.status === 'queued' && <Clock className="h-5 w-5 text-yellow-500" />}
-                {status.status === 'running' && <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />}
+                {status.status === 'running' && <Skeleton className="h-5 w-5 rounded-sm" />}
                 {status.status === 'completed' && <CheckCircle2 className="h-5 w-5 text-green-500" />}
                 {status.status === 'failed' && <XCircle className="h-5 w-5 text-red-500" />}
                 <div className="flex flex-col">

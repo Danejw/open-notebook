@@ -6,6 +6,15 @@ import { useToast } from '@/lib/hooks/use-toast'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { getApiErrorMessage } from '@/lib/utils/error-handler'
 import {
+  buildOptimisticSource,
+  prependSourceToAllQueries,
+  replaceSourceInAllQueries,
+  restoreSourceListQueries,
+  snapshotSourceListQueries,
+  removeSourceFromAllQueries,
+  removeSourceFromNotebookQueries,
+} from '@/lib/utils/source-query-cache'
+import {
   CreateSourceRequest,
   UpdateSourceRequest,
   SourceResponse,
@@ -50,8 +59,8 @@ export function useNotebookSources(notebookId: string) {
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.nextOffset,
     enabled: !!notebookId,
-    staleTime: 5 * 1000,
-    refetchOnWindowFocus: true,
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: false,
   })
 
   // Flatten all pages into a single array (memoized to prevent infinite re-renders)
@@ -76,6 +85,53 @@ export function useNotebookSources(notebookId: string) {
   }
 }
 
+const ALL_SOURCES_PAGE_SIZE = 30
+
+export type SourcesSortBy = 'created' | 'updated'
+export type SourcesSortOrder = 'asc' | 'desc'
+
+/**
+ * Infinite list of all sources (global sources page).
+ */
+export function useAllSourcesInfinite(sortBy: SourcesSortBy, sortOrder: SourcesSortOrder) {
+  const query = useInfiniteQuery({
+    queryKey: QUERY_KEYS.sourcesAllInfinite(sortBy, sortOrder),
+    queryFn: async ({ pageParam = 0 }) => {
+      const data = await sourcesApi.list({
+        limit: ALL_SOURCES_PAGE_SIZE,
+        offset: pageParam,
+        sort_by: sortBy,
+        sort_order: sortOrder,
+      })
+      return {
+        sources: data,
+        nextOffset: data.length === ALL_SOURCES_PAGE_SIZE ? pageParam + data.length : undefined,
+      }
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => lastPage.nextOffset,
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: false,
+    placeholderData: (previousData) => previousData,
+  })
+
+  const sources: SourceListResponse[] = useMemo(
+    () => query.data?.pages.flatMap((page) => page.sources) ?? [],
+    [query.data?.pages]
+  )
+
+  return {
+    sources,
+    isLoading: query.isLoading,
+    isFetching: query.isFetching,
+    isFetchingNextPage: query.isFetchingNextPage,
+    hasNextPage: query.hasNextPage,
+    fetchNextPage: query.fetchNextPage,
+    error: query.error,
+    refetch: query.refetch,
+  }
+}
+
 export function useSource(id: string) {
   return useQuery({
     queryKey: QUERY_KEYS.source(id),
@@ -93,7 +149,17 @@ export function useCreateSource() {
 
   return useMutation({
     mutationFn: (data: CreateSourceRequest) => sourcesApi.create(data),
-    onSuccess: (result: SourceResponse, variables) => {
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: ['sources'] })
+      const previous = snapshotSourceListQueries(queryClient)
+      const optimistic = buildOptimisticSource(variables)
+      prependSourceToAllQueries(queryClient, optimistic)
+      return { previous, optimisticId: optimistic.id }
+    },
+    onSuccess: (result: SourceResponse, variables, context) => {
+      if (context?.optimisticId) {
+        replaceSourceInAllQueries(queryClient, context.optimisticId, result)
+      }
       // Invalidate queries for all relevant notebooks with immediate refetch
       if (variables.notebooks) {
         variables.notebooks.forEach(notebookId => {
@@ -136,12 +202,18 @@ export function useCreateSource() {
         })
       }
     },
-    onError: (error: unknown) => {
+    onError: (error: unknown, _variables, context) => {
+      if (context?.previous) {
+        restoreSourceListQueries(queryClient, context.previous)
+      }
       toast({
         title: t('common.error'),
         description: getApiErrorMessage(error, (key) => t(key), t('sources.failedToAddSource')),
         variant: 'destructive',
       })
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['sources'] })
     },
   })
 }
@@ -180,22 +252,31 @@ export function useDeleteSource() {
 
   return useMutation({
     mutationFn: (id: string) => sourcesApi.delete(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['sources'] })
+      const previous = snapshotSourceListQueries(queryClient)
+      removeSourceFromAllQueries(queryClient, id)
+      return { previous }
+    },
     onSuccess: (_, id) => {
-      // Invalidate ALL sources queries (both general and notebook-specific)
-      queryClient.invalidateQueries({ queryKey: ['sources'] })
-      // Also invalidate the specific source
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.source(id) })
       toast({
         title: t('common.success'),
         description: t('sources.sourceDeletedSuccess'),
       })
     },
-    onError: (error: unknown) => {
+    onError: (error: unknown, _id, context) => {
+      if (context?.previous) {
+        restoreSourceListQueries(queryClient, context.previous)
+      }
       toast({
         title: t('common.error'),
         description: getApiErrorMessage(error, (key) => t(key), t('sources.failedToDeleteSource')),
         variant: 'destructive',
       })
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['sources'] })
     },
   })
 }
@@ -362,25 +443,32 @@ export function useRemoveSourceFromNotebook() {
       const { notebooksApi } = await import('@/lib/api/notebooks')
       return notebooksApi.removeSource(notebookId, sourceId)
     },
+    onMutate: async ({ notebookId, sourceId }) => {
+      await queryClient.cancelQueries({ queryKey: ['sources'] })
+      const previous = snapshotSourceListQueries(queryClient)
+      removeSourceFromNotebookQueries(queryClient, notebookId, sourceId)
+      return { previous }
+    },
     onSuccess: (_, { notebookId, sourceId }) => {
-      // Invalidate ALL sources queries to refresh all lists
-      queryClient.invalidateQueries({ queryKey: ['sources'] })
-      // Specifically invalidate the notebook's sources
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sources(notebookId) })
-      // Also invalidate the specific source
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.source(sourceId) })
-
       toast({
         title: t('common.success'),
         description: t('sources.sourceRemovedFromNotebook'),
       })
     },
-    onError: (error: unknown) => {
+    onError: (error: unknown, _vars, context) => {
+      if (context?.previous) {
+        restoreSourceListQueries(queryClient, context.previous)
+      }
       toast({
         title: t('common.error'),
         description: getApiErrorMessage(error, (key) => t(key), t('sources.failedToRemoveSourceFromNotebook')),
         variant: 'destructive',
       })
+    },
+    onSettled: (_data, _error, { notebookId }) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sources(notebookId) })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sourcesInfinite(notebookId) })
     },
   })
 }

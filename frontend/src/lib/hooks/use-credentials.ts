@@ -23,20 +23,22 @@ export const CREDENTIAL_QUERY_KEYS = {
 /**
  * Hook to get the configuration status of all providers
  */
-export function useCredentialStatus() {
+export function useCredentialStatus(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: CREDENTIAL_QUERY_KEYS.status,
     queryFn: () => credentialsApi.getStatus(),
+    enabled: options?.enabled ?? true,
   })
 }
 
 /**
  * Hook to get the environment variable status
  */
-export function useEnvStatus() {
+export function useEnvStatus(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: CREDENTIAL_QUERY_KEYS.envStatus,
     queryFn: () => credentialsApi.getEnvStatus(),
+    enabled: options?.enabled ?? true,
   })
 }
 

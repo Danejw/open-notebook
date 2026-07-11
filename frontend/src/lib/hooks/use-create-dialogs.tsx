@@ -1,9 +1,22 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react'
-import { AddSourceDialog } from '@/components/sources/AddSourceDialog'
-import { CreateNotebookDialog } from '@/components/notebooks/CreateNotebookDialog'
-import { GeneratePodcastDialog } from '@/components/podcasts/GeneratePodcastDialog'
+
+const AddSourceDialog = dynamic(
+  () => import('@/components/sources/AddSourceDialog').then((m) => m.AddSourceDialog),
+  { ssr: false, loading: () => null }
+)
+
+const CreateNotebookDialog = dynamic(
+  () => import('@/components/notebooks/CreateNotebookDialog').then((m) => m.CreateNotebookDialog),
+  { ssr: false, loading: () => null }
+)
+
+const GeneratePodcastDialog = dynamic(
+  () => import('@/components/podcasts/GeneratePodcastDialog').then((m) => m.GeneratePodcastDialog),
+  { ssr: false, loading: () => null }
+)
 
 interface CreateDialogsContextType {
   openSourceDialog: () => void
@@ -31,9 +44,15 @@ export function CreateDialogsProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
-      <AddSourceDialog open={sourceDialogOpen} onOpenChange={setSourceDialogOpen} />
-      <CreateNotebookDialog open={notebookDialogOpen} onOpenChange={setNotebookDialogOpen} />
-      <GeneratePodcastDialog open={podcastDialogOpen} onOpenChange={setPodcastDialogOpen} />
+      {sourceDialogOpen ? (
+        <AddSourceDialog open={sourceDialogOpen} onOpenChange={setSourceDialogOpen} />
+      ) : null}
+      {notebookDialogOpen ? (
+        <CreateNotebookDialog open={notebookDialogOpen} onOpenChange={setNotebookDialogOpen} />
+      ) : null}
+      {podcastDialogOpen ? (
+        <GeneratePodcastDialog open={podcastDialogOpen} onOpenChange={setPodcastDialogOpen} />
+      ) : null}
     </CreateDialogsContext.Provider>
   )
 }

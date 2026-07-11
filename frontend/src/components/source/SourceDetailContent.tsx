@@ -10,7 +10,11 @@ import { transformationsApi } from '@/lib/api/transformations'
 import { embeddingApi } from '@/lib/api/embedding'
 import { SourceDetailResponse } from '@/lib/types/api'
 import { Transformation } from '@/lib/types/transformations'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import {
+  InlineSkeleton,
+  ListRowsSkeleton,
+  SourceDetailSkeleton,
+} from '@/components/common/LoadingSkeletons'
 import { InlineEdit } from '@/components/common/InlineEdit'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -369,11 +373,7 @@ export function SourceDetailContent({
   }
 
   if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center p-8">
-        <LoadingSpinner />
-      </div>
-    )
+    return <SourceDetailSkeleton />
   }
 
   if (error || !source) {
@@ -574,7 +574,7 @@ export function SourceDetailContent({
                     >
                       {creatingInsight ? (
                         <>
-                          <LoadingSpinner className="mr-2 h-3 w-3" />
+                          <InlineSkeleton className="mr-2 h-3 w-3" />
                           {t('common.creating')}
                         </>
                       ) : (
@@ -589,9 +589,7 @@ export function SourceDetailContent({
 
                 {/* Insights List */}
                 {loadingInsights ? (
-                  <div className="flex items-center justify-center py-8">
-                    <LoadingSpinner />
-                  </div>
+                  <ListRowsSkeleton rows={3} withHeader={false} />
                 ) : insights.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Lightbulb className="h-12 w-12 mx-auto mb-3 opacity-50" />

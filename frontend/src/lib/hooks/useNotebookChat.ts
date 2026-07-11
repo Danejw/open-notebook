@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/utils/error-handler'
@@ -54,6 +54,34 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
   const [streamStatus, setStreamStatus] = useState<string | null>(null)
   const [activityLog, setActivityLog] = useState<string[]>([])
   const [liveMcpToolCalls, setLiveMcpToolCalls] = useState<ChatToolCall[]>([])
+  const streamContentRef = useRef<Map<string, string>>(new Map())
+  const streamRafRef = useRef<number | null>(null)
+
+  const flushStreamingContent = useCallback(() => {
+    streamRafRef.current = null
+    const snapshot = new Map(streamContentRef.current)
+    if (snapshot.size === 0) return
+    setMessages((prev) =>
+      prev.map((msg) => {
+        const streamed = snapshot.get(msg.id)
+        return streamed !== undefined ? { ...msg, content: streamed } : msg
+      })
+    )
+  }, [])
+
+  const scheduleStreamingFlush = useCallback(() => {
+    if (streamRafRef.current != null) return
+    streamRafRef.current = requestAnimationFrame(flushStreamingContent)
+  }, [flushStreamingContent])
+
+  const appendStreamingDelta = useCallback(
+    (messageId: string, delta: string) => {
+      const prev = streamContentRef.current.get(messageId) ?? ''
+      streamContentRef.current.set(messageId, prev + delta)
+      scheduleStreamingFlush()
+    },
+    [scheduleStreamingFlush]
+  )
 
   // Fetch sessions for this notebook
   const {
@@ -106,6 +134,17 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
       setCurrentSessionId(mostRecentSession.id)
     }
   }, [sessions, currentSessionId])
+
+  // Prefetch the most recent session in parallel with session list resolution
+  useEffect(() => {
+    const firstSession = sessions[0]
+    if (!firstSession) return
+
+    void queryClient.prefetchQuery({
+      queryKey: QUERY_KEYS.notebookChatSession(firstSession.id),
+      queryFn: () => chatApi.getSession(firstSession.id),
+    })
+  }, [sessions, queryClient])
 
   // Create session mutation
   const createSessionMutation = useMutation({
@@ -316,6 +355,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
           }
           case 'TEXT_MESSAGE_START': {
             aiMessageId = (event.messageId as string) || `ai-${Date.now()}`
+            streamContentRef.current.set(aiMessageId, '')
             const newMsg: NotebookChatMessage = {
               id: aiMessageId,
               type: 'ai',
@@ -338,6 +378,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
             }
             if (!aiMessageId) {
               aiMessageId = (event.messageId as string) || `ai-${Date.now()}`
+              streamContentRef.current.set(aiMessageId, delta)
               setMessages((prev) => [
                 ...prev,
                 {
@@ -348,22 +389,26 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
                 },
               ])
             } else {
-              const targetId = aiMessageId
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === targetId
-                    ? { ...msg, content: msg.content + delta }
-                    : msg
-                )
-              )
+              appendStreamingDelta(aiMessageId, delta)
             }
             break
           }
           case 'TEXT_MESSAGE_END': {
+            if (streamRafRef.current != null) {
+              cancelAnimationFrame(streamRafRef.current)
+              streamRafRef.current = null
+            }
+            flushStreamingContent()
             setStreamStatus(null)
             break
           }
           case 'RUN_FINISHED': {
+            if (streamRafRef.current != null) {
+              cancelAnimationFrame(streamRafRef.current)
+              streamRafRef.current = null
+            }
+            flushStreamingContent()
+            streamContentRef.current.clear()
             setStreamStatus(null)
             break
           }
@@ -410,6 +455,8 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     messages,
     buildContext,
     buildContextConfig,
+    appendStreamingDelta,
+    flushStreamingContent,
     refetchCurrentSession,
     queryClient,
     t
@@ -493,16 +540,14 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     setSelectedMcpToolIdsState(ids)
   }, [])
 
-  // Update token/char counts when context selections change
+  // Update token/char counts when context selections change (debounced)
   useEffect(() => {
-    const updateContextCounts = async () => {
-      try {
-        await buildContext()
-      } catch (error) {
+    const timer = window.setTimeout(() => {
+      buildContext().catch((error) => {
         console.error('Error updating context counts:', error)
-      }
-    }
-    updateContextCounts()
+      })
+    }, 400)
+    return () => window.clearTimeout(timer)
   }, [buildContext])
 
   return {

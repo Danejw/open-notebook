@@ -1,6 +1,6 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
+import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
 import { cn } from '@/lib/utils'
 
 interface AgentActivityStatusProps {
@@ -38,7 +38,7 @@ export function AgentActivityStatus({
         )}
         {streamStatus ? (
           <div className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+            <InlineSkeleton className="h-4 w-4" />
             <span>{streamStatus}</span>
           </div>
         ) : null}

@@ -10,7 +10,6 @@ import {
   ShieldCheck,
   Trash2,
 } from 'lucide-react'
-import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,7 +26,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { DetailPageSkeleton } from '@/components/common/LoadingSkeletons'
 import { SkillFileTree } from '../components/SkillFileTree'
 import { SkillEditorPanel } from '../components/SkillEditorPanel'
 import {
@@ -228,29 +227,25 @@ export default function SkillDetailPage() {
 
   if (isLoading) {
     return (
-      <AppShell>
-        <div className="flex flex-1 items-center justify-center">
-          <LoadingSpinner size="lg" />
+              <div className="flex-1 overflow-y-auto">
+          <DetailPageSkeleton />
         </div>
-      </AppShell>
     )
   }
 
   if (!skill) {
     return (
-      <AppShell>
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6">
+              <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6">
           <p className="text-muted-foreground">{t('skills.notFound')}</p>
           <Button asChild variant="outline">
             <Link href="/skills">{t('skills.backToList')}</Link>
           </Button>
         </div>
-      </AppShell>
     )
   }
 
   return (
-    <AppShell>
+    <>
       <div className="flex-1 overflow-y-auto">
         <div className="p-6 space-y-6 max-w-6xl">
           <PageHeader
@@ -502,6 +497,6 @@ export default function SkillDetailPage() {
         onConfirm={handleDeleteFile}
         isLoading={deleteFile.isPending}
       />
-    </AppShell>
+    </>
   )
 }

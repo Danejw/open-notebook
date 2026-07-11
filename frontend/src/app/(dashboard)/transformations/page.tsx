@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -25,8 +24,7 @@ export default function TransformationsPage() {
   }
 
   return (
-    <AppShell>
-      <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto">
         <div className={`${pageContentClassName} space-y-6`}>
           <PageHeader
             bordered
@@ -69,6 +67,5 @@ export default function TransformationsPage() {
           </Tabs>
         </div>
       </div>
-    </AppShell>
   )
 }

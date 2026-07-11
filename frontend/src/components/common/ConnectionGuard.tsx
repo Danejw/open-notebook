@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { ConnectionError } from '@/lib/types/config'
 import { ConnectionErrorOverlay } from '@/components/errors/ConnectionErrorOverlay'
+import { AppShellSkeleton } from '@/components/layout/AppShellSkeleton'
 import { getConfig, resetConfig } from '@/lib/config'
 
 interface ConnectionGuardProps {
@@ -15,7 +16,7 @@ export function ConnectionGuard({ children }: ConnectionGuardProps) {
   // Use a ref to track checking status to avoid dependency cycles
   const isCheckingRef = useRef(false)
 
-  const checkConnection = useCallback(async () => {
+  const checkConnection = useCallback(async (forceRefresh = false) => {
     // Prevent re-entry if already checking
     if (isCheckingRef.current) {
        return
@@ -26,8 +27,10 @@ export function ConnectionGuard({ children }: ConnectionGuardProps) {
     
     setError(null)
 
-    // Reset config cache to force a fresh fetch
-    resetConfig()
+    // Only bust cache on explicit retry — initial mount uses warm config when available
+    if (forceRefresh) {
+      resetConfig()
+    }
 
     try {
       const config = await getConfig()
@@ -85,7 +88,7 @@ export function ConnectionGuard({ children }: ConnectionGuardProps) {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (error && (e.key === 'r' || e.key === 'R')) {
         e.preventDefault()
-        checkConnection()
+        checkConnection(true)
       }
     }
 
@@ -95,12 +98,17 @@ export function ConnectionGuard({ children }: ConnectionGuardProps) {
 
   // Show overlay if there's an error
   if (error) {
-    return <ConnectionErrorOverlay error={error} onRetry={checkConnection} />
+    return (
+      <ConnectionErrorOverlay
+        error={error}
+        onRetry={() => checkConnection(true)}
+      />
+    )
   }
 
-  // Show nothing while checking (prevents flash of content)
+  // Show app shell skeleton while checking — never a blank screen
   if (isChecking) {
-    return null
+    return <AppShellSkeleton />
   }
 
   // Render children if connection is good

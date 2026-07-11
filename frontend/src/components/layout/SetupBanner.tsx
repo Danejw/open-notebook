@@ -7,11 +7,13 @@ import { Button } from '@/components/ui/button'
 import { ShieldAlert, AlertTriangle, ArrowRight, ExternalLink } from 'lucide-react'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { useCredentialStatus, useEnvStatus } from '@/lib/hooks/use-credentials'
+import { useIdleReady } from '@/lib/hooks/use-idle-ready'
 
 export function SetupBanner() {
   const { t } = useTranslation()
-  const { data: credentialStatus } = useCredentialStatus()
-  const { data: envStatus } = useEnvStatus()
+  const idleReady = useIdleReady()
+  const { data: credentialStatus } = useCredentialStatus({ enabled: idleReady })
+  const { data: envStatus } = useEnvStatus({ enabled: idleReady })
 
   const encryptionReady = credentialStatus?.encryption_configured ?? true
 
@@ -25,6 +27,10 @@ export function SetupBanner() {
     }
     return providers
   }, [envStatus, credentialStatus])
+
+  if (!idleReady) {
+    return null
+  }
 
   if (encryptionReady && providersToMigrate.length === 0) {
     return null

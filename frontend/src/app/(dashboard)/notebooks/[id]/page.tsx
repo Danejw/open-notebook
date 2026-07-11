@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { useDefaultLayout, usePanelRef } from 'react-resizable-panels'
-import { AppShell } from '@/components/layout/AppShell'
 import { NotebookHeader } from '../components/NotebookHeader'
 import { SourcesColumn } from '../components/SourcesColumn'
 import { NotesColumn } from '../components/NotesColumn'
@@ -11,7 +10,6 @@ import { ChatColumn } from '../components/ChatColumn'
 import { useNotebook } from '@/lib/hooks/use-notebooks'
 import { useNotebookSources } from '@/lib/hooks/use-sources'
 import { useNotes } from '@/lib/hooks/use-notes'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { useNotebookColumnsStore } from '@/lib/stores/notebook-columns-store'
 import { useIsDesktop } from '@/lib/hooks/use-media-query'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -190,28 +188,32 @@ export default function NotebookPage() {
     }))
   }
 
-  if (notebookLoading) {
+  if (notebookLoading && !notebook) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" />
-      </div>
+              <div className="flex flex-col flex-1 min-h-0">
+          <div className="flex-shrink-0 px-3 pt-3 pb-0">
+            <div className="h-10 w-64 animate-pulse rounded-md bg-muted" />
+          </div>
+          <div className="flex-1 px-1.5 py-2 flex gap-1">
+            <div className="flex-[28] animate-pulse rounded-lg bg-muted min-h-[200px]" />
+            <div className="flex-[28] animate-pulse rounded-lg bg-muted min-h-[200px]" />
+            <div className="flex-[44] animate-pulse rounded-lg bg-muted min-h-[200px]" />
+          </div>
+        </div>
     )
   }
 
   if (!notebook) {
     return (
-      <AppShell>
-        <div className="p-6">
+              <div className="p-6">
           <h1 className="text-2xl font-bold mb-4">{t('notebooks.notFound')}</h1>
           <p className="text-muted-foreground">{t('notebooks.notFoundDesc')}</p>
         </div>
-      </AppShell>
     )
   }
 
   return (
-    <AppShell>
-      <div className="flex flex-col flex-1 min-h-0">
+          <div className="flex flex-col flex-1 min-h-0">
         <div className="flex-shrink-0 px-3 pt-3 pb-0">
           <NotebookHeader notebook={notebook} />
         </div>
@@ -272,6 +274,8 @@ export default function NotebookPage() {
                     contextSelections={contextSelections}
                     sources={sources}
                     sourcesLoading={sourcesLoading}
+                    notes={notes ?? []}
+                    notesLoading={notesLoading}
                   />
                 )}
               </div>
@@ -355,12 +359,13 @@ export default function NotebookPage() {
                   contextSelections={contextSelections}
                   sources={sources}
                   sourcesLoading={sourcesLoading}
+                  notes={notes ?? []}
+                  notesLoading={notesLoading}
                 />
               </ResizablePanel>
             </ResizablePanelGroup>
           )}
         </div>
       </div>
-    </AppShell>
   )
 }

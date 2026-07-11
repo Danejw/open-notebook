@@ -14,7 +14,8 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useNotebookDeletePreview, useDeleteNotebook } from '@/lib/hooks/use-notebooks'
 import { useRouter } from 'next/navigation'
 
@@ -77,9 +78,10 @@ export function NotebookDeleteDialog({
 
         <div className="py-4 space-y-3">
           {isLoadingPreview ? (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <LoadingSpinner size="sm" />
-              <span>{t('notebooks.deleteNotebookLoading')}</span>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
             </div>
           ) : previewError ? (
             <div className="text-sm text-destructive">
@@ -162,7 +164,7 @@ export function NotebookDeleteDialog({
           >
             {isDeleting ? (
               <>
-                <LoadingSpinner size="sm" className="mr-2" />
+                <InlineSkeleton className="mr-2" />
                 {t('common.deleting')}
               </>
             ) : (

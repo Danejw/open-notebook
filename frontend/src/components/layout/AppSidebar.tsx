@@ -26,6 +26,7 @@ import { ThemeToggle } from '@/components/common/ThemeToggle'
 import { LanguageToggle } from '@/components/common/LanguageToggle'
 import type { TFunction } from 'i18next'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { useRoutePrefetch } from '@/lib/hooks/use-route-prefetch'
 import {
   Book,
   Search,
@@ -86,6 +87,7 @@ export function AppSidebar() {
   const { logout } = useAuth()
   const { isCollapsed, toggleCollapse } = useSidebarStore()
   const { openSourceDialog, openNotebookDialog, openPodcastDialog } = useCreateDialogs()
+  const prefetchRoute = useRoutePrefetch()
 
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
   const [isMac, setIsMac] = useState(true)
@@ -108,6 +110,7 @@ export function AppSidebar() {
 
   const renderNavItem = (item: (typeof navigation)[number]['items'][number]) => {
     const isActive = pathname?.startsWith(item.href) || false
+    const handlePrefetch = () => prefetchRoute(item.href)
     const button = (
       <Button
         variant={isActive ? 'secondary' : 'ghost'}
@@ -127,7 +130,7 @@ export function AppSidebar() {
       return (
         <Tooltip key={item.name}>
           <TooltipTrigger asChild>
-            <Link href={item.href}>{button}</Link>
+            <Link href={item.href} prefetch={false} onMouseEnter={handlePrefetch}>{button}</Link>
           </TooltipTrigger>
           <TooltipContent side="right">{item.name}</TooltipContent>
         </Tooltip>
@@ -135,7 +138,7 @@ export function AppSidebar() {
     }
 
     return (
-      <Link key={item.name} href={item.href}>
+      <Link key={item.name} href={item.href} prefetch={false} onMouseEnter={handlePrefetch}>
         {button}
       </Link>
     )

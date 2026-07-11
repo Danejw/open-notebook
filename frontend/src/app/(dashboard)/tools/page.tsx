@@ -2,11 +2,10 @@
 
 import { useState } from 'react'
 import { Wrench, RefreshCw } from 'lucide-react'
-import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/common/EmptyState'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { McpConnectionCard } from './components/McpConnectionCard'
 import { McpConnectionCreateDialog } from './components/McpConnectionCreateDialog'
@@ -27,7 +26,7 @@ export default function ToolsPage() {
   }
 
   return (
-    <AppShell>
+    <>
       <div className="flex-1 overflow-y-auto">
         <div className={`${pageContentClassName} space-y-6`}>
           <PageHeader
@@ -53,9 +52,7 @@ export default function ToolsPage() {
 
           <div className="max-w-5xl">
             {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <LoadingSpinner size="lg" />
-              </div>
+              <ListRowsSkeleton rows={4} />
             ) : !connections || connections.length === 0 ? (
               <EmptyState
                 icon={Wrench}
@@ -91,6 +88,6 @@ export default function ToolsPage() {
         onConfirm={handleConfirmDelete}
         isLoading={deleteConnection.isPending}
       />
-    </AppShell>
+    </>
   )
 }

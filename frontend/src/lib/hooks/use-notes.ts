@@ -4,7 +4,15 @@ import { QUERY_KEYS } from '@/lib/api/query-client'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { getApiErrorKey } from '@/lib/utils/error-handler'
-import { CreateNoteRequest, UpdateNoteRequest } from '@/lib/types/api'
+import {
+  buildOptimisticNote,
+  patchAllNoteListQueries,
+  prependNoteToNotebookQuery,
+  removeNoteFromAllQueries,
+  restoreNoteListQueries,
+  snapshotNoteListQueries,
+} from '@/lib/utils/note-query-cache'
+import { CreateNoteRequest, NoteResponse, UpdateNoteRequest } from '@/lib/types/api'
 
 export function useNotes(notebookId?: string) {
   return useQuery({
@@ -30,21 +38,41 @@ export function useCreateNote() {
 
   return useMutation({
     mutationFn: (data: CreateNoteRequest) => notesApi.create(data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ 
-        queryKey: QUERY_KEYS.notes(variables.notebook_id) 
-      })
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: ['notes'] })
+      const previous = snapshotNoteListQueries(queryClient)
+      const optimistic = buildOptimisticNote(variables)
+      prependNoteToNotebookQuery(queryClient, variables.notebook_id, optimistic)
+      return { previous, optimisticId: optimistic.id, notebookId: variables.notebook_id }
+    },
+    onSuccess: (result, variables, context) => {
+      if (context?.optimisticId) {
+        patchAllNoteListQueries(queryClient, (notes) =>
+          notes.map((note) => (note.id === context.optimisticId ? result : note))
+        )
+        if (variables.notebook_id) {
+          queryClient.setQueryData(QUERY_KEYS.note(result.id), result)
+        }
+      }
       toast({
         title: t('common.success'),
         description: t('notebooks.noteCreatedSuccess'),
       })
     },
-    onError: (error: unknown) => {
+    onError: (error: unknown, _variables, context) => {
+      if (context?.previous) {
+        restoreNoteListQueries(queryClient, context.previous)
+      }
       toast({
         title: t('common.error'),
         description: getApiErrorKey(error, t('notebooks.failedToCreateNote')),
         variant: 'destructive',
       })
+    },
+    onSettled: (_data, _error, variables) => {
+      if (variables.notebook_id) {
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notes(variables.notebook_id) })
+      }
     },
   })
 }
@@ -57,20 +85,59 @@ export function useUpdateNote() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateNoteRequest }) =>
       notesApi.update(id, data),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notes() })
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.note(id) })
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: ['notes'] })
+      const previousLists = snapshotNoteListQueries(queryClient)
+      const previousNote = queryClient.getQueryData<NoteResponse>(QUERY_KEYS.note(id))
+
+      patchAllNoteListQueries(queryClient, (notes) =>
+        notes.map((note) =>
+          note.id === id
+            ? {
+                ...note,
+                title: data.title ?? note.title,
+                content: data.content ?? note.content,
+                note_type: data.note_type ?? note.note_type,
+                updated: new Date().toISOString(),
+              }
+            : note
+        )
+      )
+
+      if (previousNote) {
+        queryClient.setQueryData<NoteResponse>(QUERY_KEYS.note(id), {
+          ...previousNote,
+          title: data.title ?? previousNote.title,
+          content: data.content ?? previousNote.content,
+          note_type: data.note_type ?? previousNote.note_type,
+          updated: new Date().toISOString(),
+        })
+      }
+
+      return { previousLists, previousNote }
+    },
+    onSuccess: (result, { id }) => {
+      queryClient.setQueryData(QUERY_KEYS.note(id), result)
       toast({
         title: t('common.success'),
         description: t('notebooks.noteUpdatedSuccess'),
       })
     },
-    onError: (error: unknown) => {
+    onError: (error: unknown, { id }, context) => {
+      if (context?.previousLists) {
+        restoreNoteListQueries(queryClient, context.previousLists)
+      }
+      if (context?.previousNote) {
+        queryClient.setQueryData(QUERY_KEYS.note(id), context.previousNote)
+      }
       toast({
         title: t('common.error'),
         description: getApiErrorKey(error, t('notebooks.failedToUpdateNote')),
         variant: 'destructive',
       })
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['notes'] })
     },
   })
 }
@@ -82,20 +149,30 @@ export function useDeleteNote() {
 
   return useMutation({
     mutationFn: (id: string) => notesApi.delete(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['notes'] })
+      const previous = snapshotNoteListQueries(queryClient)
+      removeNoteFromAllQueries(queryClient, id)
+      return { previous }
+    },
     onSuccess: () => {
-      // Invalidate all notes queries (with and without notebook IDs)
-      queryClient.invalidateQueries({ queryKey: ['notes'] })
       toast({
         title: t('common.success'),
         description: t('notebooks.noteDeletedSuccess'),
       })
     },
-    onError: (error: unknown) => {
+    onError: (error: unknown, _id, context) => {
+      if (context?.previous) {
+        restoreNoteListQueries(queryClient, context.previous)
+      }
       toast({
         title: t('common.error'),
         description: getApiErrorKey(error, t('notebooks.failedToDeleteNote')),
         variant: 'destructive',
       })
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['notes'] })
     },
   })
 }

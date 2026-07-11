@@ -1,102 +1,92 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { sourcesApi } from '@/lib/api/sources'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { SourceListResponse } from '@/lib/types/api'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { TableLoadMoreSkeleton } from '@/components/common/LoadingSkeletons'
 import { EmptyState } from '@/components/common/EmptyState'
-import { AppShell } from '@/components/layout/AppShell'
+import { SourcesTableSkeleton } from '@/components/layout/SourcesTableSkeleton'
 import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
-import { FileText, Link as LinkIcon, Upload, AlignLeft, Trash2, ArrowUpDown } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
-import { Badge } from '@/components/ui/badge'
+import { SourcesTableRow } from '@/components/sources/SourcesTableRow'
+import { FileText, ArrowUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { getDateLocale } from '@/lib/utils/date-locale'
 import { cn } from '@/lib/utils'
-import { toast } from 'sonner'
-import { getApiErrorKey } from '@/lib/utils/error-handler'
+import {
+  useAllSourcesInfinite,
+  useDeleteSource,
+  type SourcesSortBy,
+  type SourcesSortOrder,
+} from '@/lib/hooks/use-sources'
+
+const VIRTUALIZE_THRESHOLD = 50
+const ROW_HEIGHT_ESTIMATE = 48
 
 export default function SourcesPage() {
   const { t, language } = useTranslation()
-  const [sources, setSources] = useState<SourceListResponse[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const deleteSource = useDeleteSource()
   const [selectedIndex, setSelectedIndex] = useState(0)
-  const [sortBy, setSortBy] = useState<'created' | 'updated'>('updated')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [sortBy, setSortBy] = useState<SourcesSortBy>('updated')
+  const [sortOrder, setSortOrder] = useState<SourcesSortOrder>('desc')
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; source: SourceListResponse | null }>({
     open: false,
-    source: null
+    source: null,
   })
   const router = useRouter()
   const tableRef = useRef<HTMLTableElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const offsetRef = useRef(0)
-  const loadingMoreRef = useRef(false)
-  const hasMoreRef = useRef(true)
-  const PAGE_SIZE = 30
 
-  const fetchSources = useCallback(async (reset = false) => {
-    try {
-      // Check flags before proceeding
-      if (!reset && (loadingMoreRef.current || !hasMoreRef.current)) {
-        return
-      }
+  const {
+    sources,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    error,
+  } = useAllSourcesInfinite(sortBy, sortOrder)
 
-      if (reset) {
-        setLoading(true)
-        offsetRef.current = 0
-        setSources([])
-        hasMoreRef.current = true
-      } else {
-        loadingMoreRef.current = true
-        setLoadingMore(true)
-      }
+  const useVirtual = sources.length >= VIRTUALIZE_THRESHOLD
+  const dateLocale = useMemo(() => getDateLocale(language), [language])
 
-      const data = await sourcesApi.list({
-        limit: PAGE_SIZE,
-        offset: offsetRef.current,
-        sort_by: sortBy,
-        sort_order: sortOrder,
-      })
+  const rowVirtualizer = useVirtualizer({
+    count: sources.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: () => ROW_HEIGHT_ESTIMATE,
+    overscan: 12,
+    enabled: useVirtual,
+  })
 
-      if (reset) {
-        setSources(data)
-      } else {
-        setSources(prev => [...prev, ...data])
-      }
+  const virtualRows = rowVirtualizer.getVirtualItems()
+  const paddingTop = useVirtual && virtualRows.length > 0 ? virtualRows[0].start : 0
+  const paddingBottom =
+    useVirtual && virtualRows.length > 0
+      ? rowVirtualizer.getTotalSize() - virtualRows[virtualRows.length - 1].end
+      : 0
 
-      // Check if we have more data
-      const hasMoreData = data.length === PAGE_SIZE
-      hasMoreRef.current = hasMoreData
-      offsetRef.current += data.length
-    } catch (err) {
-      console.error('Failed to fetch sources:', err)
-      setError(t('sources.failedToLoad'))
-      toast.error(t('sources.failedToLoad'))
-    } finally {
-      setLoading(false)
-      setLoadingMore(false)
-      loadingMoreRef.current = false
-    }
-  }, [sortBy, sortOrder, t('sources.failedToLoad')])
+  const rowLabels = useMemo(
+    () => ({
+      typeLinkLabel: t('sources.type.link'),
+      typeFileLabel: t('sources.type.file'),
+      typeTextLabel: t('sources.type.text'),
+      untitledLabel: t('sources.untitledSource'),
+      yesLabel: t('sources.yes'),
+      noLabel: t('sources.no'),
+    }),
+    [t]
+  )
 
-  // Initial load and when sort changes
   useEffect(() => {
-    fetchSources(true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setSelectedIndex(0)
   }, [sortBy, sortOrder])
 
   useEffect(() => {
-    // Focus the table when component mounts or sources change
     if (sources.length > 0 && tableRef.current) {
       tableRef.current.focus()
     }
-  }, [sources])
+  }, [sources.length])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -107,7 +97,6 @@ export default function SourcesPage() {
           e.preventDefault()
           setSelectedIndex((prev) => {
             const newIndex = Math.min(prev + 1, sources.length - 1)
-            // Scroll to keep selected row visible
             setTimeout(() => scrollToSelectedRow(newIndex), 0)
             return newIndex
           })
@@ -116,7 +105,6 @@ export default function SourcesPage() {
           e.preventDefault()
           setSelectedIndex((prev) => {
             const newIndex = Math.max(prev - 1, 0)
-            // Scroll to keep selected row visible
             setTimeout(() => scrollToSelectedRow(newIndex), 0)
             return newIndex
           })
@@ -134,50 +122,49 @@ export default function SourcesPage() {
           break
         case 'End':
           e.preventDefault()
-          const lastIndex = sources.length - 1
-          setSelectedIndex(lastIndex)
-          setTimeout(() => scrollToSelectedRow(lastIndex), 0)
+          setSelectedIndex(sources.length - 1)
+          setTimeout(() => scrollToSelectedRow(sources.length - 1), 0)
+          break
+        default:
           break
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [sources, selectedIndex, router])
+  }, [sources, selectedIndex, router, useVirtual, rowVirtualizer])
 
   const scrollToSelectedRow = (index: number) => {
+    if (useVirtual) {
+      rowVirtualizer.scrollToIndex(index, { align: 'auto' })
+      return
+    }
+
     const scrollContainer = scrollContainerRef.current
     if (!scrollContainer) return
 
-    // Find the selected row element
-    const rows = scrollContainer.querySelectorAll('tbody tr')
+    const rows = scrollContainer.querySelectorAll('tbody tr[data-source-row]')
     const selectedRow = rows[index] as HTMLElement
     if (!selectedRow) return
 
     const containerRect = scrollContainer.getBoundingClientRect()
     const rowRect = selectedRow.getBoundingClientRect()
 
-    // Check if row is above visible area
     if (rowRect.top < containerRect.top) {
       selectedRow.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-    // Check if row is below visible area
-    else if (rowRect.bottom > containerRect.bottom) {
+    } else if (rowRect.bottom > containerRect.bottom) {
       selectedRow.scrollIntoView({ behavior: 'smooth', block: 'end' })
     }
   }
 
-  // Set up scroll listener after sources are loaded
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current
     if (!scrollContainer) return
 
-    let scrollTimeout: NodeJS.Timeout | null = null
+    let scrollTimeout: ReturnType<typeof setTimeout> | null = null
 
     const handleScroll = () => {
-      if (scrollTimeout) {
-        clearTimeout(scrollTimeout)
-      }
+      if (scrollTimeout) clearTimeout(scrollTimeout)
 
       scrollTimeout = setTimeout(() => {
         if (!scrollContainerRef.current) return
@@ -185,45 +172,28 @@ export default function SourcesPage() {
         const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current
         const distanceFromBottom = scrollHeight - scrollTop - clientHeight
 
-        // Load more when within 200px of the bottom
-        if (distanceFromBottom < 200 && !loadingMoreRef.current && hasMoreRef.current) {
-          fetchSources(false)
+        if (distanceFromBottom < 200 && hasNextPage && !isFetchingNextPage) {
+          void fetchNextPage()
         }
       }, 100)
     }
 
     scrollContainer.addEventListener('scroll', handleScroll)
-    handleScroll() // Check on mount
+    handleScroll()
 
     return () => {
       scrollContainer.removeEventListener('scroll', handleScroll)
-      if (scrollTimeout) {
-        clearTimeout(scrollTimeout)
-      }
+      if (scrollTimeout) clearTimeout(scrollTimeout)
     }
-  }, [fetchSources, sources.length])
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, sources.length])
 
-  const toggleSort = (field: 'created' | 'updated') => {
+  const toggleSort = (field: SourcesSortBy) => {
     if (sortBy === field) {
-      // Toggle order if clicking the same field
-      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
     } else {
-      // Switch to new field with default desc order
       setSortBy(field)
       setSortOrder('desc')
     }
-  }
-
-  const getSourceIcon = (source: SourceListResponse) => {
-    if (source.asset?.url) return <LinkIcon className="h-4 w-4" />
-    if (source.asset?.file_path) return <Upload className="h-4 w-4" />
-    return <AlignLeft className="h-4 w-4" />
-  }
-
-  const getSourceType = (source: SourceListResponse) => {
-    if (source.asset?.url) return t('sources.type.link')
-    if (source.asset?.file_path) return t('sources.type.file')
-    return t('sources.type.text')
   }
 
   const handleRowClick = useCallback((index: number, sourceId: string) => {
@@ -232,61 +202,67 @@ export default function SourcesPage() {
   }, [router])
 
   const handleDeleteClick = useCallback((e: React.MouseEvent, source: SourceListResponse) => {
-    e.stopPropagation() // Prevent row click
+    e.stopPropagation()
     setDeleteDialog({ open: true, source })
   }, [])
 
   const handleDeleteConfirm = async () => {
     if (!deleteDialog.source) return
-
-    try {
-      await sourcesApi.delete(deleteDialog.source.id)
-      toast.success(t('sources.deleteSuccess'))
-      // Remove the deleted source from the list
-      setSources(prev => prev.filter(s => s.id !== deleteDialog.source?.id))
-      setDeleteDialog({ open: false, source: null })
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } }, message?: string };
-      console.error('Failed to delete source:', error)
-      toast.error(t(getApiErrorKey(error.response?.data?.detail || error.message)))
-    }
+    await deleteSource.mutateAsync(deleteDialog.source.id)
+    setDeleteDialog({ open: false, source: null })
   }
 
-  if (loading) {
+  const renderSourceRow = (source: SourceListResponse, index: number) => (
+    <SourcesTableRow
+      key={source.id}
+      source={source}
+      index={index}
+      isSelected={selectedIndex === index}
+      dateLocale={dateLocale}
+      onRowClick={handleRowClick}
+      onMouseEnter={setSelectedIndex}
+      onDeleteClick={handleDeleteClick}
+      {...rowLabels}
+    />
+  )
+
+  const showInitialSkeleton = isLoading && sources.length === 0
+
+  if (showInitialSkeleton) {
     return (
-      <AppShell>
-        <div className="flex h-full items-center justify-center">
-          <LoadingSpinner />
+              <div className={`flex h-full w-full max-w-none flex-col ${pageContentClassName}`}>
+          <PageHeader
+            bordered
+            className="mb-6"
+            title={t('sources.allSources')}
+            description={t('sources.allSourcesDesc')}
+          />
+          <SourcesTableSkeleton />
         </div>
-      </AppShell>
     )
   }
 
-  if (error) {
+  if (error && sources.length === 0) {
     return (
-      <AppShell>
-        <div className="flex h-full items-center justify-center">
-          <p className="text-red-500">{error}</p>
+              <div className="flex h-full items-center justify-center">
+          <p className="text-red-500">{t('sources.failedToLoad')}</p>
         </div>
-      </AppShell>
     )
   }
 
-  if (sources.length === 0) {
+  if (!isLoading && sources.length === 0) {
     return (
-      <AppShell>
-        <EmptyState
+              <EmptyState
           icon={FileText}
           title={t('sources.noSourcesYet')}
           description={t('sources.allSourcesDescShort')}
         />
-      </AppShell>
     )
   }
 
   return (
-    <AppShell>
-      <div className={`flex flex-col h-full w-full max-w-none ${pageContentClassName}`}>
+    <>
+      <div className={`flex h-full w-full max-w-none flex-col ${pageContentClassName}`}>
         <PageHeader
           bordered
           className="mb-6"
@@ -294,11 +270,11 @@ export default function SourcesPage() {
           description={t('sources.allSourcesDesc')}
         />
 
-        <div ref={scrollContainerRef} className="flex-1 rounded-md border overflow-auto">
+        <div ref={scrollContainerRef} className="flex-1 overflow-auto rounded-md border">
           <table
             ref={tableRef}
             tabIndex={0}
-            className="w-full min-w-[800px] outline-none table-fixed"
+            className="w-full min-w-[800px] table-fixed outline-none"
           >
             <colgroup>
               <col className="w-[120px]" />
@@ -308,7 +284,7 @@ export default function SourcesPage() {
               <col className="w-[100px]" />
               <col className="w-[100px]" />
             </colgroup>
-            <thead className="sticky top-0 bg-background z-10">
+            <thead className="sticky top-0 z-10 bg-background">
               <tr className="border-b bg-muted/50">
                 <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
                   {t('common.type')}
@@ -316,7 +292,7 @@ export default function SourcesPage() {
                 <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
                   {t('common.title')}
                 </th>
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground hidden sm:table-cell">
+                <th className="hidden h-12 px-4 text-left align-middle font-medium text-muted-foreground sm:table-cell">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -324,21 +300,21 @@ export default function SourcesPage() {
                     className="h-8 px-2 hover:bg-muted"
                   >
                     {t('common.created_label')}
-                    <ArrowUpDown className={cn(
-                      "ml-2 h-3 w-3",
-                      sortBy === 'created' ? 'opacity-100' : 'opacity-30'
-                    )} />
+                    <ArrowUpDown
+                      className={cn(
+                        'ml-2 h-3 w-3',
+                        sortBy === 'created' ? 'opacity-100' : 'opacity-30'
+                      )}
+                    />
                     {sortBy === 'created' && (
-                      <span className="ml-1 text-xs">
-                        {sortOrder === 'asc' ? '↑' : '↓'}
-                      </span>
+                      <span className="ml-1 text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
                     )}
                   </Button>
                 </th>
-                <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground hidden md:table-cell">
+                <th className="hidden h-12 px-4 text-center align-middle font-medium text-muted-foreground md:table-cell">
                   {t('sources.insights')}
                 </th>
-                <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground hidden lg:table-cell">
+                <th className="hidden h-12 px-4 text-center align-middle font-medium text-muted-foreground lg:table-cell">
                   {t('sources.embedded')}
                 </th>
                 <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">
@@ -347,71 +323,40 @@ export default function SourcesPage() {
               </tr>
             </thead>
             <tbody>
-              {sources.map((source, index) => (
-                <tr
-                  key={source.id}
-                  onClick={() => handleRowClick(index, source.id)}
-                  onMouseEnter={() => setSelectedIndex(index)}
-                  className={cn(
-                    "border-b transition-colors cursor-pointer",
-                    selectedIndex === index
-                      ? "bg-accent"
-                      : "hover:bg-muted/50"
-                  )}
-                >
-                  <td className="h-12 px-4">
-                    <div className="flex items-center gap-2">
-                      {getSourceIcon(source)}
-                      <Badge variant="secondary" className="text-xs">
-                        {getSourceType(source)}
-                      </Badge>
-                    </div>
-                  </td>
-                  <td className="h-12 px-4">
-                    <div className="flex flex-col overflow-hidden">
-                      <span className="font-medium truncate">
-                        {source.title || t('sources.untitledSource')}
-                      </span>
-                      {source.asset?.url && (
-                        <span className="text-xs text-muted-foreground truncate">
-                          {source.asset.url}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="h-12 px-4 text-muted-foreground text-sm hidden sm:table-cell">
-                    {formatDistanceToNow(new Date(source.created), { 
-                      addSuffix: true,
-                      locale: getDateLocale(language)
-                    })}
-                  </td>
-                  <td className="h-12 px-4 text-center hidden md:table-cell">
-                    <span className="text-sm font-medium">{source.insights_count || 0}</span>
-                  </td>
-                  <td className="h-12 px-4 text-center hidden lg:table-cell">
-                    <Badge variant={source.embedded ? "default" : "secondary"} className="text-xs">
-                      {source.embedded ? t('sources.yes') : t('sources.no')}
-                    </Badge>
-                  </td>
-                  <td className="h-12 px-4 text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => handleDeleteClick(e, source)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </td>
+              {useVirtual && paddingTop > 0 && (
+                <tr aria-hidden="true">
+                  <td colSpan={6} style={{ height: paddingTop, padding: 0, border: 0 }} />
                 </tr>
-              ))}
-              {loadingMore && (
+              )}
+              {useVirtual
+                ? virtualRows.map((virtualRow) => {
+                    const source = sources[virtualRow.index]
+                    return (
+                      <SourcesTableRow
+                        key={source.id}
+                        source={source}
+                        index={virtualRow.index}
+                        isSelected={selectedIndex === virtualRow.index}
+                        dateLocale={dateLocale}
+                        onRowClick={handleRowClick}
+                        onMouseEnter={setSelectedIndex}
+                        onDeleteClick={handleDeleteClick}
+                        measureRef={rowVirtualizer.measureElement}
+                        dataIndex={virtualRow.index}
+                        {...rowLabels}
+                      />
+                    )
+                  })
+                : sources.map((source, index) => renderSourceRow(source, index))}
+              {useVirtual && paddingBottom > 0 && (
+                <tr aria-hidden="true">
+                  <td colSpan={6} style={{ height: paddingBottom, padding: 0, border: 0 }} />
+                </tr>
+              )}
+              {isFetchingNextPage && (
                 <tr>
-                  <td colSpan={6} className="h-16 text-center">
-                    <div className="flex items-center justify-center">
-                      <LoadingSpinner />
-                      <span className="ml-2 text-muted-foreground">{t('sources.loadingMore')}</span>
-                    </div>
+                  <td colSpan={6}>
+                    <TableLoadMoreSkeleton />
                   </td>
                 </tr>
               )}
@@ -424,11 +369,14 @@ export default function SourcesPage() {
         open={deleteDialog.open}
         onOpenChange={(open) => setDeleteDialog({ open, source: deleteDialog.source })}
         title={t('sources.delete')}
-        description={t('sources.deleteConfirmWithTitle').replace('{title}', deleteDialog.source?.title || t('sources.untitledSource'))}
+        description={t('sources.deleteConfirmWithTitle').replace(
+          '{title}',
+          deleteDialog.source?.title || t('sources.untitledSource')
+        )}
         confirmText={t('common.delete')}
         confirmVariant="destructive"
         onConfirm={handleDeleteConfirm}
       />
-    </AppShell>
+    </>
   )
 }

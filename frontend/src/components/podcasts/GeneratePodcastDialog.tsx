@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { InlineSkeleton, ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
 
 import { useNotebooks } from '@/lib/hooks/use-notebooks'
@@ -180,9 +180,7 @@ function ContentSelectionPanel({
 
       <div className="rounded-lg border bg-muted/30">
         {isLoading ? (
-          <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {tr.loadingNotebooks}
-          </div>
+          <ListRowsSkeleton rows={5} withHeader={false} />
         ) : notebooks.length === 0 ? (
           <div className="p-6 text-sm text-muted-foreground">
             {tr.noNotebooksFoundInPodcasts}
@@ -255,7 +253,7 @@ function ContentSelectionPanel({
                               {tr.sources}
                             </h4>
                             {fetchingNotebookIds.has(notebook.id) && (
-                              <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                              <InlineSkeleton className="h-3 w-3" />
                             )}
                           </div>
                           {sources.length === 0 ? (
@@ -894,9 +892,7 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
                 {t('podcasts.episodeSettings')}
               </h3>
               {episodeProfilesQuery.isLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" /> {t('podcasts.loadingProfiles')}
-                </div>
+                <ListRowsSkeleton rows={3} withHeader={false} />
               ) : episodeProfiles.length === 0 ? (
                 <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
                   {t('podcasts.noProfilesFound')}
@@ -963,7 +959,7 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
                 disabled={isSubmitting}
                 className="w-full"
               >
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSubmitting && <InlineSkeleton className="mr-2" />}
                 {isSubmitting ? t('podcasts.generating') : t('podcasts.generate')}
               </Button>
               <Button

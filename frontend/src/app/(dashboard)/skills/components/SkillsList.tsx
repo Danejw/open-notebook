@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Upload, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/common/EmptyState'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
 import { Skill } from '@/lib/types/skills'
 import { SkillCard } from './SkillCard'
 import { SkillImportDialog } from './SkillImportDialog'
@@ -20,11 +20,7 @@ export function SkillsList({ skills, isLoading }: SkillsListProps) {
   const [importOpen, setImportOpen] = useState(false)
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <LoadingSpinner size="lg" />
-      </div>
-    )
+    return <ListRowsSkeleton rows={5} />
   }
 
   if (!skills || skills.length === 0) {
@@ -35,8 +31,8 @@ export function SkillsList({ skills, isLoading }: SkillsListProps) {
           title={t('skills.empty')}
           description={t('skills.emptyDesc')}
           action={
-            <Button onClick={() => setImportOpen(true)}>
-              <Upload className="h-4 w-4 mr-2" />
+            <Button size="sm" className="h-7 text-xs" onClick={() => setImportOpen(true)}>
+              <Upload className="mr-1.5 h-3.5 w-3.5" />
               {t('skills.uploadZip')}
             </Button>
           }
@@ -48,16 +44,16 @@ export function SkillsList({ skills, isLoading }: SkillsListProps) {
 
   return (
     <>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center gap-3 flex-wrap">
-          <h2 className="text-lg font-semibold">{t('skills.listTitle')}</h2>
-          <Button variant="outline" onClick={() => setImportOpen(true)}>
-            <Upload className="h-4 w-4 mr-2" />
+      <div className="overflow-hidden rounded-md border">
+        <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
+          <h2 className="text-sm font-semibold leading-none">{t('skills.listTitle')}</h2>
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setImportOpen(true)}>
+            <Upload className="mr-1.5 h-3.5 w-3.5" />
             {t('skills.uploadZip')}
           </Button>
         </div>
 
-        <div className="space-y-4">
+        <div className="divide-y">
           {skills.map((skill) => (
             <SkillCard key={skill.id} skill={skill} />
           ))}

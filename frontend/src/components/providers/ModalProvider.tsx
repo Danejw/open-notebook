@@ -1,9 +1,30 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useModalManager } from '@/lib/hooks/use-modal-manager'
-import { NoteEditorDialog } from '@/app/(dashboard)/notebooks/components/NoteEditorDialog'
-import { SourceInsightDialog } from '@/components/source/SourceInsightDialog'
 import { SourceDialog } from '@/components/source/SourceDialog'
+
+const NoteEditorDialog = dynamic(
+  () =>
+    import('@/app/(dashboard)/notebooks/components/NoteEditorDialog').then((m) => ({
+      default: m.NoteEditorDialog,
+    })),
+  {
+    ssr: false,
+    loading: () => null,
+  }
+)
+
+const SourceInsightDialog = dynamic(
+  () =>
+    import('@/components/source/SourceInsightDialog').then((m) => ({
+      default: m.SourceInsightDialog,
+    })),
+  {
+    ssr: false,
+    loading: () => null,
+  }
+)
 
 /**
  * Modal Provider Component
@@ -21,7 +42,6 @@ export function ModalProvider() {
 
   return (
     <>
-      {/* Source Modal */}
       <SourceDialog
         open={modalType === 'source'}
         onOpenChange={(open) => {
@@ -30,24 +50,26 @@ export function ModalProvider() {
         sourceId={modalId}
       />
 
-      {/* Note Modal */}
-      <NoteEditorDialog
-        open={modalType === 'note'}
-        onOpenChange={(open) => {
-          if (!open) closeModal()
-        }}
-        notebookId="" // Will need to be fetched or handled in Phase 9
-        note={modalId ? { id: modalId, title: null, content: null } : undefined}
-      />
+      {modalType === 'note' && modalId ? (
+        <NoteEditorDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) closeModal()
+          }}
+          notebookId=""
+          note={{ id: modalId, title: null, content: null }}
+        />
+      ) : null}
 
-      {/* Source Insight Modal */}
-      <SourceInsightDialog
-        open={modalType === 'insight'}
-        onOpenChange={(open) => {
-          if (!open) closeModal()
-        }}
-        insight={modalId ? { id: modalId, insight_type: '', content: '' } : undefined}
-      />
+      {modalType === 'insight' && modalId ? (
+        <SourceInsightDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) closeModal()
+          }}
+          insight={{ id: modalId, insight_type: '', content: '' }}
+        />
+      ) : null}
     </>
   )
 }

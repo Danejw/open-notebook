@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { AlertCircle, Loader2, RefreshCcw } from 'lucide-react'
+import { AlertCircle, RefreshCcw } from 'lucide-react'
+import { InlineSkeleton, ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
 
 import { useDeletePodcastEpisode, usePodcastEpisodes, useRetryPodcastEpisode } from '@/lib/hooks/use-podcasts'
 import { EpisodeCard } from '@/components/podcasts/EpisodeCard'
@@ -100,7 +101,7 @@ export function EpisodesTab() {
             disabled={isFetching}
           >
             {isFetching ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <InlineSkeleton className="mr-2" />
             ) : (
               <RefreshCcw className="mr-2 h-4 w-4" />
             )}
@@ -128,10 +129,7 @@ export function EpisodesTab() {
       ) : null}
 
       {isLoading ? (
-        <div className="flex items-center gap-3 rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {t('podcasts.loadingEpisodes')}
-        </div>
+        <ListRowsSkeleton rows={4} withHeader={false} />
       ) : null}
 
       {emptyState ? (

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { getApiUrl } from '@/lib/config'
+import { getApiUrl, getConfig } from '@/lib/config'
 
 interface AuthState {
   isAuthenticated: boolean
@@ -36,20 +36,11 @@ export const useAuthStore = create<AuthState>()(
 
       checkAuthRequired: async () => {
         try {
-          const apiUrl = await getApiUrl()
-          const response = await fetch(`${apiUrl}/api/auth/status`, {
-            cache: 'no-store',
-          })
-
-          if (!response.ok) {
-            throw new Error(`Auth status check failed: ${response.status}`)
-          }
-
-          const data = await response.json()
-          const required = data.auth_enabled || false
+          // Reuse cached /api/config from ConnectionGuard — avoids extra /api/auth/status round-trip
+          const appConfig = await getConfig()
+          const required = appConfig.authEnabled ?? false
           set({ authRequired: required })
 
-          // If auth is not required, mark as authenticated
           if (!required) {
             set({ isAuthenticated: true, token: 'not-required' })
           }
@@ -58,18 +49,15 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           console.error('Failed to check auth status:', error)
 
-          // If it's a network error, set a more helpful error message
           if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
             set({
               error: 'Unable to connect to server. Please check if the API is running.',
-              authRequired: null  // Don't assume auth is required if we can't connect
+              authRequired: null,
             })
           } else {
-            // For other errors, default to requiring auth to be safe
             set({ authRequired: true })
           }
 
-          // Re-throw the error so the UI can handle it
           throw error
         }
       },

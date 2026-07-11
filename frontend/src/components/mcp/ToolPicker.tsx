@@ -15,7 +15,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { PickerDialogSkeleton } from '@/components/common/LoadingSkeletons'
 import { useMcpSelectableTools } from '@/lib/hooks/use-mcp'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { McpTool } from '@/lib/types/mcp'
@@ -122,9 +122,7 @@ export function ToolPicker({ selectedToolIds, onChange, disabled = false }: Tool
 
         <div className="max-h-80 space-y-4 overflow-y-auto py-2">
           {isLoading ? (
-            <div className="flex justify-center py-8">
-              <LoadingSpinner />
-            </div>
+            <PickerDialogSkeleton rows={5} />
           ) : groupedTools.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">
               {t('tools.pickerEmpty')}

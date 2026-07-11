@@ -10,8 +10,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Plus, FileText, Link2, ChevronDown, Loader2, ListChecks } from 'lucide-react'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { Plus, FileText, Link2, ChevronDown, ListChecks } from 'lucide-react'
+import { ColumnCardsSkeleton, CompactListRowSkeleton } from '@/components/common/LoadingSkeletons'
 import { EmptyState } from '@/components/common/EmptyState'
 import { AddSourceDialog } from '@/components/sources/AddSourceDialog'
 import { AddExistingSourceDialog } from '@/components/sources/AddExistingSourceDialog'
@@ -220,9 +220,7 @@ export function SourcesColumn({
 
           <CardContent ref={scrollContainerRef} className={columnBodyClassName}>
             {isLoading ? (
-              <div className="flex items-center justify-center py-4">
-                <LoadingSpinner />
-              </div>
+              <ColumnCardsSkeleton count={3} />
             ) : !sources || sources.length === 0 ? (
               <EmptyState
                 icon={FileText}
@@ -250,11 +248,7 @@ export function SourcesColumn({
                   />
                 ))}
                 {/* Loading indicator for infinite scroll */}
-                {isFetchingNextPage && (
-                  <div className="flex items-center justify-center py-3">
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  </div>
-                )}
+                {isFetchingNextPage && <CompactListRowSkeleton />}
               </div>
             )}
           </CardContent>

@@ -46,7 +46,12 @@ export const sourceChatApi = {
   },
 
   // Messaging with streaming
-  sendMessage: (sourceId: string, sessionId: string, data: SendMessageRequest) => {
+  sendMessage: (
+    sourceId: string,
+    sessionId: string,
+    data: SendMessageRequest,
+    signal?: AbortSignal
+  ) => {
     // Get auth token using the same logic as apiClient interceptor
     let token = null
     if (typeof window !== 'undefined') {
@@ -75,7 +80,8 @@ export const sourceChatApi = {
         Accept: 'text/event-stream',
         ...(token && { 'Authorization': `Bearer ${token}` })
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
+      signal,
     }).then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)

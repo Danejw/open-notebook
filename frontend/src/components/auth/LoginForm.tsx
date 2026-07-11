@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertCircle } from 'lucide-react'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { LoginCardSkeleton } from '@/components/common/LoadingSkeletons'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
 export function LoginForm() {
@@ -71,8 +71,8 @@ export function LoginForm() {
   // Show loading while checking if auth is required
   if (!hasHydrated || isCheckingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <LoadingSpinner />
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <LoginCardSkeleton />
       </div>
     )
   }

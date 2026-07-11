@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useDebounce } from 'use-debounce'
-import { Search, Link2, LoaderIcon, FileText, Link as LinkIcon, Upload } from 'lucide-react'
+import { Search, Link2, FileText, Link as LinkIcon, Upload } from 'lucide-react'
+import { InlineSkeleton, PickerDialogSkeleton } from '@/components/common/LoadingSkeletons'
 import {
   Dialog,
   DialogContent,
@@ -204,16 +205,15 @@ export function AddExistingSourceDialog({
               className="pl-10"
             />
             {isSearching && (
-              <LoaderIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+              <InlineSkeleton className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2" />
             )}
           </div>
 
           {/* Source List */}
           <ScrollArea className="h-[400px] border rounded-md">
             {isSearching && filteredSources.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
-                <LoaderIcon className="h-12 w-12 mb-2 animate-spin" />
-                <p>{t('common.loading')}</p>
+              <div className="p-4">
+                <PickerDialogSkeleton rows={4} />
               </div>
             ) : filteredSources.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
@@ -293,7 +293,7 @@ export function AddExistingSourceDialog({
           >
             {addSources.isPending ? (
               <>
-                <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
+                <InlineSkeleton className="mr-2" />
                 {t('common.adding')}
               </>
             ) : (

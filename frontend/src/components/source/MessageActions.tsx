@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Save, Copy, Loader2, Check } from 'lucide-react'
+import { Save, Copy, Check } from 'lucide-react'
+import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
 import { useCreateNote } from '@/lib/hooks/use-notes'
 import { toast } from 'sonner'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -82,7 +83,7 @@ export function MessageActions({ content, notebookId }: MessageActionsProps) {
                 disabled={createNote.isPending}
               >
                 {createNote.isPending ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <InlineSkeleton className="h-3 w-3" />
                 ) : (
                   <Save className="h-3 w-3" />
                 )}

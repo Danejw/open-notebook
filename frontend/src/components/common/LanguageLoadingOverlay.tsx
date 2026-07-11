@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { useTranslation as useI18nTranslation } from 'react-i18next'
-import { Loader2 } from 'lucide-react'
+import { OverlayPanelSkeleton } from '@/components/common/LoadingSkeletons'
 import {
   i18nEvents,
   I18N_LANGUAGE_CHANGE_END,
@@ -18,7 +17,6 @@ import {
  * language change transition period.
  */
 export function LanguageLoadingOverlay() {
-  const { t } = useI18nTranslation()
   const [isChanging, setIsChanging] = useState(false)
 
   const isChangingRef = useRef(false)
@@ -73,19 +71,12 @@ export function LanguageLoadingOverlay() {
 
   if (!isChanging) return null
 
-  // Use react-i18next's t() directly - this is safe during language transitions
-  // because react-i18next handles the loading state internally
-  const loadingText = t('common.loading', { defaultValue: '加载中...' })
-
   return (
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/80 backdrop-blur-sm transition-opacity duration-200"
       style={{ opacity: isChanging ? 1 : 0 }}
     >
-      <div className="flex flex-col items-center gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="text-sm text-muted-foreground">{loadingText}</span>
-      </div>
+      <OverlayPanelSkeleton />
     </div>
   )
 }

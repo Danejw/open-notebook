@@ -1,15 +1,19 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, type QueryKey, type UseQueryOptions } from '@tanstack/react-query'
 import { notebooksApi } from '@/lib/api/notebooks'
 import { QUERY_KEYS } from '@/lib/api/query-client'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { getApiErrorKey } from '@/lib/utils/error-handler'
-import { CreateNotebookRequest, UpdateNotebookRequest } from '@/lib/types/api'
+import { CreateNotebookRequest, UpdateNotebookRequest, NotebookResponse } from '@/lib/types/api'
 
-export function useNotebooks(archived?: boolean) {
+type NotebooksQueryOptions = Pick<UseQueryOptions<NotebookResponse[]>, 'enabled'>
+
+export function useNotebooks(archived?: boolean, options?: NotebooksQueryOptions) {
   return useQuery({
     queryKey: [...QUERY_KEYS.notebooks, { archived }],
     queryFn: () => notebooksApi.list({ archived, order_by: 'updated desc' }),
+    enabled: options?.enabled ?? true,
+    placeholderData: (previousData) => previousData,
   })
 }
 
@@ -18,6 +22,7 @@ export function useNotebook(id: string) {
     queryKey: QUERY_KEYS.notebook(id),
     queryFn: () => notebooksApi.get(id),
     enabled: !!id,
+    placeholderData: (previousData) => previousData,
   })
 }
 
@@ -28,6 +33,28 @@ export function useCreateNotebook() {
 
   return useMutation({
     mutationFn: (data: CreateNotebookRequest) => notebooksApi.create(data),
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.notebooks })
+      const previousLists = queryClient.getQueriesData<NotebookResponse[]>({
+        queryKey: QUERY_KEYS.notebooks,
+      })
+      const now = new Date().toISOString()
+      const optimistic: NotebookResponse = {
+        id: `optimistic-${Date.now()}`,
+        name: data.name,
+        description: data.description ?? '',
+        archived: false,
+        created: now,
+        updated: now,
+        source_count: 0,
+        note_count: 0,
+      }
+      queryClient.setQueriesData<NotebookResponse[]>(
+        { queryKey: QUERY_KEYS.notebooks },
+        (old) => (old ? [optimistic, ...old] : [optimistic])
+      )
+      return { previousLists }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebooks })
       toast({
@@ -35,7 +62,10 @@ export function useCreateNotebook() {
         description: t('notebooks.createSuccess'),
       })
     },
-    onError: (error: unknown) => {
+    onError: (error: unknown, _data, context) => {
+      context?.previousLists.forEach(([key, data]) => {
+        queryClient.setQueryData(key as QueryKey, data)
+      })
       toast({
         title: t('common.error'),
         description: t(getApiErrorKey(error, t('common.error'))),
@@ -53,6 +83,38 @@ export function useUpdateNotebook() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateNotebookRequest }) =>
       notebooksApi.update(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.notebooks })
+      const previousLists = queryClient.getQueriesData<NotebookResponse[]>({
+        queryKey: QUERY_KEYS.notebooks,
+      })
+      queryClient.setQueriesData<NotebookResponse[]>(
+        { queryKey: QUERY_KEYS.notebooks },
+        (old) =>
+          old?.map((notebook) =>
+            notebook.id === id
+              ? {
+                  ...notebook,
+                  name: data.name ?? notebook.name,
+                  description: data.description ?? notebook.description,
+                  archived: data.archived ?? notebook.archived,
+                  updated: new Date().toISOString(),
+                }
+              : notebook
+          ) ?? []
+      )
+      const previousNotebook = queryClient.getQueryData<NotebookResponse>(QUERY_KEYS.notebook(id))
+      if (previousNotebook) {
+        queryClient.setQueryData<NotebookResponse>(QUERY_KEYS.notebook(id), {
+          ...previousNotebook,
+          name: data.name ?? previousNotebook.name,
+          description: data.description ?? previousNotebook.description,
+          archived: data.archived ?? previousNotebook.archived,
+          updated: new Date().toISOString(),
+        })
+      }
+      return { previousLists, previousNotebook, id }
+    },
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebooks })
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebook(id) })
@@ -61,7 +123,13 @@ export function useUpdateNotebook() {
         description: t('notebooks.updateSuccess'),
       })
     },
-    onError: (error: unknown) => {
+    onError: (error: unknown, { id }, context) => {
+      context?.previousLists.forEach(([key, data]) => {
+        queryClient.setQueryData(key as QueryKey, data)
+      })
+      if (context?.previousNotebook) {
+        queryClient.setQueryData(QUERY_KEYS.notebook(id), context.previousNotebook)
+      }
       toast({
         title: t('common.error'),
         description: t(getApiErrorKey(error, t('common.error'))),
@@ -92,16 +160,29 @@ export function useDeleteNotebook() {
       id: string
       deleteExclusiveSources?: boolean
     }) => notebooksApi.delete(id, deleteExclusiveSources),
+    onMutate: async ({ id }) => {
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.notebooks })
+      const previousLists = queryClient.getQueriesData<NotebookResponse[]>({
+        queryKey: QUERY_KEYS.notebooks,
+      })
+      queryClient.setQueriesData<NotebookResponse[]>(
+        { queryKey: QUERY_KEYS.notebooks },
+        (old) => old?.filter((notebook) => notebook.id !== id) ?? []
+      )
+      return { previousLists }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebooks })
-      // Also invalidate sources since some may have been deleted
       queryClient.invalidateQueries({ queryKey: ['sources'] })
       toast({
         title: t('common.success'),
         description: t('notebooks.deleteSuccess'),
       })
     },
-    onError: (error: unknown) => {
+    onError: (error: unknown, _vars, context) => {
+      context?.previousLists.forEach(([key, data]) => {
+        queryClient.setQueryData(key as QueryKey, data)
+      })
       toast({
         title: t('common.error'),
         description: t(getApiErrorKey(error, t('common.error'))),

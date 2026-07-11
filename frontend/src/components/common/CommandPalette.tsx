@@ -27,8 +27,8 @@ import {
   Sun,
   Moon,
   Monitor,
-  Loader2,
 } from 'lucide-react'
+import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import type { TFunction } from 'i18next'
 
@@ -67,7 +67,7 @@ export function CommandPalette() {
   const router = useRouter()
   const { openSourceDialog, openNotebookDialog, openPodcastDialog } = useCreateDialogs()
   const { setTheme } = useTheme()
-  const { data: notebooks, isLoading: notebooksLoading } = useNotebooks(false)
+  const { data: notebooks, isLoading: notebooksLoading } = useNotebooks(false, { enabled: open })
 
   // Global keyboard listener for ⌘K / Ctrl+K
   useEffect(() => {
@@ -218,7 +218,7 @@ export function CommandPalette() {
         <CommandGroup heading={t('notebooks.title')}>
           {notebooksLoading ? (
             <CommandItem disabled>
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <InlineSkeleton className="h-4 w-4" />
               <span>{t('common.loading')}</span>
             </CommandItem>
           ) : notebooks && notebooks.length > 0 ? (

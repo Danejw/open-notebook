@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { SettingsFormSkeleton } from '@/components/common/LoadingSkeletons'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
@@ -75,11 +75,7 @@ export function SettingsForm() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <LoadingSpinner size="lg" />
-      </div>
-    )
+    return <SettingsFormSkeleton />
   }
 
   if (error) {

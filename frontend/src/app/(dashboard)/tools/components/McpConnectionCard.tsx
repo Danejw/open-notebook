@@ -96,7 +96,7 @@ export function McpConnectionCard({ connection, onDelete }: McpConnectionCardPro
           title={t('tools.sync')}
         >
           <RefreshCw
-            className={cn('h-3.5 w-3.5', syncConnection.isPending && 'animate-spin')}
+            className={cn('h-3.5 w-3.5', syncConnection.isPending && 'animate-pulse opacity-60')}
           />
         </Button>
         <Button asChild variant="ghost" size="icon" className="h-7 w-7">

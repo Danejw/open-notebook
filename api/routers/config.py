@@ -9,6 +9,7 @@ from fastapi import APIRouter, Request
 from loguru import logger
 
 from open_notebook.database.repository import repo_query
+from open_notebook.utils.encryption import get_secret_from_env
 from open_notebook.utils.version_utils import (
     compare_versions,
     get_version_from_github_async,
@@ -152,9 +153,12 @@ async def get_config(request: Request):
     if db_status == "offline":
         logger.warning(f"Database offline: {db_health.get('error', 'Unknown error')}")
 
+    auth_enabled = bool(get_secret_from_env("OPEN_NOTEBOOK_PASSWORD"))
+
     return {
         "version": current_version,
         "latestVersion": latest_version,
         "hasUpdate": has_update,
         "dbStatus": db_status,
+        "authEnabled": auth_enabled,
     }

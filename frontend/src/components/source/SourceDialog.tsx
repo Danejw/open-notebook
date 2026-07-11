@@ -1,9 +1,21 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { SourceDetailContent } from './SourceDetailContent'
+import { SourceDetailSkeleton } from '@/components/common/LoadingSkeletons'
 import { useTranslation } from '@/lib/hooks/use-translation'
+
+const SourceDetailContent = dynamic(
+  () =>
+    import('@/components/source/SourceDetailContent').then((mod) => ({
+      default: mod.SourceDetailContent,
+    })),
+  {
+    ssr: false,
+    loading: () => <SourceDetailSkeleton />,
+  }
+)
 
 interface SourceDialogProps {
   open: boolean
@@ -46,14 +58,16 @@ export function SourceDialog({ open, onOpenChange, sourceId }: SourceDialogProps
         {/* Accessibility title (hidden visually but read by screen readers) */}
         <DialogTitle className="sr-only">{t('sources.detailsTitle')}</DialogTitle>
 
-        {/* Source detail content */}
+        {/* Source detail content — only mount when open to avoid eager fetch */}
         <div className="flex-1 overflow-y-auto min-h-0">
-          <SourceDetailContent
-            sourceId={sourceIdWithPrefix}
-            showChatButton={true}
-            onChatClick={handleChatClick}
-            onClose={handleClose}
-          />
+          {open ? (
+            <SourceDetailContent
+              sourceId={sourceIdWithPrefix}
+              showChatButton={true}
+              onChatClick={handleChatClick}
+              onClose={handleClose}
+            />
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

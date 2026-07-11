@@ -13,10 +13,15 @@ export const MODEL_QUERY_KEYS = {
   providers: ['models', 'providers'] as const,
 }
 
-export function useModels() {
+type ModelsQueryOptions = {
+  enabled?: boolean
+}
+
+export function useModels(options?: ModelsQueryOptions) {
   return useQuery({
     queryKey: MODEL_QUERY_KEYS.models,
     queryFn: () => modelsApi.list(),
+    enabled: options?.enabled ?? true,
   })
 }
 
@@ -78,10 +83,11 @@ export function useDeleteModel() {
   })
 }
 
-export function useModelDefaults() {
+export function useModelDefaults(options?: ModelsQueryOptions) {
   return useQuery({
     queryKey: MODEL_QUERY_KEYS.defaults,
     queryFn: () => modelsApi.getDefaults(),
+    enabled: options?.enabled ?? true,
   })
 }
 

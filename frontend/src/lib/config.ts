@@ -58,85 +58,114 @@ export async function getConfig(): Promise<AppConfig> {
  */
 async function fetchConfig(): Promise<AppConfig> {
   const isDev = process.env.NODE_ENV === 'development'
-  
+
   if (isDev) {
     console.log('🔧 [Config] Starting configuration detection...')
     console.log('🔧 [Config] Build time:', BUILD_TIME)
   }
 
-  // STEP 1: Try to get runtime config from Next.js server-side endpoint
-  // This allows API_URL to be set at runtime (not baked into build)
-  // Note: Endpoint is at /config (not /api/config) to avoid reverse proxy conflicts
-  let runtimeApiUrl: string | null = null
-  try {
-    if (isDev) console.log('🔧 [Config] Attempting to fetch runtime config from /config endpoint...')
-    const runtimeResponse = await fetch('/config', {
-      cache: 'no-store',
-    })
-    if (runtimeResponse.ok) {
-      const runtimeData = await runtimeResponse.json()
-      runtimeApiUrl = runtimeData.apiUrl
-      // Treat empty string as "not set" to allow fallback to env var or default
-      if (runtimeApiUrl === '') {
-        runtimeApiUrl = null
-      }
-      if (isDev) console.log('✅ [Config] Runtime API URL from server:', runtimeApiUrl)
-    } else {
-      if (isDev) console.log('⚠️ [Config] Runtime config endpoint returned status:', runtimeResponse.status)
-    }
-  } catch (error) {
-    if (isDev) console.log('⚠️ [Config] Could not fetch runtime config:', error)
-  }
-
-  // STEP 2: Fallback to build-time environment variable
   const envApiUrl = process.env.NEXT_PUBLIC_API_URL
-  if (isDev) console.log('🔧 [Config] NEXT_PUBLIC_API_URL from build:', envApiUrl || '(not set)')
-
-  // STEP 3: Smart default - prefer relative path to use Next.js Rewrites
-  // This avoids CORS issues and port mapping complexities by proxying through Next.js
   const defaultApiUrl = ''
 
-  if (typeof window !== 'undefined' && isDev) {
-      console.log('🔧 [Config] Using relative path (rewrites) as default')
-  }
-
-  // Priority: Runtime config > Build-time env var > Smart default
-  // Note: runtimeApiUrl must be checked against null explicitly as empty string might be valid if intended (though we treat '' as null above)
-  const baseUrl = runtimeApiUrl !== null && runtimeApiUrl !== undefined ? runtimeApiUrl : (envApiUrl || defaultApiUrl)
   if (isDev) {
-    console.log('🔧 [Config] Final base URL to try:', baseUrl)
-    console.log('🔧 [Config] Selection priority: runtime=' + (runtimeApiUrl ? '✅' : '❌') +
-                ', build-time=' + (envApiUrl ? '✅' : '❌') +
-                ', smart-default=' + (!runtimeApiUrl && !envApiUrl ? '✅' : '❌'))
+    console.log('🔧 [Config] NEXT_PUBLIC_API_URL from build:', envApiUrl || '(not set)')
   }
 
-  try {
-    if (isDev) console.log('🔧 [Config] Fetching backend config from:', `${baseUrl}/api/config`)
-    // Try to fetch runtime config from backend API
-    const response = await fetch(`${baseUrl}/api/config`, {
-      cache: 'no-store',
-    })
+  // Parallel: runtime /config and backend /api/config (using env/default base URL)
+  const initialBase = envApiUrl || defaultApiUrl
 
-    if (response.ok) {
-      const data: BackendConfigResponse = await response.json()
-      config = {
-        apiUrl: baseUrl, // Use baseUrl from runtime-config (Python no longer returns this)
-        version: data.version || 'unknown',
-        buildTime: BUILD_TIME,
-        latestVersion: data.latestVersion || null,
-        hasUpdate: data.hasUpdate || false,
-        dbStatus: data.dbStatus, // Can be undefined for old backends
+  const runtimeConfigPromise = (async (): Promise<string | null> => {
+    try {
+      if (isDev) console.log('🔧 [Config] Fetching runtime config from /config...')
+      const runtimeResponse = await fetch('/config', { cache: 'no-store' })
+      if (runtimeResponse.ok) {
+        const runtimeData = await runtimeResponse.json()
+        const url = runtimeData.apiUrl
+        if (url === '') return null
+        if (isDev) console.log('✅ [Config] Runtime API URL from server:', url)
+        return url as string
       }
-      if (isDev) console.log('✅ [Config] Successfully loaded API config:', config)
-      return config
-    } else {
-      // Don't log error here - ConnectionGuard will display it
-      throw new Error(`API config endpoint returned status ${response.status}`)
+      if (isDev) console.log('⚠️ [Config] Runtime config endpoint returned status:', runtimeResponse.status)
+    } catch (error) {
+      if (isDev) console.log('⚠️ [Config] Could not fetch runtime config:', error)
     }
-  } catch (error) {
-    // Don't log error here - ConnectionGuard will display it with proper UI
-    throw error
+    return null
+  })()
+
+  const backendConfigPromise = (async (): Promise<BackendConfigResponse | null> => {
+    try {
+      if (isDev) console.log('🔧 [Config] Fetching backend config from:', `${initialBase}/api/config`)
+      const response = await fetch(`${initialBase}/api/config`, { cache: 'no-store' })
+      if (response.ok) {
+        return (await response.json()) as BackendConfigResponse
+      }
+    } catch {
+      // Retry with resolved base URL after runtime config if needed
+    }
+    return null
+  })()
+
+  const [runtimeApiUrl, backendDataInitial] = await Promise.all([
+    runtimeConfigPromise,
+    backendConfigPromise,
+  ])
+
+  const baseUrl =
+    runtimeApiUrl !== null && runtimeApiUrl !== undefined
+      ? runtimeApiUrl
+      : envApiUrl || defaultApiUrl
+
+  if (isDev) {
+    console.log('🔧 [Config] Final base URL:', baseUrl)
   }
+
+  let data = backendDataInitial
+
+  // If runtime base differs from initial, refetch backend config once
+  if (!data && baseUrl !== initialBase) {
+    try {
+      const response = await fetch(`${baseUrl}/api/config`, { cache: 'no-store' })
+      if (response.ok) {
+        data = (await response.json()) as BackendConfigResponse
+      } else {
+        throw new Error(`API config endpoint returned status ${response.status}`)
+      }
+    } catch (error) {
+      throw error
+    }
+  }
+
+  if (!data) {
+    try {
+      const response = await fetch(`${baseUrl}/api/config`, { cache: 'no-store' })
+      if (response.ok) {
+        data = (await response.json()) as BackendConfigResponse
+      } else {
+        throw new Error(`API config endpoint returned status ${response.status}`)
+      }
+    } catch (error) {
+      throw error
+    }
+  }
+
+  config = {
+    apiUrl: baseUrl,
+    version: data.version || 'unknown',
+    buildTime: BUILD_TIME,
+    latestVersion: data.latestVersion || null,
+    hasUpdate: data.hasUpdate || false,
+    dbStatus: data.dbStatus,
+    authEnabled: data.authEnabled ?? false,
+  }
+  if (isDev) console.log('✅ [Config] Successfully loaded API config:', config)
+  return config
+}
+
+/**
+ * Return cached config synchronously when already loaded (e.g. after ConnectionGuard).
+ */
+export function getCachedConfig(): AppConfig | null {
+  return config
 }
 
 /**

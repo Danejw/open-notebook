@@ -1,8 +1,36 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'fs'
 import path from 'path'
-import { resources } from './index'
 import { enUS } from './en-US'
+import { zhCN } from './zh-CN'
+import { zhTW } from './zh-TW'
+import { ptBR } from './pt-BR'
+import { jaJP } from './ja-JP'
+import { itIT } from './it-IT'
+import { frFR } from './fr-FR'
+import { ruRU } from './ru-RU'
+import { bnIN } from './bn-IN'
+import { caES } from './ca-ES'
+import { esES } from './es-ES'
+import { deDE } from './de-DE'
+import { plPL } from './pl-PL'
+import { trTR } from './tr-TR'
+
+const allLocales = {
+  'zh-CN': zhCN,
+  'zh-TW': zhTW,
+  'pt-BR': ptBR,
+  'ja-JP': jaJP,
+  'it-IT': itIT,
+  'fr-FR': frFR,
+  'ru-RU': ruRU,
+  'bn-IN': bnIN,
+  'ca-ES': caES,
+  'es-ES': esES,
+  'de-DE': deDE,
+  'pl-PL': plPL,
+  'tr-TR': trTR,
+} as const
 
 const getKeys = (obj: Record<string, unknown>, prefix = ''): string[] => {
   return Object.keys(obj).reduce((res: string[], el) => {
@@ -17,12 +45,12 @@ const getKeys = (obj: Record<string, unknown>, prefix = ''): string[] => {
 describe('Locale Parity', () => {
   const enKeys = getKeys(enUS)
 
-  const locales = Object.entries(resources).filter(([code]) => code !== 'en-US')
+  const locales = Object.entries(allLocales)
 
-  it.each(locales.map(([code, resource]) => [code, resource] as const))(
+  it.each(locales.map(([code, translation]) => [code, translation] as const))(
     '%s should have the same keys as en-US',
-    (code, resource) => {
-      const localeKeys = getKeys(resource.translation as Record<string, unknown>)
+    (code, translation) => {
+      const localeKeys = getKeys(translation as Record<string, unknown>)
 
       const missing = enKeys.filter(key => !localeKeys.includes(key))
       const extra = localeKeys.filter(key => !enKeys.includes(key))
@@ -48,8 +76,6 @@ describe('Unused Key Detection', () => {
         return f.endsWith('.ts') || f.endsWith('.tsx')
       })
 
-      // Normalize optional chaining (t?.common?.key → t.common.key)
-      // so that keys like "common.errorDetails" match "common?.errorDetails"
       const corpus = sourceFiles
         .map(f => fs.readFileSync(path.join(srcDir, f), 'utf-8'))
         .join('\n')

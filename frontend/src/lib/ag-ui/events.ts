@@ -78,23 +78,33 @@ export function consumeAgUiSseBuffer(
 
 export async function readAgUiSseStream(
   body: ReadableStream<Uint8Array>,
-  onEvent: AgUiEventHandler
+  onEvent: AgUiEventHandler,
+  signal?: AbortSignal
 ): Promise<void> {
   const reader = body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) {
-      break
+  try {
+    while (!signal?.aborted) {
+      const { done, value } = await reader.read()
+      if (done) {
+        break
+      }
+      buffer += decoder.decode(value, { stream: true })
+      buffer = consumeAgUiSseBuffer(buffer, onEvent)
     }
-    buffer += decoder.decode(value, { stream: true })
-    buffer = consumeAgUiSseBuffer(buffer, onEvent)
-  }
 
-  if (buffer.trim()) {
-    consumeAgUiSseBuffer(`${buffer}\n`, onEvent)
+    if (signal?.aborted) {
+      await reader.cancel()
+      throw new DOMException('Aborted', 'AbortError')
+    }
+
+    if (buffer.trim()) {
+      consumeAgUiSseBuffer(`${buffer}\n`, onEvent)
+    }
+  } finally {
+    reader.releaseLock()
   }
 }
 

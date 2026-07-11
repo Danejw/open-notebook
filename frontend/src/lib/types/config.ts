@@ -8,6 +8,7 @@ export interface BackendConfigResponse {
   latestVersion?: string | null
   hasUpdate?: boolean
   dbStatus?: "online" | "offline"
+  authEnabled?: boolean
 }
 
 /**
@@ -21,6 +22,7 @@ export interface AppConfig {
   latestVersion?: string | null
   hasUpdate?: boolean
   dbStatus?: "online" | "offline"
+  authEnabled?: boolean
 }
 
 /**

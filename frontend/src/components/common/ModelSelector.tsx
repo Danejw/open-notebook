@@ -2,7 +2,7 @@ import { useId } from 'react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { useModels } from '@/lib/hooks/use-models'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { SelectMenuSkeleton } from '@/components/common/LoadingSkeletons'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
 interface ModelSelectorProps {
@@ -42,9 +42,7 @@ export function ModelSelector({
         </SelectTrigger>
         <SelectContent>
           {isLoading ? (
-            <div className="flex items-center justify-center py-2">
-              <LoadingSpinner size="sm" />
-            </div>
+            <SelectMenuSkeleton rows={3} />
           ) : filteredModels.length === 0 ? (
             <div className="text-sm text-muted-foreground py-2 px-2">
               {t('common.noResults')}

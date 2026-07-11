@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { PickerDialogSkeleton } from '@/components/common/LoadingSkeletons'
 import { useSkillsCatalog } from '@/lib/hooks/use-skills'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { cn } from '@/lib/utils'
@@ -90,9 +90,7 @@ export function SkillPicker({ selectedSkillIds, onChange, disabled = false }: Sk
 
         <div className="max-h-64 overflow-y-auto hide-scrollbar">
           {isLoading ? (
-            <div className="flex justify-center py-6">
-              <LoadingSpinner />
-            </div>
+            <PickerDialogSkeleton rows={4} />
           ) : activeSkills.length === 0 ? (
             <p className="px-3 py-4 text-center text-xs text-muted-foreground">
               {t('skills.pickerEmpty')}

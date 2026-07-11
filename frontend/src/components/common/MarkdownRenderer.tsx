@@ -1,57 +1,27 @@
 'use client'
 
-import { useMemo } from 'react'
-import ReactMarkdown from 'react-markdown'
-import type { Components } from 'react-markdown'
-import { cva, type VariantProps } from 'class-variance-authority'
-import { cn } from '@/lib/utils'
-import { markdownRemarkPlugins, markdownRehypePlugins } from '@/lib/markdown/plugins'
-import { createMarkdownComponents, type MarkdownSize } from '@/lib/markdown/components'
+import dynamic from 'next/dynamic'
+import { Skeleton } from '@/components/ui/skeleton'
 
-const markdownVariants = cva('markdown-body max-w-none break-words', {
-  variants: {
-    size: {
-      sm: '',
-      base: '',
-      lg: '',
-    },
-  },
-  defaultVariants: {
-    size: 'base',
-  },
-})
+export type { MarkdownRendererProps } from '@/components/common/MarkdownRendererCore'
 
-export interface MarkdownRendererProps extends VariantProps<typeof markdownVariants> {
-  children: string
-  className?: string
-  components?: Components
-  size?: MarkdownSize
-}
-
-/**
- * Full-featured Markdown renderer with GFM, math (KaTeX), and syntax highlighting.
- * Use `components` to override elements (e.g. custom link handlers for citations).
- */
-export function MarkdownRenderer({
-  children,
-  className,
-  components: componentOverrides,
-  size = 'base',
-}: MarkdownRendererProps) {
-  const mergedComponents = useMemo(
-    () => createMarkdownComponents(size, componentOverrides),
-    [size, componentOverrides]
-  )
-
+function MarkdownLoadingSkeleton() {
   return (
-    <div className={cn(markdownVariants({ size }), className)}>
-      <ReactMarkdown
-        remarkPlugins={markdownRemarkPlugins}
-        rehypePlugins={markdownRehypePlugins}
-        components={mergedComponents}
-      >
-        {children}
-      </ReactMarkdown>
+    <div className="markdown-body space-y-2">
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-4/5" />
+      <Skeleton className="h-4 w-3/5" />
     </div>
   )
 }
+
+export const MarkdownRenderer = dynamic(
+  () =>
+    import('@/components/common/MarkdownRendererCore').then((mod) => ({
+      default: mod.MarkdownRendererCore,
+    })),
+  {
+    ssr: false,
+    loading: () => <MarkdownLoadingSkeleton />,
+  }
+)

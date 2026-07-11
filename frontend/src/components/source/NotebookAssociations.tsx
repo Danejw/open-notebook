@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { LoaderIcon, BookOpen, Check } from 'lucide-react'
+import { BookOpen, Check } from 'lucide-react'
+import { InlineSkeleton, PickerDialogSkeleton } from '@/components/common/LoadingSkeletons'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -117,9 +118,7 @@ export function NotebookAssociations({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <LoaderIcon className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <PickerDialogSkeleton rows={4} />
         </CardContent>
       </Card>
     )
@@ -214,7 +213,7 @@ export function NotebookAssociations({
             >
               {isSaving ? (
                 <>
-                  <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
+                  <InlineSkeleton className="mr-2" />
                   {t('common.saving')}...
                 </>
               ) : (

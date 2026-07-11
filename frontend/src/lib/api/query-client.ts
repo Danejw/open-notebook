@@ -21,6 +21,8 @@ export const QUERY_KEYS = {
   note: (id: string) => ['notes', id] as const,
   sources: (notebookId?: string) => ['sources', notebookId] as const,
   sourcesInfinite: (notebookId: string) => ['sources', 'infinite', notebookId] as const,
+  sourcesAllInfinite: (sortBy: string, sortOrder: string) =>
+    ['sources', 'all', sortBy, sortOrder] as const,
   source: (id: string) => ['sources', id] as const,
   settings: ['settings'] as const,
   sourceChatSessions: (sourceId: string) => ['source-chat', sourceId, 'sessions'] as const,

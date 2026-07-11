@@ -2,12 +2,19 @@
 
 import { useState, useEffect } from 'react'
 
+function getInitialMatch(query: string): boolean {
+  if (typeof window === 'undefined') {
+    return false
+  }
+  return window.matchMedia(query).matches
+}
+
 /**
  * Hook to detect if viewport matches a media query.
- * Returns false during SSR to avoid hydration mismatches.
+ * Initializes from window on first client render to avoid desktop layout flash.
  */
 export function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(false)
+  const [matches, setMatches] = useState(() => getInitialMatch(query))
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(query)

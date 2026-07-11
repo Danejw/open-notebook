@@ -388,7 +388,7 @@ export function EpisodeCard({ episode, onDelete, deleting, onRetry, retrying }: 
                 onClick={handleRetry}
                 disabled={retrying}
               >
-                <RefreshCcw className={cn('mr-2 h-4 w-4', retrying && 'animate-spin')} />
+                <RefreshCcw className={cn('mr-2 h-4 w-4', retrying && 'animate-pulse opacity-60')} />
                 {retrying ? t('podcasts.retrying') : t('podcasts.retry')}
               </Button>
             ) : null}

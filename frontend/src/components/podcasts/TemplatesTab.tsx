@@ -1,11 +1,14 @@
 'use client'
 
-import { AlertCircle, Lightbulb, Loader2 } from 'lucide-react'
+import { useMemo } from 'react'
+import { AlertCircle, AlertTriangle, Lightbulb } from 'lucide-react'
+import { PanelSkeleton } from '@/components/common/LoadingSkeletons'
 
 import { EpisodeProfilesPanel } from '@/components/podcasts/EpisodeProfilesPanel'
 import { SpeakerProfilesPanel } from '@/components/podcasts/SpeakerProfilesPanel'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useEpisodeProfiles, useSpeakerProfiles } from '@/lib/hooks/use-podcasts'
+import { needsModelSetup } from '@/lib/types/podcasts'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
@@ -27,6 +30,10 @@ export function TemplatesTab() {
   const isLoading = loadingEpisodeProfiles || loadingSpeakerProfiles
   const hasError = episodeProfilesError || speakerProfilesError
 
+  const hasUnconfiguredProfiles = useMemo(() => {
+    return episodeProfiles.some(needsModelSetup) || speakerProfiles.some(needsModelSetup)
+  }, [episodeProfiles, speakerProfiles])
+
   return (
     <div className="space-y-6">
       <div className="space-y-1">
@@ -35,6 +42,16 @@ export function TemplatesTab() {
           {t('podcasts.templatesWorkspaceDesc')}
         </p>
       </div>
+
+      {hasUnconfiguredProfiles ? (
+        <Alert className="bg-amber-50 text-amber-900 border-amber-200">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>{t('podcasts.setupRequired')}</AlertTitle>
+          <AlertDescription>
+            {t('podcasts.setupRequiredDesc')}
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <Accordion type="single" collapsible className="w-full">
         <AccordionItem
@@ -98,9 +115,9 @@ export function TemplatesTab() {
       ) : null}
 
       {isLoading ? (
-        <div className="flex items-center gap-3 rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {t('podcasts.loadingTemplates')}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <PanelSkeleton />
+          <PanelSkeleton />
         </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">

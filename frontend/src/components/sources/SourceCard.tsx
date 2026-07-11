@@ -20,7 +20,6 @@ import {
   Clock,
   CheckCircle,
   AlertTriangle,
-  Loader2,
   Unlink,
   Lightbulb
 } from 'lucide-react'
@@ -63,7 +62,7 @@ const getStatusConfig = (t: TFunction) => ({
     label: t('sources.statusQueued'),
   },
   running: {
-    icon: Loader2,
+    icon: Clock,
     color: 'text-blue-600',
     label: t('sources.statusProcessing'),
   },
@@ -249,7 +248,7 @@ function SourceCardImpl({
               )}
               title={statusLoading && shouldFetchStatus ? t('sources.checking') : statusConfig.label}
             >
-              <StatusIcon className={cn('h-3 w-3', isProcessing && 'animate-spin')} />
+              <StatusIcon className={cn('h-3 w-3', isProcessing && 'animate-pulse')} />
               <span className="hidden sm:inline">
                 {statusLoading && shouldFetchStatus ? t('sources.checking') : statusConfig.label}
               </span>

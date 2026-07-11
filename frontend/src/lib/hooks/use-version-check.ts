@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import { getConfig } from '@/lib/config'
+import { getCachedConfig, getConfig } from '@/lib/config'
+import type { AppConfig } from '@/lib/types/config'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
 /**
@@ -19,26 +20,43 @@ export function useVersionCheck() {
     if (hasChecked.current) return
     hasChecked.current = true
 
-    getConfig()
-      .then(config => {
-        if (!config.hasUpdate || !config.latestVersion) return
+    const showUpdateToast = (config: AppConfig) => {
+      if (!config.hasUpdate || !config.latestVersion) return
 
-        const dismissKey = `version_notification_dismissed_${config.latestVersion}`
-        if (sessionStorage.getItem(dismissKey)) return
+      const dismissKey = `version_notification_dismissed_${config.latestVersion}`
+      if (sessionStorage.getItem(dismissKey)) return
 
-        toast.info(t('advanced.updateAvailable').replace('{version}', config.latestVersion), {
-          description: t('advanced.updateAvailableDesc'),
-          duration: Infinity,
-          closeButton: true,
-          action: {
-            label: t('advanced.viewOnGithub'),
-            onClick: () => window.open('https://github.com/lfnovo/open-notebook', '_blank'),
-          },
-          onDismiss: () => sessionStorage.setItem(dismissKey, 'true'),
+      toast.info(t('advanced.updateAvailable').replace('{version}', config.latestVersion), {
+        description: t('advanced.updateAvailableDesc'),
+        duration: Infinity,
+        closeButton: true,
+        action: {
+          label: t('advanced.viewOnGithub'),
+          onClick: () => window.open('https://github.com/lfnovo/open-notebook', '_blank'),
+        },
+        onDismiss: () => sessionStorage.setItem(dismissKey, 'true'),
+      })
+    }
+
+    const runCheck = () => {
+      const cached = getCachedConfig()
+      if (cached) {
+        showUpdateToast(cached)
+        return
+      }
+
+      getConfig()
+        .then(showUpdateToast)
+        .catch(() => {
+          // Silently fail - version check is non-critical
         })
-      })
-      .catch(() => {
-        // Silently fail - version check is non-critical
-      })
-  }, [t]) // t is still a dependency but only executes once due to ref guard
+    }
+
+    if ('requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(runCheck, { timeout: 3000 })
+      return () => window.cancelIdleCallback(id)
+    }
+    const timer = setTimeout(runCheck, 2000)
+    return () => clearTimeout(timer)
+  }, [t])
 }

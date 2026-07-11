@@ -1,0 +1,202 @@
+'use client'
+
+import { memo } from 'react'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { Pencil } from 'lucide-react'
+import { SourceChatMessage } from '@/lib/types/api'
+import { ChatToolCall } from '@/lib/types/mcp'
+import { ToolCallCard } from '@/components/mcp/ToolCallCard'
+import { MessageActions } from '@/components/source/MessageActions'
+import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
+import { convertReferencesToCompactMarkdown, createCompactReferenceLinkComponent } from '@/lib/utils/source-references'
+import { useTranslation } from '@/lib/hooks/use-translation'
+import { cn } from '@/lib/utils'
+
+const EMPTY_TOOL_CALLS: ChatToolCall[] = []
+
+export interface ChatMessageRowProps {
+  message: SourceChatMessage
+  isStreamingThisMessage: boolean
+  isEditing: boolean
+  editDraft: string
+  isStreaming: boolean
+  notebookId?: string
+  toolCalls?: ChatToolCall[]
+  canEdit: boolean
+  editLocked: boolean
+  onReferenceClick: (type: string, id: string) => void
+  onStartEdit: (messageId: string, content: string) => void
+  onEditDraftChange: (value: string) => void
+  onCancelEdit: () => void
+  onSubmitEdit: () => void
+  onEditKeyDown: (e: React.KeyboardEvent) => void
+}
+
+function ChatMessageRowImpl({
+  message,
+  isStreamingThisMessage,
+  isEditing,
+  editDraft,
+  isStreaming,
+  notebookId,
+  toolCalls = EMPTY_TOOL_CALLS,
+  canEdit,
+  editLocked,
+  onReferenceClick,
+  onStartEdit,
+  onEditDraftChange,
+  onCancelEdit,
+  onSubmitEdit,
+  onEditKeyDown,
+}: ChatMessageRowProps) {
+  const { t } = useTranslation()
+
+  return (
+    <div
+      data-index={message.id}
+      className={cn('group flex py-0.5', message.type === 'human' ? 'justify-end' : 'justify-start')}
+    >
+      <div
+        className={cn(
+          'flex max-w-[88%] flex-col gap-0.5',
+          message.type === 'human' ? 'items-end' : 'items-start'
+        )}
+      >
+        {message.type === 'human' && isEditing ? (
+          <div className="w-full min-w-[220px] rounded-lg border bg-background p-2 shadow-sm">
+            <Textarea
+              value={editDraft}
+              onChange={(e) => onEditDraftChange(e.target.value)}
+              onKeyDown={onEditKeyDown}
+              disabled={isStreaming}
+              className="min-h-[72px] resize-none border-0 bg-transparent px-0 py-0 text-sm shadow-none focus-visible:ring-0"
+              autoFocus
+            />
+            <div className="mt-2 flex justify-end gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={onCancelEdit}
+                disabled={isStreaming}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={onSubmitEdit}
+                disabled={!editDraft.trim() || isStreaming}
+              >
+                {t('chat.resend')}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div
+              className={cn(
+                'rounded-lg px-3 py-1.5',
+                message.type === 'human' ? 'bg-primary text-primary-foreground' : 'bg-muted'
+              )}
+            >
+              {message.type === 'ai' ? (
+                <AIMessageContent
+                  content={message.content}
+                  isStreaming={isStreamingThisMessage}
+                  onReferenceClick={onReferenceClick}
+                />
+              ) : (
+                <p className="whitespace-pre-wrap break-words text-sm">{message.content}</p>
+              )}
+            </div>
+            {message.type === 'human' && canEdit && (
+              <div className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-1.5 text-[11px] text-muted-foreground"
+                  onClick={() => onStartEdit(message.id, message.content)}
+                  disabled={isStreaming || editLocked}
+                  aria-label={t('chat.editMessage')}
+                >
+                  <Pencil className="mr-1 h-3 w-3" />
+                  {t('chat.edit')}
+                </Button>
+              </div>
+            )}
+            {message.type === 'ai' && (
+              <div className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                <MessageActions content={message.content} notebookId={notebookId} />
+              </div>
+            )}
+            {message.type === 'ai' && toolCalls.length > 0 && (
+              <div className="w-full space-y-1.5 pt-1">
+                {toolCalls.map((toolCall) => (
+                  <ToolCallCard key={toolCall.id} toolCall={toolCall} />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function toolCallsEqual(a: ChatToolCall[], b: ChatToolCall[]) {
+  if (a === b) return true
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].id !== b[i].id || a[i].status !== b[i].status) return false
+  }
+  return true
+}
+
+function areChatMessageRowPropsEqual(prev: ChatMessageRowProps, next: ChatMessageRowProps) {
+  if (prev.message.id !== next.message.id) return false
+  if (prev.message.content !== next.message.content) return false
+  if (prev.message.type !== next.message.type) return false
+  if (prev.isStreamingThisMessage !== next.isStreamingThisMessage) return false
+  if (prev.isStreaming !== next.isStreaming) return false
+  if (prev.notebookId !== next.notebookId) return false
+  if (prev.canEdit !== next.canEdit) return false
+  if (prev.editLocked !== next.editLocked) return false
+  if (!toolCallsEqual(prev.toolCalls ?? EMPTY_TOOL_CALLS, next.toolCalls ?? EMPTY_TOOL_CALLS)) {
+    return false
+  }
+  if (prev.isEditing !== next.isEditing) return false
+  if (prev.isEditing && prev.editDraft !== next.editDraft) return false
+  return true
+}
+
+export const ChatMessageRow = memo(ChatMessageRowImpl, areChatMessageRowPropsEqual)
+
+const AIMessageContent = memo(function AIMessageContent({
+  content,
+  isStreaming,
+  onReferenceClick,
+}: {
+  content: string
+  isStreaming: boolean
+  onReferenceClick: (type: string, id: string) => void
+}) {
+  const { t } = useTranslation()
+
+  if (isStreaming) {
+    return <p className="whitespace-pre-wrap break-words text-sm">{content}</p>
+  }
+
+  const markdownWithCompactRefs = convertReferencesToCompactMarkdown(content, t('common.references'))
+  const LinkComponent = createCompactReferenceLinkComponent(onReferenceClick)
+
+  return (
+    <MarkdownRenderer size="sm" components={{ a: LinkComponent }}>
+      {markdownWithCompactRefs}
+    </MarkdownRenderer>
+  )
+})

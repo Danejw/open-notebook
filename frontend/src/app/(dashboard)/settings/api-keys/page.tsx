@@ -2,9 +2,8 @@
 
 import { useMemo, useState, useEffect, useId } from 'react'
 import { useForm } from 'react-hook-form'
-import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { InlineSkeleton, ListRowsSkeleton, SettingsFormSkeleton } from '@/components/common/LoadingSkeletons'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -28,7 +27,6 @@ import {
   Edit,
   Trash2,
   Plug,
-  Loader2,
   Check,
   X,
   AlertCircle,
@@ -408,7 +406,7 @@ function CredentialFormDialog({
               {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={!isValid || isSubmitting}>
-              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {isSubmitting && <InlineSkeleton className="mr-2" />}
               {isEditing ? t('common.save') : t('apiKeys.addConfig')}
             </Button>
           </div>
@@ -562,9 +560,7 @@ function DiscoverModelsDialog({
 
         <div className="min-h-0 flex-1 overflow-y-auto">
         {discoverModels.isPending ? (
-          <div className="flex items-center justify-center py-12">
-            <LoadingSpinner size="lg" />
-          </div>
+          <ListRowsSkeleton rows={5} withHeader={false} />
         ) : discoveryError ? (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -664,7 +660,7 @@ function DiscoverModelsDialog({
             onClick={handleRegister}
             disabled={totalSelected === 0 || registerModels.isPending}
           >
-            {registerModels.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            {registerModels.isPending && <InlineSkeleton className="mr-2" />}
             {t('common.add')} ({totalSelected})
           </Button>
         </DialogFooter>
@@ -758,7 +754,7 @@ function DeleteCredentialDialog({
           </Button>
           {credential.model_count > 0 && migrateToId && (
             <Button onClick={handleMigrate} disabled={deleteCredential.isPending}>
-              {deleteCredential.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {deleteCredential.isPending && <InlineSkeleton className="mr-2" />}
               Migrate & Delete
             </Button>
           )}
@@ -767,7 +763,7 @@ function DeleteCredentialDialog({
             onClick={credential.model_count > 0 ? handleDeleteWithModels : handleDeleteOnly}
             disabled={deleteCredential.isPending}
           >
-            {deleteCredential.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            {deleteCredential.isPending && <InlineSkeleton className="mr-2" />}
             {credential.model_count > 0 ? 'Delete with Models' : t('common.delete')}
           </Button>
         </DialogFooter>
@@ -863,7 +859,7 @@ function CredentialItem({
               disabled={isTestPending || !!credential.decryption_error}
               title={t('apiKeys.testConnection')}
             >
-              {isTestPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plug className="h-4 w-4" />}
+              {isTestPending ? <InlineSkeleton /> : <Plug className="h-4 w-4" />}
               <span className="hidden sm:inline text-xs">Test</span>
             </Button>
             <Button
@@ -932,7 +928,7 @@ function CredentialItem({
                             title={testModelLabel}
                           >
                             {isModelTestPending && testingModelId === model.id
-                              ? <Loader2 className="h-3 w-3 animate-spin" />
+                              ? <InlineSkeleton className="h-3 w-3" />
                               : <Plug className="h-3 w-3" />
                             }
                           </button>
@@ -1197,7 +1193,7 @@ function DefaultModelSelectors({
                 disabled={autoAssign.isPending}
                 className="shrink-0 gap-1.5"
               >
-                {autoAssign.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+                {autoAssign.isPending ? <InlineSkeleton className="h-3.5 w-3.5" /> : <Wand2 className="h-3.5 w-3.5" />}
                 {autoAssign.isPending ? t('models.autoAssigning') : t('models.autoAssign')}
               </Button>
             </AlertDescription>
@@ -1376,17 +1372,15 @@ export default function ApiKeysPage() {
 
   if (isLoading) {
     return (
-      <AppShell>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <LoadingSpinner size="lg" />
+              <div className={`${pageContentClassName} space-y-6`}>
+          <PageHeader bordered title={t('apiKeys.title')} description={t('apiKeys.desc')} />
+          <SettingsFormSkeleton />
         </div>
-      </AppShell>
     )
   }
 
   return (
-    <AppShell>
-      <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto">
         <div className={`${pageContentClassName} space-y-6`}>
           <PageHeader
             bordered
@@ -1444,6 +1438,5 @@ export default function ApiKeysPage() {
           </div>
         </div>
       </div>
-    </AppShell>
   )
 }

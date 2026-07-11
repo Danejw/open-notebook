@@ -5,7 +5,15 @@ import { useRouter } from 'next/navigation'
 import { NotebookResponse } from '@/lib/types/api'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { MoreHorizontal, Archive, ArchiveRestore, Trash2, FileText, StickyNote } from 'lucide-react'
+import {
+  MoreHorizontal,
+  Archive,
+  ArchiveRestore,
+  Trash2,
+  FileText,
+  StickyNote,
+  BookOpen,
+} from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import {
   DropdownMenu,
@@ -33,7 +41,7 @@ export function NotebookRow({ notebook }: NotebookRowProps) {
     e.stopPropagation()
     updateNotebook.mutate({
       id: notebook.id,
-      data: { archived: !notebook.archived }
+      data: { archived: !notebook.archived },
     })
   }
 
@@ -41,94 +49,94 @@ export function NotebookRow({ notebook }: NotebookRowProps) {
     router.push(`/notebooks/${encodeURIComponent(notebook.id)}`)
   }
 
+  const updatedLabel = t('common.updated').replace(
+    '{time}',
+    formatDistanceToNow(new Date(notebook.updated), {
+      addSuffix: true,
+      locale: getDateLocale(language),
+    }),
+  )
+
   return (
     <>
-      {/* The row is mouse-clickable for convenience, but the notebook name is
-          the accessible primary action (a real link) for keyboard/screen-reader
-          users — avoiding nested interactive (button-in-button) semantics. */}
       <div
-        className="group flex items-center gap-4 rounded-lg border bg-card px-4 py-3 card-hover"
+        className="group flex cursor-pointer items-start gap-2 px-3 py-1.5 transition-colors hover:bg-muted/40"
         onClick={handleRowClick}
-        style={{ cursor: 'pointer' }}
       >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+        <BookOpen className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-1">
             <Link
               href={`/notebooks/${encodeURIComponent(notebook.id)}`}
               onClick={(e) => e.stopPropagation()}
-              className="font-medium truncate rounded-sm outline-none group-hover:text-primary transition-colors focus-visible:ring-2 focus-visible:ring-ring"
+              className="min-w-0 flex-1 truncate rounded-sm text-sm font-medium outline-none transition-colors group-hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
             >
               {notebook.name}
             </Link>
-            {notebook.archived && (
-              <Badge variant="secondary">
+            {notebook.archived ? (
+              <Badge variant="outline" className="h-5 shrink-0 px-1.5 text-[10px]">
                 {t('notebooks.archived')}
               </Badge>
-            )}
+            ) : null}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  aria-label={t('common.actions')}
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 shrink-0 p-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuItem onClick={handleArchiveToggle}>
+                  {notebook.archived ? (
+                    <>
+                      <ArchiveRestore className="mr-2 h-3.5 w-3.5" />
+                      {t('notebooks.unarchive')}
+                    </>
+                  ) : (
+                    <>
+                      <Archive className="mr-2 h-3.5 w-3.5" />
+                      {t('notebooks.archive')}
+                    </>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowDeleteDialog(true)
+                  }}
+                  className="text-red-600"
+                >
+                  <Trash2 className="mr-2 h-3.5 w-3.5" />
+                  {t('common.delete')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-          {notebook.description && (
-            <p className="text-sm text-muted-foreground truncate">
-              {notebook.description}
-            </p>
-          )}
+          <p className="truncate text-[11px] text-muted-foreground">
+            {notebook.description ? (
+              <>
+                <span>{notebook.description}</span>
+                <span aria-hidden> · </span>
+              </>
+            ) : null}
+            <span>{updatedLabel}</span>
+            <span aria-hidden> · </span>
+            <span className="inline-flex items-center gap-0.5">
+              <FileText className="h-3 w-3" aria-hidden />
+              {notebook.source_count}
+            </span>
+            <span aria-hidden> · </span>
+            <span className="inline-flex items-center gap-0.5">
+              <StickyNote className="h-3 w-3" aria-hidden />
+              {notebook.note_count}
+            </span>
+          </p>
         </div>
-
-        <div className="flex items-center gap-1.5 shrink-0">
-          <Badge variant="outline" className="text-xs flex items-center gap-1 px-1.5 py-0.5 text-primary border-primary/50">
-            <FileText className="h-3 w-3" />
-            <span>{notebook.source_count}</span>
-          </Badge>
-          <Badge variant="outline" className="text-xs flex items-center gap-1 px-1.5 py-0.5 text-primary border-primary/50">
-            <StickyNote className="h-3 w-3" />
-            <span>{notebook.note_count}</span>
-          </Badge>
-        </div>
-
-        <div className="hidden sm:block w-40 shrink-0 text-right text-xs text-muted-foreground">
-          {t('common.updated').replace('{time}', formatDistanceToNow(new Date(notebook.updated), {
-            addSuffix: true,
-            locale: getDateLocale(language)
-          }))}
-        </div>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              aria-label={t('common.actions')}
-              variant="ghost"
-              size="sm"
-              className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity shrink-0"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-            <DropdownMenuItem onClick={handleArchiveToggle}>
-              {notebook.archived ? (
-                <>
-                  <ArchiveRestore className="h-4 w-4 mr-2" />
-                  {t('notebooks.unarchive')}
-                </>
-              ) : (
-                <>
-                  <Archive className="h-4 w-4 mr-2" />
-                  {t('notebooks.archive')}
-                </>
-              )}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation()
-                setShowDeleteDialog(true)
-              }}
-              className="text-red-600"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              {t('common.delete')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
 
       <NotebookDeleteDialog

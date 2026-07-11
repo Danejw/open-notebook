@@ -4,7 +4,6 @@ import { useEffect, useId, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, KeyRound, RefreshCw, Zap } from 'lucide-react'
-import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -26,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { DetailPageSkeleton, ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
 import {
   useMcpConnection,
   useMcpConnectionTools,
@@ -133,29 +132,25 @@ export default function ToolConnectionDetailPage() {
 
   if (isLoading) {
     return (
-      <AppShell>
-        <div className="flex flex-1 items-center justify-center">
-          <LoadingSpinner size="lg" />
+              <div className="flex-1 overflow-y-auto">
+          <DetailPageSkeleton />
         </div>
-      </AppShell>
     )
   }
 
   if (!connection) {
     return (
-      <AppShell>
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6">
+              <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6">
           <p className="text-muted-foreground">{t('tools.notFound')}</p>
           <Button asChild variant="outline">
             <Link href="/tools">{t('tools.backToList')}</Link>
           </Button>
         </div>
-      </AppShell>
     )
   }
 
   return (
-    <AppShell>
+    <>
       <div className="flex-1 overflow-y-auto">
         <div className="p-6 space-y-6 max-w-6xl">
           <PageHeader
@@ -197,7 +192,7 @@ export default function ToolConnectionDetailPage() {
                   disabled={syncConnection.isPending}
                 >
                   <RefreshCw
-                    className={cn('h-3.5 w-3.5 sm:mr-1.5', syncConnection.isPending && 'animate-spin')}
+                    className={cn('h-3.5 w-3.5 sm:mr-1.5', syncConnection.isPending && 'animate-pulse opacity-60')}
                   />
                   <span className="hidden sm:inline">{t('tools.sync')}</span>
                 </Button>
@@ -282,9 +277,7 @@ export default function ToolConnectionDetailPage() {
             </CardHeader>
             <CardContent>
               {toolsLoading ? (
-                <div className="flex justify-center py-8">
-                  <LoadingSpinner />
-                </div>
+                <ListRowsSkeleton rows={4} withHeader={false} />
               ) : sortedTools.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4">{t('tools.noTools')}</p>
               ) : (
@@ -374,6 +367,6 @@ export default function ToolConnectionDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AppShell>
+    </>
   )
 }

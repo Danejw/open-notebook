@@ -1,6 +1,5 @@
 'use client'
 
-import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { SkillsList } from './components/SkillsList'
@@ -13,8 +12,7 @@ export default function SkillsPage() {
   const { data: skills, isLoading, refetch } = useSkills(false)
 
   return (
-    <AppShell>
-      <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto">
         <div className={`${pageContentClassName} space-y-6`}>
           <PageHeader
             bordered
@@ -33,6 +31,5 @@ export default function SkillsPage() {
           </div>
         </div>
       </div>
-    </AppShell>
   )
 }

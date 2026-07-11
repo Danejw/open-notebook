@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Play, Loader2 } from 'lucide-react'
+import { Play } from 'lucide-react'
+import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
 import { Transformation } from '@/lib/types/transformations'
 import { useExecuteTransformation } from '@/lib/hooks/use-transformations'
 import { ModelSelector } from '@/components/common/ModelSelector'
@@ -99,7 +100,7 @@ export function TransformationPlayground({ transformations, selectedTransformati
           <Button onClick={handleExecute} disabled={!canExecute} size="sm" className="h-7 text-xs">
             {executeTransformation.isPending ? (
               <>
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                <InlineSkeleton className="mr-1.5 h-3.5 w-3.5" />
                 {t('transformations.running')}
               </>
             ) : (

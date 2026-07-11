@@ -1,8 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Archive, FileText } from 'lucide-react'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Archive, Sparkles } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Skill } from '@/lib/types/skills'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -11,54 +10,48 @@ interface SkillCardProps {
   skill: Skill
 }
 
+function shouldShowStatus(status: string): boolean {
+  const normalized = status.trim().toLowerCase()
+  return normalized !== '' && normalized !== 'active'
+}
+
 export function SkillCard({ skill }: SkillCardProps) {
   const { t } = useTranslation()
 
+  const metaParts: string[] = []
+  if (shouldShowStatus(skill.status)) {
+    metaParts.push(skill.status)
+  }
+  metaParts.push(t('skills.fileCount').replace('{count}', skill.file_count.toString()))
+  if (skill.updated) {
+    metaParts.push(new Date(skill.updated).toLocaleDateString())
+  }
+
   return (
     <Link href={`/skills/${skill.id}`} className="block">
-      <Card className="transition-colors hover:bg-muted/40">
-        <CardHeader className="pb-2">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 space-y-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-semibold truncate">{skill.name}</h3>
-                <Badge variant="secondary">{skill.status}</Badge>
-                {skill.archived && (
-                  <Badge variant="outline" className="gap-1">
-                    <Archive className="h-3 w-3" />
-                    {t('skills.archived')}
-                  </Badge>
-                )}
-              </div>
-              {skill.description && (
-                <p className="text-sm text-muted-foreground line-clamp-2">
-                  {skill.description}
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
-              <FileText className="h-3.5 w-3.5" />
-              {t('skills.fileCount').replace('{count}', skill.file_count.toString())}
-            </div>
+      <div className="group flex items-center gap-2 px-3 py-1.5 transition-colors hover:bg-muted/40">
+        <Sparkles className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-sm font-medium">{skill.name}</span>
+            {skill.archived ? (
+              <Badge variant="outline" className="h-5 shrink-0 gap-1 px-1.5 text-[10px]">
+                <Archive className="h-3 w-3" />
+                {t('skills.archived')}
+              </Badge>
+            ) : null}
           </div>
-        </CardHeader>
-        <CardContent className="pt-0 space-y-2">
-          {skill.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {skill.tags.map((tag) => (
-                <Badge key={tag} variant="outline" className="text-xs">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          )}
-          {skill.updated && (
-            <p className="text-xs text-muted-foreground">
-              {t('common.updated_label')}: {new Date(skill.updated).toLocaleString()}
-            </p>
-          )}
-        </CardContent>
-      </Card>
+          <p className="truncate text-[11px] text-muted-foreground">
+            {skill.description ? (
+              <>
+                <span>{skill.description}</span>
+                <span aria-hidden> · </span>
+              </>
+            ) : null}
+            {metaParts.join(' · ')}
+          </p>
+        </div>
+      </div>
     </Link>
   )
 }

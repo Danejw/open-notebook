@@ -11,7 +11,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
 
 interface ConfirmDialogProps {
   open: boolean
@@ -53,7 +53,7 @@ export function ConfirmDialog({
           >
             {isLoading ? (
               <>
-                <LoadingSpinner size="sm" className="mr-2" />
+                <InlineSkeleton className="mr-2" />
                 {finalConfirmText}
               </>
             ) : (

@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { CheckboxList } from '@/components/ui/checkbox-list'
 import { useNotebooks } from '@/lib/hooks/use-notebooks'
 import { useCreateNote } from '@/lib/hooks/use-notes'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { InlineSkeleton, PickerDialogSkeleton } from '@/components/common/LoadingSkeletons'
 import { toast } from 'sonner'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
@@ -86,9 +86,7 @@ export function SaveToNotebooksDialog({
 
         <div className="py-4">
           {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <LoadingSpinner />
-            </div>
+            <PickerDialogSkeleton rows={4} />
           ) : (
             <CheckboxList
               items={notebookItems}
@@ -109,7 +107,7 @@ export function SaveToNotebooksDialog({
           >
             {createNote.isPending ? (
               <>
-                <LoadingSpinner size="sm" className="mr-2" />
+                <InlineSkeleton className="mr-2" />
                 {t('searchPage.saving')}
               </>
             ) : (

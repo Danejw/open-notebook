@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useId } from 'react'
+import { useState, useRef, useEffect, useId, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -14,6 +14,14 @@ import {
 } from '@/lib/types/api'
 import { ModelSelector } from './ModelSelector'
 import { SkillPicker } from '@/components/skills/SkillPicker'
+import { ToolPicker } from '@/components/mcp/ToolPicker'
+import { ToolCallCard } from '@/components/mcp/ToolCallCard'
+import { useMcpSessionToolCalls } from '@/lib/hooks/use-mcp'
+import {
+  groupToolCallsByMessage,
+  mergeMcpToolCalls,
+} from '@/lib/ag-ui/mcp-tool-calls'
+import { ChatToolCall } from '@/lib/types/mcp'
 import { ContextIndicator } from '@/components/common/ContextIndicator'
 import { AgentActivityStatus } from '@/components/common/AgentActivityStatus'
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
@@ -68,6 +76,10 @@ interface ChatPanelProps {
   // Skills selection for notebook chat
   selectedSkillIds?: string[]
   onSkillIdsChange?: (ids: string[]) => void
+  // MCP tools selection (transient per message)
+  selectedMcpToolIds?: string[]
+  onMcpToolIdsChange?: (ids: string[]) => void
+  liveMcpToolCalls?: ChatToolCall[]
 }
 
 export function ChatPanel({
@@ -93,9 +105,30 @@ export function ChatPanel({
   notebookId,
   selectedSkillIds,
   onSkillIdsChange,
+  selectedMcpToolIds,
+  onMcpToolIdsChange,
+  liveMcpToolCalls = [],
 }: ChatPanelProps) {
   const { t } = useTranslation()
   const chatInputId = useId()
+  const { data: persistedToolCalls = [] } = useMcpSessionToolCalls(currentSessionId)
+
+  const mergedToolCalls = useMemo(
+    () => mergeMcpToolCalls(persistedToolCalls, liveMcpToolCalls),
+    [persistedToolCalls, liveMcpToolCalls]
+  )
+
+  const toolCallsByMessageId = useMemo(
+    () => groupToolCallsByMessage(messages, mergedToolCalls),
+    [messages, mergedToolCalls]
+  )
+
+  const pendingToolCalls = useMemo(() => {
+    const messageIds = new Set(messages.map((message) => message.id))
+    return mergedToolCalls.filter(
+      (call) => call.message_id && !messageIds.has(call.message_id)
+    )
+  }, [mergedToolCalls, messages])
   const [input, setInput] = useState('')
   const [sessionManagerOpen, setSessionManagerOpen] = useState(false)
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
@@ -198,7 +231,7 @@ export function ChatPanel({
                   <Clock className={columnHeaderIconClassName} />
                   {t('chat.sessions')}
                 </Button>
-                <DialogContent className="sm:max-w-[420px] p-0 overflow-hidden">
+                <DialogContent className="p-0 overflow-hidden">
                   <DialogTitle className="sr-only">{t('chat.sessionsTitle')}</DialogTitle>
                   <SessionManager
                     sessions={sessions}
@@ -320,6 +353,13 @@ export function ChatPanel({
                               />
                             </div>
                           )}
+                          {message.type === 'ai' && (toolCallsByMessageId.get(message.id)?.length ?? 0) > 0 && (
+                            <div className="w-full space-y-1.5 pt-1">
+                              {toolCallsByMessageId.get(message.id)?.map((toolCall) => (
+                                <ToolCallCard key={toolCall.id} toolCall={toolCall} />
+                              ))}
+                            </div>
+                          )}
                         </>
                       )}
                     </div>
@@ -328,10 +368,19 @@ export function ChatPanel({
               )}
 
               {isStreaming && (
-                <AgentActivityStatus
-                  streamStatus={streamStatus}
-                  activityLog={activityLog}
-                />
+                <>
+                  {pendingToolCalls.length > 0 && (
+                    <div className="space-y-1.5">
+                      {pendingToolCalls.map((toolCall) => (
+                        <ToolCallCard key={toolCall.id} toolCall={toolCall} />
+                      ))}
+                    </div>
+                  )}
+                  <AgentActivityStatus
+                    streamStatus={streamStatus}
+                    activityLog={activityLog}
+                  />
+                </>
               )}
               <div ref={messagesEndRef} />
             </div>
@@ -385,6 +434,13 @@ export function ChatPanel({
                 <SkillPicker
                   selectedSkillIds={selectedSkillIds ?? []}
                   onChange={onSkillIdsChange}
+                  disabled={isStreaming}
+                />
+              )}
+              {onMcpToolIdsChange && (
+                <ToolPicker
+                  selectedToolIds={selectedMcpToolIds ?? []}
+                  onChange={onMcpToolIdsChange}
                   disabled={isStreaming}
                 />
               )}

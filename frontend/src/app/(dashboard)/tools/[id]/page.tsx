@@ -1,0 +1,379 @@
+'use client'
+
+import { useEffect, useId, useMemo, useState } from 'react'
+import { useParams } from 'next/navigation'
+import Link from 'next/link'
+import { ArrowLeft, KeyRound, RefreshCw, Zap } from 'lucide-react'
+import { AppShell } from '@/components/layout/AppShell'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import {
+  useMcpConnection,
+  useMcpConnectionTools,
+  useSyncMcpConnection,
+  useTestMcpConnection,
+  useUpdateMcpConnectionAuth,
+} from '@/lib/hooks/use-mcp'
+import { useTranslation } from '@/lib/hooks/use-translation'
+import { McpAuthType, McpTool } from '@/lib/types/mcp'
+import { cn } from '@/lib/utils'
+
+function riskBadgeVariant(risk: McpTool['risk_level']): 'default' | 'secondary' | 'destructive' | 'outline' {
+  switch (risk) {
+    case 'read':
+      return 'secondary'
+    case 'action':
+      return 'destructive'
+    case 'unknown':
+      return 'outline'
+    default: {
+      const _exhaustive: never = risk
+      return _exhaustive
+    }
+  }
+}
+
+function JsonBlock({ value }: { value: object | null | undefined }) {
+  if (!value || Object.keys(value).length === 0) {
+    return <span className="text-muted-foreground">—</span>
+  }
+  return (
+    <pre className="max-h-32 overflow-auto rounded-md border bg-muted/40 p-2 font-mono text-[11px]">
+      {JSON.stringify(value, null, 2)}
+    </pre>
+  )
+}
+
+function ToolSchemaCell({ schema }: { schema: object | null | undefined }) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  if (!schema || Object.keys(schema).length === 0) {
+    return <span className="text-muted-foreground">—</span>
+  }
+  return (
+    <div>
+      <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setOpen((v) => !v)}>
+        {open ? t('tools.hideSchema') : t('tools.showSchema')}
+      </Button>
+      {open && <JsonBlock value={schema} />}
+    </div>
+  )
+}
+
+export default function ToolConnectionDetailPage() {
+  const { t } = useTranslation()
+  const params = useParams<{ id: string }>()
+  const connectionId = params.id
+
+  const { data: connection, isLoading, refetch } = useMcpConnection(connectionId)
+  const { data: tools = [], isLoading: toolsLoading, refetch: refetchTools } =
+    useMcpConnectionTools(connectionId)
+  const testConnection = useTestMcpConnection()
+  const syncConnection = useSyncMcpConnection()
+  const updateAuth = useUpdateMcpConnectionAuth()
+
+  const authTypeId = useId()
+  const tokenId = useId()
+
+  const [authOpen, setAuthOpen] = useState(false)
+  const [authType, setAuthType] = useState<McpAuthType>('bearer')
+  const [bearerToken, setBearerToken] = useState('')
+
+  useEffect(() => {
+    if (!connection || !authOpen) return
+    setAuthType(connection.auth_type === 'none' ? 'none' : 'bearer')
+    setBearerToken('')
+  }, [connection, authOpen])
+
+  const sortedTools = useMemo(
+    () => [...tools].sort((a, b) => a.name.localeCompare(b.name)),
+    [tools]
+  )
+
+  const handleRefresh = async () => {
+    await Promise.all([refetch(), refetchTools()])
+  }
+
+  const handleSync = async () => {
+    await syncConnection.mutateAsync(connectionId)
+    await refetchTools()
+  }
+
+  const handleSaveAuth = async () => {
+    await updateAuth.mutateAsync({
+      id: connectionId,
+      data: {
+        auth_type: authType,
+        bearer_token: authType === 'bearer' ? bearerToken.trim() || undefined : undefined,
+      },
+    })
+    setAuthOpen(false)
+    setBearerToken('')
+  }
+
+  if (isLoading) {
+    return (
+      <AppShell>
+        <div className="flex flex-1 items-center justify-center">
+          <LoadingSpinner size="lg" />
+        </div>
+      </AppShell>
+    )
+  }
+
+  if (!connection) {
+    return (
+      <AppShell>
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6">
+          <p className="text-muted-foreground">{t('tools.notFound')}</p>
+          <Button asChild variant="outline">
+            <Link href="/tools">{t('tools.backToList')}</Link>
+          </Button>
+        </div>
+      </AppShell>
+    )
+  }
+
+  return (
+    <AppShell>
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-6 space-y-6 max-w-6xl">
+          <PageHeader
+            bordered
+            leading={
+              <Button asChild variant="ghost" size="sm" className="-ml-1 mb-1 h-7 px-2 text-xs">
+                <Link href="/tools">
+                  <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
+                  {t('tools.backToList')}
+                </Link>
+              </Button>
+            }
+            title={
+              <span className="inline-flex flex-wrap items-center gap-1.5">
+                {connection.name}
+                <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">
+                  {t(`tools.status.${connection.status}`, connection.status)}
+                </Badge>
+              </span>
+            }
+            description={connection.endpoint_url}
+            actions={
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => testConnection.mutate(connectionId)}
+                  disabled={testConnection.isPending}
+                >
+                  <Zap className="h-3.5 w-3.5 sm:mr-1.5" />
+                  <span className="hidden sm:inline">{t('tools.test')}</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={handleSync}
+                  disabled={syncConnection.isPending}
+                >
+                  <RefreshCw
+                    className={cn('h-3.5 w-3.5 sm:mr-1.5', syncConnection.isPending && 'animate-spin')}
+                  />
+                  <span className="hidden sm:inline">{t('tools.sync')}</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={handleRefresh}
+                >
+                  <RefreshCw className="h-3.5 w-3.5 sm:mr-1.5" />
+                  <span className="hidden sm:inline">{t('common.refresh')}</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => setAuthOpen(true)}
+                >
+                  <KeyRound className="h-3.5 w-3.5 sm:mr-1.5" />
+                  <span className="hidden sm:inline">{t('tools.replaceAuth')}</span>
+                </Button>
+              </>
+            }
+          />
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">{t('tools.serverInfo')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <JsonBlock value={connection.server_info ?? undefined} />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">{t('tools.capabilities')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <JsonBlock value={connection.capabilities ?? undefined} />
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t('tools.metadata')}</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-2 text-sm md:grid-cols-2">
+              <p>
+                <span className="text-muted-foreground">{t('tools.authType')}:</span>{' '}
+                {connection.auth_type}
+              </p>
+              <p>
+                <span className="text-muted-foreground">{t('tools.authConfigured')}:</span>{' '}
+                {connection.has_auth_config ? t('common.yes') : t('common.no')}
+              </p>
+              {connection.last_connected_at && (
+                <p>
+                  <span className="text-muted-foreground">{t('tools.lastConnected')}:</span>{' '}
+                  {new Date(connection.last_connected_at).toLocaleString()}
+                </p>
+              )}
+              {connection.last_synced_at && (
+                <p>
+                  <span className="text-muted-foreground">{t('tools.lastSynced')}:</span>{' '}
+                  {new Date(connection.last_synced_at).toLocaleString()}
+                </p>
+              )}
+              {connection.last_error && (
+                <p className="md:col-span-2 text-destructive">
+                  <span className="text-muted-foreground">{t('tools.lastError')}:</span>{' '}
+                  {connection.last_error}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t('tools.discoveredTools')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {toolsLoading ? (
+                <div className="flex justify-center py-8">
+                  <LoadingSpinner />
+                </div>
+              ) : sortedTools.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4">{t('tools.noTools')}</p>
+              ) : (
+                <div className="space-y-3">
+                  {sortedTools.map((tool) => (
+                    <div key={tool.id} className="rounded-md border p-3 space-y-2">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0 space-y-1">
+                          <p className="font-medium">{tool.title || tool.name}</p>
+                          {tool.description && (
+                            <p className="text-xs text-muted-foreground">{tool.description}</p>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          <Badge variant={riskBadgeVariant(tool.risk_level)}>
+                            {t(`tools.risk.${tool.risk_level}`)}
+                          </Badge>
+                          <Badge variant={tool.available ? 'secondary' : 'outline'}>
+                            {tool.available ? t('tools.available') : t('tools.unavailable')}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div>
+                          <p className="mb-1 text-xs font-medium text-muted-foreground">
+                            {t('tools.inputSchema')}
+                          </p>
+                          <ToolSchemaCell schema={tool.input_schema} />
+                        </div>
+                        <div>
+                          <p className="mb-1 text-xs font-medium text-muted-foreground">
+                            {t('tools.outputSchema')}
+                          </p>
+                          <ToolSchemaCell schema={tool.output_schema} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <Dialog open={authOpen} onOpenChange={setAuthOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('tools.replaceAuth')}</DialogTitle>
+            <DialogDescription>{t('tools.replaceAuthDesc')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor={authTypeId}>{t('tools.authType')}</Label>
+              <Select value={authType} onValueChange={(value: McpAuthType) => setAuthType(value)}>
+                <SelectTrigger id={authTypeId}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t('tools.authNone')}</SelectItem>
+                  <SelectItem value="bearer">{t('tools.authBearer')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {authType === 'bearer' && (
+              <div className="space-y-2">
+                <Label htmlFor={tokenId}>{t('tools.newBearerToken')}</Label>
+                <Input
+                  id={tokenId}
+                  type="password"
+                  value={bearerToken}
+                  onChange={(e) => setBearerToken(e.target.value)}
+                  placeholder={t('tools.bearerTokenPlaceholder')}
+                  autoComplete="new-password"
+                />
+                <p className="text-xs text-muted-foreground">{t('tools.tokenNotShown')}</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAuthOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleSaveAuth} disabled={updateAuth.isPending}>
+              {updateAuth.isPending ? t('common.saving') : t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </AppShell>
+  )
+}

@@ -70,6 +70,29 @@ Comprehensive list of all environment variables available in Open Notebook.
 
 ---
 
+## MCP Client (remote tool connections)
+
+Open Notebook can connect to **remote** MCP servers (Streamable HTTP) as a client. Configure these variables on the API service.
+
+| Variable | Required? | Default | Description |
+|----------|-----------|---------|-------------|
+| `OPEN_NOTEBOOK_MCP_ALLOW_PRIVATE_URLS` | No | `false` | When `true`, allow MCP endpoint URLs that resolve to private, loopback, link-local, or cloud metadata addresses. **Leave disabled in production** unless you intentionally connect to local MCP servers. |
+| `OPEN_NOTEBOOK_MCP_MAX_SELECTED_TOOLS` | No | 8 | Maximum MCP tools a user may attach to one chat message. |
+| `OPEN_NOTEBOOK_MCP_MAX_ITERATIONS` | No | 6 | Maximum model↔tool loop iterations per chat turn. |
+| `OPEN_NOTEBOOK_MCP_MAX_CALLS` | No | 12 | Maximum MCP tool executions per chat turn. |
+| `OPEN_NOTEBOOK_MCP_REQUEST_TIMEOUT_SECONDS` | No | 30 | Timeout for each MCP HTTP request. |
+| `OPEN_NOTEBOOK_MCP_MAX_RESULT_CHARS` | No | 8000 | Maximum characters from a tool result passed back to the model. |
+| `OPEN_NOTEBOOK_MCP_MAX_ERROR_CHARS` | No | 500 | Maximum characters stored in safe MCP error messages. |
+| `OPEN_NOTEBOOK_MCP_PROTOCOL_VERSION` | No | `2025-03-26` | MCP protocol version sent during `initialize`. |
+
+**Local development example** (connect to a fake or local MCP server on localhost):
+
+```bash
+OPEN_NOTEBOOK_MCP_ALLOW_PRIVATE_URLS=true
+```
+
+---
+
 ## API / CORS
 
 | Variable | Required? | Default | Description |

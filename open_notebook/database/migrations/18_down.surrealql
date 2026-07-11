@@ -1,0 +1,8 @@
+-- Rollback migration 18: MCP client tables
+
+REMOVE EVENT IF EXISTS mcp_connection_delete ON TABLE mcp_connection;
+REMOVE INDEX IF EXISTS idx_chat_tool_call_session ON TABLE chat_tool_call;
+REMOVE INDEX IF EXISTS idx_mcp_tool_connection_name ON TABLE mcp_tool;
+REMOVE TABLE IF EXISTS chat_tool_call;
+REMOVE TABLE IF EXISTS mcp_tool;
+REMOVE TABLE IF EXISTS mcp_connection;

@@ -18,6 +18,11 @@ import {
   parseAgentProgressEvent,
 } from '@/lib/ag-ui/progress'
 import {
+  parseMcpToolCallEvent,
+  upsertMcpToolCall,
+} from '@/lib/ag-ui/mcp-tool-calls'
+import { ChatToolCall } from '@/lib/types/mcp'
+import {
   NotebookChatMessage,
   CreateNotebookChatSessionRequest,
   UpdateNotebookChatSessionRequest,
@@ -45,8 +50,10 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
   const [pendingModelOverride, setPendingModelOverride] = useState<string | null>(null)
   const [selectedSkillIds, setSelectedSkillIdsState] = useState<string[]>([])
   const [pendingSkillIds, setPendingSkillIds] = useState<string[] | null>(null)
+  const [selectedMcpToolIds, setSelectedMcpToolIdsState] = useState<string[]>([])
   const [streamStatus, setStreamStatus] = useState<string | null>(null)
   const [activityLog, setActivityLog] = useState<string[]>([])
+  const [liveMcpToolCalls, setLiveMcpToolCalls] = useState<ChatToolCall[]>([])
 
   // Fetch sessions for this notebook
   const {
@@ -220,7 +227,6 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
         const newSession = await chatApi.createSession({
           notebook_id: notebookId,
           title: defaultTitle,
-          // Include pending model override when creating session
           model_override: pendingModelOverride ?? undefined,
           skill_ids: selectedSkillIds,
         })
@@ -260,6 +266,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     setIsSending(true)
     setStreamStatus(null)
     setActivityLog([])
+    setLiveMcpToolCalls([])
 
     try {
       // Pass context_config so the graph streams retrieving_context as an AG-UI step.
@@ -272,6 +279,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
         context_config,
         model_override: modelOverride ?? (currentSession?.model_override ?? undefined),
         skill_ids: selectedSkillIds,
+        mcp_tool_ids: selectedMcpToolIds,
         edit_message_id: editMessageId,
       })
 
@@ -290,16 +298,19 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
           }
           case 'CUSTOM': {
             const progress = parseAgentProgressEvent(event)
-            if (!progress) {
-              break
+            if (progress) {
+              const status = formatAgentProgressStatus(progress, t)
+              if (status) {
+                setStreamStatus(status)
+              }
+              const logLine = formatAgentProgressLogLine(progress, t)
+              if (logLine) {
+                setActivityLog((prev) => [...prev, logLine])
+              }
             }
-            const status = formatAgentProgressStatus(progress, t)
-            if (status) {
-              setStreamStatus(status)
-            }
-            const logLine = formatAgentProgressLogLine(progress, t)
-            if (logLine) {
-              setActivityLog((prev) => [...prev, logLine])
+            const toolCallUpdate = parseMcpToolCallEvent(event)
+            if (toolCallUpdate) {
+              setLiveMcpToolCalls((prev) => upsertMcpToolCall(prev, toolCallUpdate))
             }
             break
           }
@@ -368,6 +379,11 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
 
       // Refetch current session to get updated data
       await refetchCurrentSession()
+      if (sessionId) {
+        await queryClient.invalidateQueries({
+          queryKey: QUERY_KEYS.mcpSessionToolCalls(sessionId),
+        })
+      }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } }, message?: string };
       console.error('Error sending message:', error)
@@ -382,6 +398,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
       setIsSending(false)
       setStreamStatus(null)
       setActivityLog([])
+      setLiveMcpToolCalls([])
     }
   }, [
     notebookId,
@@ -389,6 +406,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     currentSession,
     pendingModelOverride,
     selectedSkillIds,
+    selectedMcpToolIds,
     messages,
     buildContext,
     buildContextConfig,
@@ -471,6 +489,10 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     }
   }, [currentSessionId, notebookId, queryClient, t])
 
+  const setSelectedMcpToolIds = useCallback((ids: string[]) => {
+    setSelectedMcpToolIdsState(ids)
+  }, [])
+
   // Update token/char counts when context selections change
   useEffect(() => {
     const updateContextCounts = async () => {
@@ -497,6 +519,8 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     charCount,
     pendingModelOverride,
     selectedSkillIds,
+    selectedMcpToolIds,
+    liveMcpToolCalls,
 
     // Actions
     createSession,
@@ -507,6 +531,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     editAndResend,
     setModelOverride,
     setSelectedSkillIds,
+    setSelectedMcpToolIds,
     refetchSessions
   }
 }

@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/utils/error-handler'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { sourceChatApi } from '@/lib/api/source-chat'
+import { QUERY_KEYS } from '@/lib/api/query-client'
 import {
   agentStepI18nKey,
   readAgUiSseStream,
@@ -16,6 +17,11 @@ import {
   formatAgentProgressStatus,
   parseAgentProgressEvent,
 } from '@/lib/ag-ui/progress'
+import {
+  parseMcpToolCallEvent,
+  upsertMcpToolCall,
+} from '@/lib/ag-ui/mcp-tool-calls'
+import { ChatToolCall } from '@/lib/types/mcp'
 import {
   SourceChatSession,
   SourceChatMessage,
@@ -33,8 +39,10 @@ export function useSourceChat(sourceId: string) {
   const [contextIndicators, setContextIndicators] = useState<SourceChatContextIndicator | null>(null)
   const [selectedSkillIds, setSelectedSkillIdsState] = useState<string[]>([])
   const [pendingSkillIds, setPendingSkillIds] = useState<string[] | null>(null)
+  const [selectedMcpToolIds, setSelectedMcpToolIdsState] = useState<string[]>([])
   const [streamStatus, setStreamStatus] = useState<string | null>(null)
   const [activityLog, setActivityLog] = useState<string[]>([])
+  const [liveMcpToolCalls, setLiveMcpToolCalls] = useState<ChatToolCall[]>([])
   const abortControllerRef = useRef<AbortController | null>(null)
 
   // Fetch sessions
@@ -165,12 +173,14 @@ export function useSourceChat(sourceId: string) {
     setIsStreaming(true)
     setStreamStatus(null)
     setActivityLog([])
+    setLiveMcpToolCalls([])
 
     try {
       const response = await sourceChatApi.sendMessage(sourceId, sessionId, {
         message,
         model_override: modelOverride,
         skill_ids: selectedSkillIds,
+        mcp_tool_ids: selectedMcpToolIds,
       })
 
       if (!response) {
@@ -189,16 +199,19 @@ export function useSourceChat(sourceId: string) {
           }
           case 'CUSTOM': {
             const progress = parseAgentProgressEvent(event)
-            if (!progress) {
-              break
+            if (progress) {
+              const status = formatAgentProgressStatus(progress, t)
+              if (status) {
+                setStreamStatus(status)
+              }
+              const logLine = formatAgentProgressLogLine(progress, t)
+              if (logLine) {
+                setActivityLog((prev) => [...prev, logLine])
+              }
             }
-            const status = formatAgentProgressStatus(progress, t)
-            if (status) {
-              setStreamStatus(status)
-            }
-            const logLine = formatAgentProgressLogLine(progress, t)
-            if (logLine) {
-              setActivityLog((prev) => [...prev, logLine])
+            const toolCallUpdate = parseMcpToolCallEvent(event)
+            if (toolCallUpdate) {
+              setLiveMcpToolCalls((prev) => upsertMcpToolCall(prev, toolCallUpdate))
             }
             break
           }
@@ -280,10 +293,15 @@ export function useSourceChat(sourceId: string) {
       setIsStreaming(false)
       setStreamStatus(null)
       setActivityLog([])
-      // Refetch session to get persisted messages
-      refetchCurrentSession()
+      await refetchCurrentSession()
+      if (sessionId) {
+        await queryClient.invalidateQueries({
+          queryKey: QUERY_KEYS.mcpSessionToolCalls(sessionId),
+        })
+      }
+      setLiveMcpToolCalls([])
     }
-  }, [sourceId, currentSessionId, selectedSkillIds, refetchCurrentSession, queryClient, t])
+  }, [sourceId, currentSessionId, selectedSkillIds, selectedMcpToolIds, refetchCurrentSession, queryClient, t])
 
   // Cancel streaming
   const cancelStreaming = useCallback(() => {
@@ -340,6 +358,10 @@ export function useSourceChat(sourceId: string) {
     }
   }, [currentSessionId, sourceId, queryClient, t])
 
+  const setSelectedMcpToolIds = useCallback((ids: string[]) => {
+    setSelectedMcpToolIdsState(ids)
+  }, [])
+
   return {
     // State
     sessions,
@@ -352,6 +374,8 @@ export function useSourceChat(sourceId: string) {
     contextIndicators,
     loadingSessions,
     selectedSkillIds,
+    selectedMcpToolIds,
+    liveMcpToolCalls,
     
     // Actions
     createSession,
@@ -362,5 +386,6 @@ export function useSourceChat(sourceId: string) {
     cancelStreaming,
     refetchSessions,
     setSelectedSkillIds,
+    setSelectedMcpToolIds,
   }
 }

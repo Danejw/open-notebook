@@ -24,6 +24,7 @@ from api.routers import (
     episode_profiles,
     insights,
     languages,
+    mcp,
     models,
     notebooks,
     notes,
@@ -318,6 +319,7 @@ app.include_router(search.router, prefix="/api", tags=["search"])
 app.include_router(models.router, prefix="/api", tags=["models"])
 app.include_router(transformations.router, prefix="/api", tags=["transformations"])
 app.include_router(skills.router, prefix="/api", tags=["skills"])
+app.include_router(mcp.router, prefix="/api", tags=["mcp"])
 app.include_router(notes.router, prefix="/api", tags=["notes"])
 app.include_router(embedding.router, prefix="/api", tags=["embedding"])
 app.include_router(

@@ -1,12 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Play, Loader2 } from 'lucide-react'
 import { Transformation } from '@/lib/types/transformations'
 import { useExecuteTransformation } from '@/lib/hooks/use-transformations'
@@ -25,7 +23,7 @@ export function TransformationPlayground({ transformations, selectedTransformati
   const [inputText, setInputText] = useState('')
   const [modelId, setModelId] = useState('')
   const [output, setOutput] = useState('')
-  
+
   const executeTransformation = useExecuteTransformation()
 
   const handleExecute = async () => {
@@ -36,7 +34,7 @@ export function TransformationPlayground({ transformations, selectedTransformati
     const result = await executeTransformation.mutateAsync({
       transformation_id: selectedId,
       input_text: inputText,
-      model_id: modelId
+      model_id: modelId,
     })
 
     setOutput(result.output)
@@ -45,93 +43,83 @@ export function TransformationPlayground({ transformations, selectedTransformati
   const canExecute = selectedId && modelId && inputText.trim() && !executeTransformation.isPending
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('transformations.playground')}</CardTitle>
-          <CardDescription>
-            {t('transformations.desc')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="transformation">{t('navigation.transformation')}</Label>
-              <Select name="transformation" value={selectedId} onValueChange={setSelectedId}>
-                <SelectTrigger id="transformation">
-                  <SelectValue placeholder={t('transformations.selectToStart')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {transformations?.map((transformation) => (
-                    <SelectItem key={transformation.id} value={transformation.id}>
-                      {transformation.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+    <div className="overflow-hidden rounded-md border">
+      <div className="border-b px-3 py-2">
+        <h2 className="text-sm font-semibold leading-none">{t('transformations.playground')}</h2>
+      </div>
 
-            <div>
-              <ModelSelector
-                label={t('transformations.model')}
-                name="model"
-                modelType="language"
-                value={modelId}
-                onChange={setModelId}
-                placeholder={t('transformations.selectModel')}
-              />
-            </div>
+      <div className="space-y-3 p-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="space-y-1">
+            <Label htmlFor="transformation" className="text-xs">
+              {t('navigation.transformation')}
+            </Label>
+            <Select name="transformation" value={selectedId} onValueChange={setSelectedId}>
+              <SelectTrigger id="transformation" className="h-8 text-xs">
+                <SelectValue placeholder={t('transformations.selectToStart')} />
+              </SelectTrigger>
+              <SelectContent>
+                {transformations?.map((transformation) => (
+                  <SelectItem key={transformation.id} value={transformation.id}>
+                    {transformation.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          <div>
-            <Label htmlFor="input">{t('transformations.inputLabel')}</Label>
-            <Textarea
-              id="input"
-              name="input"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder={t('transformations.inputPlaceholder')}
-              rows={8}
-              className="font-mono text-sm"
+          <div className="space-y-1">
+            <ModelSelector
+              label={t('transformations.model')}
+              name="model"
+              modelType="language"
+              value={modelId}
+              onChange={setModelId}
+              placeholder={t('transformations.selectModel')}
             />
           </div>
+        </div>
 
-          <div className="flex justify-center">
-            <Button 
-              onClick={handleExecute}
-              disabled={!canExecute}
-              size="lg"
-            >
-              {executeTransformation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {t('transformations.running')}
-                </>
-              ) : (
-                <>
-                  <Play className="h-4 w-4 mr-2" />
-                  {t('transformations.runTest')}
-                </>
-              )}
-            </Button>
-          </div>
+        <div className="space-y-1">
+          <Label htmlFor="input" className="text-xs">
+            {t('transformations.inputLabel')}
+          </Label>
+          <Textarea
+            id="input"
+            name="input"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            placeholder={t('transformations.inputPlaceholder')}
+            rows={6}
+            className="min-h-[120px] font-mono text-xs"
+          />
+        </div>
 
-          {output && (
-            <div className="space-y-2">
-              <span className="text-sm font-medium leading-none">{t('transformations.outputLabel')}</span>
-              <Card>
-                <ScrollArea className="h-[400px]">
-                  <CardContent className="pt-6">
-                    <MarkdownRenderer size="sm">
-                      {output}
-                    </MarkdownRenderer>
-                  </CardContent>
-                </ScrollArea>
-              </Card>
+        <div className="flex justify-end">
+          <Button onClick={handleExecute} disabled={!canExecute} size="sm" className="h-7 text-xs">
+            {executeTransformation.isPending ? (
+              <>
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                {t('transformations.running')}
+              </>
+            ) : (
+              <>
+                <Play className="mr-1.5 h-3.5 w-3.5" />
+                {t('transformations.runTest')}
+              </>
+            )}
+          </Button>
+        </div>
+
+        {output ? (
+          <div className="space-y-1.5 border-t pt-3">
+            <p className="text-xs font-medium leading-none">{t('transformations.outputLabel')}</p>
+            <div className="rounded-md border bg-muted/30 p-2">
+              <MarkdownRenderer size="sm">{output}</MarkdownRenderer>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

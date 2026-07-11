@@ -27,7 +27,7 @@ export default function TransformationsPage() {
   return (
     <AppShell>
       <div className="flex-1 overflow-y-auto">
-        <div className={`${pageContentClassName} space-y-3`}>
+        <div className={`${pageContentClassName} space-y-6`}>
           <PageHeader
             bordered
             title={t('transformations.title')}
@@ -40,21 +40,18 @@ export default function TransformationsPage() {
           />
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="max-w-5xl space-y-4">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('transformations.workspace')}</p>
-              <TabsList aria-label={t('common.accessibility.transformationViews')} className="w-full max-w-xl">
-                <TabsTrigger value="transformations" className="flex items-center gap-2">
-                  <Wand2 className="h-4 w-4" />
-                  {t('transformations.title')}
-                </TabsTrigger>
-                <TabsTrigger value="playground" className="flex items-center gap-2">
-                  <Play className="h-4 w-4" />
-                  {t('transformations.playground')}
-                </TabsTrigger>
-              </TabsList>
-            </div>
+            <TabsList aria-label={t('common.accessibility.transformationViews')} className="h-8 w-full max-w-md">
+              <TabsTrigger value="transformations" className="gap-1.5 text-xs">
+                <Wand2 className="h-3.5 w-3.5" />
+                {t('transformations.title')}
+              </TabsTrigger>
+              <TabsTrigger value="playground" className="gap-1.5 text-xs">
+                <Play className="h-3.5 w-3.5" />
+                {t('transformations.playground')}
+              </TabsTrigger>
+            </TabsList>
 
-            <TabsContent value="transformations" className="space-y-4">
+            <TabsContent value="transformations" className="space-y-3 mt-0">
               <DefaultPromptEditor />
               <TransformationsList
                 transformations={transformations}
@@ -63,7 +60,7 @@ export default function TransformationsPage() {
               />
             </TabsContent>
 
-            <TabsContent value="playground">
+            <TabsContent value="playground" className="mt-0">
               <TransformationPlayground
                 transformations={transformations}
                 selectedTransformation={selectedTransformation}

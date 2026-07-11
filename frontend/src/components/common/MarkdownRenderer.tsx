@@ -11,9 +11,9 @@ import { createMarkdownComponents, type MarkdownSize } from '@/lib/markdown/comp
 const markdownVariants = cva('markdown-body max-w-none break-words', {
   variants: {
     size: {
-      sm: 'prose prose-sm dark:prose-invert',
-      base: 'prose dark:prose-invert',
-      lg: 'prose prose-lg dark:prose-invert',
+      sm: '',
+      base: '',
+      lg: '',
     },
   },
   defaultVariants: {

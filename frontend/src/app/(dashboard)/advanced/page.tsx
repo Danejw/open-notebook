@@ -12,7 +12,7 @@ export default function AdvancedPage() {
     <AppShell>
       <div className="flex-1 overflow-y-auto">
         <div className={pageContentClassName}>
-          <div className="max-w-4xl mx-auto space-y-4">
+          <div className="max-w-4xl mx-auto space-y-6">
             <PageHeader
               bordered
               title={t('advanced.title')}

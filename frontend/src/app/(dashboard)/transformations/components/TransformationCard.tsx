@@ -1,16 +1,23 @@
 'use client'
 
 import { useState } from 'react'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Badge } from '@/components/ui/badge'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { ChevronDown, ChevronRight, Trash2, Wand2, Edit } from 'lucide-react'
+import { ChevronDown, ChevronRight, Trash2, Wand2, Edit, MoreVertical } from 'lucide-react'
 import { Transformation } from '@/lib/types/transformations'
 import { useDeleteTransformation } from '@/lib/hooks/use-transformations'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { cn } from '@/lib/utils'
+import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
 
 interface TransformationCardProps {
   transformation: Transformation
@@ -32,76 +39,90 @@ export function TransformationCard({ transformation, onPlayground, onEdit }: Tra
   return (
     <>
       <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-        <Card>
-          <CardHeader>
-            <div className="flex items-start justify-between gap-4">
-              <CollapsibleTrigger className="flex-1 text-left">
-                <div className={cn('flex items-center gap-3', isExpanded ? 'mb-2' : '')}>
-                  {isExpanded ? (
-                    <ChevronDown className="h-5 w-5" />
-                  ) : (
-                    <ChevronRight className="h-5 w-5" />
-                  )}
-                  <div className="flex flex-col">
-                    <span className="font-semibold">{transformation.name}</span>
-                    {!isExpanded && transformation.description && (
-                      <span className="text-sm text-muted-foreground">{transformation.description}</span>
-                    )}
-                  </div>
-                  {transformation.apply_default && (
-                    <Badge variant="secondary">{t('common.default')}</Badge>
-                  )}
-                </div>
-              </CollapsibleTrigger>
+        <div className="group">
+          <div className="flex items-center gap-1.5 px-3 py-1.5">
+            <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
+              {isExpanded ? (
+                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              )}
+              <span className="truncate text-sm font-medium">{transformation.name}</span>
+              {transformation.apply_default ? (
+                <Badge variant="secondary" className="h-5 shrink-0 px-1.5 text-[10px]">
+                  {t('common.default')}
+                </Badge>
+              ) : null}
+              {!isExpanded && transformation.title ? (
+                <span className="hidden truncate text-[11px] text-muted-foreground sm:inline">
+                  · {transformation.title}
+                </span>
+              ) : null}
+            </CollapsibleTrigger>
 
-              <div className="flex items-center gap-2">
-                {onPlayground && (
-                  <Button variant="outline" size="sm" onClick={onPlayground}>
-                    <Wand2 className="h-4 w-4 mr-2" />
-                    {t('transformations.playground')}
-                  </Button>
-                )}
-                {onEdit && (
-                  <Button variant="outline" size="sm" onClick={onEdit}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    {t('common.edit')}
-                  </Button>
-                )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="text-red-600 hover:text-red-700"
+                  size="icon"
+                  className="h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100"
+                  aria-label={t('common.actions') || 'Actions'}
+                >
+                  <MoreVertical className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {onEdit ? (
+                  <DropdownMenuItem onClick={onEdit}>
+                    <Edit className="mr-2 h-3.5 w-3.5" />
+                    {t('common.edit')}
+                  </DropdownMenuItem>
+                ) : null}
+                {onPlayground ? (
+                  <DropdownMenuItem onClick={onPlayground}>
+                    <Wand2 className="mr-2 h-3.5 w-3.5" />
+                    {t('transformations.playground')}
+                  </DropdownMenuItem>
+                ) : null}
+                {(onEdit || onPlayground) ? <DropdownMenuSeparator /> : null}
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
                   onClick={() => setShowDeleteDialog(true)}
                 >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
+                  <Trash2 className="mr-2 h-3.5 w-3.5" />
+                  {t('common.delete')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
           <CollapsibleContent>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground">{t('common.title')}</p>
-                <p className="text-sm font-medium">{transformation.title || t('sources.untitledSource')}</p>
-              </div>
+            <div className="space-y-2 border-t px-3 py-2">
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium">{t('common.title')}:</span>{' '}
+                {transformation.title || t('sources.untitledSource')}
+              </p>
 
-              {transformation.description && (
+              {transformation.description ? (
                 <div>
-                  <p className="text-sm text-muted-foreground">{t('common.description')}</p>
-                  <p className="text-sm leading-6">{transformation.description}</p>
+                  <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('common.description')}
+                  </p>
+                  <MarkdownRenderer size="sm">{transformation.description}</MarkdownRenderer>
                 </div>
-              )}
+              ) : null}
 
               <div>
-                <p className="text-sm text-muted-foreground">{t('transformations.systemPrompt')}</p>
-                <pre className="mt-2 whitespace-pre-wrap rounded-md bg-muted p-3 text-sm font-mono">
+                <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('transformations.systemPrompt')}
+                </p>
+                <MarkdownRenderer size="sm" className="rounded-md border bg-muted/30 p-2">
                   {transformation.prompt}
-                </pre>
+                </MarkdownRenderer>
               </div>
-            </CardContent>
+            </div>
           </CollapsibleContent>
-        </Card>
+        </div>
       </Collapsible>
 
       <ConfirmDialog

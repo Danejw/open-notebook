@@ -1,5 +1,6 @@
 import asyncio
 import concurrent.futures
+import uuid
 from typing import Annotated, Literal, Optional
 
 from ai_prompter import Prompter
@@ -15,6 +16,7 @@ from open_notebook.ai.provision import provision_langchain_model
 from open_notebook.domain.notebook import Notebook
 from open_notebook.exceptions import OpenNotebookError
 from open_notebook.graphs.progress import emit_agent_progress
+from open_notebook.mcp.chat_loop import generate_with_mcp_tools
 from open_notebook.skills.loader import format_skills_context, load_one_skill_md
 from open_notebook.utils import clean_thinking_content
 from open_notebook.utils.context_builder import ContextBuilder, ContextConfig
@@ -32,6 +34,8 @@ class ThreadState(TypedDict):
     model_override: Optional[str]
     skills_context: Optional[str]
     skill_ids: Optional[list]
+    mcp_tool_ids: Optional[list]
+    session_id: Optional[str]
 
 
 def _run_async(coro):
@@ -211,23 +215,38 @@ def retrieving_context(state: ThreadState, config: RunnableConfig) -> dict:
 
 
 def generating(state: ThreadState, config: RunnableConfig) -> dict:
-    """Provision model and generate the assistant reply."""
+    """Provision model and generate the assistant reply (with optional MCP tools)."""
     try:
         emit_agent_progress("started", "generating", {}, config)
         system_prompt = Prompter(prompt_template="chat/system").render(data=state)  # type: ignore[arg-type]
-        payload = [SystemMessage(content=system_prompt)] + state.get("messages", [])
+        payload = [SystemMessage(content=system_prompt)] + list(
+            state.get("messages", [])
+        )
         model_id = config.get("configurable", {}).get("model_id") or state.get(
             "model_override"
         )
-
-        model = _run_async(
-            provision_langchain_model(str(payload), model_id, "chat", max_tokens=8192)
+        session_id = state.get("session_id") or config.get("configurable", {}).get(
+            "thread_id", ""
         )
-        ai_message = model.invoke(payload)
+        assistant_message_id = str(uuid.uuid4())
+
+        ai_message = _run_async(
+            generate_with_mcp_tools(
+                provision_model=provision_langchain_model,
+                payload=payload,
+                model_id=model_id,
+                mcp_tool_ids=state.get("mcp_tool_ids"),
+                session_id=str(session_id or ""),
+                message_id=assistant_message_id,
+                config=config,
+            )
+        )
 
         content = extract_text_content(ai_message.content)
         cleaned_content = clean_thinking_content(content)
-        cleaned_message = ai_message.model_copy(update={"content": cleaned_content})
+        cleaned_message = ai_message.model_copy(
+            update={"content": cleaned_content, "id": assistant_message_id}
+        )
 
         emit_agent_progress("completed", "generating", {}, config)
         return {"messages": cleaned_message}

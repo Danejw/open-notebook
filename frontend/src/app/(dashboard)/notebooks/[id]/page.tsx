@@ -212,7 +212,7 @@ export default function NotebookPage() {
   return (
     <AppShell>
       <div className="flex flex-col flex-1 min-h-0">
-        <div className="flex-shrink-0 px-3 pt-2 pb-0">
+        <div className="flex-shrink-0 px-3 pt-3 pb-0">
           <NotebookHeader notebook={notebook} />
         </div>
 

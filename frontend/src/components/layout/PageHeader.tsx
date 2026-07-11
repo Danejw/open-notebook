@@ -70,4 +70,7 @@ export function PageHeader({
 }
 
 /** Shared outer padding for dashboard page content below AppShell */
-export const pageContentClassName = 'px-3 py-2'
+export const pageContentClassName = 'p-6'
+
+/** Shared vertical gap between a page header and the content below it */
+export const pageSectionGapClassName = 'space-y-6'

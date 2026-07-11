@@ -55,7 +55,7 @@ export default function NotebooksPage() {
   return (
     <AppShell>
       <div className="flex-1 overflow-y-auto">
-        <div className={cn(pageContentClassName, 'space-y-3')}>
+        <div className={cn(pageContentClassName, 'space-y-6')}>
         <PageHeader
           bordered
           title={t('notebooks.title')}

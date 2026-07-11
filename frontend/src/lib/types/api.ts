@@ -180,6 +180,7 @@ export interface SendMessageRequest {
   message: string
   model_override?: string
   skill_ids?: string[]
+  mcp_tool_ids?: string[]
 }
 
 export interface SourceChatStreamEvent {
@@ -233,6 +234,7 @@ export interface SendNotebookChatMessageRequest {
   }
   model_override?: string
   skill_ids?: string[]
+  mcp_tool_ids?: string[]
   edit_message_id?: string
 }
 

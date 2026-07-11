@@ -265,7 +265,7 @@ function CredentialFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {isEditing
@@ -550,7 +550,7 @@ function DiscoverModelsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] grid-rows-[auto_1fr_auto]">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {t('models.discoverModels')} - {PROVIDER_DISPLAY_NAMES[credential.provider] || credential.provider}
@@ -560,7 +560,7 @@ function DiscoverModelsDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-0 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto">
         {discoverModels.isPending ? (
           <div className="flex items-center justify-center py-12">
             <LoadingSpinner size="lg" />
@@ -1387,7 +1387,7 @@ export default function ApiKeysPage() {
   return (
     <AppShell>
       <div className="flex-1 overflow-y-auto">
-        <div className={`${pageContentClassName} space-y-3`}>
+        <div className={`${pageContentClassName} space-y-6`}>
           <PageHeader
             bordered
             icon={Key}

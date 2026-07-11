@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useId } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -30,54 +29,49 @@ export function DefaultPromptEditor() {
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card>
-        <CollapsibleTrigger className="w-full">
-          <CardHeader className="cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                <div className="text-left">
-                  <CardTitle className="text-lg">{t('transformations.defaultPrompt')}</CardTitle>
-                  <CardDescription>
-                    {t('transformations.defaultPromptDesc')}
-                  </CardDescription>
-                </div>
-              </div>
-              {isOpen ? (
-                <ChevronDown className="h-5 w-5" />
-              ) : (
-                <ChevronRight className="h-5 w-5" />
-              )}
-            </div>
-          </CardHeader>
+      <div className="overflow-hidden rounded-md border">
+        <CollapsibleTrigger className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-muted/50">
+          <Settings className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold leading-none">{t('transformations.defaultPrompt')}</p>
+            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+              {t('transformations.defaultPromptDesc')}
+            </p>
+          </div>
+          {isOpen ? (
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          )}
         </CollapsibleTrigger>
+
         <CollapsibleContent>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor={textareaId} className="sr-only">
-                {t('transformations.defaultPrompt')}
-              </Label>
-              <Textarea
-                id={textareaId}
-                name="default-prompt"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder={t('transformations.defaultPromptPlaceholder')}
-                className="min-h-[200px] font-mono text-sm"
-                disabled={isLoading}
-              />
-            </div>
+          <div className="space-y-2 border-t px-3 py-2">
+            <Label htmlFor={textareaId} className="sr-only">
+              {t('transformations.defaultPrompt')}
+            </Label>
+            <Textarea
+              id={textareaId}
+              name="default-prompt"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder={t('transformations.defaultPromptPlaceholder')}
+              className="min-h-[120px] font-mono text-xs"
+              disabled={isLoading}
+            />
             <div className="flex justify-end">
-              <Button 
+              <Button
+                size="sm"
+                className="h-7 text-xs"
                 onClick={handleSave}
                 disabled={isLoading || updateDefaultPrompt.isPending}
               >
                 {t('common.save')}
               </Button>
             </div>
-          </CardContent>
+          </div>
         </CollapsibleContent>
-      </Card>
+      </div>
     </Collapsible>
   )
 }

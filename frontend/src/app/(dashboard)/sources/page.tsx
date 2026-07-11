@@ -289,7 +289,7 @@ export default function SourcesPage() {
       <div className={`flex flex-col h-full w-full max-w-none ${pageContentClassName}`}>
         <PageHeader
           bordered
-          className="mb-2"
+          className="mb-6"
           title={t('sources.allSources')}
           description={t('sources.allSourcesDesc')}
         />

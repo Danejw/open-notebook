@@ -29,7 +29,7 @@ export function TransformationsList({ transformations, isLoading, onPlayground }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-8">
         <LoadingSpinner size="lg" />
       </div>
     )
@@ -42,8 +42,8 @@ export function TransformationsList({ transformations, isLoading, onPlayground }
         title={t('transformations.noTransformations')}
         description={t('transformations.createOne')}
         action={
-          <Button onClick={() => handleOpenEditor()}>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button size="sm" className="h-7 text-xs" onClick={() => handleOpenEditor()}>
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
             {t('transformations.createNew')}
           </Button>
         }
@@ -53,16 +53,16 @@ export function TransformationsList({ transformations, isLoading, onPlayground }
 
   return (
     <>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h2 className="text-lg font-semibold">{t('transformations.listTitle')}</h2>
-          <Button onClick={() => handleOpenEditor()}>
-            <Plus className="h-4 w-4 mr-2" />
+      <div className="overflow-hidden rounded-md border">
+        <div className="flex items-center justify-between border-b px-3 py-2">
+          <h2 className="text-sm font-semibold leading-none">{t('transformations.listTitle')}</h2>
+          <Button size="sm" className="h-7 text-xs" onClick={() => handleOpenEditor()}>
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
             {t('transformations.createNew')}
           </Button>
         </div>
 
-        <div className="space-y-4">
+        <div className="divide-y">
           {transformations.map((transformation) => (
             <TransformationCard
               key={transformation.id}

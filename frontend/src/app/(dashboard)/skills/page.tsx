@@ -15,7 +15,7 @@ export default function SkillsPage() {
   return (
     <AppShell>
       <div className="flex-1 overflow-y-auto">
-        <div className={`${pageContentClassName} space-y-3`}>
+        <div className={`${pageContentClassName} space-y-6`}>
           <PageHeader
             bordered
             icon={Sparkles}

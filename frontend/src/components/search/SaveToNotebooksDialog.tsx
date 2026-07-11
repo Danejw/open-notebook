@@ -76,7 +76,7 @@ export function SaveToNotebooksDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('searchPage.saveToNotebooks')}</DialogTitle>
           <DialogDescription>

@@ -28,7 +28,7 @@ export default function PodcastsPage() {
   return (
     <AppShell>
       <div className="flex-1 overflow-y-auto">
-        <div className={`${pageContentClassName} space-y-3`}>
+        <div className={`${pageContentClassName} space-y-6`}>
           <PageHeader
             bordered
             title={t('podcasts.listTitle')}

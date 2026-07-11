@@ -35,4 +35,9 @@ export const QUERY_KEYS = {
   skills: ['skills'] as const,
   skill: (id: string) => ['skills', id] as const,
   skillsCatalog: ['skills', 'catalog'] as const,
+  mcpConnections: ['mcp', 'connections'] as const,
+  mcpConnection: (id: string) => ['mcp', 'connections', id] as const,
+  mcpConnectionTools: (id: string) => ['mcp', 'connections', id, 'tools'] as const,
+  mcpSelectableTools: ['mcp', 'tools', 'selectable'] as const,
+  mcpSessionToolCalls: (sessionId: string) => ['mcp', 'sessions', sessionId, 'tool-calls'] as const,
 }

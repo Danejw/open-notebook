@@ -117,6 +117,9 @@ export function ChatColumn({ notebookId, contextSelections, sources, sourcesLoad
       notebookId={notebookId}
       selectedSkillIds={chat.selectedSkillIds}
       onSkillIdsChange={chat.setSelectedSkillIds}
+      selectedMcpToolIds={chat.selectedMcpToolIds}
+      onMcpToolIdsChange={chat.setSelectedMcpToolIds}
+      liveMcpToolCalls={chat.liveMcpToolCalls}
     />
   )
 }

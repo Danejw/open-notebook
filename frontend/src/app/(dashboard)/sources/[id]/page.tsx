@@ -27,14 +27,13 @@ export default function SourceDetailPage() {
   return (
     <div className="flex flex-col h-screen">
       {/* Back button */}
-      <div className="px-3 py-2 border-b border-border">
+      <div className="p-6 pb-4">
         <Button
           variant="ghost"
           size="sm"
           onClick={handleBack}
-          className="h-7 px-2 text-xs"
         >
-          <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+          <ArrowLeft className="mr-2 h-4 w-4" />
           {navigation.getReturnLabel()}
         </Button>
       </div>
@@ -67,6 +66,9 @@ export default function SourceDetailPage() {
             }}
             selectedSkillIds={chat.selectedSkillIds}
             onSkillIdsChange={chat.setSelectedSkillIds}
+            selectedMcpToolIds={chat.selectedMcpToolIds}
+            onMcpToolIdsChange={chat.setSelectedMcpToolIds}
+            liveMcpToolCalls={chat.liveMcpToolCalls}
             sessions={chat.sessions}
             currentSessionId={chat.currentSessionId}
             onCreateSession={(title) => chat.createSession({ title })}

@@ -89,6 +89,10 @@ class SendMessageRequest(BaseModel):
         None,
         description="Selected skill IDs; when omitted, session-stored skills are used",
     )
+    mcp_tool_ids: Optional[List[str]] = Field(
+        None,
+        description="Selected MCP tool IDs for this message only",
+    )
 
 class SuccessResponse(BaseModel):
     success: bool = Field(True, description="Operation success status")
@@ -523,6 +527,8 @@ async def send_message_to_source_chat(
                     "source_id": full_source_id,
                     "model_override": model_override,
                     "skill_ids": skill_ids,
+                    "mcp_tool_ids": list(request.mcp_tool_ids or []),
+                    "session_id": full_session_id,
                 },
             ),
             configurable={"model_id": model_override},

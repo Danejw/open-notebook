@@ -92,6 +92,10 @@ class ExecuteChatRequest(BaseModel):
         None,
         description="Selected skill IDs; when omitted, session-stored skills are used",
     )
+    mcp_tool_ids: Optional[List[str]] = Field(
+        None,
+        description="Selected MCP tool IDs for this message only (transient allowlist request)",
+    )
     edit_message_id: Optional[str] = Field(
         None,
         description="When set, truncate the session from this human message and resend",
@@ -433,6 +437,8 @@ async def execute_chat(request: ExecuteChatRequest):
                 "notebook": notebook_meta,
                 "model_override": model_override,
                 "skill_ids": skill_ids,
+                "mcp_tool_ids": list(request.mcp_tool_ids or []),
+                "session_id": full_session_id,
             },
         )
 

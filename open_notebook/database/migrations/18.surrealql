@@ -1,0 +1,64 @@
+-- Migration 18: MCP client — connections, tools, chat tool-call audit
+
+DEFINE TABLE IF NOT EXISTS mcp_connection SCHEMAFULL;
+
+DEFINE FIELD IF NOT EXISTS name ON TABLE mcp_connection TYPE string;
+DEFINE FIELD IF NOT EXISTS endpoint_url ON TABLE mcp_connection TYPE string;
+DEFINE FIELD IF NOT EXISTS transport ON TABLE mcp_connection TYPE string DEFAULT "streamable_http";
+DEFINE FIELD IF NOT EXISTS auth_type ON TABLE mcp_connection TYPE string DEFAULT "none";
+DEFINE FIELD IF NOT EXISTS auth_config ON TABLE mcp_connection TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS status ON TABLE mcp_connection TYPE string DEFAULT "unknown";
+DEFINE FIELD IF NOT EXISTS server_info ON TABLE mcp_connection FLEXIBLE TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS capabilities ON TABLE mcp_connection FLEXIBLE TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS last_connected_at ON TABLE mcp_connection TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS last_synced_at ON TABLE mcp_connection TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS last_error ON TABLE mcp_connection TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS owner ON TABLE mcp_connection TYPE option<string>;
+
+DEFINE FIELD IF NOT EXISTS created ON mcp_connection DEFAULT time::now() VALUE $before OR time::now();
+DEFINE FIELD IF NOT EXISTS updated ON mcp_connection DEFAULT time::now() VALUE time::now();
+
+DEFINE TABLE IF NOT EXISTS mcp_tool SCHEMAFULL;
+
+DEFINE FIELD IF NOT EXISTS connection ON TABLE mcp_tool TYPE record<mcp_connection>;
+DEFINE FIELD IF NOT EXISTS name ON TABLE mcp_tool TYPE string;
+DEFINE FIELD IF NOT EXISTS title ON TABLE mcp_tool TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS description ON TABLE mcp_tool TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS input_schema ON TABLE mcp_tool FLEXIBLE TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS output_schema ON TABLE mcp_tool FLEXIBLE TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS annotations ON TABLE mcp_tool FLEXIBLE TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS risk_level ON TABLE mcp_tool TYPE string DEFAULT "unknown";
+DEFINE FIELD IF NOT EXISTS available ON TABLE mcp_tool TYPE bool DEFAULT true;
+DEFINE FIELD IF NOT EXISTS last_discovered_at ON TABLE mcp_tool TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS owner ON TABLE mcp_tool TYPE option<string>;
+
+DEFINE FIELD IF NOT EXISTS created ON mcp_tool DEFAULT time::now() VALUE $before OR time::now();
+DEFINE FIELD IF NOT EXISTS updated ON mcp_tool DEFAULT time::now() VALUE time::now();
+
+DEFINE INDEX IF NOT EXISTS idx_mcp_tool_connection_name ON TABLE mcp_tool COLUMNS connection, name UNIQUE;
+
+DEFINE TABLE IF NOT EXISTS chat_tool_call SCHEMAFULL;
+
+DEFINE FIELD IF NOT EXISTS session_id ON TABLE chat_tool_call TYPE string;
+DEFINE FIELD IF NOT EXISTS message_id ON TABLE chat_tool_call TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS connection_id ON TABLE chat_tool_call TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS tool_id ON TABLE chat_tool_call TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS tool_name ON TABLE chat_tool_call TYPE string;
+DEFINE FIELD IF NOT EXISTS connection_name ON TABLE chat_tool_call TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS risk_level ON TABLE chat_tool_call TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS runtime_name ON TABLE chat_tool_call TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS arguments ON TABLE chat_tool_call FLEXIBLE TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS raw_result ON TABLE chat_tool_call FLEXIBLE TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS result_text ON TABLE chat_tool_call TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS status ON TABLE chat_tool_call TYPE string DEFAULT "requested";
+DEFINE FIELD IF NOT EXISTS error ON TABLE chat_tool_call TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS owner ON TABLE chat_tool_call TYPE option<string>;
+
+DEFINE FIELD IF NOT EXISTS created ON chat_tool_call DEFAULT time::now() VALUE $before OR time::now();
+DEFINE FIELD IF NOT EXISTS updated ON chat_tool_call DEFAULT time::now() VALUE time::now();
+
+DEFINE INDEX IF NOT EXISTS idx_chat_tool_call_session ON TABLE chat_tool_call COLUMNS session_id;
+
+DEFINE EVENT IF NOT EXISTS mcp_connection_delete ON TABLE mcp_connection WHEN ($after == NONE) THEN {
+    DELETE mcp_tool WHERE connection == $before.id;
+};

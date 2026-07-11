@@ -26,7 +26,6 @@ import { ThemeToggle } from '@/components/common/ThemeToggle'
 import { LanguageToggle } from '@/components/common/LanguageToggle'
 import type { TFunction } from 'i18next'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { Separator } from '@/components/ui/separator'
 import {
   Book,
   Search,
@@ -42,6 +41,7 @@ import {
   Wrench,
   Command,
   Sparkles,
+  Plug2,
 } from 'lucide-react'
 
 const getNavigation = (t: TFunction) => [
@@ -70,6 +70,7 @@ const getNavigation = (t: TFunction) => [
       { name: t('navigation.models'), href: '/settings/api-keys', icon: Bot },
       { name: t('navigation.transformations'), href: '/transformations', icon: Shuffle },
       { name: t('navigation.skills'), href: '/skills', icon: Sparkles },
+      { name: t('navigation.tools'), href: '/tools', icon: Plug2 },
       { name: t('navigation.settings'), href: '/settings', icon: Settings },
       { name: t('navigation.advanced'), href: '/advanced', icon: Wrench },
     ],
@@ -87,9 +88,8 @@ export function AppSidebar() {
   const { openSourceDialog, openNotebookDialog, openPodcastDialog } = useCreateDialogs()
 
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
-  const [isMac, setIsMac] = useState(true) // Default to Mac for SSR
+  const [isMac, setIsMac] = useState(true)
 
-  // Detect platform for keyboard shortcut display
   useEffect(() => {
     setIsMac(navigator.platform.toLowerCase().includes('mac'))
   }, [])
@@ -106,71 +106,96 @@ export function AppSidebar() {
     }
   }
 
+  const renderNavItem = (item: (typeof navigation)[number]['items'][number]) => {
+    const isActive = pathname?.startsWith(item.href) || false
+    const button = (
+      <Button
+        variant={isActive ? 'secondary' : 'ghost'}
+        size="sm"
+        className={cn(
+          'h-8 w-full gap-2 text-sidebar-foreground sidebar-menu-item',
+          isActive && 'bg-sidebar-accent text-sidebar-accent-foreground',
+          isCollapsed ? 'justify-center px-0' : 'justify-start px-2'
+        )}
+      >
+        <item.icon className="h-3.5 w-3.5 shrink-0" />
+        {!isCollapsed && <span className="truncate text-sm">{item.name}</span>}
+      </Button>
+    )
+
+    if (isCollapsed) {
+      return (
+        <Tooltip key={item.name}>
+          <TooltipTrigger asChild>
+            <Link href={item.href}>{button}</Link>
+          </TooltipTrigger>
+          <TooltipContent side="right">{item.name}</TooltipContent>
+        </Tooltip>
+      )
+    }
+
+    return (
+      <Link key={item.name} href={item.href}>
+        {button}
+      </Link>
+    )
+  }
+
   return (
     <TooltipProvider delayDuration={0}>
       <div
         className={cn(
-          'app-sidebar flex h-full flex-col bg-sidebar border-sidebar-border border-r transition-all duration-300',
-          isCollapsed ? 'w-16' : 'w-64'
+          'app-sidebar flex h-full flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300',
+          isCollapsed ? 'w-14' : 'w-52'
         )}
       >
         <div
           className={cn(
-            'flex h-16 items-center group',
-            isCollapsed ? 'justify-center px-2' : 'justify-between px-4'
+            'flex h-11 shrink-0 items-center border-b border-sidebar-border',
+            isCollapsed ? 'justify-center px-1.5' : 'justify-between px-2'
           )}
         >
           {isCollapsed ? (
-            <div className="relative flex items-center justify-center w-full">
+            <div className="group relative flex w-full items-center justify-center">
               <Image
                 src="/logo.svg"
                 alt="Open Notebook"
-                width={32}
-                height={32}
+                width={24}
+                height={24}
                 className="transition-opacity group-hover:opacity-0"
               />
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
                 onClick={toggleCollapse}
-                className="absolute text-sidebar-foreground hover:bg-sidebar-accent opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute h-7 w-7 text-sidebar-foreground opacity-0 transition-opacity hover:bg-sidebar-accent group-hover:opacity-100"
               >
-                <Menu className="h-4 w-4" />
+                <Menu className="h-3.5 w-3.5" />
               </Button>
             </div>
           ) : (
             <>
-              <div className="flex items-center gap-2">
-                <Image src="/logo.svg" alt={t('common.appName')} width={32} height={32} />
-                <span className="text-base font-medium text-sidebar-foreground">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <Image src="/logo.svg" alt={t('common.appName')} width={24} height={24} />
+                <span className="truncate text-sm font-semibold text-sidebar-foreground">
                   {t('common.appName')}
                 </span>
               </div>
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
                 onClick={toggleCollapse}
-                className="text-sidebar-foreground hover:bg-sidebar-accent"
+                className="h-7 w-7 shrink-0 text-sidebar-foreground hover:bg-sidebar-accent"
                 data-testid="sidebar-toggle"
               >
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
             </>
           )}
         </div>
 
-        <nav
-          className={cn(
-            'flex-1 space-y-1 py-4',
-            isCollapsed ? 'px-2' : 'px-3'
-          )}
-        >
-          <div
-            className={cn(
-              'mb-4',
-              isCollapsed ? 'px-0' : 'px-3'
-            )}
-          >
+        <nav className={cn('flex-1 overflow-y-auto hide-scrollbar py-2', isCollapsed ? 'px-1.5' : 'px-2')}>
+          <div className={cn('mb-2', isCollapsed ? 'px-0' : 'px-0.5')}>
             <DropdownMenu open={createMenuOpen} onOpenChange={setCreateMenuOpen}>
               {isCollapsed ? (
                 <Tooltip>
@@ -179,15 +204,15 @@ export function AppSidebar() {
                       <Button
                         onClick={() => setCreateMenuOpen(true)}
                         variant="default"
-                        size="sm"
-                        className="w-full justify-center px-2 bg-primary hover:bg-primary/90 text-primary-foreground border-0"
+                        size="icon"
+                        className="h-8 w-full bg-primary text-primary-foreground hover:bg-primary/90"
                         aria-label={t('common.create')}
                       >
-                        <Plus className="h-4 w-4" />
+                        <Plus className="h-3.5 w-3.5" />
                       </Button>
                     </DropdownMenuTrigger>
                   </TooltipTrigger>
-                   <TooltipContent side="right">{t('common.create')}</TooltipContent>
+                  <TooltipContent side="right">{t('common.create')}</TooltipContent>
                 </Tooltip>
               ) : (
                 <DropdownMenuTrigger asChild>
@@ -195,9 +220,9 @@ export function AppSidebar() {
                     onClick={() => setCreateMenuOpen(true)}
                     variant="default"
                     size="sm"
-                    className="w-full justify-start bg-primary hover:bg-primary/90 text-primary-foreground border-0"
-                   >
-                    <Plus className="h-4 w-4 mr-2" />
+                    className="h-8 w-full justify-start bg-primary text-sm text-primary-foreground hover:bg-primary/90"
+                  >
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
                     {t('common.create')}
                   </Button>
                 </DropdownMenuTrigger>
@@ -206,16 +231,16 @@ export function AppSidebar() {
               <DropdownMenuContent
                 align={isCollapsed ? 'end' : 'start'}
                 side={isCollapsed ? 'right' : 'bottom'}
-                className="w-48"
+                className="w-44"
               >
                 <DropdownMenuItem
                   onSelect={(event) => {
                     event.preventDefault()
                     handleCreateSelection('source')
                   }}
-                  className="gap-2"
+                  className="gap-2 text-sm"
                 >
-                   <FileText className="h-4 w-4" />
+                  <FileText className="h-3.5 w-3.5" />
                   {t('common.source')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
@@ -223,9 +248,9 @@ export function AppSidebar() {
                     event.preventDefault()
                     handleCreateSelection('notebook')
                   }}
-                  className="gap-2"
+                  className="gap-2 text-sm"
                 >
-                   <Book className="h-4 w-4" />
+                  <Book className="h-3.5 w-3.5" />
                   {t('common.notebook')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
@@ -233,9 +258,9 @@ export function AppSidebar() {
                     event.preventDefault()
                     handleCreateSelection('podcast')
                   }}
-                  className="gap-2"
+                  className="gap-2 text-sm"
                 >
-                   <Mic className="h-4 w-4" />
+                  <Mic className="h-3.5 w-3.5" />
                   {t('common.podcast')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -243,52 +268,15 @@ export function AppSidebar() {
           </div>
 
           {navigation.map((section, index) => (
-            <div key={section.title}>
-              {index > 0 && (
-                <Separator className="my-3" />
+            <div key={section.title} className={cn(index > 0 && 'mt-2')}>
+              {!isCollapsed && (
+                <h3 className="mb-0.5 px-2 text-[10px] font-semibold uppercase tracking-wide text-sidebar-foreground/55">
+                  {section.title}
+                </h3>
               )}
-              <div className="space-y-1">
-                {!isCollapsed && (
-                  <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60">
-                    {section.title}
-                  </h3>
-                )}
 
-                {section.items.map((item) => {
-                  const isActive = pathname?.startsWith(item.href) || false
-                  const button = (
-                    <Button
-                      variant={isActive ? 'secondary' : 'ghost'}
-                      className={cn(
-                        'w-full gap-3 text-sidebar-foreground sidebar-menu-item',
-                        isActive && 'bg-sidebar-accent text-sidebar-accent-foreground',
-                        isCollapsed ? 'justify-center px-2' : 'justify-start'
-                      )}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {!isCollapsed && <span>{item.name}</span>}
-                    </Button>
-                  )
-
-                  if (isCollapsed) {
-                    return (
-                      <Tooltip key={item.name}>
-                        <TooltipTrigger asChild>
-                          <Link href={item.href}>
-                            {button}
-                          </Link>
-                        </TooltipTrigger>
-                        <TooltipContent side="right">{item.name}</TooltipContent>
-                      </Tooltip>
-                    )
-                  }
-
-                  return (
-                    <Link key={item.name} href={item.href}>
-                      {button}
-                    </Link>
-                  )
-                })}
+              <div className="space-y-0.5">
+                {section.items.map((item) => renderNavItem(item))}
               </div>
             </div>
           ))}
@@ -296,84 +284,71 @@ export function AppSidebar() {
 
         <div
           className={cn(
-            'border-t border-sidebar-border p-3 space-y-2',
-            isCollapsed && 'px-2'
+            'shrink-0 space-y-1.5 border-t border-sidebar-border p-2',
+            isCollapsed && 'px-1.5'
           )}
         >
-          {/* Command Palette hint */}
           {!isCollapsed && (
-            <div className="px-3 py-1.5 text-xs text-sidebar-foreground/60">
-              <div className="flex items-center justify-between">
-                 <span className="flex items-center gap-1.5">
-                  <Command className="h-3 w-3" />
-                  {t('common.quickActions')}
-                </span>
-                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-                  {isMac ? <span className="text-xs">⌘</span> : <span>Ctrl+</span>}K
-                </kbd>
-              </div>
-               <p className="mt-1 text-[10px] text-sidebar-foreground/40">
-                {t('common.quickActionsDesc')}
-              </p>
+            <div className="flex items-center justify-between px-1.5 py-0.5 text-[10px] text-sidebar-foreground/60">
+              <span className="flex items-center gap-1">
+                <Command className="h-3 w-3" />
+                {t('common.quickActions')}
+              </span>
+              <kbd className="pointer-events-none inline-flex h-4 select-none items-center rounded border bg-muted px-1 font-mono text-[9px] font-medium text-muted-foreground">
+                {isMac ? <span className="text-[10px]">⌘</span> : <span>Ctrl+</span>}K
+              </kbd>
             </div>
           )}
 
-           <div
+          <div
             className={cn(
-              'flex flex-col gap-2',
-              isCollapsed ? 'items-center' : 'items-stretch'
+              'flex gap-1',
+              isCollapsed ? 'flex-col items-center [&_button]:h-7 [&_button]:w-8' : 'items-center [&_button]:h-7 [&_button]:flex-1'
             )}
           >
-            {isCollapsed ? (
-              <>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div>
-                      <ThemeToggle iconOnly />
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">{t('common.theme')}</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div>
-                      <LanguageToggle iconOnly />
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">{t('common.language')}</TooltipContent>
-                </Tooltip>
-              </>
-            ) : (
-              <>
-                <ThemeToggle />
-                <LanguageToggle />
-              </>
-            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className={isCollapsed ? 'w-full' : 'flex-1'}>
+                  <ThemeToggle iconOnly />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side={isCollapsed ? 'right' : 'top'}>{t('common.theme')}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className={isCollapsed ? 'w-full' : 'flex-1'}>
+                  <LanguageToggle iconOnly />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side={isCollapsed ? 'right' : 'top'}>{t('common.language')}</TooltipContent>
+            </Tooltip>
           </div>
 
           {isCollapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant="outline"
-                  className="w-full justify-center sidebar-menu-item"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-full sidebar-menu-item"
                   onClick={logout}
                   aria-label={t('common.signOut')}
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-               <TooltipContent side="right">{t('common.signOut')}</TooltipContent>
+              <TooltipContent side="right">{t('common.signOut')}</TooltipContent>
             </Tooltip>
           ) : (
             <Button
-              variant="outline"
-              className="w-full justify-start gap-3 sidebar-menu-item"
+              variant="ghost"
+              size="sm"
+              className="h-8 w-full justify-start gap-2 px-2 sidebar-menu-item"
               onClick={logout}
               aria-label={t('common.signOut')}
-             >
-              <LogOut className="h-4 w-4" />
-              {t('common.signOut')}
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span className="text-sm">{t('common.signOut')}</span>
             </Button>
           )}
         </div>

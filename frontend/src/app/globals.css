@@ -74,6 +74,18 @@
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.623 0.214 259.815);
+  --selection-background: var(--primary);
+  --selection-foreground: var(--primary-foreground);
+  /* Markdown hierarchy — light mode: darkest → lightest by level */
+  --markdown-h1: oklch(0.141 0.005 285.823);
+  --markdown-h2: oklch(0.24 0.006 285.885);
+  --markdown-h3: oklch(0.32 0.008 285.91);
+  --markdown-h4: oklch(0.4 0.01 285.925);
+  --markdown-h5: oklch(0.46 0.012 285.932);
+  --markdown-h6: oklch(0.5 0.014 285.936);
+  --markdown-body: oklch(0.552 0.016 285.938);
+  --markdown-body-emphasis: oklch(0.34 0.009 285.915);
+  --markdown-header-shade: oklch(0.141 0.005 285.823 / 6%);
 }
 
 .dark {
@@ -108,6 +120,18 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.488 0.243 264.376);
+  --selection-background: var(--primary);
+  --selection-foreground: var(--primary-foreground);
+  /* Markdown hierarchy — dark mode: brightest → dimmer by level (no pure white/black) */
+  --markdown-h1: oklch(0.93 0.008 285);
+  --markdown-h2: oklch(0.86 0.01 286);
+  --markdown-h3: oklch(0.79 0.011 286);
+  --markdown-h4: oklch(0.74 0.013 286);
+  --markdown-h5: oklch(0.7 0.014 286);
+  --markdown-h6: oklch(0.66 0.015 286);
+  --markdown-body: oklch(0.705 0.015 286.067);
+  --markdown-body-emphasis: oklch(0.8 0.012 286);
+  --markdown-header-shade: oklch(0.93 0.008 285 / 8%);
 }
 
 @layer base {
@@ -121,6 +145,16 @@
 
   body {
     @apply bg-background text-foreground transition-colors;
+  }
+
+  ::selection {
+    background-color: var(--selection-background);
+    color: var(--selection-foreground);
+  }
+
+  ::-moz-selection {
+    background-color: var(--selection-background);
+    color: var(--selection-foreground);
   }
 
   /* Ensure proper theme inheritance for popovers and dropdowns */
@@ -152,17 +186,11 @@
 
   /* Enhanced sidebar menu item hover effects */
   .sidebar-menu-item {
-    @apply transition-all duration-200 ease-out;
+    @apply transition-colors duration-150 ease-out;
   }
 
   .sidebar-menu-item:hover {
-    @apply scale-[1.02];
     background-color: var(--sidebar-accent) !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  }
-
-  .dark .sidebar-menu-item:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   }
 
   /* Enhanced hover effects for cards */
@@ -215,6 +243,74 @@
   display: none;
   width: 0;
   height: 0;
+}
+
+/* Markdown content hierarchy */
+.markdown-body {
+  color: var(--markdown-body);
+}
+
+.markdown-body .markdown-h1 {
+  color: var(--markdown-h1);
+  background-color: var(--markdown-header-shade);
+  border-bottom: 1px solid color-mix(in oklch, var(--markdown-h1) 18%, var(--border));
+  border-radius: calc(var(--radius) - 2px);
+  padding: 0.2em 0.45em;
+}
+
+.markdown-body .markdown-h2 {
+  color: var(--markdown-h2);
+  background-color: color-mix(in oklch, var(--markdown-header-shade) 65%, transparent);
+  border-bottom: 1px solid color-mix(in oklch, var(--markdown-h2) 14%, var(--border));
+  border-radius: calc(var(--radius) - 4px);
+  padding: 0.15em 0.4em;
+}
+
+.markdown-body .markdown-h3 {
+  color: var(--markdown-h3);
+}
+
+.markdown-body .markdown-h4 {
+  color: var(--markdown-h4);
+}
+
+.markdown-body .markdown-h5 {
+  color: var(--markdown-h5);
+}
+
+.markdown-body .markdown-h6 {
+  color: var(--markdown-h6);
+}
+
+.markdown-body .markdown-text {
+  color: var(--markdown-body);
+}
+
+.markdown-body .markdown-text-emphasis {
+  color: var(--markdown-body-emphasis);
+}
+
+.markdown-body .markdown-h1 + .markdown-text,
+.markdown-body .markdown-h2 + .markdown-text,
+.markdown-body .markdown-h3 + .markdown-text,
+.markdown-body .markdown-h4 + .markdown-text,
+.markdown-body .markdown-h5 + .markdown-text,
+.markdown-body .markdown-h6 + .markdown-text {
+  margin-top: 0.15em;
+}
+
+.markdown-body .markdown-blockquote {
+  color: color-mix(in oklch, var(--markdown-body) 88%, var(--markdown-h4));
+  border-left-color: color-mix(in oklch, var(--markdown-h4) 45%, var(--border));
+}
+
+.markdown-body .markdown-table-heading {
+  color: var(--markdown-h5);
+}
+
+.markdown-body .markdown-code-inline {
+  color: var(--markdown-body-emphasis);
+  background-color: color-mix(in oklch, var(--markdown-body) 12%, var(--muted));
 }
 
 /* Markdown renderer — syntax highlighting (highlight.js) */

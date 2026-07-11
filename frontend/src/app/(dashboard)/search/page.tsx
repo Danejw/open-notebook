@@ -160,7 +160,7 @@ export default function SearchPage() {
   return (
     <AppShell>
       <div className={`flex-1 overflow-y-auto ${pageContentClassName}`}>
-        <PageHeader bordered className="mb-3" title={t('searchPage.askAndSearch')} />
+        <PageHeader bordered className="mb-6" title={t('searchPage.askAndSearch')} />
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'ask' | 'search')} className="w-full space-y-6">
           <div className="space-y-2">

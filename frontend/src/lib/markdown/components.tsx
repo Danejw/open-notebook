@@ -80,37 +80,37 @@ export function createMarkdownComponents(
 
   const base: Components = {
     h1: ({ children }) => (
-      <h1 className={cn('font-bold tracking-tight', styles.h1)}>{children}</h1>
+      <h1 className={cn('markdown-h1 font-bold tracking-tight', styles.h1)}>{children}</h1>
     ),
     h2: ({ children }) => (
-      <h2 className={cn('font-semibold tracking-tight', styles.h2)}>{children}</h2>
+      <h2 className={cn('markdown-h2 font-semibold tracking-tight', styles.h2)}>{children}</h2>
     ),
     h3: ({ children }) => (
-      <h3 className={cn('font-semibold', styles.h3)}>{children}</h3>
+      <h3 className={cn('markdown-h3 font-semibold', styles.h3)}>{children}</h3>
     ),
     h4: ({ children }) => (
-      <h4 className={cn('font-semibold', styles.h4)}>{children}</h4>
+      <h4 className={cn('markdown-h4 font-semibold', styles.h4)}>{children}</h4>
     ),
     h5: ({ children }) => (
-      <h5 className={cn('font-medium', styles.h5)}>{children}</h5>
+      <h5 className={cn('markdown-h5 font-medium', styles.h5)}>{children}</h5>
     ),
     h6: ({ children }) => (
-      <h6 className={cn('font-medium text-muted-foreground', styles.h6)}>{children}</h6>
+      <h6 className={cn('markdown-h6 font-medium', styles.h6)}>{children}</h6>
     ),
-    p: ({ children }) => <p className={cn('leading-relaxed', styles.p)}>{children}</p>,
+    p: ({ children }) => <p className={cn('markdown-text leading-relaxed', styles.p)}>{children}</p>,
     ul: ({ children }) => <ul className={styles.ul}>{children}</ul>,
     ol: ({ children }) => <ol className={styles.ol}>{children}</ol>,
-    li: ({ children }) => <li className={styles.li}>{children}</li>,
+    li: ({ children }) => <li className={cn('markdown-text', styles.li)}>{children}</li>,
     blockquote: ({ children }) => (
-      <blockquote className={cn('markdown-blockquote border-l-4 border-primary/40 text-muted-foreground italic', styles.blockquote)}>
+      <blockquote className={cn('markdown-blockquote border-l-4 italic', styles.blockquote)}>
         {children}
       </blockquote>
     ),
     hr: () => <hr className="my-4 border-border" />,
-    strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+    strong: ({ children }) => <strong className="markdown-text-emphasis font-semibold">{children}</strong>,
     em: ({ children }) => <em className="italic">{children}</em>,
     del: ({ children }) => (
-      <del className="text-muted-foreground line-through">{children}</del>
+      <del className="markdown-text opacity-75 line-through">{children}</del>
     ),
     a: ({ href, children, ...props }) => (
       <a
@@ -151,12 +151,12 @@ export function createMarkdownComponents(
     tbody: ({ children }) => <tbody className="divide-y divide-border">{children}</tbody>,
     tr: ({ children }) => <tr className="border-b border-border last:border-0">{children}</tr>,
     th: ({ children }) => (
-      <th className={cn('border-b border-border text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground', styles.th)}>
+      <th className={cn('markdown-table-heading border-b border-border text-left text-xs font-semibold uppercase tracking-wide', styles.th)}>
         {children}
       </th>
     ),
     td: ({ children }) => (
-      <td className={cn('align-top', styles.td)}>{children}</td>
+      <td className={cn('markdown-text align-top', styles.td)}>{children}</td>
     ),
     pre: ({ node, children, ...props }) => {
       let language: string | null = null
@@ -195,7 +195,7 @@ export function createMarkdownComponents(
       if (!isBlock) {
         return (
           <code
-            className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em] text-foreground"
+            className="markdown-code-inline rounded px-1.5 py-0.5 font-mono text-[0.85em]"
             {...props}
           >
             {children}

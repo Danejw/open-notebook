@@ -1,15 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Upload } from 'lucide-react'
+import { Upload, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
-import { Sparkles } from 'lucide-react'
 import { Skill } from '@/lib/types/skills'
 import { SkillCard } from './SkillCard'
 import { SkillImportDialog } from './SkillImportDialog'
-import { SkillCreateDialog } from './SkillCreateDialog'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
 interface SkillsListProps {
@@ -20,7 +18,6 @@ interface SkillsListProps {
 export function SkillsList({ skills, isLoading }: SkillsListProps) {
   const { t } = useTranslation()
   const [importOpen, setImportOpen] = useState(false)
-  const [createOpen, setCreateOpen] = useState(false)
 
   if (isLoading) {
     return (
@@ -38,19 +35,12 @@ export function SkillsList({ skills, isLoading }: SkillsListProps) {
           title={t('skills.empty')}
           description={t('skills.emptyDesc')}
           action={
-            <div className="flex gap-2">
-              <Button onClick={() => setCreateOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                {t('skills.create')}
-              </Button>
-              <Button variant="outline" onClick={() => setImportOpen(true)}>
-                <Upload className="h-4 w-4 mr-2" />
-                {t('skills.uploadZip')}
-              </Button>
-            </div>
+            <Button onClick={() => setImportOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              {t('skills.uploadZip')}
+            </Button>
           }
         />
-        <SkillCreateDialog open={createOpen} onOpenChange={setCreateOpen} />
         <SkillImportDialog open={importOpen} onOpenChange={setImportOpen} />
       </>
     )
@@ -61,16 +51,10 @@ export function SkillsList({ skills, isLoading }: SkillsListProps) {
       <div className="space-y-6">
         <div className="flex justify-between items-center gap-3 flex-wrap">
           <h2 className="text-lg font-semibold">{t('skills.listTitle')}</h2>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setImportOpen(true)}>
-              <Upload className="h-4 w-4 mr-2" />
-              {t('skills.uploadZip')}
-            </Button>
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              {t('skills.create')}
-            </Button>
-          </div>
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            {t('skills.uploadZip')}
+          </Button>
         </div>
 
         <div className="space-y-4">
@@ -80,7 +64,6 @@ export function SkillsList({ skills, isLoading }: SkillsListProps) {
         </div>
       </div>
 
-      <SkillCreateDialog open={createOpen} onOpenChange={setCreateOpen} />
       <SkillImportDialog open={importOpen} onOpenChange={setImportOpen} />
     </>
   )

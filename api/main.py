@@ -146,12 +146,35 @@ async def lifespan(app: FastAPI):
         logger.warning(f"Podcast profile migration encountered errors: {e}")
         # Non-fatal: profiles can be migrated manually via UI
 
+    # AsyncSqliteSaver for chat graphs (required by ag-ui-langgraph aget_state/astream)
+    try:
+        from api.ag_ui_agents import refresh_agents
+        from open_notebook.graphs import chat as chat_module
+        from open_notebook.graphs import source_chat as source_chat_module
+        from open_notebook.graphs.checkpointer import init_checkpointer
+
+        checkpointer = await init_checkpointer()
+        chat_module.bind_checkpointer(checkpointer)
+        source_chat_module.bind_checkpointer(checkpointer)
+        refresh_agents()
+        logger.success("LangGraph AsyncSqliteSaver checkpointer ready")
+    except Exception as e:
+        logger.error(f"CRITICAL: Failed to initialize LangGraph checkpointer: {e}")
+        logger.exception(e)
+        raise RuntimeError(f"Failed to initialize LangGraph checkpointer: {str(e)}") from e
+
     logger.success("API initialization completed successfully")
 
     # Yield control to the application
     yield
 
     # Shutdown: cleanup if needed
+    try:
+        from open_notebook.graphs.checkpointer import close_checkpointer
+
+        await close_checkpointer()
+    except Exception as e:
+        logger.warning(f"Error closing LangGraph checkpointer: {e}")
     logger.info("API shutdown complete")
 
 

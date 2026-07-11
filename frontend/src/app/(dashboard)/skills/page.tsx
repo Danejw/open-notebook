@@ -1,6 +1,7 @@
 'use client'
 
 import { AppShell } from '@/components/layout/AppShell'
+import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { SkillsList } from './components/SkillsList'
 import { useSkills } from '@/lib/hooks/use-skills'
@@ -14,22 +15,18 @@ export default function SkillsPage() {
   return (
     <AppShell>
       <div className="flex-1 overflow-y-auto">
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-6 w-6" />
-                <h1 className="text-2xl font-bold">{t('skills.title')}</h1>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => refetch()}>
-                <RefreshCw className="h-4 w-4" />
+        <div className={`${pageContentClassName} space-y-3`}>
+          <PageHeader
+            bordered
+            icon={Sparkles}
+            title={t('skills.title')}
+            description={t('skills.desc')}
+            actions={
+              <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => refetch()} aria-label={t('common.refresh')}>
+                <RefreshCw className="h-3.5 w-3.5" />
               </Button>
-            </div>
-          </div>
-
-          <div className="max-w-5xl">
-            <p className="text-muted-foreground">{t('skills.desc')}</p>
-          </div>
+            }
+          />
 
           <div className="max-w-5xl">
             <SkillsList skills={skills} isLoading={isLoading} />

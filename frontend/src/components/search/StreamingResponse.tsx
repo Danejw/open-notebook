@@ -2,11 +2,11 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { CheckCircle, Sparkles, Lightbulb, ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
+import { AgentActivityStatus } from '@/components/common/AgentActivityStatus'
 import { convertReferencesToMarkdownLinks, createReferenceLinkComponent } from '@/lib/utils/source-references'
 import { useModalManager } from '@/lib/hooks/use-modal-manager'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -19,6 +19,8 @@ interface StrategyData {
 
 interface StreamingResponseProps {
   isStreaming: boolean
+  streamStatus?: string | null
+  activityLog?: string[]
   strategy: StrategyData | null
   answers: string[]
   finalAnswer: string | null
@@ -26,6 +28,8 @@ interface StreamingResponseProps {
 
 export function StreamingResponse({
   isStreaming,
+  streamStatus,
+  activityLog = [],
   strategy,
   answers,
   finalAnswer
@@ -148,10 +152,10 @@ export function StreamingResponse({
 
       {/* Loading Indicator */}
       {isStreaming && !finalAnswer && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <LoadingSpinner size="sm" />
-          <span>{t('searchPage.processingQuestion')}</span>
-        </div>
+        <AgentActivityStatus
+          streamStatus={streamStatus || t('searchPage.processingQuestion')}
+          activityLog={activityLog}
+        />
       )}
     </div>
   )

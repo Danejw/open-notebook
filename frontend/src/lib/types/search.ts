@@ -42,20 +42,10 @@ export interface AskResponse {
   question: string
 }
 
-// SSE Streaming types
 export interface StrategyData {
   reasoning: string
   searches: Array<{
     term: string
     instructions: string
   }>
-}
-
-export interface AskStreamEvent {
-  type: 'strategy' | 'answer' | 'final_answer' | 'complete' | 'error'
-  reasoning?: string
-  searches?: Array<{ term: string; instructions: string }>
-  content?: string
-  final_answer?: string
-  message?: string
 }

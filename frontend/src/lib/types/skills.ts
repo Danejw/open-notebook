@@ -82,6 +82,13 @@ export interface ImportPreview {
   files: SkillFile[]
   errors: string[]
   warnings: string[]
+  source_filename?: string | null
+  selected?: boolean
+}
+
+export interface BulkImportPreview {
+  items: ImportPreview[]
+  errors: string[]
 }
 
 export interface ImportConfirmRequest {
@@ -90,6 +97,15 @@ export interface ImportConfirmRequest {
   tags?: string[]
   owner?: string | null
   files: SkillFile[]
+}
+
+export interface BulkImportConfirmRequest {
+  items: ImportConfirmRequest[]
+}
+
+export interface BulkImportConfirmResult {
+  imported: SkillDetail[]
+  failed: string[]
 }
 
 export interface ValidationIssue {

@@ -5,7 +5,16 @@ import { toast } from 'sonner'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { getApiErrorMessage } from '@/lib/utils/error-handler'
 import { searchApi } from '@/lib/api/search'
-import { AskStreamEvent } from '@/lib/types/search'
+import {
+  agentStepI18nKey,
+  readAgUiSseStream,
+  type AgUiEvent,
+} from '@/lib/ag-ui/events'
+import {
+  formatAgentProgressLogLine,
+  formatAgentProgressStatus,
+  parseAgentProgressEvent,
+} from '@/lib/ag-ui/progress'
 
 interface AskModels {
   strategy: string
@@ -15,21 +24,44 @@ interface AskModels {
 
 interface StrategyData {
   reasoning: string
-  searches: Array<{ term: string; instructions: string }>
+  searches: Array<{
+    term: string
+    instructions: string
+  }>
 }
 
 interface AskState {
   isStreaming: boolean
+  streamStatus: string | null
+  activityLog: string[]
   strategy: StrategyData | null
   answers: string[]
   finalAnswer: string | null
   error: string | null
 }
 
+function parseStrategy(value: unknown): StrategyData | null {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+  const raw = value as Record<string, unknown>
+  const reasoning = typeof raw.reasoning === 'string' ? raw.reasoning : ''
+  const searchesRaw = Array.isArray(raw.searches) ? raw.searches : []
+  const searches = searchesRaw
+    .filter((s): s is Record<string, unknown> => !!s && typeof s === 'object')
+    .map((s) => ({
+      term: typeof s.term === 'string' ? s.term : '',
+      instructions: typeof s.instructions === 'string' ? s.instructions : '',
+    }))
+  return { reasoning, searches }
+}
+
 export function useAsk() {
   const { t } = useTranslation()
   const [state, setState] = useState<AskState>({
     isStreaming: false,
+    streamStatus: null,
+    activityLog: [],
     strategy: null,
     answers: [],
     finalAnswer: null,
@@ -37,7 +69,6 @@ export function useAsk() {
   })
 
   const sendAsk = useCallback(async (question: string, models: AskModels) => {
-    // Validate inputs
     if (!question.trim()) {
       toast.error(t('apiErrors.pleaseEnterQuestion'))
       return
@@ -48,9 +79,10 @@ export function useAsk() {
       return
     }
 
-    // Reset state
     setState({
       isStreaming: true,
+      streamStatus: null,
+      activityLog: [],
       strategy: null,
       answers: [],
       finalAnswer: null,
@@ -69,86 +101,115 @@ export function useAsk() {
         throw new Error('No response body received from server')
       }
 
-      const reader = response.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-
-        if (done) {
-          break
-        }
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-
-        // Keep the last incomplete line in buffer
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const jsonStr = line.slice(6).trim()
-              if (!jsonStr) continue
-
-              const data: AskStreamEvent = JSON.parse(jsonStr)
-
-              if (data.type === 'strategy') {
-                setState(prev => ({
-                  ...prev,
-                  strategy: {
-                    reasoning: data.reasoning || '',
-                    searches: data.searches || []
-                  }
-                }))
-              } else if (data.type === 'answer') {
-                setState(prev => ({
-                  ...prev,
-                  answers: [...prev.answers, data.content || '']
-                }))
-              } else if (data.type === 'final_answer') {
-                setState(prev => ({
-                  ...prev,
-                  finalAnswer: data.content || '',
-                  isStreaming: false
-                }))
-              } else if (data.type === 'complete') {
-                setState(prev => ({
-                  ...prev,
-                  isStreaming: false
-                }))
-              } else if (data.type === 'error') {
-                throw new Error(data.message || 'Stream error occurred')
-              }
-            } catch (e) {
-              if (e instanceof SyntaxError) {
-                console.error('Error parsing SSE data:', e, 'Line:', line)
-                // Don't throw - continue processing other lines
-              } else {
-                throw e
-              }
+      await readAgUiSseStream(response, (event: AgUiEvent) => {
+        switch (event.type) {
+          case 'STEP_STARTED': {
+            if (typeof event.stepName === 'string') {
+              setState((prev) => ({
+                ...prev,
+                streamStatus: t(agentStepI18nKey(event.stepName!)),
+              }))
             }
+            break
           }
+          case 'CUSTOM': {
+            const progress = parseAgentProgressEvent(event)
+            if (!progress) {
+              break
+            }
+            const status = formatAgentProgressStatus(progress, t)
+            const logLine = formatAgentProgressLogLine(progress, t)
+            setState((prev) => ({
+              ...prev,
+              streamStatus: status ?? prev.streamStatus,
+              activityLog: logLine
+                ? [...prev.activityLog, logLine]
+                : prev.activityLog,
+            }))
+            break
+          }
+          case 'STATE_SNAPSHOT': {
+            const snapshot = event.snapshot ?? {}
+            const strategy = parseStrategy(snapshot.strategy)
+            const answers = Array.isArray(snapshot.answers)
+              ? snapshot.answers.filter((a): a is string => typeof a === 'string')
+              : undefined
+            const finalAnswer =
+              typeof snapshot.final_answer === 'string'
+                ? snapshot.final_answer
+                : undefined
+
+            setState((prev) => ({
+              ...prev,
+              strategy: strategy ?? prev.strategy,
+              answers: answers ?? prev.answers,
+              finalAnswer:
+                finalAnswer !== undefined ? finalAnswer : prev.finalAnswer,
+              isStreaming: finalAnswer ? false : prev.isStreaming,
+              streamStatus: finalAnswer ? null : prev.streamStatus,
+              activityLog: finalAnswer ? [] : prev.activityLog,
+            }))
+            break
+          }
+          case 'TEXT_MESSAGE_CONTENT':
+          case 'TEXT_MESSAGE_CHUNK': {
+            const delta =
+              typeof event.delta === 'string'
+                ? event.delta
+                : typeof event.content === 'string'
+                  ? event.content
+                  : ''
+            if (!delta) {
+              break
+            }
+            setState((prev) => ({
+              ...prev,
+              finalAnswer: (prev.finalAnswer || '') + delta,
+            }))
+            break
+          }
+          case 'RUN_FINISHED': {
+            setState((prev) => ({
+              ...prev,
+              isStreaming: false,
+              streamStatus: null,
+              activityLog: [],
+            }))
+            break
+          }
+          case 'RUN_ERROR': {
+            throw new Error(
+              typeof event.message === 'string'
+                ? event.message
+                : 'Stream error occurred'
+            )
+          }
+          default:
+            break
         }
-      }
+      })
 
-      // Ensure streaming is stopped
-      setState(prev => ({ ...prev, isStreaming: false }))
-
+      setState((prev) => ({
+        ...prev,
+        isStreaming: false,
+        streamStatus: null,
+        activityLog: [],
+      }))
     } catch (error) {
       const err = error as { message?: string }
       const errorMessage = err.message || 'An unexpected error occurred'
       console.error('Ask error:', error)
 
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         isStreaming: false,
+        streamStatus: null,
+        activityLog: [],
         error: errorMessage
       }))
 
       toast.error(t('apiErrors.askFailed'), {
-        description: getApiErrorMessage(errorMessage, (key) => t(key))
+        description: getApiErrorMessage(errorMessage, (key) => t(key)),
       })
     }
   }, [t])
@@ -156,6 +217,8 @@ export function useAsk() {
   const reset = useCallback(() => {
     setState({
       isStreaming: false,
+      streamStatus: null,
+      activityLog: [],
       strategy: null,
       answers: [],
       finalAnswer: null,

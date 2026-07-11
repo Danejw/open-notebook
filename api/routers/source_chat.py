@@ -1,20 +1,18 @@
 import asyncio
-import json
 from typing import AsyncGenerator, List, Optional
 
 from fastapi import APIRouter, HTTPException, Path
-from fastapi.responses import StreamingResponse
-from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from api import ag_ui_agents
 from open_notebook.database.repository import ensure_record_id, repo_query
 from open_notebook.domain.notebook import ChatSession, Source
 from open_notebook.exceptions import (
     NotFoundError,
 )
-from open_notebook.graphs.source_chat import source_chat_graph as source_chat_graph
+from open_notebook.graphs import source_chat as source_chat_module
 from open_notebook.utils.graph_utils import get_session_message_count
 
 router = APIRouter()
@@ -27,11 +25,17 @@ class CreateSourceChatSessionRequest(BaseModel):
     model_override: Optional[str] = Field(
         None, description="Optional model override for this session"
     )
+    skill_ids: Optional[List[str]] = Field(
+        None, description="Skill IDs selected for this session"
+    )
 
 class UpdateSourceChatSessionRequest(BaseModel):
     title: Optional[str] = Field(None, description="New session title")
     model_override: Optional[str] = Field(
         None, description="Model override for this session"
+    )
+    skill_ids: Optional[List[str]] = Field(
+        None, description="Skill IDs selected for this session"
     )
 
 class ChatMessage(BaseModel):
@@ -59,6 +63,9 @@ class SourceChatSessionResponse(BaseModel):
     model_override: Optional[str] = Field(
         None, description="Model override for this session"
     )
+    skill_ids: Optional[List[str]] = Field(
+        None, description="Skill IDs selected for this session"
+    )
     created: str = Field(..., description="Creation timestamp")
     updated: str = Field(..., description="Last update timestamp")
     message_count: Optional[int] = Field(
@@ -78,9 +85,9 @@ class SendMessageRequest(BaseModel):
     model_override: Optional[str] = Field(
         None, description="Optional model override for this message"
     )
-    skill_ids: List[str] = Field(
-        default_factory=list,
-        description="Selected skill IDs to load into chat context",
+    skill_ids: Optional[List[str]] = Field(
+        None,
+        description="Selected skill IDs; when omitted, session-stored skills are used",
     )
 
 class SuccessResponse(BaseModel):
@@ -109,6 +116,7 @@ async def create_source_chat_session(
         session = ChatSession(
             title=request.title or f"Source Chat {asyncio.get_event_loop().time():.0f}",
             model_override=request.model_override,
+            skill_ids=request.skill_ids or [],
         )
         await session.save()
 
@@ -120,6 +128,7 @@ async def create_source_chat_session(
             title=session.title or "Untitled Session",
             source_id=source_id,
             model_override=session.model_override,
+            skill_ids=session.skill_ids or [],
             created=str(session.created),
             updated=str(session.updated),
             message_count=0,
@@ -167,7 +176,7 @@ async def get_source_chat_sessions(source_id: str = Path(..., description="Sourc
 
                     # Get message count from LangGraph state
                     msg_count = await get_session_message_count(
-                        source_chat_graph, session_id
+                        source_chat_module.source_chat_graph, session_id
                     )
 
                     sessions.append(
@@ -176,6 +185,7 @@ async def get_source_chat_sessions(source_id: str = Path(..., description="Sourc
                             title=session_data.get("title") or "Untitled Session",
                             source_id=source_id,
                             model_override=session_data.get("model_override"),
+                            skill_ids=session_data.get("skill_ids") or [],
                             created=str(session_data.get("created")),
                             updated=str(session_data.get("updated")),
                             message_count=msg_count,
@@ -237,9 +247,7 @@ async def get_source_chat_session(
             )
 
         # Get session state from LangGraph to retrieve messages
-        # Use sync get_state() in a thread since SqliteSaver doesn't support async
-        thread_state = await asyncio.to_thread(
-            source_chat_graph.get_state,
+        thread_state = await source_chat_module.source_chat_graph.aget_state(
             config=RunnableConfig(configurable={"thread_id": full_session_id}),
         )
 
@@ -276,6 +284,7 @@ async def get_source_chat_session(
             title=session.title or "Untitled Session",
             source_id=source_id,
             model_override=getattr(session, "model_override", None),
+            skill_ids=getattr(session, "skill_ids", None) or [],
             created=str(session.created),
             updated=str(session.updated),
             message_count=len(messages),
@@ -339,17 +348,20 @@ async def update_source_chat_session(
             session.title = request.title
         if request.model_override is not None:
             session.model_override = request.model_override
+        if request.skill_ids is not None:
+            session.skill_ids = request.skill_ids or []
 
         await session.save()
 
         # Get message count from LangGraph state
-        msg_count = await get_session_message_count(source_chat_graph, full_session_id)
+        msg_count = await get_session_message_count(source_chat_module.source_chat_graph, full_session_id)
 
         return SourceChatSessionResponse(
             id=session.id or "",
             title=session.title or "Untitled Session",
             source_id=source_id,
             model_override=getattr(session, "model_override", None),
+            skill_ids=getattr(session, "skill_ids", None) or [],
             created=str(session.created),
             updated=str(session.updated),
             message_count=msg_count,
@@ -425,75 +437,23 @@ async def stream_source_chat_response(
     model_override: Optional[str] = None,
     skill_ids: Optional[List[str]] = None,
 ) -> AsyncGenerator[str, None]:
-    """Stream the source chat response as Server-Sent Events."""
-    try:
-        # Get current state
-        # Use sync get_state() in a thread since SqliteSaver doesn't support async
-        current_state = await asyncio.to_thread(
-            source_chat_graph.get_state,
-            config=RunnableConfig(configurable={"thread_id": session_id}),
-        )
+    """Stream the source chat response as AG-UI Server-Sent Events."""
+    run_input = ag_ui_agents.build_run_input(
+        thread_id=session_id,
+        message=message,
+        forwarded_props={
+            "source_id": source_id,
+            "model_override": model_override,
+            "skill_ids": skill_ids or [],
+        },
+    )
 
-        # Prepare state for execution
-        state_values = current_state.values if current_state else {}
-        state_values["messages"] = state_values.get("messages", [])
-        state_values["source_id"] = source_id
-        state_values["model_override"] = model_override
-
-        skills_context = ""
-        if skill_ids:
-            from open_notebook.skills.loader import load_skill_md_contents
-
-            skills_context = await load_skill_md_contents(skill_ids)
-        state_values["skills_context"] = skills_context or None
-        state_values["skill_ids"] = skill_ids or []
-
-        # Add user message to state
-        user_message = HumanMessage(content=message)
-        state_values["messages"].append(user_message)
-
-        # Send user message event
-        user_event = {"type": "user_message", "content": message, "timestamp": None}
-        yield f"data: {json.dumps(user_event)}\n\n"
-
-        # Execute source chat graph synchronously (like notebook chat does)
-        result = source_chat_graph.invoke(
-            input=state_values,  # type: ignore[arg-type]
-            config=RunnableConfig(
-                configurable={"thread_id": session_id, "model_id": model_override}
-            ),
-        )
-
-        # Stream the complete AI response
-        if "messages" in result:
-            for msg in result["messages"]:
-                if hasattr(msg, "type") and msg.type == "ai":
-                    ai_event = {
-                        "type": "ai_message",
-                        "content": msg.content if hasattr(msg, "content") else str(msg),
-                        "timestamp": None,
-                    }
-                    yield f"data: {json.dumps(ai_event)}\n\n"
-
-        # Stream context indicators
-        if "context_indicators" in result:
-            context_event = {
-                "type": "context_indicators",
-                "data": result["context_indicators"],
-            }
-            yield f"data: {json.dumps(context_event)}\n\n"
-
-        # Send completion signal
-        completion_event = {"type": "complete"}
-        yield f"data: {json.dumps(completion_event)}\n\n"
-
-    except Exception as e:
-        from open_notebook.utils.error_classifier import classify_error
-
-        _, user_message = classify_error(e)
-        logger.error(f"Error in source chat streaming: {str(e)}")
-        error_event = {"type": "error", "message": user_message}
-        yield f"data: {json.dumps(error_event)}\n\n"
+    async for chunk in ag_ui_agents.stream_agent_events(
+        ag_ui_agents.source_chat_agent,
+        run_input,
+        configurable={"model_id": model_override},
+    ):
+        yield chunk
 
 
 @router.post("/sources/{source_id}/chat/sessions/{session_id}/messages")
@@ -502,7 +462,7 @@ async def send_message_to_source_chat(
     source_id: str = Path(..., description="Source ID"),
     session_id: str = Path(..., description="Session ID"),
 ):
-    """Send a message to source chat session with SSE streaming response."""
+    """Send a message to source chat session with AG-UI SSE streaming response."""
     try:
         # Verify source exists
         full_source_id = (
@@ -544,24 +504,28 @@ async def send_message_to_source_chat(
             session, "model_override", None
         )
 
-        # Update session timestamp
+        if request.skill_ids is not None:
+            skill_ids = list(request.skill_ids)
+            session.skill_ids = skill_ids
+        else:
+            skill_ids = list(getattr(session, "skill_ids", None) or [])
+
+        # Update session timestamp (and skill_ids if changed)
         await session.save()
 
-        # Return streaming response
-        return StreamingResponse(
-            stream_source_chat_response(
-                session_id=full_session_id,
-                source_id=full_source_id,
+        # Skills + source context load inside the graph so AG-UI can stream steps.
+        return ag_ui_agents.ag_ui_streaming_response(
+            ag_ui_agents.source_chat_agent,
+            ag_ui_agents.build_run_input(
+                thread_id=full_session_id,
                 message=request.message,
-                model_override=model_override,
-                skill_ids=request.skill_ids or None,
+                forwarded_props={
+                    "source_id": full_source_id,
+                    "model_override": model_override,
+                    "skill_ids": skill_ids,
+                },
             ),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "X-Accel-Buffering": "no",
-            },
+            configurable={"model_id": model_override},
         )
 
     except HTTPException:

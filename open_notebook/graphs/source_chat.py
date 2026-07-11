@@ -1,23 +1,26 @@
 import asyncio
-import sqlite3
-from typing import Annotated, Dict, List, Optional
+import concurrent.futures
+from typing import Annotated, Dict, List, Literal, Optional
 
 from ai_prompter import Prompter
-from langchain_core.messages import AIMessage, SystemMessage
+from langchain_core.messages import SystemMessage
 from langchain_core.runnables import RunnableConfig
-from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
 from open_notebook.ai.provision import provision_langchain_model
-from open_notebook.config import LANGGRAPH_CHECKPOINT_FILE
 from open_notebook.domain.notebook import Source, SourceInsight
 from open_notebook.exceptions import OpenNotebookError
+from open_notebook.graphs.progress import emit_agent_progress
+from open_notebook.skills.loader import format_skills_context, load_one_skill_md
 from open_notebook.utils import clean_thinking_content
 from open_notebook.utils.context_builder import ContextBuilder
 from open_notebook.utils.error_classifier import classify_error
 from open_notebook.utils.text_utils import extract_text_content
+from open_notebook.utils.token_utils import token_count
 
 
 class SourceChatState(TypedDict):
@@ -32,176 +35,30 @@ class SourceChatState(TypedDict):
     skill_ids: Optional[list]
 
 
-def call_model_with_source_context(
-    state: SourceChatState, config: RunnableConfig
-) -> dict:
-    """
-    Main function that builds source context and calls the model.
+def _run_async(coro):
+    """Run an async coroutine from a sync LangGraph node."""
 
-    This function:
-    1. Uses ContextBuilder to build source-specific context
-    2. Applies the source_chat Jinja2 prompt template
-    3. Handles model provisioning with override support
-    4. Tracks context indicators for referenced insights/content
-    """
-    try:
-        return _call_model_with_source_context_inner(state, config)
-    except OpenNotebookError:
-        raise
-    except Exception as e:
-        error_class, user_message = classify_error(e)
-        raise error_class(user_message) from e
-
-
-def _call_model_with_source_context_inner(
-    state: SourceChatState, config: RunnableConfig
-) -> dict:
-    source_id = state.get("source_id")
-    if not source_id:
-        raise ValueError("source_id is required in state")
-
-    # Build source context using ContextBuilder (run async code in new loop)
-    def build_context():
-        """Build context in a new event loop"""
-        new_loop = asyncio.new_event_loop()
-        try:
-            asyncio.set_event_loop(new_loop)
-            context_builder = ContextBuilder(
-                source_id=source_id,
-                include_insights=True,
-                include_notes=False,  # Focus on source-specific content
-                max_tokens=50000,  # Reasonable limit for source context
-            )
-            return new_loop.run_until_complete(context_builder.build())
-        finally:
-            new_loop.close()
-            asyncio.set_event_loop(None)
-
-    # Get the built context
-    try:
-        # Try to get the current event loop
-        asyncio.get_running_loop()
-        # If we're in an event loop, run in a thread with a new loop
-        import concurrent.futures
-
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(build_context)
-            context_data = future.result()
-    except RuntimeError:
-        # No event loop running, safe to create a new one
-        context_data = build_context()
-
-    # Extract source and insights from context
-    source = None
-    insights = []
-    context_indicators: dict[str, list[str | None]] = {
-        "sources": [],
-        "insights": [],
-        "notes": [],
-    }
-
-    if context_data.get("sources"):
-        source_info = context_data["sources"][0]  # First source
-        source = Source(**source_info) if isinstance(source_info, dict) else source_info
-        context_indicators["sources"].append(source.id)
-
-    if context_data.get("insights"):
-        for insight_data in context_data["insights"]:
-            insight = (
-                SourceInsight(**insight_data)
-                if isinstance(insight_data, dict)
-                else insight_data
-            )
-            insights.append(insight)
-            context_indicators["insights"].append(insight.id)
-
-    # Format context for the prompt
-    formatted_context = _format_source_context(context_data)
-
-    # Build prompt data for the template
-    prompt_data = {
-        "source": source.model_dump() if source else None,
-        "insights": [insight.model_dump() for insight in insights] if insights else [],
-        "context": formatted_context,
-        "context_indicators": context_indicators,
-    }
-
-    # Apply the source_chat prompt template
-    system_prompt = Prompter(prompt_template="source_chat/system").render(
-        data=prompt_data
-    )
-    payload = [SystemMessage(content=system_prompt)] + state.get("messages", [])
-
-    # Handle async model provisioning from sync context
     def run_in_new_loop():
-        """Run the async function in a new event loop"""
         new_loop = asyncio.new_event_loop()
         try:
             asyncio.set_event_loop(new_loop)
-            return new_loop.run_until_complete(
-                provision_langchain_model(
-                    str(payload),
-                    config.get("configurable", {}).get("model_id")
-                    or state.get("model_override"),
-                    "chat",
-                    max_tokens=8192,
-                )
-            )
+            return new_loop.run_until_complete(coro)
         finally:
             new_loop.close()
             asyncio.set_event_loop(None)
 
     try:
-        # Try to get the current event loop
         asyncio.get_running_loop()
-        # If we're in an event loop, run in a thread with a new loop
-        import concurrent.futures
-
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(run_in_new_loop)
-            model = future.result()
+            return executor.submit(run_in_new_loop).result()
     except RuntimeError:
-        # No event loop running, safe to use asyncio.run()
-        model = asyncio.run(
-            provision_langchain_model(
-                str(payload),
-                config.get("configurable", {}).get("model_id")
-                or state.get("model_override"),
-                "chat",
-                max_tokens=8192,
-            )
-        )
-
-    ai_message = model.invoke(payload)
-
-    # Clean thinking content from AI response (e.g., <think>...</think> tags)
-    content = extract_text_content(ai_message.content)
-    cleaned_content = clean_thinking_content(content)
-    cleaned_message = ai_message.model_copy(update={"content": cleaned_content})
-
-    # Update state with context information
-    return {
-        "messages": cleaned_message,
-        "source": source,
-        "insights": insights,
-        "context": formatted_context,
-        "context_indicators": context_indicators,
-    }
+        return asyncio.run(coro)
 
 
 def _format_source_context(context_data: Dict) -> str:
-    """
-    Format the context data into a readable string for the prompt.
-
-    Args:
-        context_data: Context data from ContextBuilder
-
-    Returns:
-        Formatted context string
-    """
+    """Format ContextBuilder output into prompt text."""
     context_parts = []
 
-    # Add source information
     if context_data.get("sources"):
         context_parts.append("## SOURCE CONTENT")
         for source in context_data["sources"]:
@@ -209,14 +66,12 @@ def _format_source_context(context_data: Dict) -> str:
                 context_parts.append(f"**Source ID:** {source.get('id', 'Unknown')}")
                 context_parts.append(f"**Title:** {source.get('title', 'No title')}")
                 if source.get("full_text"):
-                    # Truncate full text if too long
                     full_text = source["full_text"]
                     if len(full_text) > 5000:
                         full_text = full_text[:5000] + "...\n[Content truncated]"
                     context_parts.append(f"**Content:**\n{full_text}")
-                context_parts.append("")  # Empty line for separation
+                context_parts.append("")
 
-    # Add insights
     if context_data.get("insights"):
         context_parts.append("## SOURCE INSIGHTS")
         for insight in context_data["insights"]:
@@ -228,9 +83,8 @@ def _format_source_context(context_data: Dict) -> str:
                 context_parts.append(
                     f"**Content:** {insight.get('content', 'No content')}"
                 )
-                context_parts.append("")  # Empty line for separation
+                context_parts.append("")
 
-    # Add metadata
     if context_data.get("metadata"):
         metadata = context_data["metadata"]
         context_parts.append("## CONTEXT METADATA")
@@ -242,16 +96,190 @@ def _format_source_context(context_data: Dict) -> str:
     return "\n".join(context_parts)
 
 
-# Create SQLite checkpointer
-conn = sqlite3.connect(
-    LANGGRAPH_CHECKPOINT_FILE,
-    check_same_thread=False,
-)
-memory = SqliteSaver(conn)
+def route_from_start(
+    state: SourceChatState,
+) -> Literal["loading_skills", "retrieving_context"]:
+    if state.get("skill_ids"):
+        return "loading_skills"
+    return "retrieving_context"
 
-# Create the StateGraph
+
+def loading_skills(state: SourceChatState, config: RunnableConfig) -> dict:
+    """Load selected SKILL.md bodies one-by-one with progress events."""
+    try:
+        skill_ids = list(state.get("skill_ids") or [])
+        total = len(skill_ids)
+        emit_agent_progress(
+            "started",
+            "loading_skills",
+            {"skillTotal": total},
+            config,
+        )
+        if not skill_ids:
+            return {"skills_context": None}
+
+        blocks: list[str] = []
+        for index, skill_id in enumerate(skill_ids, start=1):
+            emit_agent_progress(
+                "progress",
+                "loading_skills",
+                {
+                    "skillId": skill_id,
+                    "skillIndex": index,
+                    "skillTotal": total,
+                },
+                config,
+            )
+            loaded = _run_async(load_one_skill_md(skill_id))
+            blocks.append(loaded["block"])
+            emit_agent_progress(
+                "completed",
+                "loading_skills",
+                {
+                    "skillId": loaded.get("id") or skill_id,
+                    "skillName": loaded["name"],
+                    "skillIndex": index,
+                    "skillTotal": total,
+                    "charCount": loaded.get("char_count", 0),
+                },
+                config,
+            )
+
+        return {"skills_context": format_skills_context(blocks) or None}
+    except OpenNotebookError:
+        raise
+    except Exception as e:
+        error_class, user_message = classify_error(e)
+        raise error_class(user_message) from e
+
+
+def retrieving_context(state: SourceChatState, config: RunnableConfig) -> dict:
+    """Build source + insights context with count/token progress events."""
+    try:
+        emit_agent_progress("started", "retrieving_context", {}, config)
+        source_id = state.get("source_id")
+        if not source_id:
+            raise ValueError("source_id is required in state")
+
+        context_data = _run_async(
+            ContextBuilder(
+                source_id=source_id,
+                include_insights=True,
+                include_notes=False,
+                max_tokens=50000,
+            ).build()
+        )
+
+        source = None
+        insights = []
+        context_indicators: dict[str, list[str]] = {
+            "sources": [],
+            "insights": [],
+            "notes": [],
+        }
+
+        if context_data.get("sources"):
+            source_info = context_data["sources"][0]
+            source = (
+                Source(**source_info) if isinstance(source_info, dict) else source_info
+            )
+            context_indicators["sources"].append(source.id)
+
+        if context_data.get("insights"):
+            for insight_data in context_data["insights"]:
+                insight = (
+                    SourceInsight(**insight_data)
+                    if isinstance(insight_data, dict)
+                    else insight_data
+                )
+                insights.append(insight)
+                context_indicators["insights"].append(insight.id)
+
+        formatted_context = _format_source_context(context_data)
+        token_estimate = int(
+            context_data.get("total_tokens")
+            or (token_count(formatted_context) if formatted_context else 0)
+        )
+        emit_agent_progress(
+            "completed",
+            "retrieving_context",
+            {
+                "sourceCount": len(context_indicators["sources"]),
+                "noteCount": 0,
+                "insightCount": len(context_indicators["insights"]),
+                "tokenCount": token_estimate,
+            },
+            config,
+        )
+        return {
+            "source": source,
+            "insights": insights,
+            "context": formatted_context,
+            "context_indicators": context_indicators,
+        }
+    except OpenNotebookError:
+        raise
+    except Exception as e:
+        error_class, user_message = classify_error(e)
+        raise error_class(user_message) from e
+
+
+def generating(state: SourceChatState, config: RunnableConfig) -> dict:
+    """Provision model and generate reply."""
+    try:
+        emit_agent_progress("started", "generating", {}, config)
+        source = state.get("source")
+        insights = state.get("insights") or []
+        prompt_data = {
+            "source": source.model_dump() if source else None,
+            "insights": [insight.model_dump() for insight in insights] if insights else [],
+            "context": state.get("context"),
+            "context_indicators": state.get("context_indicators"),
+            "skills_context": state.get("skills_context"),
+        }
+        system_prompt = Prompter(prompt_template="source_chat/system").render(
+            data=prompt_data
+        )
+        payload = [SystemMessage(content=system_prompt)] + state.get("messages", [])
+        model_id = config.get("configurable", {}).get("model_id") or state.get(
+            "model_override"
+        )
+
+        model = _run_async(
+            provision_langchain_model(str(payload), model_id, "chat", max_tokens=8192)
+        )
+        ai_message = model.invoke(payload)
+
+        content = extract_text_content(ai_message.content)
+        cleaned_content = clean_thinking_content(content)
+        cleaned_message = ai_message.model_copy(update={"content": cleaned_content})
+
+        emit_agent_progress("completed", "generating", {}, config)
+        return {"messages": cleaned_message}
+    except OpenNotebookError:
+        raise
+    except Exception as e:
+        error_class, user_message = classify_error(e)
+        raise error_class(user_message) from e
+
+
 source_chat_state = StateGraph(SourceChatState)
-source_chat_state.add_node("source_chat_agent", call_model_with_source_context)
-source_chat_state.add_edge(START, "source_chat_agent")
-source_chat_state.add_edge("source_chat_agent", END)
-source_chat_graph = source_chat_state.compile(checkpointer=memory)
+source_chat_state.add_node("loading_skills", loading_skills)
+source_chat_state.add_node("retrieving_context", retrieving_context)
+source_chat_state.add_node("generating", generating)
+source_chat_state.add_conditional_edges(
+    START,
+    route_from_start,
+    ["loading_skills", "retrieving_context"],
+)
+source_chat_state.add_edge("loading_skills", "retrieving_context")
+source_chat_state.add_edge("retrieving_context", "generating")
+source_chat_state.add_edge("generating", END)
+
+source_chat_graph = source_chat_state.compile(checkpointer=MemorySaver())
+
+
+def bind_checkpointer(checkpointer: BaseCheckpointSaver) -> None:
+    """Recompile the source chat graph with the process-wide async checkpointer."""
+    global source_chat_graph
+    source_chat_graph = source_chat_state.compile(checkpointer=checkpointer)

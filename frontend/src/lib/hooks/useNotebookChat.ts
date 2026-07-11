@@ -8,6 +8,16 @@ import { useTranslation } from '@/lib/hooks/use-translation'
 import { chatApi } from '@/lib/api/chat'
 import { QUERY_KEYS } from '@/lib/api/query-client'
 import {
+  agentStepI18nKey,
+  readAgUiSseStream,
+  type AgUiEvent,
+} from '@/lib/ag-ui/events'
+import {
+  formatAgentProgressLogLine,
+  formatAgentProgressStatus,
+  parseAgentProgressEvent,
+} from '@/lib/ag-ui/progress'
+import {
   NotebookChatMessage,
   CreateNotebookChatSessionRequest,
   UpdateNotebookChatSessionRequest,
@@ -33,7 +43,10 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
   const [charCount, setCharCount] = useState<number>(0)
   // Pending model override for when user changes model before a session exists
   const [pendingModelOverride, setPendingModelOverride] = useState<string | null>(null)
-  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([])
+  const [selectedSkillIds, setSelectedSkillIdsState] = useState<string[]>([])
+  const [pendingSkillIds, setPendingSkillIds] = useState<string[] | null>(null)
+  const [streamStatus, setStreamStatus] = useState<string | null>(null)
+  const [activityLog, setActivityLog] = useState<string[]>([])
 
   // Fetch sessions for this notebook
   const {
@@ -62,6 +75,21 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
       setMessages(currentSession.messages)
     }
   }, [currentSession])
+
+  // Restore skill selection from the active session (or pending selection)
+  useEffect(() => {
+    if (!currentSessionId) {
+      setSelectedSkillIdsState(pendingSkillIds ?? [])
+      return
+    }
+    // Active session owns selection; pending was only for pre-session picks
+    if (pendingSkillIds !== null) {
+      setPendingSkillIds(null)
+    }
+    if (currentSession) {
+      setSelectedSkillIdsState(currentSession.skill_ids ?? [])
+    }
+  }, [currentSession, currentSessionId, pendingSkillIds])
 
   // Auto-select most recent session when sessions are loaded
   useEffect(() => {
@@ -131,14 +159,12 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
   })
 
   // Build context from sources and notes based on user selections
-  const buildContext = useCallback(async () => {
-    // Build context_config mapping IDs to selection modes
+  const buildContextConfig = useCallback(() => {
     const context_config: { sources: Record<string, string>, notes: Record<string, string> } = {
       sources: {},
       notes: {}
     }
 
-    // Map source selections
     sources.forEach(source => {
       const mode = contextSelections.sources[source.id]
       if (mode === 'insights') {
@@ -150,7 +176,6 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
       }
     })
 
-    // Map note selections
     notes.forEach(note => {
       const mode = contextSelections.notes[note.id]
       if (mode === 'full') {
@@ -160,18 +185,23 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
       }
     })
 
-    // Call API to build context with actual content
+    return context_config
+  }, [sources, notes, contextSelections])
+
+  // Build context from sources and notes based on user selections (token counts for UI)
+  const buildContext = useCallback(async () => {
+    const context_config = buildContextConfig()
+
     const response = await chatApi.buildContext({
       notebook_id: notebookId,
       context_config
     })
 
-    // Store token and char counts
     setTokenCount(response.token_count)
     setCharCount(response.char_count)
 
     return response.context
-  }, [notebookId, sources, notes, contextSelections])
+  }, [notebookId, buildContextConfig])
 
   // Send message (synchronous, no streaming)
   const sendMessage = useCallback(async (
@@ -191,12 +221,14 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
           notebook_id: notebookId,
           title: defaultTitle,
           // Include pending model override when creating session
-          model_override: pendingModelOverride ?? undefined
+          model_override: pendingModelOverride ?? undefined,
+          skill_ids: selectedSkillIds,
         })
         sessionId = newSession.id
         setCurrentSessionId(sessionId)
-        // Clear pending model override now that it's applied to the session
+        // Clear pending overrides now that they're applied to the session
         setPendingModelOverride(null)
+        setPendingSkillIds(null)
         queryClient.invalidateQueries({
           queryKey: QUERY_KEYS.notebookChatSessions(notebookId)
         })
@@ -226,21 +258,113 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
       setMessages(prev => [...prev, userMessage])
     }
     setIsSending(true)
+    setStreamStatus(null)
+    setActivityLog([])
 
     try {
-      // Build context and send message
-      const context = await buildContext()
-      const response = await chatApi.sendMessage({
+      // Pass context_config so the graph streams retrieving_context as an AG-UI step.
+      // Refresh token counts in the background without blocking the stream.
+      const context_config = buildContextConfig()
+      void buildContext().catch(() => {})
+      const body = await chatApi.sendMessage({
         session_id: sessionId,
         message,
-        context,
+        context_config,
         model_override: modelOverride ?? (currentSession?.model_override ?? undefined),
-        skill_ids: selectedSkillIds.length > 0 ? selectedSkillIds : undefined,
+        skill_ids: selectedSkillIds,
         edit_message_id: editMessageId,
       })
 
-      // Update messages with API response
-      setMessages(response.messages)
+      let aiMessageId: string | null = null
+
+      await readAgUiSseStream(body, (event: AgUiEvent) => {
+        switch (event.type) {
+          case 'STEP_STARTED': {
+            if (typeof event.stepName === 'string') {
+              setStreamStatus(t(agentStepI18nKey(event.stepName)))
+            }
+            break
+          }
+          case 'STEP_FINISHED': {
+            break
+          }
+          case 'CUSTOM': {
+            const progress = parseAgentProgressEvent(event)
+            if (!progress) {
+              break
+            }
+            const status = formatAgentProgressStatus(progress, t)
+            if (status) {
+              setStreamStatus(status)
+            }
+            const logLine = formatAgentProgressLogLine(progress, t)
+            if (logLine) {
+              setActivityLog((prev) => [...prev, logLine])
+            }
+            break
+          }
+          case 'TEXT_MESSAGE_START': {
+            aiMessageId = (event.messageId as string) || `ai-${Date.now()}`
+            const newMsg: NotebookChatMessage = {
+              id: aiMessageId,
+              type: 'ai',
+              content: '',
+              timestamp: new Date().toISOString(),
+            }
+            setMessages((prev) => [...prev, newMsg])
+            break
+          }
+          case 'TEXT_MESSAGE_CONTENT':
+          case 'TEXT_MESSAGE_CHUNK': {
+            const delta =
+              typeof event.delta === 'string'
+                ? event.delta
+                : typeof event.content === 'string'
+                  ? event.content
+                  : ''
+            if (!delta) {
+              break
+            }
+            if (!aiMessageId) {
+              aiMessageId = (event.messageId as string) || `ai-${Date.now()}`
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: aiMessageId!,
+                  type: 'ai',
+                  content: delta,
+                  timestamp: new Date().toISOString(),
+                },
+              ])
+            } else {
+              const targetId = aiMessageId
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === targetId
+                    ? { ...msg, content: msg.content + delta }
+                    : msg
+                )
+              )
+            }
+            break
+          }
+          case 'TEXT_MESSAGE_END': {
+            setStreamStatus(null)
+            break
+          }
+          case 'RUN_FINISHED': {
+            setStreamStatus(null)
+            break
+          }
+          case 'RUN_ERROR': {
+            throw new Error(
+              typeof event.message === 'string' ? event.message : 'Stream error'
+            )
+          }
+          default:
+            break
+        }
+      })
 
       // Refetch current session to get updated data
       await refetchCurrentSession()
@@ -256,6 +380,8 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
       }
     } finally {
       setIsSending(false)
+      setStreamStatus(null)
+      setActivityLog([])
     }
   }, [
     notebookId,
@@ -265,6 +391,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     selectedSkillIds,
     messages,
     buildContext,
+    buildContextConfig,
     refetchCurrentSession,
     queryClient,
     t
@@ -279,16 +406,19 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
 
   // Switch session
   const switchSession = useCallback((sessionId: string) => {
+    setPendingSkillIds(null)
     setCurrentSessionId(sessionId)
   }, [])
 
   // Create session
   const createSession = useCallback((title?: string) => {
+    setPendingSkillIds(null)
     return createSessionMutation.mutate({
       notebook_id: notebookId,
-      title
+      title,
+      skill_ids: selectedSkillIds,
     })
-  }, [createSessionMutation, notebookId])
+  }, [createSessionMutation, notebookId, selectedSkillIds])
 
   // Update session
   const updateSession = useCallback((sessionId: string, data: UpdateNotebookChatSessionRequest) => {
@@ -317,6 +447,30 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     }
   }, [currentSessionId, updateSessionMutation])
 
+  // Persist skill selection on the session so it survives across messages
+  const setSelectedSkillIds = useCallback((ids: string[]) => {
+    setSelectedSkillIdsState(ids)
+    if (currentSessionId) {
+      void (async () => {
+        try {
+          await chatApi.updateSession(currentSessionId, { skill_ids: ids })
+          queryClient.invalidateQueries({
+            queryKey: QUERY_KEYS.notebookChatSessions(notebookId),
+          })
+          queryClient.invalidateQueries({
+            queryKey: QUERY_KEYS.notebookChatSession(currentSessionId),
+          })
+        } catch (err: unknown) {
+          const error = err as { response?: { data?: { detail?: string } }, message?: string }
+          toast.error(getApiErrorMessage(error.response?.data?.detail || error.message, (key) => t(key), 'apiErrors.failedToUpdateSession'))
+        }
+      })()
+      setPendingSkillIds(null)
+    } else {
+      setPendingSkillIds(ids)
+    }
+  }, [currentSessionId, notebookId, queryClient, t])
+
   // Update token/char counts when context selections change
   useEffect(() => {
     const updateContextCounts = async () => {
@@ -336,6 +490,8 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     currentSessionId,
     messages,
     isSending,
+    streamStatus,
+    activityLog,
     loadingSessions,
     tokenCount,
     charCount,

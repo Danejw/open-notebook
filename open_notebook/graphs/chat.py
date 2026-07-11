@@ -1,84 +1,235 @@
 import asyncio
-import sqlite3
-from typing import Annotated, Optional
+import concurrent.futures
+from typing import Annotated, Literal, Optional
 
 from ai_prompter import Prompter
-from langchain_core.messages import AIMessage, SystemMessage
+from langchain_core.messages import SystemMessage
 from langchain_core.runnables import RunnableConfig
-from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
 from open_notebook.ai.provision import provision_langchain_model
-from open_notebook.config import LANGGRAPH_CHECKPOINT_FILE
 from open_notebook.domain.notebook import Notebook
 from open_notebook.exceptions import OpenNotebookError
+from open_notebook.graphs.progress import emit_agent_progress
+from open_notebook.skills.loader import format_skills_context, load_one_skill_md
 from open_notebook.utils import clean_thinking_content
+from open_notebook.utils.context_builder import ContextBuilder, ContextConfig
 from open_notebook.utils.error_classifier import classify_error
 from open_notebook.utils.text_utils import extract_text_content
+from open_notebook.utils.token_utils import token_count
 
 
 class ThreadState(TypedDict):
     messages: Annotated[list, add_messages]
     notebook: Optional[Notebook]
-    context: Optional[str]
+    notebook_id: Optional[str]
+    context: Optional[str | dict]
     context_config: Optional[dict]
     model_override: Optional[str]
     skills_context: Optional[str]
     skill_ids: Optional[list]
 
 
-def call_model_with_messages(state: ThreadState, config: RunnableConfig) -> dict:
+def _run_async(coro):
+    """Run an async coroutine from a sync LangGraph node."""
+
+    def run_in_new_loop():
+        new_loop = asyncio.new_event_loop()
+        try:
+            asyncio.set_event_loop(new_loop)
+            return new_loop.run_until_complete(coro)
+        finally:
+            new_loop.close()
+            asyncio.set_event_loop(None)
+
     try:
+        asyncio.get_running_loop()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            return executor.submit(run_in_new_loop).result()
+    except RuntimeError:
+        return asyncio.run(coro)
+
+
+def _format_notebook_context(context: Optional[str | dict]) -> Optional[str]:
+    """Normalize notebook context payload into prompt text."""
+    if context is None:
+        return None
+    if isinstance(context, str):
+        return context
+    if isinstance(context, dict):
+        parts: list[str] = []
+        sources = context.get("sources") or context.get("Sources") or []
+        notes = context.get("notes") or context.get("Notes") or []
+        insights = context.get("insights") or []
+        if isinstance(sources, list) and sources:
+            parts.append("## Sources")
+            for item in sources:
+                parts.append(str(item))
+            parts.append("")
+        if isinstance(notes, list) and notes:
+            parts.append("## Notes")
+            for item in notes:
+                parts.append(str(item))
+            parts.append("")
+        if isinstance(insights, list) and insights:
+            parts.append("## Insights")
+            for item in insights:
+                parts.append(str(item))
+            parts.append("")
+        if parts:
+            return "\n".join(parts).strip()
+        return "\n".join(f"**{k}:** {v}" for k, v in context.items())
+    return str(context)
+
+
+def _context_counts(context: Optional[str | dict], formatted: Optional[str]) -> dict:
+    """Derive source/note/insight/token counts for progress events."""
+    source_count = 0
+    note_count = 0
+    insight_count = 0
+    if isinstance(context, dict):
+        sources = context.get("sources") or []
+        notes = context.get("notes") or []
+        insights = context.get("insights") or []
+        source_count = len(sources) if isinstance(sources, list) else 0
+        note_count = len(notes) if isinstance(notes, list) else 0
+        insight_count = len(insights) if isinstance(insights, list) else 0
+        if context.get("total_tokens") is not None:
+            return {
+                "sourceCount": source_count,
+                "noteCount": note_count,
+                "insightCount": insight_count,
+                "tokenCount": int(context["total_tokens"]),
+            }
+    text = formatted or ""
+    return {
+        "sourceCount": source_count,
+        "noteCount": note_count,
+        "insightCount": insight_count,
+        "tokenCount": token_count(text) if text else 0,
+    }
+
+
+def route_from_start(state: ThreadState) -> Literal["loading_skills", "retrieving_context"]:
+    if state.get("skill_ids"):
+        return "loading_skills"
+    return "retrieving_context"
+
+
+def loading_skills(state: ThreadState, config: RunnableConfig) -> dict:
+    """Load selected SKILL.md bodies one-by-one with progress events."""
+    try:
+        skill_ids = list(state.get("skill_ids") or [])
+        total = len(skill_ids)
+        emit_agent_progress(
+            "started",
+            "loading_skills",
+            {"skillTotal": total},
+            config,
+        )
+        if not skill_ids:
+            return {"skills_context": None}
+
+        blocks: list[str] = []
+        for index, skill_id in enumerate(skill_ids, start=1):
+            emit_agent_progress(
+                "progress",
+                "loading_skills",
+                {
+                    "skillId": skill_id,
+                    "skillIndex": index,
+                    "skillTotal": total,
+                },
+                config,
+            )
+            loaded = _run_async(load_one_skill_md(skill_id))
+            blocks.append(loaded["block"])
+            emit_agent_progress(
+                "completed",
+                "loading_skills",
+                {
+                    "skillId": loaded.get("id") or skill_id,
+                    "skillName": loaded["name"],
+                    "skillIndex": index,
+                    "skillTotal": total,
+                    "charCount": loaded.get("char_count", 0),
+                },
+                config,
+            )
+
+        return {"skills_context": format_skills_context(blocks) or None}
+    except OpenNotebookError:
+        raise
+    except Exception as e:
+        error_class, user_message = classify_error(e)
+        raise error_class(user_message) from e
+
+
+def retrieving_context(state: ThreadState, config: RunnableConfig) -> dict:
+    """Retrieve/format notebook context with count/token progress events."""
+    try:
+        emit_agent_progress("started", "retrieving_context", {}, config)
+
+        context_config = state.get("context_config")
+        notebook_id = state.get("notebook_id")
+        if not notebook_id and isinstance(state.get("notebook"), dict):
+            notebook_id = state["notebook"].get("id")  # type: ignore[index]
+        elif not notebook_id and state.get("notebook") is not None:
+            notebook_id = getattr(state.get("notebook"), "id", None)
+
+        built: Optional[str | dict] = None
+        if context_config and notebook_id:
+            config_obj = ContextConfig(
+                sources=(context_config.get("sources") or {}),
+                notes=(context_config.get("notes") or {}),
+            )
+            built = _run_async(
+                ContextBuilder(
+                    notebook_id=notebook_id,
+                    context_config=config_obj,
+                    include_notes=True,
+                    include_insights=True,
+                ).build()
+            )
+            formatted = _format_notebook_context(built)
+        else:
+            built = state.get("context")
+            formatted = _format_notebook_context(built)
+
+        detail = _context_counts(built if isinstance(built, dict) else None, formatted)
+        emit_agent_progress("completed", "retrieving_context", detail, config)
+        return {"context": formatted}
+    except OpenNotebookError:
+        raise
+    except Exception as e:
+        error_class, user_message = classify_error(e)
+        raise error_class(user_message) from e
+
+
+def generating(state: ThreadState, config: RunnableConfig) -> dict:
+    """Provision model and generate the assistant reply."""
+    try:
+        emit_agent_progress("started", "generating", {}, config)
         system_prompt = Prompter(prompt_template="chat/system").render(data=state)  # type: ignore[arg-type]
         payload = [SystemMessage(content=system_prompt)] + state.get("messages", [])
         model_id = config.get("configurable", {}).get("model_id") or state.get(
             "model_override"
         )
 
-        # Handle async model provisioning from sync context
-        def run_in_new_loop():
-            """Run the async function in a new event loop"""
-            new_loop = asyncio.new_event_loop()
-            try:
-                asyncio.set_event_loop(new_loop)
-                return new_loop.run_until_complete(
-                    provision_langchain_model(
-                        str(payload), model_id, "chat", max_tokens=8192
-                    )
-                )
-            finally:
-                new_loop.close()
-                asyncio.set_event_loop(None)
-
-        try:
-            # Try to get the current event loop
-            asyncio.get_running_loop()
-            # If we're in an event loop, run in a thread with a new loop
-            import concurrent.futures
-
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(run_in_new_loop)
-                model = future.result()
-        except RuntimeError:
-            # No event loop running, safe to use asyncio.run()
-            model = asyncio.run(
-                provision_langchain_model(
-                    str(payload),
-                    model_id,
-                    "chat",
-                    max_tokens=8192,
-                )
-            )
-
+        model = _run_async(
+            provision_langchain_model(str(payload), model_id, "chat", max_tokens=8192)
+        )
         ai_message = model.invoke(payload)
 
-        # Clean thinking content from AI response (e.g., <think>...</think> tags)
         content = extract_text_content(ai_message.content)
         cleaned_content = clean_thinking_content(content)
         cleaned_message = ai_message.model_copy(update={"content": cleaned_content})
 
+        emit_agent_progress("completed", "generating", {}, config)
         return {"messages": cleaned_message}
     except OpenNotebookError:
         raise
@@ -87,14 +238,24 @@ def call_model_with_messages(state: ThreadState, config: RunnableConfig) -> dict
         raise error_class(user_message) from e
 
 
-conn = sqlite3.connect(
-    LANGGRAPH_CHECKPOINT_FILE,
-    check_same_thread=False,
-)
-memory = SqliteSaver(conn)
-
 agent_state = StateGraph(ThreadState)
-agent_state.add_node("agent", call_model_with_messages)
-agent_state.add_edge(START, "agent")
-agent_state.add_edge("agent", END)
-graph = agent_state.compile(checkpointer=memory)
+agent_state.add_node("loading_skills", loading_skills)
+agent_state.add_node("retrieving_context", retrieving_context)
+agent_state.add_node("generating", generating)
+agent_state.add_conditional_edges(
+    START,
+    route_from_start,
+    ["loading_skills", "retrieving_context"],
+)
+agent_state.add_edge("loading_skills", "retrieving_context")
+agent_state.add_edge("retrieving_context", "generating")
+agent_state.add_edge("generating", END)
+
+# Import-time fallback for tests; API lifespan rebinds AsyncSqliteSaver.
+graph = agent_state.compile(checkpointer=MemorySaver())
+
+
+def bind_checkpointer(checkpointer: BaseCheckpointSaver) -> None:
+    """Recompile the chat graph with the process-wide async checkpointer."""
+    global graph
+    graph = agent_state.compile(checkpointer=checkpointer)

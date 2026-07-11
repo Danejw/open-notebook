@@ -137,6 +137,7 @@ export interface BaseChatSession {
   updated: string
   message_count?: number
   model_override?: string | null
+  skill_ids?: string[] | null
 }
 
 export interface SourceChatSession extends BaseChatSession {
@@ -166,11 +167,13 @@ export interface CreateSourceChatSessionRequest {
   source_id: string
   title?: string
   model_override?: string
+  skill_ids?: string[]
 }
 
 export interface UpdateSourceChatSessionRequest {
   title?: string
   model_override?: string
+  skill_ids?: string[]
 }
 
 export interface SendMessageRequest {
@@ -207,19 +210,26 @@ export interface CreateNotebookChatSessionRequest {
   notebook_id: string
   title?: string
   model_override?: string
+  skill_ids?: string[]
 }
 
 export interface UpdateNotebookChatSessionRequest {
   title?: string
   model_override?: string | null
+  skill_ids?: string[]
 }
 
 export interface SendNotebookChatMessageRequest {
   session_id: string
   message: string
-  context: {
+  /** @deprecated Prefer context_config so retrieval streams as an AG-UI step */
+  context?: {
     sources: Array<Record<string, unknown>>
     notes: Array<Record<string, unknown>>
+  }
+  context_config?: {
+    sources: Record<string, string>
+    notes: Record<string, string>
   }
   model_override?: string
   skill_ids?: string[]

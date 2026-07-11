@@ -55,8 +55,8 @@ def _is_ignored_archive_path(name: str) -> bool:
     return False
 
 
-def _find_skill_root(names: list[str]) -> tuple[str, list[str]]:
-    """Locate directory containing SKILL.md; return (prefix, relative names)."""
+def _find_all_skill_roots(names: list[str]) -> list[tuple[str, list[str]]]:
+    """Find every skill root (directory containing SKILL.md) and its relative files."""
     normalized = []
     for n in names:
         if _is_ignored_archive_path(n):
@@ -70,72 +70,70 @@ def _find_skill_root(names: list[str]) -> tuple[str, list[str]]:
     if not skill_md_paths:
         raise SkillStandardError("ZIP does not contain SKILL.md")
 
-    # Prefer shallowest SKILL.md
-    skill_md_paths.sort(key=lambda p: (p.count("/"), p))
-    skill_md = skill_md_paths[0]
-    parent = str(PurePosixPath(skill_md).parent)
-    prefix = "" if parent in {".", ""} else parent + "/"
+    # Deepest roots first so nested skills claim their files before parents
+    skill_md_paths.sort(key=lambda p: (-p.count("/"), p))
+    claimed: set[str] = set()
+    roots: list[tuple[str, list[str]]] = []
 
-    relatives: list[str] = []
-    for p in normalized:
-        if prefix and not p.startswith(prefix):
-            # Allow only files under the skill root
-            continue
-        rel = p[len(prefix) :] if prefix else p
-        if not rel or rel.endswith("/"):
-            continue
-        relatives.append(rel)
+    for skill_md in skill_md_paths:
+        parent = str(PurePosixPath(skill_md).parent)
+        prefix = "" if parent in {".", ""} else parent
+        prefix_slash = f"{prefix}/" if prefix else ""
+        relatives: list[str] = []
+        for p in normalized:
+            if p in claimed:
+                continue
+            if prefix:
+                if p != skill_md and not p.startswith(prefix_slash):
+                    continue
+                rel = REQUIRED_ENTRY if p == skill_md else p[len(prefix_slash) :]
+            else:
+                # Root-level skill: only unclaimed files not under another skill folder
+                # (deeper skills already claimed their trees)
+                rel = p
+            if not rel or rel.endswith("/"):
+                continue
+            relatives.append(rel)
+            claimed.add(p)
 
-    if REQUIRED_ENTRY not in relatives:
+        if REQUIRED_ENTRY not in relatives:
+            continue
+        roots.append((prefix, relatives))
+
+    if not roots:
         raise SkillStandardError("Could not locate SKILL.md at skill root")
-    return prefix.rstrip("/"), relatives
+
+    # Return shallowest-first for stable UI ordering
+    roots.sort(key=lambda item: (item[0].count("/"), item[0] or ""))
+    return roots
 
 
-def extract_skill_zip(data: bytes) -> SkillPackagePreview:
-    """Safely extract a skill ZIP into an in-memory preview (not persisted)."""
-    if not data:
-        raise SkillStandardError("Empty ZIP upload")
-    if len(data) > MAX_PACKAGE_BYTES:
-        raise SkillStandardError(
-            f"ZIP exceeds maximum package size of {MAX_PACKAGE_BYTES} bytes"
-        )
+def _find_skill_root(names: list[str]) -> tuple[str, list[str]]:
+    """Locate the primary (shallowest) skill root; return (prefix, relative names)."""
+    roots = _find_all_skill_roots(names)
+    prefix, relatives = roots[0]
+    return prefix, relatives
 
-    try:
-        zf = zipfile.ZipFile(io.BytesIO(data))
-    except zipfile.BadZipFile as e:
-        raise SkillStandardError("Malformed ZIP archive") from e
 
-    # Zip bomb / size checks
-    total_uncompressed = 0
-    infos = []
-    for info in zf.infolist():
-        if info.is_dir() or _is_ignored_archive_path(info.filename):
-            continue
-        total_uncompressed += info.file_size
-        if info.file_size > MAX_FILE_BYTES:
-            raise SkillStandardError(
-                f"File exceeds max size ({MAX_FILE_BYTES} bytes): {info.filename}"
-            )
-        if total_uncompressed > MAX_PACKAGE_BYTES:
-            raise SkillStandardError("Uncompressed package exceeds maximum size")
-        infos.append(info)
-
-    if len(infos) > MAX_FILE_COUNT:
-        raise SkillStandardError(f"Package exceeds maximum of {MAX_FILE_COUNT} files")
-
-    prefix, relatives = _find_skill_root([i.filename for i in infos])
+def _build_preview_from_zip_infos(
+    zf: zipfile.ZipFile,
+    infos: list[zipfile.ZipInfo],
+    prefix: str,
+    relatives: list[str],
+) -> SkillPackagePreview:
     root_name = PurePosixPath(prefix).name if prefix else "skill"
-    # Map relative -> ZipInfo
     by_rel: dict[str, zipfile.ZipInfo] = {}
     for info in infos:
         path = info.filename.replace("\\", "/")
         if prefix:
-            if not path.startswith(prefix + "/"):
+            if path == f"{prefix}/{REQUIRED_ENTRY}":
+                rel = REQUIRED_ENTRY
+            elif path.startswith(prefix + "/"):
+                rel = path[len(prefix) + 1 :]
+            else:
                 continue
-            rel = path[len(prefix) + 1 :]
         else:
             rel = path
-            # If archive has nested root only, already handled
         if rel in relatives:
             by_rel[rel] = info
 
@@ -204,6 +202,66 @@ def extract_skill_zip(data: bytes) -> SkillPackagePreview:
         errors=errors,
         warnings=warnings,
     )
+
+
+def _open_and_scan_zip(
+    data: bytes, *, max_files: int = MAX_FILE_COUNT
+) -> tuple[zipfile.ZipFile, list[zipfile.ZipInfo]]:
+    if not data:
+        raise SkillStandardError("Empty ZIP upload")
+    if len(data) > MAX_PACKAGE_BYTES:
+        raise SkillStandardError(
+            f"ZIP exceeds maximum package size of {MAX_PACKAGE_BYTES} bytes"
+        )
+
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(data))
+    except zipfile.BadZipFile as e:
+        raise SkillStandardError("Malformed ZIP archive") from e
+
+    total_uncompressed = 0
+    infos = []
+    for info in zf.infolist():
+        if info.is_dir() or _is_ignored_archive_path(info.filename):
+            continue
+        total_uncompressed += info.file_size
+        if info.file_size > MAX_FILE_BYTES:
+            raise SkillStandardError(
+                f"File exceeds max size ({MAX_FILE_BYTES} bytes): {info.filename}"
+            )
+        if total_uncompressed > MAX_PACKAGE_BYTES:
+            raise SkillStandardError("Uncompressed package exceeds maximum size")
+        infos.append(info)
+
+    if len(infos) > max_files:
+        raise SkillStandardError(f"Package exceeds maximum of {max_files} files")
+    return zf, infos
+
+
+def extract_skill_zip(data: bytes) -> SkillPackagePreview:
+    """Safely extract a skill ZIP into an in-memory preview (not persisted).
+
+    If the archive contains multiple skills, returns the shallowest one.
+    Use extract_all_skills_from_zip for bulk import.
+    """
+    zf, infos = _open_and_scan_zip(data)
+    prefix, relatives = _find_skill_root([i.filename for i in infos])
+    return _build_preview_from_zip_infos(zf, infos, prefix, relatives)
+
+
+def extract_all_skills_from_zip(data: bytes) -> list[SkillPackagePreview]:
+    """Extract every skill package found in a ZIP (one or many SKILL.md roots)."""
+    zf, infos = _open_and_scan_zip(data, max_files=MAX_FILE_COUNT * 20)
+    roots = _find_all_skill_roots([i.filename for i in infos])
+    previews: list[SkillPackagePreview] = []
+    for prefix, relatives in roots:
+        if len(relatives) > MAX_FILE_COUNT:
+            raise SkillStandardError(
+                f"Skill '{prefix or 'root'}' exceeds maximum of {MAX_FILE_COUNT} files"
+            )
+        previews.append(_build_preview_from_zip_infos(zf, infos, prefix, relatives))
+    return previews
+
 
 
 def build_skill_zip(files: list[SkillFilePayload], root_folder: str) -> bytes:

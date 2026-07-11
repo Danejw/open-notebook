@@ -8,6 +8,9 @@ from typing import List, Optional
 from loguru import logger
 
 from api.skill_models import (
+    SkillBulkImportConfirmResponse,
+    SkillBulkImportPreviewItem,
+    SkillBulkImportPreviewResponse,
     SkillCreateRequest,
     SkillDetailResponse,
     SkillFileSchema,
@@ -31,6 +34,7 @@ from open_notebook.skills.validation import validate_skill_files
 from open_notebook.skills.zip_io import (
     SkillFilePayload,
     build_skill_zip,
+    extract_all_skills_from_zip,
     extract_skill_zip,
 )
 
@@ -361,6 +365,38 @@ def preview_import_zip(data: bytes) -> SkillImportPreviewResponse:
     )
 
 
+def preview_import_bulk(
+    uploads: list[tuple[str, bytes]],
+) -> SkillBulkImportPreviewResponse:
+    items: list[SkillBulkImportPreviewItem] = []
+    top_errors: list[str] = []
+
+    for filename, data in uploads:
+        try:
+            previews = extract_all_skills_from_zip(data)
+        except SkillStandardError as e:
+            top_errors.append(f"{filename}: {e}")
+            continue
+        for preview in previews:
+            items.append(
+                SkillBulkImportPreviewItem(
+                    root_name=preview.root_name,
+                    name=preview.name,
+                    description=preview.description,
+                    files=_schemas_from_payloads(preview.files),
+                    errors=preview.errors,
+                    warnings=preview.warnings,
+                    source_filename=filename,
+                    selected=len(preview.errors) == 0,
+                )
+            )
+
+    if not items and top_errors:
+        raise InvalidInputError("; ".join(top_errors))
+
+    return SkillBulkImportPreviewResponse(items=items, errors=top_errors)
+
+
 async def confirm_import(data: SkillImportConfirmRequest) -> SkillDetailResponse:
     return await create_skill(
         SkillCreateRequest(
@@ -372,6 +408,21 @@ async def confirm_import(data: SkillImportConfirmRequest) -> SkillDetailResponse
             files=data.files,
         )
     )
+
+
+async def confirm_import_bulk(
+    items: list[SkillImportConfirmRequest],
+) -> SkillBulkImportConfirmResponse:
+    imported = []
+    failed: list[str] = []
+    for item in items:
+        try:
+            skill = await confirm_import(item)
+            imported.append(skill)
+        except Exception as e:
+            logger.error(f"Bulk import failed for {item.name}: {e}")
+            failed.append(f"{item.name}: {e}")
+    return SkillBulkImportConfirmResponse(imported=imported, failed=failed)
 
 
 async def validate_skill(skill_id: str) -> ValidationResponse:

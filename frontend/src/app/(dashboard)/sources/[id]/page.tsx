@@ -27,14 +27,14 @@ export default function SourceDetailPage() {
   return (
     <div className="flex flex-col h-screen">
       {/* Back button */}
-      <div className="pt-6 pb-4 px-6">
+      <div className="px-3 py-2 border-b border-border">
         <Button
           variant="ghost"
           size="sm"
           onClick={handleBack}
-          className="mb-4"
+          className="h-7 px-2 text-xs"
         >
-          <ArrowLeft className="mr-2 h-4 w-4" />
+          <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
           {navigation.getReturnLabel()}
         </Button>
       </div>
@@ -55,6 +55,8 @@ export default function SourceDetailPage() {
           <ChatPanel
             messages={chat.messages}
             isStreaming={chat.isStreaming}
+            streamStatus={chat.streamStatus}
+            activityLog={chat.activityLog}
             contextIndicators={chat.contextIndicators}
             onSendMessage={(message, model) => chat.sendMessage(message, model)}
             modelOverride={chat.currentSession?.model_override}

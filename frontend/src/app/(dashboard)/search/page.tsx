@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { AppShell } from '@/components/layout/AppShell'
+import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -158,8 +159,8 @@ export default function SearchPage() {
 
   return (
     <AppShell>
-      <div className="flex-1 overflow-y-auto p-4 md:p-6">
-        <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">{t('searchPage.askAndSearch')}</h1>
+      <div className={`flex-1 overflow-y-auto ${pageContentClassName}`}>
+        <PageHeader bordered className="mb-3" title={t('searchPage.askAndSearch')} />
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'ask' | 'search')} className="w-full space-y-6">
           <div className="space-y-2">
@@ -278,6 +279,8 @@ export default function SearchPage() {
                 {/* Streaming Response */}
                 <StreamingResponse
                   isStreaming={ask.isStreaming}
+                  streamStatus={ask.streamStatus}
+                  activityLog={ask.activityLog}
                   strategy={ask.strategy}
                   answers={ask.answers}
                   finalAnswer={ask.finalAnswer}

@@ -1,0 +1,3 @@
+-- Rollback migration 17
+
+REMOVE FIELD IF EXISTS skill_ids ON TABLE chat_session;

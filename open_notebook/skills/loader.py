@@ -26,24 +26,32 @@ async def get_skill_catalog() -> list[dict]:
     ]
 
 
-async def load_skill_md_contents(skill_ids: Iterable[str]) -> str:
-    """Tier 2: concatenate SKILL.md bodies for selected skills."""
-    blocks: List[str] = []
-    for skill_id in skill_ids:
-        skill = await Skill.get(skill_id)
-        if not skill or skill.archived:
-            raise NotFoundError(f"Skill not found: {skill_id}")
-        files = await skill.get_files()
-        skill_md = next((f for f in files if f.path == REQUIRED_ENTRY), None)
-        if not skill_md:
-            raise InvalidInputError(f"Skill {skill.name} is missing SKILL.md")
-        if skill_md.encoding != "utf-8":
-            raise InvalidInputError(f"Skill {skill.name} SKILL.md is not text")
-        blocks.append(
-            f"## Skill: {skill.name}\n\n"
-            f"**Description:** {skill.description}\n\n"
-            f"{skill_md.content}"
-        )
+async def load_one_skill_md(skill_id: str) -> dict:
+    """Load a single skill's SKILL.md block and metadata."""
+    skill = await Skill.get(skill_id)
+    if not skill or skill.archived:
+        raise NotFoundError(f"Skill not found: {skill_id}")
+    files = await skill.get_files()
+    skill_md = next((f for f in files if f.path == REQUIRED_ENTRY), None)
+    if not skill_md:
+        raise InvalidInputError(f"Skill {skill.name} is missing SKILL.md")
+    if skill_md.encoding != "utf-8":
+        raise InvalidInputError(f"Skill {skill.name} SKILL.md is not text")
+    block = (
+        f"## Skill: {skill.name}\n\n"
+        f"**Description:** {skill.description}\n\n"
+        f"{skill_md.content}"
+    )
+    return {
+        "id": skill.id,
+        "name": skill.name,
+        "block": block,
+        "char_count": len(skill_md.content or ""),
+    }
+
+
+def format_skills_context(blocks: List[str]) -> str:
+    """Wrap loaded skill blocks in the active-skills system prompt section."""
     if not blocks:
         return ""
     return (
@@ -54,6 +62,15 @@ async def load_skill_md_contents(skill_ids: Iterable[str]) -> str:
         "lookup using the skill id and relative path before proceeding.\n\n"
         + "\n\n---\n\n".join(blocks)
     )
+
+
+async def load_skill_md_contents(skill_ids: Iterable[str]) -> str:
+    """Tier 2: concatenate SKILL.md bodies for selected skills."""
+    blocks: List[str] = []
+    for skill_id in skill_ids:
+        loaded = await load_one_skill_md(skill_id)
+        blocks.append(loaded["block"])
+    return format_skills_context(blocks)
 
 
 async def read_skill_file(skill_id: str, relative_path: str) -> SkillFile:

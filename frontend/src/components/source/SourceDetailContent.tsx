@@ -387,39 +387,38 @@ export function SourceDetailContent({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="pb-4 px-2">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
+      <div className="border-b border-border py-2 px-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
             <InlineEdit
               value={source.title || ''}
               onSave={handleUpdateTitle}
-              className="text-2xl font-bold"
-              inputClassName="text-2xl font-bold"
+              className="text-base font-semibold leading-snug"
+              inputClassName="text-base font-semibold"
               placeholder={t('sources.titlePlaceholder')}
               emptyText={t('sources.untitledSource')}
             />
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
               {t('sources.id')}: {source.id}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1">
             {getSourceIcon()}
-            <Badge variant="secondary" className="text-sm">
+            <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
               {getSourceType()}
             </Badge>
 
-            {/* Chat with source button - only in modal */}
             {showChatButton && onChatClick && (
-              <Button variant="outline" size="sm" onClick={onChatClick}>
-                <MessageSquare className="h-4 w-4 mr-2" />
-                {t('chat.chatWith').replace('{name}', t('navigation.sources'))}
+              <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={onChatClick}>
+                <MessageSquare className="h-3.5 w-3.5 sm:mr-1.5" />
+                <span className="hidden sm:inline">{t('chat.chatWith').replace('{name}', t('navigation.sources'))}</span>
               </Button>
             )}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <MoreVertical className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="h-7 w-7">
+                  <MoreVertical className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">

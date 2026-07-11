@@ -1,5 +1,8 @@
 import apiClient from '@/lib/api/client'
 import {
+  BulkImportConfirmRequest,
+  BulkImportConfirmResult,
+  BulkImportPreview,
   CreateSkillRequest,
   ImportConfirmRequest,
   ImportPreview,
@@ -68,8 +71,28 @@ export const skillsApi = {
     return response.data
   },
 
+  importPreviewBulk: async (files: File[]) => {
+    const formData = new FormData()
+    for (const file of files) {
+      formData.append('files', file)
+    }
+    const response = await apiClient.post<BulkImportPreview>(
+      '/skills/import/preview-bulk',
+      formData
+    )
+    return response.data
+  },
+
   importConfirm: async (data: ImportConfirmRequest) => {
     const response = await apiClient.post<SkillDetail>('/skills/import/confirm', data)
+    return response.data
+  },
+
+  importConfirmBulk: async (data: BulkImportConfirmRequest) => {
+    const response = await apiClient.post<BulkImportConfirmResult>(
+      '/skills/import/confirm-bulk',
+      data
+    )
     return response.data
   },
 

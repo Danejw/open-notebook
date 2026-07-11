@@ -97,6 +97,8 @@ export function ChatColumn({ notebookId, contextSelections, sources, sourcesLoad
       contextType="notebook"
       messages={chat.messages}
       isStreaming={chat.isSending}
+      streamStatus={chat.streamStatus}
+      activityLog={chat.activityLog}
       contextIndicators={null}
       onSendMessage={(message, modelOverride) => chat.sendMessage(message, modelOverride)}
       onEditMessage={(messageId, content, modelOverride) =>

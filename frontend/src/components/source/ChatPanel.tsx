@@ -15,6 +15,7 @@ import {
 import { ModelSelector } from './ModelSelector'
 import { SkillPicker } from '@/components/skills/SkillPicker'
 import { ContextIndicator } from '@/components/common/ContextIndicator'
+import { AgentActivityStatus } from '@/components/common/AgentActivityStatus'
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
 import { SessionManager } from '@/components/source/SessionManager'
 import { MessageActions } from '@/components/source/MessageActions'
@@ -42,6 +43,8 @@ interface NotebookContextStats {
 interface ChatPanelProps {
   messages: SourceChatMessage[]
   isStreaming: boolean
+  streamStatus?: string | null
+  activityLog?: string[]
   contextIndicators: SourceChatContextIndicator | null
   onSendMessage: (message: string, modelOverride?: string) => void
   onEditMessage?: (messageId: string, content: string, modelOverride?: string) => void
@@ -70,6 +73,8 @@ interface ChatPanelProps {
 export function ChatPanel({
   messages,
   isStreaming,
+  streamStatus,
+  activityLog = [],
   contextIndicators,
   onSendMessage,
   onEditMessage,
@@ -323,11 +328,10 @@ export function ChatPanel({
               )}
 
               {isStreaming && (
-                <div className="flex justify-start">
-                  <div className="rounded-lg bg-muted px-3 py-1.5">
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  </div>
-                </div>
+                <AgentActivityStatus
+                  streamStatus={streamStatus}
+                  activityLog={activityLog}
+                />
               )}
               <div ref={messagesEndRef} />
             </div>

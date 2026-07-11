@@ -86,6 +86,28 @@ def test_extract_zip_and_round_trip():
     assert by_a == by_b
 
 
+def test_extract_all_skills_from_multi_skill_zip():
+    from open_notebook.skills.zip_io import extract_all_skills_from_zip
+
+    skill_b = """---
+name: gas-check
+description: Review gas piping plans. Use when checking gas isometrics.
+---
+
+# Gas Check
+"""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("plumbing-review/SKILL.md", VALID_SKILL_MD)
+        zf.writestr("plumbing-review/references/codes.md", "# Codes\n")
+        zf.writestr("gas-check/SKILL.md", skill_b)
+    previews = extract_all_skills_from_zip(buf.getvalue())
+    names = sorted(p.name for p in previews)
+    assert names == ["gas-check", "plumbing-review"]
+    plumbing = next(p for p in previews if p.name == "plumbing-review")
+    assert any(f.path == "references/codes.md" for f in plumbing.files)
+
+
 def test_extract_rejects_path_traversal_zip():
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:

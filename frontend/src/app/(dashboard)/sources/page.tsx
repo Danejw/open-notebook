@@ -7,6 +7,7 @@ import { SourceListResponse } from '@/lib/types/api'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { EmptyState } from '@/components/common/EmptyState'
 import { AppShell } from '@/components/layout/AppShell'
+import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { FileText, Link as LinkIcon, Upload, AlignLeft, Trash2, ArrowUpDown } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
@@ -285,13 +286,13 @@ export default function SourcesPage() {
 
   return (
     <AppShell>
-      <div className="flex flex-col h-full w-full max-w-none px-6 py-6">
-        <div className="mb-6 flex-shrink-0">
-          <h1 className="text-3xl font-bold">{t('sources.allSources')}</h1>
-          <p className="mt-2 text-muted-foreground">
-            {t('sources.allSourcesDesc')}
-          </p>
-        </div>
+      <div className={`flex flex-col h-full w-full max-w-none ${pageContentClassName}`}>
+        <PageHeader
+          bordered
+          className="mb-2"
+          title={t('sources.allSources')}
+          description={t('sources.allSourcesDesc')}
+        />
 
         <div ref={scrollContainerRef} className="flex-1 rounded-md border overflow-auto">
           <table

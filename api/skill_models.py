@@ -90,6 +90,26 @@ class SkillImportPreviewResponse(BaseModel):
     files: List[SkillFileSchema]
     errors: List[str] = Field(default_factory=list)
     warnings: List[str] = Field(default_factory=list)
+    source_filename: Optional[str] = None
+
+
+class SkillBulkImportPreviewItem(SkillImportPreviewResponse):
+    selected: bool = True
+
+
+class SkillBulkImportPreviewResponse(BaseModel):
+    items: List[SkillBulkImportPreviewItem]
+    errors: List[str] = Field(default_factory=list)
+
+
+class SkillBulkImportConfirmRequest(BaseModel):
+    items: List[SkillImportConfirmRequest]
+
+
+class SkillBulkImportConfirmResponse(BaseModel):
+    imported: List[SkillDetailResponse]
+    failed: List[str] = Field(default_factory=list)
+
 
 
 class ValidationIssueResponse(BaseModel):

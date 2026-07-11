@@ -1,14 +1,30 @@
-import apiClient from './client'
+import apiClient from '@/lib/api/client'
 import {
   NotebookChatSession,
   NotebookChatSessionWithMessages,
   CreateNotebookChatSessionRequest,
   UpdateNotebookChatSessionRequest,
   SendNotebookChatMessageRequest,
-  NotebookChatMessage,
   BuildContextRequest,
   BuildContextResponse,
 } from '@/lib/types/api'
+
+function getAuthToken(): string | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+  const authStorage = localStorage.getItem('auth-storage')
+  if (!authStorage) {
+    return null
+  }
+  try {
+    const { state } = JSON.parse(authStorage)
+    return state?.token ?? null
+  } catch (error) {
+    console.error('Error parsing auth storage:', error)
+    return null
+  }
+}
 
 export const chatApi = {
   // Session management
@@ -47,16 +63,35 @@ export const chatApi = {
     await apiClient.delete(`/chat/sessions/${sessionId}`)
   },
 
-  // Messaging (synchronous, no streaming)
-  sendMessage: async (data: SendNotebookChatMessageRequest) => {
-    const response = await apiClient.post<{
-      session_id: string
-      messages: NotebookChatMessage[]
-    }>(
-      `/chat/execute`,
-      data
-    )
-    return response.data
+  // Messaging with AG-UI SSE streaming
+  sendMessage: (data: SendNotebookChatMessageRequest) => {
+    const token = getAuthToken()
+    const url = '/api/chat/execute'
+
+    return fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify(data),
+    }).then(async (response) => {
+      if (!response.ok) {
+        let errorMessage = `HTTP error! status: ${response.status}`
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.detail || errorData.message || errorMessage
+        } catch {
+          errorMessage = response.statusText || errorMessage
+        }
+        throw new Error(errorMessage)
+      }
+      if (!response.body) {
+        throw new Error('No response body received')
+      }
+      return response.body
+    })
   },
 
   buildContext: async (data: BuildContextRequest) => {

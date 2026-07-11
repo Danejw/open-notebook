@@ -5,6 +5,7 @@ import { useToast } from '@/lib/hooks/use-toast'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { getApiErrorMessage } from '@/lib/utils/error-handler'
 import {
+  BulkImportConfirmRequest,
   CreateSkillRequest,
   ImportConfirmRequest,
   SkillFileMoveRequest,
@@ -157,6 +158,22 @@ export function useImportSkillPreview() {
   })
 }
 
+export function useImportSkillPreviewBulk() {
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: (files: File[]) => skillsApi.importPreviewBulk(files),
+    onError: (error: unknown) => {
+      toast({
+        title: t('common.error'),
+        description: getApiErrorMessage(error, (key) => t(key)),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
 export function useImportSkillConfirm() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
@@ -171,6 +188,40 @@ export function useImportSkillConfirm() {
         title: t('common.success'),
         description: t('skills.importSuccess'),
       })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('common.error'),
+        description: getApiErrorMessage(error, (key) => t(key)),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function useImportSkillConfirmBulk() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: (data: BulkImportConfirmRequest) => skillsApi.importConfirmBulk(data),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.skills })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.skillsCatalog })
+      const count = result.imported.length
+      toast({
+        title: t('common.success'),
+        description: t('skills.bulkImportSuccess').replace('{count}', String(count)),
+      })
+      if (result.failed.length > 0) {
+        toast({
+          title: t('common.error'),
+          description: t('skills.bulkImportPartial')
+            .replace('{failed}', String(result.failed.length)),
+          variant: 'destructive',
+        })
+      }
     },
     onError: (error: unknown) => {
       toast({

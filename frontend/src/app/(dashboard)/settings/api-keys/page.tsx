@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect, useId } from 'react'
 import { useForm } from 'react-hook-form'
 import { AppShell } from '@/components/layout/AppShell'
+import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -1386,15 +1387,13 @@ export default function ApiKeysPage() {
   return (
     <AppShell>
       <div className="flex-1 overflow-y-auto">
-        <div className="p-6 space-y-6">
-          {/* Header */}
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Key className="h-6 w-6" />
-              {t('apiKeys.title')}
-            </h1>
-            <p className="text-muted-foreground mt-1">{t('apiKeys.description')}</p>
-          </div>
+        <div className={`${pageContentClassName} space-y-3`}>
+          <PageHeader
+            bordered
+            icon={Key}
+            title={t('apiKeys.title')}
+            description={t('apiKeys.description')}
+          />
 
           {/* Encryption warning */}
           {!encryptionReady && (

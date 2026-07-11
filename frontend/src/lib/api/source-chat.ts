@@ -72,6 +72,7 @@ export const sourceChatApi = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
         ...(token && { 'Authorization': `Bearer ${token}` })
       },
       body: JSON.stringify(data)

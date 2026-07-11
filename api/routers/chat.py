@@ -7,12 +7,13 @@ from langchain_core.runnables import RunnableConfig
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from api import ag_ui_agents
 from open_notebook.database.repository import ensure_record_id, repo_query
 from open_notebook.domain.notebook import ChatSession, Note, Notebook, Source
 from open_notebook.exceptions import (
     NotFoundError,
 )
-from open_notebook.graphs.chat import graph as chat_graph
+from open_notebook.graphs import chat as chat_graph_module
 from open_notebook.utils.graph_utils import (
     get_session_message_count,
     truncate_messages_from_id,
@@ -28,12 +29,18 @@ class CreateSessionRequest(BaseModel):
     model_override: Optional[str] = Field(
         None, description="Optional model override for this session"
     )
+    skill_ids: Optional[List[str]] = Field(
+        None, description="Skill IDs selected for this session"
+    )
 
 
 class UpdateSessionRequest(BaseModel):
     title: Optional[str] = Field(None, description="New session title")
     model_override: Optional[str] = Field(
         None, description="Model override for this session"
+    )
+    skill_ids: Optional[List[str]] = Field(
+        None, description="Skill IDs selected for this session"
     )
 
 
@@ -56,6 +63,9 @@ class ChatSessionResponse(BaseModel):
     model_override: Optional[str] = Field(
         None, description="Model override for this session"
     )
+    skill_ids: Optional[List[str]] = Field(
+        None, description="Skill IDs selected for this session"
+    )
 
 
 class ChatSessionWithMessagesResponse(ChatSessionResponse):
@@ -67,15 +77,20 @@ class ChatSessionWithMessagesResponse(ChatSessionResponse):
 class ExecuteChatRequest(BaseModel):
     session_id: str = Field(..., description="Chat session ID")
     message: str = Field(..., description="User message content")
-    context: Dict[str, Any] = Field(
-        ..., description="Chat context with sources and notes"
+    context: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Prebuilt chat context (legacy); prefer context_config for streamed retrieval",
+    )
+    context_config: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Source/note inclusion config; built inside the graph as retrieving_context",
     )
     model_override: Optional[str] = Field(
         None, description="Optional model override for this message"
     )
-    skill_ids: List[str] = Field(
-        default_factory=list,
-        description="Selected skill IDs to load into chat context",
+    skill_ids: Optional[List[str]] = Field(
+        None,
+        description="Selected skill IDs; when omitted, session-stored skills are used",
     )
     edit_message_id: Optional[str] = Field(
         None,
@@ -121,7 +136,7 @@ async def get_sessions(notebook_id: str = Query(..., description="Notebook ID"))
             session_id = str(session.id)
 
             # Get message count from LangGraph state
-            msg_count = await get_session_message_count(chat_graph, session_id)
+            msg_count = await get_session_message_count(chat_graph_module.graph, session_id)
 
             results.append(
                 ChatSessionResponse(
@@ -132,6 +147,7 @@ async def get_sessions(notebook_id: str = Query(..., description="Notebook ID"))
                     updated=str(session.updated),
                     message_count=msg_count,
                     model_override=getattr(session, "model_override", None),
+                    skill_ids=getattr(session, "skill_ids", None) or [],
                 )
             )
 
@@ -159,6 +175,7 @@ async def create_session(request: CreateSessionRequest):
             title=request.title
             or f"Chat Session {asyncio.get_event_loop().time():.0f}",
             model_override=request.model_override,
+            skill_ids=request.skill_ids or [],
         )
         await session.save()
 
@@ -173,6 +190,7 @@ async def create_session(request: CreateSessionRequest):
             updated=str(session.updated),
             message_count=0,
             model_override=session.model_override,
+            skill_ids=session.skill_ids or [],
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Notebook not found")
@@ -201,9 +219,7 @@ async def get_session(session_id: str):
             raise HTTPException(status_code=404, detail="Session not found")
 
         # Get session state from LangGraph to retrieve messages
-        # Use sync get_state() in a thread since SqliteSaver doesn't support async
-        thread_state = await asyncio.to_thread(
-            chat_graph.get_state,
+        thread_state = await chat_graph_module.graph.aget_state(
             config=RunnableConfig(configurable={"thread_id": full_session_id}),
         )
 
@@ -250,6 +266,7 @@ async def get_session(session_id: str):
             message_count=len(messages),
             messages=messages,
             model_override=getattr(session, "model_override", None),
+            skill_ids=getattr(session, "skill_ids", None) or [],
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -280,6 +297,9 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
         if "model_override" in update_data:
             session.model_override = update_data["model_override"]
 
+        if "skill_ids" in update_data:
+            session.skill_ids = update_data["skill_ids"] or []
+
         await session.save()
 
         # Find notebook_id
@@ -296,7 +316,7 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
         notebook_id = notebook_query[0]["out"] if notebook_query else None
 
         # Get message count from LangGraph state
-        msg_count = await get_session_message_count(chat_graph, full_session_id)
+        msg_count = await get_session_message_count(chat_graph_module.graph, full_session_id)
 
         return ChatSessionResponse(
             id=session.id or "",
@@ -306,6 +326,7 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
             updated=str(session.updated),
             message_count=msg_count,
             model_override=session.model_override,
+            skill_ids=session.skill_ids or [],
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -338,9 +359,9 @@ async def delete_session(session_id: str):
         raise HTTPException(status_code=500, detail=f"Error deleting session: {str(e)}")
 
 
-@router.post("/chat/execute", response_model=ExecuteChatResponse)
+@router.post("/chat/execute")
 async def execute_chat(request: ExecuteChatRequest):
-    """Execute a chat request and get AI response."""
+    """Execute a chat request and stream AG-UI events."""
     try:
         # Verify session exists
         # Ensure session_id has proper table prefix
@@ -359,8 +380,17 @@ async def execute_chat(request: ExecuteChatRequest):
             {"session_id": ensure_record_id(full_session_id)},
         )
         notebook = None
+        notebook_id = None
+        notebook_meta = None
         if notebook_query:
             notebook = await Notebook.get(notebook_query[0]["out"])
+            if notebook:
+                notebook_id = getattr(notebook, "id", None)
+                notebook_meta = {
+                    "id": notebook_id,
+                    "name": getattr(notebook, "name", None),
+                    "description": getattr(notebook, "description", None),
+                }
 
         # Determine model override (per-request override takes precedence over session-level)
         model_override = (
@@ -369,38 +399,18 @@ async def execute_chat(request: ExecuteChatRequest):
             else getattr(session, "model_override", None)
         )
 
-        # Get current state
-        # Use sync get_state() in a thread since SqliteSaver doesn't support async
-        current_state = await asyncio.to_thread(
-            chat_graph.get_state,
-            config=RunnableConfig(configurable={"thread_id": full_session_id}),
-        )
-
-        # Prepare state for execution
-        state_values = current_state.values if current_state else {}
-        state_values["messages"] = state_values.get("messages", [])
-        state_values["context"] = request.context
-        state_values["notebook"] = notebook
-        state_values["model_override"] = model_override
-
-        # Progressive disclosure: inject selected SKILL.md bodies
-        skills_context = ""
-        if request.skill_ids:
-            from open_notebook.skills.loader import load_skill_md_contents
-
-            skills_context = await load_skill_md_contents(request.skill_ids)
-        state_values["skills_context"] = skills_context or None
-        state_values["skill_ids"] = request.skill_ids or []
-
-        # Add user message to state
-        from langchain_core.messages import HumanMessage
-
-        user_message = HumanMessage(content=request.message)
+        # Resolve skills: request wins when provided; otherwise use session-stored selection
+        # Skills are loaded inside the graph (loading_skills step) so AG-UI can stream it.
+        if request.skill_ids is not None:
+            skill_ids = list(request.skill_ids)
+            session.skill_ids = skill_ids
+        else:
+            skill_ids = list(getattr(session, "skill_ids", None) or [])
 
         if request.edit_message_id:
             try:
                 await truncate_messages_from_id(
-                    chat_graph,
+                    chat_graph_module.graph,
                     full_session_id,
                     request.edit_message_id,
                 )
@@ -409,44 +419,30 @@ async def execute_chat(request: ExecuteChatRequest):
             except ValueError as e:
                 raise HTTPException(status_code=400, detail=str(e)) from e
 
-            state_values = {
-                "messages": [user_message],
-                "context": request.context,
-                "notebook": notebook,
-                "model_override": model_override,
-                "skills_context": skills_context or None,
-                "skill_ids": request.skill_ids or [],
-            }
-        else:
-            state_values["messages"].append(user_message)
-
-        # Execute chat graph
-        result = chat_graph.invoke(
-            input=state_values,  # type: ignore[arg-type]
-            config=RunnableConfig(
-                configurable={
-                    "thread_id": full_session_id,
-                    "model_id": model_override,
-                }
-            ),
-        )
-
-        # Update session timestamp
+        # Update session timestamp (and skill_ids if changed) before streaming
         await session.save()
 
-        # Convert messages to response format
-        messages: list[ChatMessage] = []
-        for msg in result.get("messages", []):
-            messages.append(
-                ChatMessage(
-                    id=getattr(msg, "id", f"msg_{len(messages)}"),
-                    type=msg.type if hasattr(msg, "type") else "unknown",
-                    content=msg.content if hasattr(msg, "content") else str(msg),
-                    timestamp=None,
-                )
-            )
+        run_input = ag_ui_agents.build_run_input(
+            thread_id=full_session_id,
+            message=request.message,
+            message_id=request.edit_message_id,
+            forwarded_props={
+                "context": request.context,
+                "context_config": request.context_config,
+                "notebook_id": notebook_id,
+                "notebook": notebook_meta,
+                "model_override": model_override,
+                "skill_ids": skill_ids,
+            },
+        )
 
-        return ExecuteChatResponse(session_id=request.session_id, messages=messages)
+        return ag_ui_agents.ag_ui_streaming_response(
+            ag_ui_agents.notebook_chat_agent,
+            run_input,
+            configurable={"model_id": model_override},
+        )
+    except HTTPException:
+        raise
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Session not found")
     except Exception as e:

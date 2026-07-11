@@ -11,6 +11,9 @@ from loguru import logger
 
 from api import skills_service
 from api.skill_models import (
+    SkillBulkImportConfirmRequest,
+    SkillBulkImportConfirmResponse,
+    SkillBulkImportPreviewResponse,
     SkillCatalogItem,
     SkillCreateRequest,
     SkillDetailResponse,
@@ -187,10 +190,39 @@ async def import_preview(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/skills/import/preview-bulk", response_model=SkillBulkImportPreviewResponse)
+async def import_preview_bulk(files: List[UploadFile] = File(...)):
+    try:
+        uploads: list[tuple[str, bytes]] = []
+        for upload in files:
+            data = await upload.read()
+            uploads.append((upload.filename or "skill.zip", data))
+        return skills_service.preview_import_bulk(uploads)
+    except InvalidInputError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Bulk import preview failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/skills/import/confirm", response_model=SkillDetailResponse)
 async def import_confirm(body: SkillImportConfirmRequest):
     try:
         return await skills_service.confirm_import(body)
+    except InvalidInputError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post(
+    "/skills/import/confirm-bulk", response_model=SkillBulkImportConfirmResponse
+)
+async def import_confirm_bulk(body: SkillBulkImportConfirmRequest):
+    try:
+        if not body.items:
+            raise InvalidInputError("No skills selected to import")
+        return await skills_service.confirm_import_bulk(body.items)
     except InvalidInputError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

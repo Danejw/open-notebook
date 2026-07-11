@@ -1,10 +1,9 @@
-import json
-from typing import AsyncGenerator
+import uuid
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
 from loguru import logger
 
+from api import ag_ui_agents
 from api.models import AskRequest, AskResponse, SearchRequest, SearchResponse
 from open_notebook.ai.models import Model, model_manager
 from open_notebook.domain.notebook import text_search, vector_search
@@ -47,72 +46,20 @@ async def search_knowledge_base(search_request: SearchRequest):
             total_count=len(results) if results else 0,
             search_type=search_request.type,
         )
-
-    except InvalidInputError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     except DatabaseOperationError as e:
         logger.error(f"Database error during search: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+    except InvalidInputError as e:
+        logger.error(f"Invalid input during search: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
     except Exception as e:
         logger.error(f"Unexpected error during search: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 
-async def stream_ask_response(
-    question: str, strategy_model: Model, answer_model: Model, final_answer_model: Model
-) -> AsyncGenerator[str, None]:
-    """Stream the ask response as Server-Sent Events."""
-    try:
-        final_answer = None
-
-        async for chunk in ask_graph.astream(
-            input=dict(question=question),  # type: ignore[arg-type]
-            config=dict(
-                configurable=dict(
-                    strategy_model=strategy_model.id,
-                    answer_model=answer_model.id,
-                    final_answer_model=final_answer_model.id,
-                )
-            ),
-            stream_mode="updates",
-        ):
-            if "agent" in chunk:
-                strategy_data = {
-                    "type": "strategy",
-                    "reasoning": chunk["agent"]["strategy"].reasoning,
-                    "searches": [
-                        {"term": search.term, "instructions": search.instructions}
-                        for search in chunk["agent"]["strategy"].searches
-                    ],
-                }
-                yield f"data: {json.dumps(strategy_data)}\n\n"
-
-            elif "provide_answer" in chunk:
-                for answer in chunk["provide_answer"]["answers"]:
-                    answer_data = {"type": "answer", "content": answer}
-                    yield f"data: {json.dumps(answer_data)}\n\n"
-
-            elif "write_final_answer" in chunk:
-                final_answer = chunk["write_final_answer"]["final_answer"]
-                final_data = {"type": "final_answer", "content": final_answer}
-                yield f"data: {json.dumps(final_data)}\n\n"
-
-        # Send completion signal
-        completion_data = {"type": "complete", "final_answer": final_answer}
-        yield f"data: {json.dumps(completion_data)}\n\n"
-
-    except Exception as e:
-        from open_notebook.utils.error_classifier import classify_error
-
-        _, user_message = classify_error(e)
-        logger.error(f"Error in ask streaming: {str(e)}")
-        error_data = {"type": "error", "message": user_message}
-        yield f"data: {json.dumps(error_data)}\n\n"
-
-
 @router.post("/search/ask")
 async def ask_knowledge_base(ask_request: AskRequest):
-    """Ask the knowledge base a question using AI models."""
+    """Ask the knowledge base a question using AI models (AG-UI stream)."""
     try:
         # Validate models exist
         strategy_model = await Model.get(ask_request.strategy_model)
@@ -142,16 +89,18 @@ async def ask_knowledge_base(ask_request: AskRequest):
                 detail="Ask feature requires an embedding model. Please configure one in the Models section.",
             )
 
-        # For streaming response
-        return StreamingResponse(
-            stream_ask_response(
-                ask_request.question, strategy_model, answer_model, final_answer_model
+        return ag_ui_agents.ag_ui_streaming_response(
+            ag_ui_agents.ask_agent,
+            ag_ui_agents.build_run_input(
+                thread_id=str(uuid.uuid4()),
+                state={"question": ask_request.question},
+                forwarded_props={"question": ask_request.question},
+                messages=[],
             ),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "X-Accel-Buffering": "no",
+            configurable={
+                "strategy_model": strategy_model.id,
+                "answer_model": answer_model.id,
+                "final_answer_model": final_answer_model.id,
             },
         )
 
@@ -200,6 +149,7 @@ async def ask_knowledge_base_simple(ask_request: AskRequest):
             input=dict(question=ask_request.question),  # type: ignore[arg-type]
             config=dict(
                 configurable=dict(
+                    thread_id=str(uuid.uuid4()),
                     strategy_model=strategy_model.id,
                     answer_model=answer_model.id,
                     final_answer_model=final_answer_model.id,

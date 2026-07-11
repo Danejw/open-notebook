@@ -4,6 +4,7 @@ from typing import Annotated, List
 from ai_prompter import Prompter
 from langchain_core.output_parsers.pydantic import PydanticOutputParser
 from langchain_core.runnables import RunnableConfig
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
 from pydantic import BaseModel, Field
@@ -12,6 +13,7 @@ from typing_extensions import TypedDict
 from open_notebook.ai.provision import provision_langchain_model
 from open_notebook.domain.notebook import vector_search
 from open_notebook.exceptions import OpenNotebookError
+from open_notebook.graphs.progress import aemit_agent_progress
 from open_notebook.utils import clean_thinking_content
 from open_notebook.utils.error_classifier import classify_error
 from open_notebook.utils.text_utils import extract_text_content
@@ -50,6 +52,7 @@ class ThreadState(TypedDict):
 
 async def call_model_with_messages(state: ThreadState, config: RunnableConfig) -> dict:
     try:
+        await aemit_agent_progress("started", "strategy", {}, config)
         parser = PydanticOutputParser(pydantic_object=Strategy)
         system_prompt = Prompter(prompt_template="ask/entry", parser=parser).render(  # type: ignore[arg-type]
             data=state  # type: ignore[arg-type]
@@ -72,6 +75,12 @@ async def call_model_with_messages(state: ThreadState, config: RunnableConfig) -
         # Parse the cleaned JSON content
         strategy = parser.parse(cleaned_content)
 
+        await aemit_agent_progress(
+            "completed",
+            "strategy",
+            {"searchQueries": len(strategy.searches)},
+            config,
+        )
         return {"strategy": strategy}
     except OpenNotebookError:
         raise
@@ -97,12 +106,25 @@ async def trigger_queries(state: ThreadState, config: RunnableConfig):
 
 async def provide_answer(state: SubGraphState, config: RunnableConfig) -> dict:
     try:
+        term = state.get("term") or ""
+        await aemit_agent_progress(
+            "progress",
+            "provide_answer",
+            {"searchTerm": term},
+            config,
+        )
         payload = state
         # if state["type"] == "text":
         #     results = text_search(state["term"], 10, True, True)
         # else:
         results = await vector_search(state["term"], 10, True, True)
         if len(results) == 0:
+            await aemit_agent_progress(
+                "completed",
+                "provide_answer",
+                {"searchTerm": term, "resultCount": 0, "answerCount": 0},
+                config,
+            )
             return {"answers": []}
         payload["results"] = results
         ids = [r["id"] for r in results]
@@ -116,6 +138,16 @@ async def provide_answer(state: SubGraphState, config: RunnableConfig) -> dict:
         )
         ai_message = await model.ainvoke(system_prompt)
         ai_content = extract_text_content(ai_message.content)
+        await aemit_agent_progress(
+            "completed",
+            "provide_answer",
+            {
+                "searchTerm": term,
+                "resultCount": len(results),
+                "answerCount": 1,
+            },
+            config,
+        )
         return {"answers": [clean_thinking_content(ai_content)]}
     except OpenNotebookError:
         raise
@@ -126,6 +158,13 @@ async def provide_answer(state: SubGraphState, config: RunnableConfig) -> dict:
 
 async def write_final_answer(state: ThreadState, config: RunnableConfig) -> dict:
     try:
+        answer_count = len(state.get("answers") or [])
+        await aemit_agent_progress(
+            "started",
+            "write_final_answer",
+            {"answerCount": answer_count},
+            config,
+        )
         system_prompt = Prompter(prompt_template="ask/final_answer").render(data=state)  # type: ignore[arg-type]
         model = await provision_langchain_model(
             system_prompt,
@@ -135,6 +174,12 @@ async def write_final_answer(state: ThreadState, config: RunnableConfig) -> dict
         )
         ai_message = await model.ainvoke(system_prompt)
         final_content = extract_text_content(ai_message.content)
+        await aemit_agent_progress(
+            "completed",
+            "write_final_answer",
+            {"answerCount": answer_count},
+            config,
+        )
         return {"final_answer": clean_thinking_content(final_content)}
     except OpenNotebookError:
         raise
@@ -144,12 +189,13 @@ async def write_final_answer(state: ThreadState, config: RunnableConfig) -> dict
 
 
 agent_state = StateGraph(ThreadState)
-agent_state.add_node("agent", call_model_with_messages)
+agent_state.add_node("strategy", call_model_with_messages)
 agent_state.add_node("provide_answer", provide_answer)
 agent_state.add_node("write_final_answer", write_final_answer)
-agent_state.add_edge(START, "agent")
-agent_state.add_conditional_edges("agent", trigger_queries, ["provide_answer"])
+agent_state.add_edge(START, "strategy")
+agent_state.add_conditional_edges("strategy", trigger_queries, ["provide_answer"])
 agent_state.add_edge("provide_answer", "write_final_answer")
 agent_state.add_edge("write_final_answer", END)
 
-graph = agent_state.compile()
+# In-memory checkpointer required for ag-ui-langgraph (aget_state); Ask threads are ephemeral.
+graph = agent_state.compile(checkpointer=MemorySaver())

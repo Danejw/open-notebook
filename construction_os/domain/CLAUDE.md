@@ -1,6 +1,6 @@
 # Domain Module
 
-Core data models for notebooks, sources, notes, and settings with async SurrealDB persistence, auto-embedding, and relationship management.
+Core data models for projects, sources, notes, artifacts, and settings with async SurrealDB persistence, auto-embedding, and relationship management.
 
 ## Purpose
 
@@ -9,11 +9,11 @@ Two base classes support different persistence patterns: **ObjectModel** (mutabl
 ## Key Components
 
 ### base.py
-- **ObjectModel**: Base for notebooks, sources, notes
+- **ObjectModel**: Base for projects, sources, notes, artifacts
   - `save()`: Create/update with auto-embedding for searchable content
   - `delete()`: Remove by ID
-  - `relate(relationship, target_id)`: Create graph relationships (reference, artifact, refers_to)
-  - `get(id)`: Polymorphic fetch; resolves subclass from ID prefix
+  - `relate(relationship, target_id)`: Create graph relationships (reference, project_note, refers_to)
+  - `get(id)`: Polymorphic fetch; resolves subclass from ID prefix (`project:`, `artifact:`, etc.)
   - `get_all(order_by)`: Fetch all records from table
   - Integrates with ModelManager for automatic embedding
 
@@ -22,8 +22,8 @@ Two base classes support different persistence patterns: **ObjectModel** (mutabl
   - `update()`: Upsert to database
   - Lazy DB loading via `_load_from_db()`
 
-### notebook.py
-- **Notebook**: Research project container
+### project.py
+- **Project**: Research project container (`table_name = "project"`)
   - `get_sources()`, `get_notes()`, `get_chat_sessions()`: Navigate relationships
   - `get_delete_preview()`: Returns counts of notes, exclusive sources, and shared sources that would be affected by deletion
   - `delete(delete_exclusive_sources)`: Cascade deletion - always deletes notes, optionally deletes exclusive sources, always unlinks all sources
@@ -32,35 +32,37 @@ Two base classes support different persistence patterns: **ObjectModel** (mutabl
   - `vectorize()`: Submit async embedding job (returns command_id, fire-and-forget)
   - `get_status()`, `get_processing_progress()`: Track job via surreal_commands
   - `get_context()`: Returns summary for LLM context
+  - `add_to_project()`: Link source to a project via `reference`
   - `add_insight()`: Submit async insight creation via `create_insight_command` (fire-and-forget, returns command_id)
 
 - **Note**: Standalone or linked notes
   - `save()`: Submits `embed_note` command after save (fire-and-forget)
-  - `add_to_notebook()`: Link to notebook
+  - `add_to_project()`: Link note to project via `project_note`
 
 - **SourceInsight, SourceEmbedding**: Derived content models
 - **ChatSession**: Conversation container with optional model_override
+  - `relate_to_project()`: Link session to project via `refers_to`
 - **Asset**: File/URL reference helper
 
 - **Search functions**:
   - `text_search()`: Full-text keyword search. On a SurrealDB `search::highlight` "position overflow" (large/multi-byte chunks) it falls back to `vector_search()`; if that also fails it raises `DatabaseOperationError` (never silently returns an empty list)
   - `vector_search()`: Semantic search via embeddings (default minimum_score=0.2)
 
+### artifact.py
+- **Artifact**: Reusable prompts for content analysis (`table_name = "artifact"`)
+- **DefaultPrompts**: Singleton with `artifact_instructions`
+
 ### content_settings.py
 - **ContentSettings**: Singleton for processing engines, embedding strategy, file deletion, YouTube languages
-
-### transformation.py
-- **Transformation**: Reusable prompts for content transformation
-- **DefaultPrompts**: Singleton with transformation instructions
 
 ### credential.py
 - **Credential**: Individual credential records for API keys and provider configuration
   - **One record per credential**: Each credential (e.g., "My OpenAI Key", "Work Anthropic") is a separate `Credential` record in SurrealDB
   - **Fields**: name, provider, modalities (list), api_key (SecretStr), base_url, endpoint, api_version, endpoint_llm/embedding/stt/tts, project, location, credentials_path
   - **SecretStr protection**: API key field uses Pydantic's `SecretStr` (values masked in logs/repr)
-  - **Encryption integration**: Uses `encrypt_value()`/`decrypt_value()` from `open_notebook.utils.encryption`
+  - **Encryption integration**: Uses `encrypt_value()`/`decrypt_value()` from `construction_os.utils.encryption`
     - Keys encrypted with Fernet before database storage
-    - Requires `OPEN_NOTEBOOK_ENCRYPTION_KEY` environment variable (warns if not set)
+    - Requires `CONSTRUCTION_OS_ENCRYPTION_KEY` environment variable (warns if not set)
   - **Key methods**:
     - `to_esperanto_config()`: Builds config dict for Esperanto's AIFactory methods
     - `get_by_provider(provider)`: Class method to fetch all credentials for a provider
@@ -73,7 +75,7 @@ Two base classes support different persistence patterns: **ObjectModel** (mutabl
 ## Important Patterns
 
 - **Async/await**: All DB operations async; always use await
-- **Polymorphic get()**: `ObjectModel.get(id)` determines subclass from ID prefix (table:id format)
+- **Polymorphic get()**: `ObjectModel.get(id)` determines subclass from ID prefix (table:id format); imports `construction_os.domain` to register subclasses
 - **Fire-and-forget embedding**: Models submit embed_* commands after save via `submit_command()` (non-blocking)
 - **Nullable fields**: Declare via `nullable_fields` ClassVar to allow None in database
 - **Timestamps**: `created` and `updated` auto-managed as ISO strings
@@ -83,14 +85,14 @@ Two base classes support different persistence patterns: **ObjectModel** (mutabl
 
 - `surrealdb`: RecordID type for relationships
 - `pydantic`: Validation and field_validator decorators
-- `open_notebook.database.repository`: CRUD and relationship functions
-- `open_notebook.ai.models`: ModelManager for embeddings
+- `construction_os.database.repository`: CRUD and relationship functions
+- `construction_os.ai.models`: ModelManager for embeddings
 - `surreal_commands`: Async job submission (vectorization, insights)
 - `loguru`: Logging
 
 ## Quirks & Gotchas
 
-- **Polymorphic resolution**: `ObjectModel.get()` fails if subclass not imported (search subclasses list)
+- **Polymorphic resolution**: `ObjectModel.get()` fails if subclass not imported (call `import construction_os.domain` or use specific model class)
 - **RecordModel singleton**: __new__ returns existing instance; call `clear_instance()` in tests
 - **Source.command field**: Stored as RecordID; auto-parsed from strings via field_validator
 - **Text truncation**: `Note.get_context(short)` hardcodes 100-char limit
@@ -98,7 +100,7 @@ Two base classes support different persistence patterns: **ObjectModel** (mutabl
   - `Note.save()` → auto-submits `embed_note` command
   - `Source.save()` → does NOT auto-submit (must call `vectorize()` explicitly)
   - `Source.add_insight()` → submits `create_insight_command` which handles DB insert + `embed_insight` command (all fire-and-forget)
-- **Relationship strings**: Must match SurrealDB schema (reference, artifact, refers_to)
+- **Relationship strings**: Must match SurrealDB schema (reference, project_note, refers_to)
 
 ## How to Add New Model
 
@@ -111,10 +113,11 @@ Two base classes support different persistence patterns: **ObjectModel** (mutabl
 ## Usage
 
 ```python
-notebook = Notebook(name="Research", description="My project")
-await notebook.save()
+project = Project(name="Research", description="My project")
+await project.save()
 
-obj = await ObjectModel.get("notebook:123")  # Polymorphic fetch
+obj = await ObjectModel.get("project:123")  # Polymorphic fetch
+artifact = await ObjectModel.get("artifact:456")
 
 # Search
 await text_search("quantum", results=5)

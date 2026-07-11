@@ -258,12 +258,12 @@ async def test_individual_model(model) -> Tuple[bool, str]:
     Test a specific model configuration end-to-end by making a real API call.
 
     Args:
-        model: A Model instance (from open_notebook.ai.models)
+        model: A Model instance (from construction_os.ai.models)
 
     Returns:
         Tuple of (success: bool, message: str)
     """
-    from open_notebook.ai.models import ModelManager
+    from construction_os.ai.models import ModelManager
 
     try:
         manager = ModelManager()
@@ -300,7 +300,7 @@ async def test_individual_model(model) -> Tuple[bool, str]:
                 voice = "alloy"  # fallback
 
             result = await esp_model.agenerate_speech(
-                text="Hello from Open Notebook", voice=voice
+                text="Hello from Construction OS", voice=voice
             )
             if result and hasattr(result, "content"):
                 size = len(result.content)

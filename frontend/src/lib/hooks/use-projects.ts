@@ -1,45 +1,45 @@
 import { useQuery, useMutation, useQueryClient, type QueryKey, type UseQueryOptions } from '@tanstack/react-query'
-import { notebooksApi } from '@/lib/api/notebooks'
+import { projectsApi } from '@/lib/api/projects'
 import { QUERY_KEYS } from '@/lib/api/query-client'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { getApiErrorKey } from '@/lib/utils/error-handler'
-import { CreateNotebookRequest, UpdateNotebookRequest, NotebookResponse } from '@/lib/types/api'
+import { CreateProjectRequest, UpdateProjectRequest, ProjectResponse } from '@/lib/types/api'
 
-type NotebooksQueryOptions = Pick<UseQueryOptions<NotebookResponse[]>, 'enabled'>
+type ProjectsQueryOptions = Pick<UseQueryOptions<ProjectResponse[]>, 'enabled'>
 
-export function useNotebooks(archived?: boolean, options?: NotebooksQueryOptions) {
+export function useProjects(archived?: boolean, options?: ProjectsQueryOptions) {
   return useQuery({
-    queryKey: [...QUERY_KEYS.notebooks, { archived }],
-    queryFn: () => notebooksApi.list({ archived, order_by: 'updated desc' }),
+    queryKey: [...QUERY_KEYS.projects, { archived }],
+    queryFn: () => projectsApi.list({ archived, order_by: 'updated desc' }),
     enabled: options?.enabled ?? true,
     placeholderData: (previousData) => previousData,
   })
 }
 
-export function useNotebook(id: string) {
+export function useProject(id: string) {
   return useQuery({
-    queryKey: QUERY_KEYS.notebook(id),
-    queryFn: () => notebooksApi.get(id),
+    queryKey: QUERY_KEYS.project(id),
+    queryFn: () => projectsApi.get(id),
     enabled: !!id,
     placeholderData: (previousData) => previousData,
   })
 }
 
-export function useCreateNotebook() {
+export function useCreateProject() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { t } = useTranslation()
 
   return useMutation({
-    mutationFn: (data: CreateNotebookRequest) => notebooksApi.create(data),
+    mutationFn: (data: CreateProjectRequest) => projectsApi.create(data),
     onMutate: async (data) => {
-      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.notebooks })
-      const previousLists = queryClient.getQueriesData<NotebookResponse[]>({
-        queryKey: QUERY_KEYS.notebooks,
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.projects })
+      const previousLists = queryClient.getQueriesData<ProjectResponse[]>({
+        queryKey: QUERY_KEYS.projects,
       })
       const now = new Date().toISOString()
-      const optimistic: NotebookResponse = {
+      const optimistic: ProjectResponse = {
         id: `optimistic-${Date.now()}`,
         name: data.name,
         description: data.description ?? '',
@@ -49,17 +49,17 @@ export function useCreateNotebook() {
         source_count: 0,
         note_count: 0,
       }
-      queryClient.setQueriesData<NotebookResponse[]>(
-        { queryKey: QUERY_KEYS.notebooks },
+      queryClient.setQueriesData<ProjectResponse[]>(
+        { queryKey: QUERY_KEYS.projects },
         (old) => (old ? [optimistic, ...old] : [optimistic])
       )
       return { previousLists }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebooks })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.projects })
       toast({
         title: t('common.success'),
-        description: t('notebooks.createSuccess'),
+        description: t('projects.createSuccess'),
       })
     },
     onError: (error: unknown, _data, context) => {
@@ -75,60 +75,60 @@ export function useCreateNotebook() {
   })
 }
 
-export function useUpdateNotebook() {
+export function useUpdateProject() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { t } = useTranslation()
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateNotebookRequest }) =>
-      notebooksApi.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: UpdateProjectRequest }) =>
+      projectsApi.update(id, data),
     onMutate: async ({ id, data }) => {
-      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.notebooks })
-      const previousLists = queryClient.getQueriesData<NotebookResponse[]>({
-        queryKey: QUERY_KEYS.notebooks,
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.projects })
+      const previousLists = queryClient.getQueriesData<ProjectResponse[]>({
+        queryKey: QUERY_KEYS.projects,
       })
-      queryClient.setQueriesData<NotebookResponse[]>(
-        { queryKey: QUERY_KEYS.notebooks },
+      queryClient.setQueriesData<ProjectResponse[]>(
+        { queryKey: QUERY_KEYS.projects },
         (old) =>
-          old?.map((notebook) =>
-            notebook.id === id
+          old?.map((project) =>
+            project.id === id
               ? {
-                  ...notebook,
-                  name: data.name ?? notebook.name,
-                  description: data.description ?? notebook.description,
-                  archived: data.archived ?? notebook.archived,
+                  ...project,
+                  name: data.name ?? project.name,
+                  description: data.description ?? project.description,
+                  archived: data.archived ?? project.archived,
                   updated: new Date().toISOString(),
                 }
-              : notebook
+              : project
           ) ?? []
       )
-      const previousNotebook = queryClient.getQueryData<NotebookResponse>(QUERY_KEYS.notebook(id))
-      if (previousNotebook) {
-        queryClient.setQueryData<NotebookResponse>(QUERY_KEYS.notebook(id), {
-          ...previousNotebook,
-          name: data.name ?? previousNotebook.name,
-          description: data.description ?? previousNotebook.description,
-          archived: data.archived ?? previousNotebook.archived,
+      const previousProject = queryClient.getQueryData<ProjectResponse>(QUERY_KEYS.project(id))
+      if (previousProject) {
+        queryClient.setQueryData<ProjectResponse>(QUERY_KEYS.project(id), {
+          ...previousProject,
+          name: data.name ?? previousProject.name,
+          description: data.description ?? previousProject.description,
+          archived: data.archived ?? previousProject.archived,
           updated: new Date().toISOString(),
         })
       }
-      return { previousLists, previousNotebook, id }
+      return { previousLists, previousProject, id }
     },
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebooks })
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebook(id) })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.projects })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.project(id) })
       toast({
         title: t('common.success'),
-        description: t('notebooks.updateSuccess'),
+        description: t('projects.updateSuccess'),
       })
     },
     onError: (error: unknown, { id }, context) => {
       context?.previousLists.forEach(([key, data]) => {
         queryClient.setQueryData(key as QueryKey, data)
       })
-      if (context?.previousNotebook) {
-        queryClient.setQueryData(QUERY_KEYS.notebook(id), context.previousNotebook)
+      if (context?.previousProject) {
+        queryClient.setQueryData(QUERY_KEYS.project(id), context.previousProject)
       }
       toast({
         title: t('common.error'),
@@ -139,15 +139,15 @@ export function useUpdateNotebook() {
   })
 }
 
-export function useNotebookDeletePreview(id: string, enabled: boolean = false) {
+export function useProjectDeletePreview(id: string, enabled: boolean = false) {
   return useQuery({
-    queryKey: [...QUERY_KEYS.notebook(id), 'delete-preview'],
-    queryFn: () => notebooksApi.deletePreview(id),
+    queryKey: [...QUERY_KEYS.project(id), 'delete-preview'],
+    queryFn: () => projectsApi.deletePreview(id),
     enabled: !!id && enabled,
   })
 }
 
-export function useDeleteNotebook() {
+export function useDeleteProject() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { t } = useTranslation()
@@ -159,24 +159,24 @@ export function useDeleteNotebook() {
     }: {
       id: string
       deleteExclusiveSources?: boolean
-    }) => notebooksApi.delete(id, deleteExclusiveSources),
+    }) => projectsApi.delete(id, deleteExclusiveSources),
     onMutate: async ({ id }) => {
-      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.notebooks })
-      const previousLists = queryClient.getQueriesData<NotebookResponse[]>({
-        queryKey: QUERY_KEYS.notebooks,
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.projects })
+      const previousLists = queryClient.getQueriesData<ProjectResponse[]>({
+        queryKey: QUERY_KEYS.projects,
       })
-      queryClient.setQueriesData<NotebookResponse[]>(
-        { queryKey: QUERY_KEYS.notebooks },
-        (old) => old?.filter((notebook) => notebook.id !== id) ?? []
+      queryClient.setQueriesData<ProjectResponse[]>(
+        { queryKey: QUERY_KEYS.projects },
+        (old) => old?.filter((project) => project.id !== id) ?? []
       )
       return { previousLists }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebooks })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.projects })
       queryClient.invalidateQueries({ queryKey: ['sources'] })
       toast({
         title: t('common.success'),
-        description: t('notebooks.deleteSuccess'),
+        description: t('projects.deleteSuccess'),
       })
     },
     onError: (error: unknown, _vars, context) => {

@@ -1,6 +1,6 @@
 # Complete Environment Reference
 
-Comprehensive list of all environment variables available in Open Notebook.
+Comprehensive list of all environment variables available in Construction OS.
 
 ---
 
@@ -11,11 +11,11 @@ Comprehensive list of all environment variables available in Open Notebook.
 | `API_URL` | No | Auto-detected | URL where frontend reaches API (e.g., http://localhost:5055) |
 | `INTERNAL_API_URL` | No | http://localhost:5055 | Internal API URL for Next.js server-side proxying |
 | `API_CLIENT_TIMEOUT` | No | 300 | Client timeout in seconds (how long to wait for API response) |
-| `OPEN_NOTEBOOK_PASSWORD` | No | None | Password to protect Open Notebook instance |
-| `OPEN_NOTEBOOK_ENCRYPTION_KEY` | **Yes** | None | Secret string to encrypt credentials stored in database (any string works). **Required** for the credential system. Supports Docker secrets via `_FILE` suffix. |
+| `CONSTRUCTION_OS_PASSWORD` | No | None | Password to protect Construction OS instance |
+| `CONSTRUCTION_OS_ENCRYPTION_KEY` | **Yes** | None | Secret string to encrypt credentials stored in database (any string works). **Required** for the credential system. Supports Docker secrets via `_FILE` suffix. |
 | `HOSTNAME` | No | `0.0.0.0` (in Docker) | Network interface for Next.js to bind to. Default `0.0.0.0` ensures accessibility from reverse proxies |
 
-> **Important**: `OPEN_NOTEBOOK_ENCRYPTION_KEY` is required for storing AI provider credentials via the Settings UI. Without it, you cannot save credentials. If you change or lose this key, all stored credentials become unreadable.
+> **Important**: `CONSTRUCTION_OS_ENCRYPTION_KEY` is required for storing AI provider credentials via the Settings UI. Without it, you cannot save credentials. If you change or lose this key, all stored credentials become unreadable.
 
 ---
 
@@ -26,8 +26,8 @@ Comprehensive list of all environment variables available in Open Notebook.
 | `SURREAL_URL` | Yes | ws://surrealdb:8000/rpc | SurrealDB WebSocket connection URL |
 | `SURREAL_USER` | Yes | root | SurrealDB username |
 | `SURREAL_PASSWORD` | Yes | root | SurrealDB password |
-| `SURREAL_NAMESPACE` | Yes | open_notebook | SurrealDB namespace |
-| `SURREAL_DATABASE` | Yes | open_notebook | SurrealDB database name |
+| `SURREAL_NAMESPACE` | Yes | construction_os | SurrealDB namespace |
+| `SURREAL_DATABASE` | Yes | construction_os | SurrealDB database name |
 
 ---
 
@@ -65,30 +65,30 @@ Comprehensive list of all environment variables available in Open Notebook.
 
 | Variable | Required? | Default | Description |
 |----------|-----------|---------|-------------|
-| `OPEN_NOTEBOOK_EMBEDDING_BATCH_SIZE` | No | 50 | Number of texts sent per embedding batch. Lower this for CPU-only or stricter OpenAI-compatible embedding providers. |
-| `OPEN_NOTEBOOK_MIN_CHUNK_SIZE` | No | 5 | Minimum chunk size in tokens. Chunks below this threshold are dropped before embedding to avoid degenerate single-character fragments that some providers (e.g. llama.cpp) return null embeddings for. Set to `0` to disable filtering. |
+| `CONSTRUCTION_OS_EMBEDDING_BATCH_SIZE` | No | 50 | Number of texts sent per embedding batch. Lower this for CPU-only or stricter OpenAI-compatible embedding providers. |
+| `CONSTRUCTION_OS_MIN_CHUNK_SIZE` | No | 5 | Minimum chunk size in tokens. Chunks below this threshold are dropped before embedding to avoid degenerate single-character fragments that some providers (e.g. llama.cpp) return null embeddings for. Set to `0` to disable filtering. |
 
 ---
 
 ## MCP Client (remote tool connections)
 
-Open Notebook can connect to **remote** MCP servers (Streamable HTTP) as a client. Configure these variables on the API service.
+Construction OS can connect to **remote** MCP servers (Streamable HTTP) as a client. Configure these variables on the API service.
 
 | Variable | Required? | Default | Description |
 |----------|-----------|---------|-------------|
-| `OPEN_NOTEBOOK_MCP_ALLOW_PRIVATE_URLS` | No | `false` | When `true`, allow MCP endpoint URLs that resolve to private, loopback, link-local, or cloud metadata addresses. **Leave disabled in production** unless you intentionally connect to local MCP servers. |
-| `OPEN_NOTEBOOK_MCP_MAX_SELECTED_TOOLS` | No | 8 | Maximum MCP tools a user may attach to one chat message. |
-| `OPEN_NOTEBOOK_MCP_MAX_ITERATIONS` | No | 6 | Maximum model↔tool loop iterations per chat turn. |
-| `OPEN_NOTEBOOK_MCP_MAX_CALLS` | No | 12 | Maximum MCP tool executions per chat turn. |
-| `OPEN_NOTEBOOK_MCP_REQUEST_TIMEOUT_SECONDS` | No | 30 | Timeout for each MCP HTTP request. |
-| `OPEN_NOTEBOOK_MCP_MAX_RESULT_CHARS` | No | 8000 | Maximum characters from a tool result passed back to the model. |
-| `OPEN_NOTEBOOK_MCP_MAX_ERROR_CHARS` | No | 500 | Maximum characters stored in safe MCP error messages. |
-| `OPEN_NOTEBOOK_MCP_PROTOCOL_VERSION` | No | `2025-03-26` | MCP protocol version sent during `initialize`. |
+| `CONSTRUCTION_OS_MCP_ALLOW_PRIVATE_URLS` | No | `false` | When `true`, allow MCP endpoint URLs that resolve to private, loopback, link-local, or cloud metadata addresses. **Leave disabled in production** unless you intentionally connect to local MCP servers. |
+| `CONSTRUCTION_OS_MCP_MAX_SELECTED_TOOLS` | No | 8 | Maximum MCP tools a user may attach to one chat message. |
+| `CONSTRUCTION_OS_MCP_MAX_ITERATIONS` | No | 6 | Maximum model↔tool loop iterations per chat turn. |
+| `CONSTRUCTION_OS_MCP_MAX_CALLS` | No | 12 | Maximum MCP tool executions per chat turn. |
+| `CONSTRUCTION_OS_MCP_REQUEST_TIMEOUT_SECONDS` | No | 30 | Timeout for each MCP HTTP request. |
+| `CONSTRUCTION_OS_MCP_MAX_RESULT_CHARS` | No | 8000 | Maximum characters from a tool result passed back to the model. |
+| `CONSTRUCTION_OS_MCP_MAX_ERROR_CHARS` | No | 500 | Maximum characters stored in safe MCP error messages. |
+| `CONSTRUCTION_OS_MCP_PROTOCOL_VERSION` | No | `2025-03-26` | MCP protocol version sent during `initialize`. |
 
 **Local development example** (connect to a fake or local MCP server on localhost):
 
 ```bash
-OPEN_NOTEBOOK_MCP_ALLOW_PRIVATE_URLS=true
+CONSTRUCTION_OS_MCP_ALLOW_PRIVATE_URLS=true
 ```
 
 ---
@@ -107,7 +107,7 @@ OPEN_NOTEBOOK_MCP_ALLOW_PRIVATE_URLS=true
 Example for a production deployment behind a reverse proxy:
 
 ```bash
-CORS_ORIGINS=https://notebook.example.com
+CORS_ORIGINS=https://project.example.com
 ```
 
 ---
@@ -176,7 +176,7 @@ NO_PROXY=localhost,127.0.0.1,.local
 | `LANGCHAIN_TRACING_V2` | No | false | Enable LangSmith tracing |
 | `LANGCHAIN_ENDPOINT` | No | https://api.smith.langchain.com | LangSmith endpoint |
 | `LANGCHAIN_API_KEY` | No | None | LangSmith API key |
-| `LANGCHAIN_PROJECT` | No | Open Notebook | LangSmith project name |
+| `LANGCHAIN_PROJECT` | No | Construction OS | LangSmith project name |
 
 **Setup:** https://smith.langchain.com/
 
@@ -186,33 +186,33 @@ NO_PROXY=localhost,127.0.0.1,.local
 
 ### Minimal Setup (New Installation)
 ```
-OPEN_NOTEBOOK_ENCRYPTION_KEY=my-secret-key
+CONSTRUCTION_OS_ENCRYPTION_KEY=my-secret-key
 SURREAL_URL=ws://surrealdb:8000/rpc
 SURREAL_USER=root
 SURREAL_PASSWORD=password
-SURREAL_NAMESPACE=open_notebook
-SURREAL_DATABASE=open_notebook
+SURREAL_NAMESPACE=construction_os
+SURREAL_DATABASE=construction_os
 ```
 Then configure AI providers via **Settings → API Keys** in the browser.
 
 ### Production Deployment
 ```
-OPEN_NOTEBOOK_ENCRYPTION_KEY=your-strong-secret-key
-OPEN_NOTEBOOK_PASSWORD=your-secure-password
-API_URL=https://mynotebook.example.com
+CONSTRUCTION_OS_ENCRYPTION_KEY=your-strong-secret-key
+CONSTRUCTION_OS_PASSWORD=your-secure-password
+API_URL=https://myproject.example.com
 SURREAL_USER=production_user
 SURREAL_PASSWORD=secure_password
 ```
 
 ### Self-Hosted Behind Reverse Proxy
 ```
-OPEN_NOTEBOOK_ENCRYPTION_KEY=your-secret-key
-API_URL=https://mynotebook.example.com
+CONSTRUCTION_OS_ENCRYPTION_KEY=your-secret-key
+API_URL=https://myproject.example.com
 ```
 
 ### Corporate Environment (Behind Proxy)
 ```
-OPEN_NOTEBOOK_ENCRYPTION_KEY=your-secret-key
+CONSTRUCTION_OS_ENCRYPTION_KEY=your-secret-key
 HTTP_PROXY=http://proxy.corp.com:8080
 HTTPS_PROXY=http://proxy.corp.com:8080
 NO_PROXY=localhost,127.0.0.1
@@ -220,7 +220,7 @@ NO_PROXY=localhost,127.0.0.1
 
 ### High-Performance Deployment
 ```
-OPEN_NOTEBOOK_ENCRYPTION_KEY=your-secret-key
+CONSTRUCTION_OS_ENCRYPTION_KEY=your-secret-key
 SURREAL_COMMANDS_MAX_TASKS=10
 TTS_BATCH_SIZE=5
 API_CLIENT_TIMEOUT=600
@@ -228,7 +228,7 @@ API_CLIENT_TIMEOUT=600
 
 ### Debugging
 ```
-OPEN_NOTEBOOK_ENCRYPTION_KEY=your-secret-key
+CONSTRUCTION_OS_ENCRYPTION_KEY=your-secret-key
 LANGCHAIN_TRACING_V2=true
 LANGCHAIN_API_KEY=your-key
 ```
@@ -241,10 +241,10 @@ Check if a variable is set:
 
 ```bash
 # Check single variable
-echo $OPEN_NOTEBOOK_ENCRYPTION_KEY
+echo $CONSTRUCTION_OS_ENCRYPTION_KEY
 
 # Check multiple
-env | grep -E "OPEN_NOTEBOOK|API_URL"
+env | grep -E "construction_os|API_URL"
 
 # Print all config
 env | grep -E "^[A-Z_]+=" | sort
@@ -254,8 +254,8 @@ env | grep -E "^[A-Z_]+=" | sort
 
 ## Notes
 
-- **Case-sensitive:** `OPEN_NOTEBOOK_ENCRYPTION_KEY` ≠ `open_notebook_encryption_key`
-- **No spaces:** `OPEN_NOTEBOOK_ENCRYPTION_KEY=my-key` not `OPEN_NOTEBOOK_ENCRYPTION_KEY = my-key`
+- **Case-sensitive:** `CONSTRUCTION_OS_ENCRYPTION_KEY` ≠ `construction_os_encryption_key`
+- **No spaces:** `CONSTRUCTION_OS_ENCRYPTION_KEY=my-key` not `CONSTRUCTION_OS_ENCRYPTION_KEY = my-key`
 - **Quote values:** Use quotes for values with spaces: `API_URL="http://my server:5055"`
 - **Restart required:** Changes take effect after restarting services
 - **Secrets:** Don't commit encryption keys or passwords to git
@@ -266,7 +266,7 @@ env | grep -E "^[A-Z_]+=" | sort
 
 ## Quick Setup Checklist
 
-- [ ] Set `OPEN_NOTEBOOK_ENCRYPTION_KEY` in docker-compose.yml
+- [ ] Set `CONSTRUCTION_OS_ENCRYPTION_KEY` in docker-compose.yml
 - [ ] Set database credentials (`SURREAL_*`)
 - [ ] Start services
 - [ ] Open browser → Go to **Settings → API Keys**

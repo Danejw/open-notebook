@@ -15,7 +15,7 @@ This addendum covers issues found in a **second pass** focused on what users fee
 |------|---------|
 | Chat / Ask streaming | **High jank** — full markdown re-parse on every token + smooth scroll on every message update |
 | Context selection | **API storm** — `buildContext()` POST on every source/note toggle |
-| Sources page | **No React Query** — manual fetch, full-page spinner, no shared cache with notebook views |
+| Sources page | **No React Query** — manual fetch, full-page spinner, no shared cache with project views |
 | Search page | Eager model fetches + up to 100 unvirtualized result cards |
 | Modals | Source modal fires 3 parallel uncached API calls + heavy component tree on open |
 | CSS / fonts | Geist vars referenced but Inter loaded; ~110 lines of hljs rules in global CSS |
@@ -29,11 +29,11 @@ This addendum covers issues found in a **second pass** focused on what users fee
 ### T1-09 — Streaming chat re-renders full markdown on every token
 
 **Impact:** High — primary source of lag during chat and Ask  
-**Files:** `useNotebookChat.ts`, `useSourceChat.ts`, `use-ask.ts`, `ChatPanel.tsx`, `StreamingResponse.tsx`
+**Files:** `useProjectChat.ts`, `useSourceChat.ts`, `use-ask.ts`, `ChatPanel.tsx`, `StreamingResponse.tsx`
 
 Each SSE chunk updates message state. The full message list re-renders; `AIMessageContent` runs `ReactMarkdown` + rehype (highlight + KaTeX) on the **entire growing string** every chunk.
 
-```328:358:frontend/src/lib/hooks/useNotebookChat.ts
+```328:358:frontend/src/lib/hooks/useProjectChat.ts
           case 'TEXT_MESSAGE_CONTENT':
           case 'TEXT_MESSAGE_CHUNK': {
               setMessages((prev) =>
@@ -56,11 +56,11 @@ Each SSE chunk updates message state. The full message list re-renders; `AIMessa
 ### T1-10 — Context toggle triggers API on every selection change
 
 **Impact:** High — noticeable lag when bulk-including/excluding sources  
-**Files:** `frontend/src/lib/hooks/useNotebookChat.ts`
+**Files:** `frontend/src/lib/hooks/useProjectChat.ts`
 
 `buildContext()` POSTs to backend whenever `contextSelections`, `sources`, or `notes` change.
 
-```496:506:frontend/src/lib/hooks/useNotebookChat.ts
+```496:506:frontend/src/lib/hooks/useProjectChat.ts
   useEffect(() => {
     const updateContextCounts = async () => {
       try {
@@ -79,7 +79,7 @@ Each SSE chunk updates message state. The full message list re-renders; `AIMessa
 
 ### T1-11 — Sources page bypasses React Query
 
-**Impact:** High — full spinner on every visit, no cache sharing with notebook source hooks  
+**Impact:** High — full spinner on every visit, no cache sharing with project source hooks  
 **Files:** `frontend/src/app/(dashboard)/sources/page.tsx`
 
 Uses manual `useState` + `useEffect` + `sourcesApi.list()`. Sort change clears list and refetches from scratch.
@@ -96,7 +96,7 @@ Uses manual `useState` + `useEffect` + `sourcesApi.list()`. Sort change clears l
   }, [sortBy, sortOrder])
 ```
 
-**Fix:** Migrate to `useInfiniteQuery` (mirror `useNotebookSources`); table shell + skeleton rows; `placeholderData: (prev) => prev` on sort changes.
+**Fix:** Migrate to `useInfiniteQuery` (mirror `useProjectSources`); table shell + skeleton rows; `placeholderData: (prev) => prev` on sort changes.
 
 ---
 
@@ -105,7 +105,7 @@ Uses manual `useState` + `useEffect` + `sourcesApi.list()`. Sort change clears l
 ### T2-08 — Chat session load waterfall
 
 **Impact:** Medium  
-**Files:** `useNotebookChat.ts`, `useSourceChat.ts`
+**Files:** `useProjectChat.ts`, `useSourceChat.ts`
 
 Three steps: list sessions → auto-select first in `useEffect` → fetch full session + messages in second query.
 
@@ -118,7 +118,7 @@ Three steps: list sessions → auto-select first in `useEffect` → fetch full s
 **Impact:** Medium (overlaps T1-02)  
 **Files:** `use-auth.ts`, `auth-store.ts`
 
-After hydrate: `checkAuthRequired()` → `/api/auth/status`, then if required `checkAuth()` → `/api/notebooks`.
+After hydrate: `checkAuthRequired()` → `/api/auth/status`, then if required `checkAuth()` → `/api/projects`.
 
 **Fix:** Single status endpoint including token validity; cache `authRequired` in sessionStorage; show shell during checks.
 
@@ -127,7 +127,7 @@ After hydrate: `checkAuthRequired()` → `/api/auth/status`, then if required `c
 ### T2-10 — ChatColumn blocks on notes refetch
 
 **Impact:** Medium  
-**Files:** `notebooks/[id]/page.tsx`, `ChatColumn.tsx`
+**Files:** `projects/[id]/page.tsx`, `ChatColumn.tsx`
 
 Page fetches notes; `ChatColumn` fetches again and shows full-column spinner until `notesLoading` clears.
 
@@ -135,12 +135,12 @@ Page fetches notes; `ChatColumn` fetches again and shows full-column spinner unt
 
 ---
 
-### T2-11 — Notebooks list always fires two API calls
+### T2-11 — Projects list always fires two API calls
 
 **Impact:** Medium  
-**Files:** `notebooks/page.tsx`
+**Files:** `projects/page.tsx`
 
-Active + archived lists fetched on every mount even when zero archived notebooks.
+Active + archived lists fetched on every mount even when zero archived projects.
 
 **Fix:** Lazy-fetch archived with `enabled: showArchived`; fetch on collapse section expand.
 
@@ -173,7 +173,7 @@ Active + archived lists fetched on every mount even when zero archived notebooks
 **Impact:** Medium  
 **Files:** `ModalProvider.tsx`, `SourceDetailContent.tsx`, `dialog.tsx`
 
-On open: 3 parallel manual fetches (source, insights, transformations) — no React Query cache. Dialog is 70vw × 70vh with zoom animation.
+On open: 3 parallel manual fetches (source, insights, artifacts) — no React Query cache. Dialog is 70vw × 70vh with zoom animation.
 
 **Fix:** Dynamic-import content; migrate to `useSource` / query hooks; `prefetchQuery` on hover; reduce dialog animation for large modals.
 
@@ -197,7 +197,7 @@ On open: 3 parallel manual fetches (source, insights, transformations) — no Re
 ### T2-16 — Desktop layout flash (`useIsDesktop`)
 
 **Impact:** Medium  
-**Files:** `use-media-query.ts`, `notebooks/[id]/page.tsx`
+**Files:** `use-media-query.ts`, `projects/[id]/page.tsx`
 
 Hook defaults `false` until `useEffect` → desktop users briefly see mobile tabs, then three-column layout.
 
@@ -274,11 +274,11 @@ Third config touch on dashboard mount (cached after first, but couples mount to 
 ### T2-23 — Missing debounce / deferred value on filters
 
 **Impact:** Low–Medium  
-**Files:** `notebooks/page.tsx`, `search/page.tsx`
+**Files:** `projects/page.tsx`, `search/page.tsx`
 
-Notebook name filter re-runs `useMemo` every keystroke. Only `AddExistingSourceDialog` uses debounce elsewhere.
+Project name filter re-runs `useMemo` every keystroke. Only `AddExistingSourceDialog` uses debounce elsewhere.
 
-**Fix:** `useDeferredValue(searchTerm)` for notebook filter.
+**Fix:** `useDeferredValue(searchTerm)` for project filter.
 
 ---
 
@@ -337,8 +337,8 @@ No lazy loading or sizing. Only sidebar logo uses `next/image`.
 | Open Sources page | Full spinner, no cache | Skeleton table + React Query cache |
 | Open source modal | 3 fetches + heavy mount | Prefetch on hover + lazy import |
 | Search (100 results) | All cards in DOM | Paginate or virtualize |
-| Notebook filter typing | Sync filter every key | `useDeferredValue` |
-| Desktop notebook open | Mobile tabs flash | Correct initial layout |
+| Project filter typing | Sync filter every key | `useDeferredValue` |
+| Desktop project open | Mobile tabs flash | Correct initial layout |
 
 ---
 
@@ -350,7 +350,7 @@ No lazy loading or sizing. Only sidebar logo uses `next/image`.
 | Context bulk toggle | Network tab — should not show N rapid `buildContext` calls |
 | Sources revisit | Navigate away and back — should show cached data instantly |
 | Scroll during stream | User scroll-up should not fight auto-scroll |
-| Desktop notebook | No mobile tab flash on load (≥1024px viewport) |
+| Desktop project | No mobile tab flash on load (≥1024px viewport) |
 
 ---
 

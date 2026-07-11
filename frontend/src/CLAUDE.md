@@ -1,6 +1,6 @@
 # Frontend Architecture
 
-Next.js React application providing UI for Open Notebook research assistant. Three-layer architecture: **pages** (Next.js App Router), **components** (feature-specific UI), and **lib** (data fetching, state management, utilities).
+Next.js React application providing UI for Construction OS research assistant. Three-layer architecture: **pages** (Next.js App Router), **components** (feature-specific UI), and **lib** (data fetching, state management, utilities).
 
 ## High-Level Data Flow
 
@@ -22,7 +22,7 @@ User interactions trigger mutations/queries via hooks, which communicate with th
 
 ### Pages (`src/app/`) — Next.js App Router
 - `(auth)/login`: Authentication entry point
-- `(dashboard)/`: Protected routes (notebooks, sources, search, models, etc.)
+- `(dashboard)/`: Protected routes (projects, artifacts, sources, search, models, etc.)
 - Directory-based routing; each `page.tsx` is a route endpoint
 - **Key pattern**: Pages call hooks to fetch data, render components with state
 - **Router groups** `(auth)`, `(dashboard)` organize routes by feature without affecting URL
@@ -33,7 +33,7 @@ User interactions trigger mutations/queries via hooks, which communicate with th
 - **auth**: `LoginForm.tsx` — authentication UI
 - **common**: `CommandPalette`, `ErrorBoundary`, `ContextToggle`, `ModelSelector` — shared across pages
 - **ui**: Reusable Radix UI building blocks (see child CLAUDE.md)
-- **source**, **notebooks**, **search**, **podcasts**: Feature-specific components consuming hooks
+- **source**, **projects**, **search**, **podcasts**: Feature-specific components consuming hooks
 
 **Component composition pattern**: Pages → Feature components → UI components. Feature components handle page-level state (loading, error), UI components remain stateless and styled.
 
@@ -42,13 +42,13 @@ User interactions trigger mutations/queries via hooks, which communicate with th
 #### `lib/api/` — Backend Communication
 - **`client.ts`**: Central Axios instance with auth interceptor, FormData handling, configurable request timeout (`NEXT_PUBLIC_API_TIMEOUT_MS`, default 10 min; `0` disables)
 - **`query-client.ts`**: TanStack Query configuration
-- **Resource modules** (`sources.ts`, `chat.ts`, `notebooks.ts`, etc.): Endpoint-specific functions returning typed responses
+- **Resource modules** (`sources.ts`, `chat.ts`, `projects.ts`, `artifacts.ts`, etc.): Endpoint-specific functions returning typed responses
 - **Pattern**: All requests go through `apiClient`; auth token auto-added from localStorage
 
 #### `lib/hooks/` — React Query + Custom Logic
-- **Query hooks**: `useNotebookSources`, `useSources`, `useSource` — TanStack Query wrappers with cache keys
+- **Query hooks**: `useProjectSources`, `useSources`, `useSource` — TanStack Query wrappers with cache keys
 - **Mutation hooks**: `useCreateSource`, `useUpdateSource`, `useDeleteSource` — mutations with toast feedback + cache invalidation
-- **Complex hooks**: `useNotebookChat`, `useSourceChat` — session management, message streaming, context building
+- **Complex hooks**: `useProjectChat`, `useSourceChat` — session management, message streaming, context building
 - **SSE streaming**: `useAsk` — parses newline-delimited JSON from backend for multi-stage workflows
 - **Pattern**: Hooks return `{ data, isLoading, error, refetch }` + action functions; cache invalidation on mutations
 
@@ -58,21 +58,21 @@ User interactions trigger mutations/queries via hooks, which communicate with th
 - **Pattern**: Store actions (`login()`, `logout()`, `checkAuth()`) update state; consumed via hooks in components
 
 #### `lib/types/` — TypeScript Definitions
-- API request/response shapes, domain models (Notebook, Source, Note, etc.)
+- API request/response shapes, domain models (Project, Artifact, Source, Note, etc.)
 - Ensures type safety across API calls and store mutations
 
 #### `lib/locales/` — Internationalization (i18n)
 - **Locale files** (`en-US/`, `pt-BR/`, `zh-CN/`, `zh-TW/`, `ja-JP/`): Translation strings organized by feature
 - **`i18n.ts`**: i18next configuration with language detection
 - **`use-translation.ts`**: Thin wrapper around react-i18next's `useTranslation` with language change events
-- **Pattern**: Components call `useTranslation()` hook; access strings via `t('common.save')`, `t('notebooks.title')`
+- **Pattern**: Components call `useTranslation()` hook; access strings via `t('common.save')`, `t('projects.title')`
 
 ## Data & Control Flow Walkthrough
 
-### Example: Notebook Chat
-1. **Page** (`notebooks/[id]/page.tsx`) fetches initial data, passes `notebookId` to `ChatColumn` component
-2. **Hook call** (`useNotebookChat()`):
-   - Queries sessions for notebook via TanStack Query
+### Example: Project Chat
+1. **Page** (`projects/[id]/page.tsx`) fetches initial data, passes `projectId` to `ChatColumn` component
+2. **Hook call** (`useProjectChat()`):
+   - Queries sessions for project via TanStack Query
    - Sets up message state + context building logic
    - Returns `{ messages, sendMessage(), setModelOverride() }`
 3. **Component renders**: `ChatColumn` displays messages, text input
@@ -92,23 +92,23 @@ User interactions trigger mutations/queries via hooks, which communicate with th
    - API client interceptor deletes Content-Type header (lets browser set multipart boundary)
 3. **Toast notifications** show progress
 4. **Cache invalidation** on success: `queryClient.invalidateQueries(['sources'])`
-5. **Related queries** auto-refetch: notebooks, sources list, etc.
+5. **Related queries** auto-refetch: projects, sources list, etc.
 
 ## Key Patterns & Cross-Layer Coordination
 
 ### Caching & Invalidation
-- **Query keys**: `QUERY_KEYS.notebook(id)`, `QUERY_KEYS.sources(notebookId)` — hierarchical structure
+- **Query keys**: `QUERY_KEYS.project(id)`, `QUERY_KEYS.sources(projectId)` — hierarchical structure
 - **Broad invalidation**: `['sources']` invalidates all source queries; trade-off between accuracy + performance
-- **Auto-refetch**: `refetchOnWindowFocus: true` on frequently-changing data (sources, notebooks)
+- **Auto-refetch**: `refetchOnWindowFocus: true` on frequently-changing data (sources, projects)
 
 ### Auth & Protected Routes
-- **Proxy** (`src/proxy.ts`): Redirects root `/` to `/notebooks`
-- **Auth store**: Validates token via `/notebooks` API call (actual validation, not JWT decode)
+- **Proxy** (`src/proxy.ts`): Redirects root `/` to `/projects`; legacy `/projects/*` → `/projects/*` and `/artifacts/*` → `/artifacts/*`
+- **Auth store**: Validates token via `/api/projects` probe (actual validation, not JWT decode)
 - **Interceptor**: Adds `Bearer {token}` to all requests; 401 response clears auth and redirects to login
 
 ### Modal State Management
 - **Modal hooks**: Components query modal state from stores
-- **Context**: Modals pass data (e.g., notebook ID) to child components
+- **Context**: Modals pass data (e.g., project ID) to child components
 - **Pattern**: One store per modal type; triggered by button clicks + data passing via hook arguments
 
 ### Error Handling
@@ -124,7 +124,7 @@ User interactions trigger mutations/queries via hooks, which communicate with th
 
 ## Component Organization Within Features
 
-- **Feature folders** (`source/`, `notebooks/`, `podcasts/`): Group related components
+- **Feature folders** (`source/`, `projects/`, `podcasts/`): Group related components
 - **Composition**: Larger components nest smaller ones; no deep prop drilling (state lifted to hooks)
 - **Dialog patterns**: Features define dialog components for inline actions (edit, create, delete)
 - **Props**: Components accept data + action callbacks from parent or hooks

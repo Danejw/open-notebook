@@ -10,7 +10,7 @@ interface ColumnHeaderProps {
 }
 
 /**
- * Shared compact header for notebook column panels (Sources, Notes, Chat).
+ * Shared compact header for project column panels (Sources, Notes, Chat).
  * Uses a plain div — not CardHeader — to avoid shadcn's [.border-b]:pb-6 default.
  */
 export function ColumnHeader({ title, actions, className }: ColumnHeaderProps) {

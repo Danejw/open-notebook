@@ -1,6 +1,6 @@
 # API Module
 
-FastAPI-based REST backend exposing services for notebooks, sources, notes, chat, podcasts, and AI model management.
+FastAPI-based REST backend exposing services for projects, sources, notes, chat, podcasts, and AI model management.
 
 ## Purpose
 
@@ -25,9 +25,10 @@ FastAPI application serving three architectural layers: routes (HTTP endpoints),
 - `podcast_service.py`: Orchestrates outline + transcript generation
 - `sources_service.py`: Content ingestion, vectorization, metadata
 - `notes_service.py`: Note creation, linking to sources/insights
-- `transformations_service.py`: Applies transformations to content
+- `artifacts_service.py`: Applies Artifacts to content
 - `models_service.py`: Manages AI provider/model configuration
 - `episode_profiles_service.py`: Manages podcast speaker/episode profiles
+- `project_service.py`: Project CRUD via API client
 
 ## Component Catalog
 
@@ -40,11 +41,12 @@ FastAPI application serving three architectural layers: routes (HTTP endpoints),
 - **chat_service.py**: Invokes chat.py graph; handles message history via SqliteSaver
 - **podcast_service.py**: Generates outline (outline.jinja), then transcript (transcript.jinja) for episodes
 - **sources_service.py**: Ingests files/URLs (content_core), extracts text, vectorizes, saves to SurrealDB
-- **transformations_service.py**: Applies transformations via transformation.py graph
+- **artifacts_service.py**: Applies Artifacts via artifact.py graph
 - **models_service.py**: Manages ModelManager config (AI provider overrides)
 - **episode_profiles_service.py**: CRUD for EpisodeProfile and SpeakerProfile models
 - **insights_service.py**: Generates and retrieves source insights
 - **notes_service.py**: Creates notes linked to sources/insights
+- **project_service.py**: Project CRUD via API client
 
 ### Models (Schemas)
 - **models.py**: Pydantic schemas for request/response validation
@@ -53,6 +55,8 @@ FastAPI application serving three architectural layers: routes (HTTP endpoints),
 - Custom validators for enum fields, file paths, model references
 
 ### Routers
+- **routers/projects.py**: CRUD /projects
+- **routers/artifacts.py**: CRUD /artifacts, execute, default-prompt
 - **routers/chat.py**: POST /chat
 - **routers/source_chat.py**: POST /source/{source_id}/chat
 - **routers/podcasts.py**: POST /podcasts, GET /podcasts/{id}, POST /podcasts/episodes/{id}/retry, etc.
@@ -60,11 +64,11 @@ FastAPI application serving three architectural layers: routes (HTTP endpoints),
 - **routers/sources.py**: POST /sources, GET /sources/{id}, DELETE /sources/{id}
 - **routers/models.py**: GET /models, POST /models/config
 - **routers/credentials.py**: CRUD + test + discover + migrate for credential management
-- **routers/transformations.py**: POST /transformations
 - **routers/insights.py**: GET /sources/{source_id}/insights
 - **routers/auth.py**: POST /auth/password (password-based auth)
 - **routers/languages.py**: GET /languages (available podcast languages via pycountry+babel)
 - **routers/commands.py**: GET /commands/{command_id} (job status tracking)
+- **routers/context.py**: POST /projects/{id}/context
 
 ## Common Patterns
 
@@ -72,7 +76,7 @@ FastAPI application serving three architectural layers: routes (HTTP endpoints),
 - **Async/await throughout**: All DB queries, graph invocations, AI calls are async
 - **SurrealDB transactions**: Services use repo_query, repo_create, repo_upsert from database layer
 - **Config override pattern**: Models/config override via models_service passed to graph.ainvoke(config=...)
-- **Error handling**: Custom exception hierarchy (`open_notebook.exceptions`) with global FastAPI exception handlers mapping to HTTP status codes (see Error Handling section below). LangGraph nodes use `classify_error()` to convert raw LLM provider errors into typed exceptions with user-friendly messages.
+- **Error handling**: Custom exception hierarchy (`construction_os.exceptions`) with global FastAPI exception handlers mapping to HTTP status codes (see Error Handling section below). LangGraph nodes use `classify_error()` to convert raw LLM provider errors into typed exceptions with user-friendly messages.
 - **Logging**: loguru logger in main.py; services expected to log key operations
 - **Response normalization**: All responses follow standard schema (data + metadata structure)
 
@@ -80,10 +84,10 @@ FastAPI application serving three architectural layers: routes (HTTP endpoints),
 
 - `fastapi`: FastAPI app, routers, HTTPException
 - `pydantic`: Validation models with Field, field_validator
-- `open_notebook.graphs`: chat, ask, source_chat, source, transformation graphs
-- `open_notebook.database`: SurrealDB repository functions (repo_query, repo_create, repo_upsert)
-- `open_notebook.domain`: Notebook, Source, Note, SourceInsight models
-- `open_notebook.ai.provision`: provision_langchain_model() factory
+- `construction_os.graphs`: chat, ask, source_chat, source, artifact graphs
+- `construction_os.database`: SurrealDB repository functions (repo_query, repo_create, repo_upsert)
+- `construction_os.domain`: Project, Artifact, Source, Note, SourceInsight models
+- `construction_os.ai.provision`: provision_langchain_model() factory
 - `ai_prompter`: Prompter for template rendering
 - `content_core`: extract_content() for file/URL processing
 - `esperanto`: AI provider client library (LLM, embeddings, TTS)
@@ -101,13 +105,13 @@ FastAPI application serving three architectural layers: routes (HTTP endpoints),
 - **Model override scoping**: Model config override via RunnableConfig is per-request only (not persistent)
 - **CORS open by default**: main.py CORS settings allow all origins (restrict before production)
 - **No OpenAPI security scheme**: API docs available without auth (disable before production)
-- **Services don't validate user permission**: All endpoints trust authentication layer; no per-notebook permission checks
+- **Services don't validate user permission**: All endpoints trust authentication layer; no per-project permission checks
 
 ## Error Handling
 
 ### Global Exception Handlers (`main.py`)
 
-FastAPI exception handlers map custom exception types from `open_notebook.exceptions` to HTTP status codes. All error responses include CORS headers.
+FastAPI exception handlers map custom exception types from `construction_os.exceptions` to HTTP status codes. All error responses include CORS headers.
 
 | Exception Class | HTTP Status | Use Case |
 |----------------|-------------|----------|
@@ -118,9 +122,9 @@ FastAPI exception handlers map custom exception types from `open_notebook.except
 | `ConfigurationError` | 422 | Wrong model name, missing config |
 | `NetworkError` | 502 | Cannot reach AI provider |
 | `ExternalServiceError` | 502 | Provider returned error (500/503, context length) |
-| `OpenNotebookError` (base) | 500 | Any other application error |
+| `ConstructionOSError` (base) | 500 | Any other application error |
 
-### Error Classification (`open_notebook.utils.error_classifier`)
+### Error Classification (`construction_os.utils.error_classifier`)
 
 The `classify_error()` function maps raw exceptions from LLM providers/Esperanto/LangChain into the typed exceptions above with user-friendly messages. Used in all LangGraph graph nodes and SSE streaming handlers.
 
@@ -180,16 +184,16 @@ The Credential Management system enables users to configure AI provider credenti
 - NEVER returns actual API key values (only metadata)
 - URL validation (SSRF protection) on all URL fields via `_validate_url()`
 - Allows private IPs and localhost for self-hosted services (Ollama, LM Studio)
-- Requires `OPEN_NOTEBOOK_ENCRYPTION_KEY` to be set for storing credentials
+- Requires `construction_os_ENCRYPTION_KEY` to be set for storing credentials
 
-### Domain Model: `Credential` (`open_notebook/domain/credential.py`)
+### Domain Model: `Credential` (`construction_os/domain/credential.py`)
 
 Individual credential records replacing the old `ProviderConfig` singleton. Each credential stores:
 - Provider name, display name, modalities
 - Encrypted API key (via Fernet)
 - Provider-specific config (base_url, endpoint, api_version, etc.)
 
-### Integration with Key Provider (`open_notebook/ai/key_provider.py`)
+### Integration with Key Provider (`construction_os/ai/key_provider.py`)
 
 The `key_provider` module provisions DB-stored credentials into environment variables for Esperanto compatibility:
 
@@ -210,10 +214,10 @@ No changes to authentication. The `credentials` router uses the same `PasswordAu
 
 **Auth Flow** (unchanged from `api/auth.py`):
 - `PasswordAuthMiddleware`: Global middleware checking `Authorization: Bearer {password}` header
-- Default password: `open-notebook-change-me` (set `OPEN_NOTEBOOK_PASSWORD` in production)
-- Docker secrets support via `OPEN_NOTEBOOK_PASSWORD_FILE`
+- Default password: `construction-os-change-me` (set `construction_os_PASSWORD` in production)
+- Docker secrets support via `construction_os_PASSWORD_FILE`
 
-### Connection Testing (`open_notebook/ai/connection_tester.py`)
+### Connection Testing (`construction_os/ai/connection_tester.py`)
 
 The `/credentials/{credential_id}/test` endpoint uses minimal API calls to verify credentials:
 - Loads Credential via `Credential.get(config_id)`, uses `credential.to_esperanto_config()`

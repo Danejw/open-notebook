@@ -8,7 +8,7 @@ import commands.embedding_commands as embedding_commands
 
 
 def test_legacy_embedding_commands_are_registered():
-    app_commands = registry.list_commands()["open_notebook"]
+    app_commands = registry.list_commands()["construction_os"]
 
     assert "embed_chunk" in app_commands
     assert "embed_single_item" in app_commands

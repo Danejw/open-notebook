@@ -1,6 +1,6 @@
 # Optimization Log
 
-This folder records performance investigations, implemented optimizations, and verification outcomes for Open Notebook. Use it as shared context when working on speed, perceived responsiveness, or bundle size — so we do not re-audit the same areas or regress past fixes.
+This folder records performance investigations, implemented optimizations, and verification outcomes for Construction OS. Use it as shared context when working on speed, perceived responsiveness, or bundle size — so we do not re-audit the same areas or regress past fixes.
 
 ## How to use this folder
 
@@ -29,6 +29,7 @@ This folder records performance investigations, implemented optimizations, and v
 
 ## Related docs
 
+- [Construction OS documentation (GitHub)](https://github.com/lfnovo/construction-os/tree/main/docs) — canonical hosted docs index
 - [Architecture](../7-DEVELOPMENT/architecture.md)
 - [Frontend CLAUDE.md](../../frontend/src/CLAUDE.md)
 - [RAG implementation audit](../audits/2026-07-10-rag-implementation-audit.md) (backend retrieval — separate concern)
@@ -40,7 +41,7 @@ Use these checks when validating frontend perf work:
 | Check | Tool | What to look for |
 |-------|------|------------------|
 | First meaningful paint | DevTools Performance | Sidebar/shell visible without long blank gap |
-| Network waterfall on `/notebooks` | DevTools Network | Count blocking requests before interactive UI |
+| Network waterfall on `/projects` | DevTools Network | Count blocking requests before interactive UI |
 | Navigation feel | Manual | Route change shows skeleton instantly, not blank |
 | Tab refocus jank | Manual | Returning to tab does not flash full-page spinners |
 | Bundle regression | `npm run measure:perf:compare` | Reference vs latest in `baselines/manifest.json` |

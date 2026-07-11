@@ -1,5 +1,5 @@
 """
-Transformations service layer using API.
+Artifacts service layer using API.
 """
 
 from datetime import datetime
@@ -8,134 +8,131 @@ from typing import Any, Dict, List, Union
 from loguru import logger
 
 from api.client import api_client
-from open_notebook.domain.transformation import Transformation
+from construction_os.domain.artifact import Artifact
 
 
-class TransformationsService:
-    """Service layer for transformations operations using API."""
+class ArtifactsService:
+    """Service layer for Artifacts operations using API."""
 
     def __init__(self):
-        logger.info("Using API for transformations operations")
+        logger.info("Using API for Artifacts operations")
 
-    def get_all_transformations(self) -> List[Transformation]:
-        """Get all transformations."""
-        transformations_data = api_client.get_transformations()
-        # Convert API response to Transformation objects
-        transformations = []
-        for trans_data in transformations_data:
-            transformation = Transformation(
-                name=trans_data["name"],
-                title=trans_data["title"],
-                description=trans_data["description"],
-                prompt=trans_data["prompt"],
-                apply_default=trans_data["apply_default"],
+    def get_all_artifacts(self) -> List[Artifact]:
+        """Get all Artifacts."""
+        artifacts_data = api_client.get_artifacts()
+        artifacts = []
+        for artifact_data in artifacts_data:
+            artifact = Artifact(
+                name=artifact_data["name"],
+                title=artifact_data["title"],
+                description=artifact_data["description"],
+                prompt=artifact_data["prompt"],
+                apply_default=artifact_data["apply_default"],
             )
-            transformation.id = trans_data["id"]
-            transformation.created = datetime.fromisoformat(
-                trans_data["created"].replace("Z", "+00:00")
+            artifact.id = artifact_data["id"]
+            artifact.created = datetime.fromisoformat(
+                artifact_data["created"].replace("Z", "+00:00")
             )
-            transformation.updated = datetime.fromisoformat(
-                trans_data["updated"].replace("Z", "+00:00")
+            artifact.updated = datetime.fromisoformat(
+                artifact_data["updated"].replace("Z", "+00:00")
             )
-            transformations.append(transformation)
-        return transformations
+            artifacts.append(artifact)
+        return artifacts
 
-    def get_transformation(self, transformation_id: str) -> Transformation:
-        """Get a specific transformation."""
-        response = api_client.get_transformation(transformation_id)
-        trans_data = response if isinstance(response, dict) else response[0]
-        transformation = Transformation(
-            name=trans_data["name"],
-            title=trans_data["title"],
-            description=trans_data["description"],
-            prompt=trans_data["prompt"],
-            apply_default=trans_data["apply_default"],
+    def get_artifact(self, artifact_id: str) -> Artifact:
+        """Get a specific Artifact."""
+        response = api_client.get_artifact(artifact_id)
+        artifact_data = response if isinstance(response, dict) else response[0]
+        artifact = Artifact(
+            name=artifact_data["name"],
+            title=artifact_data["title"],
+            description=artifact_data["description"],
+            prompt=artifact_data["prompt"],
+            apply_default=artifact_data["apply_default"],
         )
-        transformation.id = trans_data["id"]
-        transformation.created = datetime.fromisoformat(
-            trans_data["created"].replace("Z", "+00:00")
+        artifact.id = artifact_data["id"]
+        artifact.created = datetime.fromisoformat(
+            artifact_data["created"].replace("Z", "+00:00")
         )
-        transformation.updated = datetime.fromisoformat(
-            trans_data["updated"].replace("Z", "+00:00")
+        artifact.updated = datetime.fromisoformat(
+            artifact_data["updated"].replace("Z", "+00:00")
         )
-        return transformation
+        return artifact
 
-    def create_transformation(
+    def create_artifact(
         self,
         name: str,
         title: str,
         description: str,
         prompt: str,
         apply_default: bool = False,
-    ) -> Transformation:
-        """Create a new transformation."""
-        response = api_client.create_transformation(
+    ) -> Artifact:
+        """Create a new Artifact."""
+        response = api_client.create_artifact(
             name=name,
             title=title,
             description=description,
             prompt=prompt,
             apply_default=apply_default,
         )
-        trans_data = response if isinstance(response, dict) else response[0]
-        transformation = Transformation(
-            name=trans_data["name"],
-            title=trans_data["title"],
-            description=trans_data["description"],
-            prompt=trans_data["prompt"],
-            apply_default=trans_data["apply_default"],
+        artifact_data = response if isinstance(response, dict) else response[0]
+        artifact = Artifact(
+            name=artifact_data["name"],
+            title=artifact_data["title"],
+            description=artifact_data["description"],
+            prompt=artifact_data["prompt"],
+            apply_default=artifact_data["apply_default"],
         )
-        transformation.id = trans_data["id"]
-        transformation.created = datetime.fromisoformat(
-            trans_data["created"].replace("Z", "+00:00")
+        artifact.id = artifact_data["id"]
+        artifact.created = datetime.fromisoformat(
+            artifact_data["created"].replace("Z", "+00:00")
         )
-        transformation.updated = datetime.fromisoformat(
-            trans_data["updated"].replace("Z", "+00:00")
+        artifact.updated = datetime.fromisoformat(
+            artifact_data["updated"].replace("Z", "+00:00")
         )
-        return transformation
+        return artifact
 
-    def update_transformation(self, transformation: Transformation) -> Transformation:
-        """Update a transformation."""
-        if not transformation.id:
-            raise ValueError("Transformation ID is required for update")
+    def update_artifact(self, artifact: Artifact) -> Artifact:
+        """Update an Artifact."""
+        if not artifact.id:
+            raise ValueError("Artifact ID is required for update")
 
         updates = {
-            "name": transformation.name,
-            "title": transformation.title,
-            "description": transformation.description,
-            "prompt": transformation.prompt,
-            "apply_default": transformation.apply_default,
+            "name": artifact.name,
+            "title": artifact.title,
+            "description": artifact.description,
+            "prompt": artifact.prompt,
+            "apply_default": artifact.apply_default,
         }
-        response = api_client.update_transformation(transformation.id, **updates)
-        trans_data = response if isinstance(response, dict) else response[0]
+        response = api_client.update_artifact(artifact.id, **updates)
+        artifact_data = response if isinstance(response, dict) else response[0]
 
-        # Update the transformation object with the response
-        transformation.name = trans_data["name"]
-        transformation.title = trans_data["title"]
-        transformation.description = trans_data["description"]
-        transformation.prompt = trans_data["prompt"]
-        transformation.apply_default = trans_data["apply_default"]
-        transformation.updated = datetime.fromisoformat(
-            trans_data["updated"].replace("Z", "+00:00")
+        artifact.name = artifact_data["name"]
+        artifact.title = artifact_data["title"]
+        artifact.description = artifact_data["description"]
+        artifact.prompt = artifact_data["prompt"]
+        artifact.apply_default = artifact_data["apply_default"]
+        artifact.updated = datetime.fromisoformat(
+            artifact_data["updated"].replace("Z", "+00:00")
         )
 
-        return transformation
+        return artifact
 
-    def delete_transformation(self, transformation_id: str) -> bool:
-        """Delete a transformation."""
-        api_client.delete_transformation(transformation_id)
+    def delete_artifact(self, artifact_id: str) -> bool:
+        """Delete an Artifact."""
+        api_client.delete_artifact(artifact_id)
         return True
 
-    def execute_transformation(
-        self, transformation_id: str, input_text: str, model_id: str
+    def execute_artifact(
+        self, artifact_id: str, input_text: str, model_id: str
     ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
-        """Execute a transformation on input text."""
-        result = api_client.execute_transformation(
-            transformation_id=transformation_id,
+        """Execute an Artifact on input text."""
+        return api_client.execute_artifact(
+            artifact_id=artifact_id,
             input_text=input_text,
             model_id=model_id,
         )
-        return result
 
 
 # Global service instance
-transformations_service = TransformationsService()
+artifacts_service = ArtifactsService()

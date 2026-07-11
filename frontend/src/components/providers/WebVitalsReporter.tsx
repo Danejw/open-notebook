@@ -17,18 +17,18 @@ interface WebVitalsStore {
 }
 
 type WindowWithWebVitals = Window & {
-  __OPEN_NOTEBOOK_WEB_VITALS__?: WebVitalsStore
+  __construction_os_WEB_VITALS__?: WebVitalsStore
 }
 
 const MAX_SAMPLES = 50
 
 /**
  * Keep a bounded, automation-readable Web Vitals history without network calls.
- * Browser benchmarks can read `window.__OPEN_NOTEBOOK_WEB_VITALS__`.
+ * Browser benchmarks can read `window.__construction_os_WEB_VITALS__`.
  */
 function recordWebVital(metric: WebVitalSample) {
   const target = window as WindowWithWebVitals
-  const store = target.__OPEN_NOTEBOOK_WEB_VITALS__ ?? {
+  const store = target.__construction_os_WEB_VITALS__ ?? {
     latest: {},
     samples: [],
   }
@@ -39,7 +39,7 @@ function recordWebVital(metric: WebVitalSample) {
     store.samples.splice(0, store.samples.length - MAX_SAMPLES)
   }
 
-  target.__OPEN_NOTEBOOK_WEB_VITALS__ = store
+  target.__construction_os_WEB_VITALS__ = store
 
   if (process.env.NODE_ENV === 'development') {
     console.debug('[Web Vitals]', metric)

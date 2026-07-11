@@ -4,129 +4,125 @@ from fastapi import APIRouter, HTTPException
 from loguru import logger
 
 from api.models import (
+    ArtifactCreate,
+    ArtifactExecuteRequest,
+    ArtifactExecuteResponse,
+    ArtifactResponse,
+    ArtifactUpdate,
     DefaultPromptResponse,
     DefaultPromptUpdate,
-    TransformationCreate,
-    TransformationExecuteRequest,
-    TransformationExecuteResponse,
-    TransformationResponse,
-    TransformationUpdate,
 )
-from open_notebook.ai.models import Model
-from open_notebook.domain.transformation import DefaultPrompts, Transformation
-from open_notebook.exceptions import InvalidInputError, OpenNotebookError
-from open_notebook.graphs.transformation import graph as transformation_graph
+from construction_os.ai.models import Model
+from construction_os.domain.artifact import Artifact, DefaultPrompts
+from construction_os.exceptions import ConstructionOSError, InvalidInputError
+from construction_os.graphs.artifact import graph as artifact_graph
 
 router = APIRouter()
 
 
-@router.get("/transformations", response_model=List[TransformationResponse])
-async def get_transformations():
-    """Get all transformations."""
+@router.get("/artifacts", response_model=List[ArtifactResponse])
+async def get_artifacts():
+    """Get all artifacts."""
     try:
-        transformations = await Transformation.get_all(order_by="name asc")
+        artifacts = await Artifact.get_all(order_by="name asc")
 
         return [
-            TransformationResponse(
-                id=transformation.id or "",
-                name=transformation.name,
-                title=transformation.title,
-                description=transformation.description,
-                prompt=transformation.prompt,
-                apply_default=transformation.apply_default,
-                created=str(transformation.created),
-                updated=str(transformation.updated),
+            ArtifactResponse(
+                id=artifact.id or "",
+                name=artifact.name,
+                title=artifact.title,
+                description=artifact.description,
+                prompt=artifact.prompt,
+                apply_default=artifact.apply_default,
+                created=str(artifact.created),
+                updated=str(artifact.updated),
             )
-            for transformation in transformations
+            for artifact in artifacts
         ]
     except Exception as e:
-        logger.error(f"Error fetching transformations: {str(e)}")
+        logger.error(f"Error fetching artifacts: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Error fetching transformations: {str(e)}"
+            status_code=500, detail=f"Error fetching artifacts: {str(e)}"
         )
 
 
-@router.post("/transformations", response_model=TransformationResponse)
-async def create_transformation(transformation_data: TransformationCreate):
-    """Create a new transformation."""
+@router.post("/artifacts", response_model=ArtifactResponse)
+async def create_artifact(artifact_data: ArtifactCreate):
+    """Create a new artifact."""
     try:
-        new_transformation = Transformation(
-            name=transformation_data.name,
-            title=transformation_data.title,
-            description=transformation_data.description,
-            prompt=transformation_data.prompt,
-            apply_default=transformation_data.apply_default,
+        new_artifact = Artifact(
+            name=artifact_data.name,
+            title=artifact_data.title,
+            description=artifact_data.description,
+            prompt=artifact_data.prompt,
+            apply_default=artifact_data.apply_default,
         )
-        await new_transformation.save()
+        await new_artifact.save()
 
-        return TransformationResponse(
-            id=new_transformation.id or "",
-            name=new_transformation.name,
-            title=new_transformation.title,
-            description=new_transformation.description,
-            prompt=new_transformation.prompt,
-            apply_default=new_transformation.apply_default,
-            created=str(new_transformation.created),
-            updated=str(new_transformation.updated),
+        return ArtifactResponse(
+            id=new_artifact.id or "",
+            name=new_artifact.name,
+            title=new_artifact.title,
+            description=new_artifact.description,
+            prompt=new_artifact.prompt,
+            apply_default=new_artifact.apply_default,
+            created=str(new_artifact.created),
+            updated=str(new_artifact.updated),
         )
     except InvalidInputError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error creating transformation: {str(e)}")
+        logger.error(f"Error creating artifact: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Error creating transformation: {str(e)}"
+            status_code=500, detail=f"Error creating artifact: {str(e)}"
         )
 
 
-@router.post("/transformations/execute", response_model=TransformationExecuteResponse)
-async def execute_transformation(execute_request: TransformationExecuteRequest):
-    """Execute a transformation on input text."""
+@router.post("/artifacts/execute", response_model=ArtifactExecuteResponse)
+async def execute_artifact(execute_request: ArtifactExecuteRequest):
+    """Execute an artifact on input text."""
     try:
-        # Validate transformation exists
-        transformation = await Transformation.get(execute_request.transformation_id)
-        if not transformation:
-            raise HTTPException(status_code=404, detail="Transformation not found")
+        artifact = await Artifact.get(execute_request.artifact_id)
+        if not artifact:
+            raise HTTPException(status_code=404, detail="Artifact not found")
 
-        # Validate model exists
         model = await Model.get(execute_request.model_id)
         if not model:
             raise HTTPException(status_code=404, detail="Model not found")
 
-        # Execute the transformation
-        result = await transformation_graph.ainvoke(
+        result = await artifact_graph.ainvoke(
             dict(  # type: ignore[arg-type]
                 input_text=execute_request.input_text,
-                transformation=transformation,
+                artifact=artifact,
             ),
             config=dict(configurable={"model_id": execute_request.model_id}),
         )
 
-        return TransformationExecuteResponse(
+        return ArtifactExecuteResponse(
             output=result["output"],
-            transformation_id=execute_request.transformation_id,
+            artifact_id=execute_request.artifact_id,
             model_id=execute_request.model_id,
         )
 
     except HTTPException:
         raise
-    except OpenNotebookError:
-        raise  # Let global exception handlers return proper status codes
+    except ConstructionOSError:
+        raise
     except Exception as e:
-        logger.error(f"Error executing transformation: {str(e)}")
+        logger.error(f"Error executing artifact: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Error executing transformation: {str(e)}"
+            status_code=500, detail=f"Error executing artifact: {str(e)}"
         )
 
 
-@router.get("/transformations/default-prompt", response_model=DefaultPromptResponse)
+@router.get("/artifacts/default-prompt", response_model=DefaultPromptResponse)
 async def get_default_prompt():
-    """Get the default transformation prompt."""
+    """Get the default artifact prompt."""
     try:
         default_prompts: DefaultPrompts = await DefaultPrompts.get_instance()  # type: ignore[assignment]
 
         return DefaultPromptResponse(
-            transformation_instructions=default_prompts.transformation_instructions
-            or ""
+            artifact_instructions=default_prompts.artifact_instructions or ""
         )
     except Exception as e:
         logger.error(f"Error fetching default prompt: {str(e)}")
@@ -135,19 +131,17 @@ async def get_default_prompt():
         )
 
 
-@router.put("/transformations/default-prompt", response_model=DefaultPromptResponse)
+@router.put("/artifacts/default-prompt", response_model=DefaultPromptResponse)
 async def update_default_prompt(prompt_update: DefaultPromptUpdate):
-    """Update the default transformation prompt."""
+    """Update the default artifact prompt."""
     try:
         default_prompts: DefaultPrompts = await DefaultPrompts.get_instance()  # type: ignore[assignment]
 
-        default_prompts.transformation_instructions = (
-            prompt_update.transformation_instructions
-        )
+        default_prompts.artifact_instructions = prompt_update.artifact_instructions
         await default_prompts.update()
 
         return DefaultPromptResponse(
-            transformation_instructions=default_prompts.transformation_instructions
+            artifact_instructions=default_prompts.artifact_instructions
         )
     except Exception as e:
         logger.error(f"Error updating default prompt: {str(e)}")
@@ -156,97 +150,90 @@ async def update_default_prompt(prompt_update: DefaultPromptUpdate):
         )
 
 
-@router.get(
-    "/transformations/{transformation_id}", response_model=TransformationResponse
-)
-async def get_transformation(transformation_id: str):
-    """Get a specific transformation by ID."""
+@router.get("/artifacts/{artifact_id}", response_model=ArtifactResponse)
+async def get_artifact(artifact_id: str):
+    """Get a specific artifact by ID."""
     try:
-        transformation = await Transformation.get(transformation_id)
-        if not transformation:
-            raise HTTPException(status_code=404, detail="Transformation not found")
+        artifact = await Artifact.get(artifact_id)
+        if not artifact:
+            raise HTTPException(status_code=404, detail="Artifact not found")
 
-        return TransformationResponse(
-            id=transformation.id or "",
-            name=transformation.name,
-            title=transformation.title,
-            description=transformation.description,
-            prompt=transformation.prompt,
-            apply_default=transformation.apply_default,
-            created=str(transformation.created),
-            updated=str(transformation.updated),
+        return ArtifactResponse(
+            id=artifact.id or "",
+            name=artifact.name,
+            title=artifact.title,
+            description=artifact.description,
+            prompt=artifact.prompt,
+            apply_default=artifact.apply_default,
+            created=str(artifact.created),
+            updated=str(artifact.updated),
         )
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching transformation {transformation_id}: {str(e)}")
+        logger.error(f"Error fetching artifact {artifact_id}: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Error fetching transformation: {str(e)}"
+            status_code=500, detail=f"Error fetching artifact: {str(e)}"
         )
 
 
-@router.put(
-    "/transformations/{transformation_id}", response_model=TransformationResponse
-)
-async def update_transformation(
-    transformation_id: str, transformation_update: TransformationUpdate
-):
-    """Update a transformation."""
+@router.put("/artifacts/{artifact_id}", response_model=ArtifactResponse)
+async def update_artifact(artifact_id: str, artifact_update: ArtifactUpdate):
+    """Update an artifact."""
     try:
-        transformation = await Transformation.get(transformation_id)
-        if not transformation:
-            raise HTTPException(status_code=404, detail="Transformation not found")
+        artifact = await Artifact.get(artifact_id)
+        if not artifact:
+            raise HTTPException(status_code=404, detail="Artifact not found")
 
-        # Update only provided fields
-        if transformation_update.name is not None:
-            transformation.name = transformation_update.name
-        if transformation_update.title is not None:
-            transformation.title = transformation_update.title
-        if transformation_update.description is not None:
-            transformation.description = transformation_update.description
-        if transformation_update.prompt is not None:
-            transformation.prompt = transformation_update.prompt
-        if transformation_update.apply_default is not None:
-            transformation.apply_default = transformation_update.apply_default
+        if artifact_update.name is not None:
+            artifact.name = artifact_update.name
+        if artifact_update.title is not None:
+            artifact.title = artifact_update.title
+        if artifact_update.description is not None:
+            artifact.description = artifact_update.description
+        if artifact_update.prompt is not None:
+            artifact.prompt = artifact_update.prompt
+        if artifact_update.apply_default is not None:
+            artifact.apply_default = artifact_update.apply_default
 
-        await transformation.save()
+        await artifact.save()
 
-        return TransformationResponse(
-            id=transformation.id or "",
-            name=transformation.name,
-            title=transformation.title,
-            description=transformation.description,
-            prompt=transformation.prompt,
-            apply_default=transformation.apply_default,
-            created=str(transformation.created),
-            updated=str(transformation.updated),
+        return ArtifactResponse(
+            id=artifact.id or "",
+            name=artifact.name,
+            title=artifact.title,
+            description=artifact.description,
+            prompt=artifact.prompt,
+            apply_default=artifact.apply_default,
+            created=str(artifact.created),
+            updated=str(artifact.updated),
         )
     except HTTPException:
         raise
     except InvalidInputError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error updating transformation {transformation_id}: {str(e)}")
+        logger.error(f"Error updating artifact {artifact_id}: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Error updating transformation: {str(e)}"
+            status_code=500, detail=f"Error updating artifact: {str(e)}"
         )
 
 
-@router.delete("/transformations/{transformation_id}")
-async def delete_transformation(transformation_id: str):
-    """Delete a transformation."""
+@router.delete("/artifacts/{artifact_id}")
+async def delete_artifact(artifact_id: str):
+    """Delete an artifact."""
     try:
-        transformation = await Transformation.get(transformation_id)
-        if not transformation:
-            raise HTTPException(status_code=404, detail="Transformation not found")
+        artifact = await Artifact.get(artifact_id)
+        if not artifact:
+            raise HTTPException(status_code=404, detail="Artifact not found")
 
-        await transformation.delete()
+        await artifact.delete()
 
-        return {"message": "Transformation deleted successfully"}
+        return {"message": "Artifact deleted successfully"}
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting transformation {transformation_id}: {str(e)}")
+        logger.error(f"Error deleting artifact {artifact_id}: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Error deleting transformation: {str(e)}"
+            status_code=500, detail=f"Error deleting artifact: {str(e)}"
         )

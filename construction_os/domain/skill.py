@@ -6,8 +6,8 @@ from typing import Any, ClassVar, Dict, List, Optional, Union
 
 from pydantic import Field, field_validator
 
-from open_notebook.database.repository import ensure_record_id, repo_query
-from open_notebook.domain.base import ObjectModel
+from construction_os.database.repository import ensure_record_id, repo_query
+from construction_os.domain.base import ObjectModel
 
 
 class Skill(ObjectModel):

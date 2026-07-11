@@ -1,4 +1,4 @@
-export interface NotebookResponse {
+export interface ProjectResponse {
   id: string
   name: string
   description: string
@@ -40,7 +40,7 @@ export interface SourceListResponse {
 
 export interface SourceDetailResponse extends SourceListResponse {
   full_text: string
-  notebooks?: string[]  // List of notebook IDs this source is linked to
+  projects?: string[]
 }
 
 export type SourceResponse = SourceDetailResponse
@@ -60,26 +60,26 @@ export interface SettingsResponse {
   youtube_preferred_languages?: string[]
 }
 
-export interface CreateNotebookRequest {
+export interface CreateProjectRequest {
   name: string
   description?: string
 }
 
-export interface UpdateNotebookRequest {
+export interface UpdateProjectRequest {
   name?: string
   description?: string
   archived?: boolean
 }
 
-export interface NotebookDeletePreview {
-  notebook_id: string
-  notebook_name: string
+export interface ProjectDeletePreview {
+  project_id: string
+  project_name: string
   note_count: number
   exclusive_source_count: number
   shared_source_count: number
 }
 
-export interface NotebookDeleteResponse {
+export interface ProjectDeleteResponse {
   message: string
   deleted_notes: number
   deleted_sources: number
@@ -90,21 +90,21 @@ export interface CreateNoteRequest {
   title?: string
   content: string
   note_type?: string
-  notebook_id?: string
+  project_id?: string
 }
 
 export interface CreateSourceRequest {
-  // Backward compatibility: support old single notebook_id
-  notebook_id?: string
-  // New multi-notebook support
-  notebooks?: string[]
+  // Single-project convenience field.
+  project_id?: string
+  // Multi-project associations.
+  projects?: string[]
   // Required fields
   type: 'link' | 'upload' | 'text'
   url?: string
   file_path?: string
   content?: string
   title?: string
-  transformations?: string[]
+  artifacts?: string[]
   embed?: boolean
   delete_source?: boolean
   // New async processing support
@@ -191,36 +191,36 @@ export interface SourceChatStreamEvent {
   timestamp?: string
 }
 
-// Notebook Chat Types
-export interface NotebookChatSession extends BaseChatSession {
-  notebook_id: string
+// Project Chat Types
+export interface ProjectChatSession extends BaseChatSession {
+  project_id: string
 }
 
-export interface NotebookChatMessage {
+export interface ProjectChatMessage {
   id: string
   type: 'human' | 'ai'
   content: string
   timestamp?: string
 }
 
-export interface NotebookChatSessionWithMessages extends NotebookChatSession {
-  messages: NotebookChatMessage[]
+export interface ProjectChatSessionWithMessages extends ProjectChatSession {
+  messages: ProjectChatMessage[]
 }
 
-export interface CreateNotebookChatSessionRequest {
-  notebook_id: string
+export interface CreateProjectChatSessionRequest {
+  project_id: string
   title?: string
   model_override?: string
   skill_ids?: string[]
 }
 
-export interface UpdateNotebookChatSessionRequest {
+export interface UpdateProjectChatSessionRequest {
   title?: string
   model_override?: string | null
   skill_ids?: string[]
 }
 
-export interface SendNotebookChatMessageRequest {
+export interface SendProjectChatMessageRequest {
   session_id: string
   message: string
   /** @deprecated Prefer context_config so retrieval streams as an AG-UI step */
@@ -239,7 +239,7 @@ export interface SendNotebookChatMessageRequest {
 }
 
 export interface BuildContextRequest {
-  notebook_id: string
+  project_id: string
   context_config: {
     sources: Record<string, string>
     notes: Record<string, string>

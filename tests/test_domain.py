@@ -1,5 +1,5 @@
 """
-Unit tests for the open_notebook.domain module.
+Unit tests for the construction_os.domain module.
 
 This test suite focuses on validation logic, business rules, and data structures
 that can be tested without database mocking.
@@ -15,13 +15,13 @@ import pytest
 from pydantic import ValidationError
 
 from api.podcast_service import PodcastService
-from open_notebook.ai.models import ModelManager
-from open_notebook.domain.base import RecordModel
-from open_notebook.domain.content_settings import ContentSettings
-from open_notebook.domain.notebook import Asset, Note, Notebook, Source
-from open_notebook.domain.transformation import Transformation
-from open_notebook.exceptions import InvalidInputError
-from open_notebook.podcasts.models import EpisodeProfile, SpeakerProfile
+from construction_os.ai.models import ModelManager
+from construction_os.domain.base import RecordModel
+from construction_os.domain.content_settings import ContentSettings
+from construction_os.domain.project import Asset, Note, Project, Source
+from construction_os.domain.artifact import Artifact
+from construction_os.exceptions import InvalidInputError
+from construction_os.podcasts.models import EpisodeProfile, SpeakerProfile
 
 # ============================================================================
 # TEST SUITE 1: RecordModel Singleton Pattern
@@ -73,39 +73,39 @@ class TestModelManager:
 
 
 # ============================================================================
-# TEST SUITE 3: Notebook Domain Logic
+# TEST SUITE 3: Project Domain Logic
 # ============================================================================
 
 
-class TestNotebookDomain:
-    """Test suite for Notebook validation and business rules."""
+class TestProjectDomain:
+    """Test suite for Project validation and business rules."""
 
-    def test_notebook_name_validation(self):
+    def test_project_name_validation(self):
         """Test empty/whitespace names are rejected."""
         # Empty name should raise error
-        with pytest.raises(InvalidInputError, match="Notebook name cannot be empty"):
-            Notebook(name="", description="Test")
+        with pytest.raises(InvalidInputError, match="Project name cannot be empty"):
+            Project(name="", description="Test")
 
         # Whitespace-only name should raise error
-        with pytest.raises(InvalidInputError, match="Notebook name cannot be empty"):
-            Notebook(name="   ", description="Test")
+        with pytest.raises(InvalidInputError, match="Project name cannot be empty"):
+            Project(name="   ", description="Test")
 
         # Valid name should work
-        notebook = Notebook(name="Valid Name", description="Test")
-        assert notebook.name == "Valid Name"
+        project = Project(name="Valid Name", description="Test")
+        assert project.name == "Valid Name"
 
-    def test_notebook_archived_flag(self):
+    def test_project_archived_flag(self):
         """Test archived flag defaults to False."""
-        notebook = Notebook(name="Test", description="Test")
-        assert notebook.archived is False
+        project = Project(name="Test", description="Test")
+        assert project.archived is False
 
-        notebook_archived = Notebook(name="Test", description="Test", archived=True)
-        assert notebook_archived.archived is True
+        project_archived = Project(name="Test", description="Test", archived=True)
+        assert project_archived.archived is True
 
     @pytest.mark.asyncio
-    async def test_notebook_get_context_includes_source_full_text(self):
-        """Test notebook context includes full source content for podcasts."""
-        notebook = Notebook(id="notebook:test", name="Test", description="Test")
+    async def test_project_get_context_includes_source_full_text(self):
+        """Test Project context includes full source content for podcasts."""
+        project = Project(id="project:test", name="Test", description="Test")
         sources = [
             Source(
                 id="source:first",
@@ -131,28 +131,28 @@ class TestNotebookDomain:
             return []
 
         with (
-            patch.object(Notebook, "get_sources", new=fake_get_sources),
-            patch.object(Notebook, "get_notes", new=fake_get_notes),
+            patch.object(Project, "get_sources", new=fake_get_sources),
+            patch.object(Project, "get_notes", new=fake_get_notes),
             patch.object(Source, "get_insights", new=fake_get_insights),
         ):
-            context = await notebook.get_context()
+            context = await project.get_context()
 
         assert get_sources_calls == [True]
         assert "## Source: First Source" in context
         assert "First source full text for podcast generation." in context
         assert "## Source: Second Source" in context
         assert "Second source full text for podcast generation." in context
-        assert "Notebook(id=" not in context
+        assert "Project(id=" not in context
 
     @pytest.mark.asyncio
-    async def test_notebook_get_context_includes_note_content(self):
-        """Test notebook context includes linked note content."""
-        notebook = Notebook(id="notebook:test", name="Test", description="Test")
+    async def test_project_get_context_includes_note_content(self):
+        """Test Project context includes linked note content."""
+        project = Project(id="project:test", name="Test", description="Test")
         notes = [
             Note(
                 id="note:first",
                 title="Research Note",
-                content="Important notebook note for the podcast.",
+                content="Important Project note for the podcast.",
             )
         ]
         get_notes_calls = []
@@ -165,19 +165,19 @@ class TestNotebookDomain:
             return notes
 
         with (
-            patch.object(Notebook, "get_sources", new=fake_get_sources),
-            patch.object(Notebook, "get_notes", new=fake_get_notes),
+            patch.object(Project, "get_sources", new=fake_get_sources),
+            patch.object(Project, "get_notes", new=fake_get_notes),
         ):
-            context = await notebook.get_context()
+            context = await project.get_context()
 
         assert get_notes_calls == [True]
         assert "## Note: Research Note" in context
-        assert "Important notebook note for the podcast." in context
+        assert "Important Project note for the podcast." in context
 
     @pytest.mark.asyncio
-    async def test_notebook_get_context_returns_empty_string_without_content(self):
-        """Test notebooks with no source or note content produce empty context."""
-        notebook = Notebook(id="notebook:test", name="Test", description="Test")
+    async def test_project_get_context_returns_empty_string_without_content(self):
+        """Test projects with no source or note content produce empty context."""
+        project = Project(id="project:test", name="Test", description="Test")
 
         async def fake_get_sources(self, include_full_text=False):
             return []
@@ -186,15 +186,15 @@ class TestNotebookDomain:
             return []
 
         with (
-            patch.object(Notebook, "get_sources", new=fake_get_sources),
-            patch.object(Notebook, "get_notes", new=fake_get_notes),
+            patch.object(Project, "get_sources", new=fake_get_sources),
+            patch.object(Project, "get_notes", new=fake_get_notes),
         ):
-            assert await notebook.get_context() == ""
+            assert await project.get_context() == ""
 
     @pytest.mark.asyncio
-    async def test_notebook_get_context_propagates_source_errors(self):
-        """Test source context failures are not swallowed by notebook context."""
-        notebook = Notebook(id="notebook:test", name="Test", description="Test")
+    async def test_project_get_context_propagates_source_errors(self):
+        """Test source context failures are not swallowed by Project context."""
+        project = Project(id="project:test", name="Test", description="Test")
         source = Source(id="source:first", title="First Source")
 
         async def fake_get_sources(self, include_full_text=False):
@@ -207,12 +207,12 @@ class TestNotebookDomain:
             raise RuntimeError("source context failed")
 
         with (
-            patch.object(Notebook, "get_sources", new=fake_get_sources),
-            patch.object(Notebook, "get_notes", new=fake_get_notes),
+            patch.object(Project, "get_sources", new=fake_get_sources),
+            patch.object(Project, "get_notes", new=fake_get_notes),
             patch.object(Source, "get_context", new=fake_get_context),
         ):
             with pytest.raises(RuntimeError, match="source context failed"):
-                await notebook.get_context()
+                await project.get_context()
 
 
 # ============================================================================
@@ -342,11 +342,11 @@ class TestSourceDomain:
         """Test that vectorize() submits embed_source command when text is valid."""
         source = Source(id="source:test_valid", title="Test", full_text="Real content")
         with patch(
-            "open_notebook.domain.notebook.submit_command", return_value="command:123"
+            "construction_os.domain.project.submit_command", return_value="command:123"
         ) as mock_submit:
             result = await source.vectorize()
             mock_submit.assert_called_once_with(
-                "open_notebook",
+                "construction_os",
                 "embed_source",
                 {"source_id": "source:test_valid"},
             )
@@ -451,12 +451,12 @@ class TestPodcastDomain:
 
 
 class TestPodcastService:
-    """Test suite for podcast service notebook content resolution."""
+    """Test suite for podcast service Project content resolution."""
 
     @pytest.mark.asyncio
-    async def test_submit_generation_job_uses_notebook_context_content(self):
-        """Test notebook podcast jobs submit real source content, not model repr."""
-        notebook = Notebook(id="notebook:test", name="Test", description="Test")
+    async def test_submit_generation_job_uses_project_context_content(self):
+        """Test Project podcast jobs submit real source content, not model repr."""
+        project = Project(id="project:test", name="Test", description="Test")
         sources = [
             Source(
                 id="source:first",
@@ -498,9 +498,9 @@ class TestPodcastService:
             patch.object(
                 SpeakerProfile, "get_by_name", new=AsyncMock(return_value=object())
             ),
-            patch.object(Notebook, "get", new=AsyncMock(return_value=notebook)),
-            patch.object(Notebook, "get_sources", new=fake_get_sources),
-            patch.object(Notebook, "get_notes", new=fake_get_notes),
+            patch.object(Project, "get", new=AsyncMock(return_value=project)),
+            patch.object(Project, "get_sources", new=fake_get_sources),
+            patch.object(Project, "get_notes", new=fake_get_notes),
             patch.object(Source, "get_insights", new=fake_get_insights),
             patch("api.podcast_service.submit_command", new=fake_submit_command),
             patch.dict(
@@ -511,27 +511,27 @@ class TestPodcastService:
                 episode_profile_name="Episode",
                 speaker_profile_name="Speakers",
                 episode_name="Episode Name",
-                notebook_id="notebook:test",
+                project_id="project:test",
             )
 
         assert job_id == "command:podcast"
         content = submitted_args["content"]
         assert "First source full text for submitted podcast content." in content
         assert "Second source full text for submitted podcast content." in content
-        assert "Notebook(id=" not in content
+        assert "Project(id=" not in content
 
 
 # ============================================================================
-# TEST SUITE 7: Transformation Domain
+# TEST SUITE 7: Artifact Domain
 # ============================================================================
 
 
-class TestTransformationDomain:
-    """Test suite for Transformation domain model."""
+class TestArtifactDomain:
+    """Test suite for Artifact domain model."""
 
-    def test_transformation_creation(self):
-        """Test transformation model creation."""
-        transform = Transformation(
+    def test_Artifact_creation(self):
+        """Test Artifact model creation."""
+        transform = Artifact(
             name="summarize",
             title="Summarize Content",
             description="Creates a summary",
@@ -555,7 +555,7 @@ class TestContentSettings:
         """Test ContentSettings has proper defaults."""
         settings = ContentSettings()
 
-        assert settings.record_id == "open_notebook:content_settings"
+        assert settings.record_id == "construction_os:content_settings"
         assert settings.default_content_processing_engine_doc == "auto"
         assert settings.default_embedding_option == "ask"
         assert settings.auto_delete_files == "yes"
@@ -626,7 +626,7 @@ class TestCredentialConfigBag:
     `config` object instead of a dedicated SCHEMAFULL column."""
 
     def test_prepare_save_data_packs_num_ctx_into_config(self):
-        from open_notebook.domain.credential import Credential
+        from construction_os.domain.credential import Credential
 
         cred = Credential(name="Local Ollama", provider="ollama", num_ctx=16384)
         data = cred._prepare_save_data()
@@ -635,7 +635,7 @@ class TestCredentialConfigBag:
         assert "num_ctx" not in data  # not a top-level column anymore
 
     def test_prepare_save_data_config_none_when_no_extras(self):
-        from open_notebook.domain.credential import Credential
+        from construction_os.domain.credential import Credential
 
         cred = Credential(name="OpenAI", provider="openai")
         data = cred._prepare_save_data()
@@ -644,7 +644,7 @@ class TestCredentialConfigBag:
         assert "num_ctx" not in data
 
     def test_db_row_with_config_lifts_num_ctx_to_top_level(self):
-        from open_notebook.domain.credential import Credential
+        from construction_os.domain.credential import Credential
 
         # Simulates a row read back from the DB
         cred = Credential(
@@ -656,7 +656,7 @@ class TestCredentialConfigBag:
         assert cred.num_ctx == 8192  # mirrored from config onto the convenience field
 
     def test_num_ctx_round_trips_through_save_and_load(self):
-        from open_notebook.domain.credential import Credential
+        from construction_os.domain.credential import Credential
 
         original = Credential(name="Local Ollama", provider="ollama", num_ctx=4096)
         persisted = original._prepare_save_data()
@@ -671,7 +671,7 @@ class TestCredentialConfigBag:
         assert reloaded.to_esperanto_config()["num_ctx"] == 4096
 
     def test_null_config_loads_without_extras(self):
-        from open_notebook.domain.credential import Credential
+        from construction_os.domain.credential import Credential
 
         cred = Credential(name="OpenAI", provider="openai", config=None)
 
@@ -680,7 +680,7 @@ class TestCredentialConfigBag:
         assert cred._prepare_save_data()["config"] is None
 
     def test_unmapped_config_keys_are_preserved_on_save(self):
-        from open_notebook.domain.credential import Credential
+        from construction_os.domain.credential import Credential
 
         # A newer version may have written config keys this model doesn't map.
         # They must survive a load/save round-trip rather than be clobbered
@@ -696,7 +696,7 @@ class TestCredentialConfigBag:
         assert data["config"] == {"num_ctx": 8192, "future_option": "keep-me"}
 
     def test_clearing_num_ctx_keeps_other_config_keys(self):
-        from open_notebook.domain.credential import Credential
+        from construction_os.domain.credential import Credential
 
         cred = Credential(
             name="Local Ollama",
@@ -709,7 +709,7 @@ class TestCredentialConfigBag:
         assert data["config"] == {"future_option": "keep-me"}
 
     def test_mirrored_num_ctx_is_validated_as_int(self):
-        from open_notebook.domain.credential import Credential
+        from construction_os.domain.credential import Credential
 
         # A value coming from the flexible config bag is routed through normal
         # Pydantic field validation, not set raw.

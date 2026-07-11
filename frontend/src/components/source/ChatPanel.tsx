@@ -36,9 +36,9 @@ import {
   columnFooterClassName,
   columnHeaderGhostButtonClassName,
   columnHeaderIconClassName,
-} from '@/components/notebooks/ColumnHeader'
+} from '@/components/projects/ColumnHeader'
 
-interface NotebookContextStats {
+interface ProjectContextStats {
   sourcesInsights: number
   sourcesFull: number
   notesCount: number
@@ -66,12 +66,9 @@ interface ChatPanelProps {
   loadingSessions?: boolean
   // Generic props for reusability
   title?: string
-  contextType?: 'source' | 'notebook'
-  // Notebook context stats (for notebook chat)
-  notebookContextStats?: NotebookContextStats
-  // Notebook ID for saving notes
-  notebookId?: string
-  // Skills selection for notebook chat
+  contextType?: 'source' | 'project'
+  projectContextStats?: ProjectContextStats
+  projectId?: string
   selectedSkillIds?: string[]
   onSkillIdsChange?: (ids: string[]) => void
   // MCP tools selection (transient per message)
@@ -99,8 +96,8 @@ export function ChatPanel({
   loadingSessions = false,
   title,
   contextType = 'source',
-  notebookContextStats,
-  notebookId,
+  projectContextStats,
+  projectId,
   selectedSkillIds,
   onSkillIdsChange,
   selectedMcpToolIds,
@@ -214,7 +211,7 @@ export function ChatPanel({
     title ||
     (contextType === 'source'
       ? t('chat.chatWith').replace('{name}', t('navigation.sources'))
-      : t('chat.chatWith').replace('{name}', t('common.notebook')))
+      : t('chat.chatWith').replace('{name}', t('common.project')))
 
   return (
     <>
@@ -261,7 +258,7 @@ export function ChatPanel({
             streamingMessageId={streamingMessageId}
             editingMessageId={editingMessageId}
             editDraft={editDraft}
-            notebookId={notebookId}
+            projectId={projectId}
             toolCallsByMessageId={toolCallsByMessageId}
             canEdit={Boolean(onEditMessage)}
             editLocked={editingMessageId !== null}
@@ -276,7 +273,7 @@ export function ChatPanel({
                 <p className="text-sm">
                   {t('chat.startConversation').replace(
                     '{type}',
-                    contextType === 'source' ? t('navigation.sources') : t('common.notebook')
+                    contextType === 'source' ? t('navigation.sources') : t('common.project')
                   )}
                 </p>
               </div>
@@ -321,13 +318,13 @@ export function ChatPanel({
             </div>
           )}
 
-          {notebookContextStats && (
+          {projectContextStats && (
             <ContextIndicator
-              sourcesInsights={notebookContextStats.sourcesInsights}
-              sourcesFull={notebookContextStats.sourcesFull}
-              notesCount={notebookContextStats.notesCount}
-              tokenCount={notebookContextStats.tokenCount}
-              charCount={notebookContextStats.charCount}
+              sourcesInsights={projectContextStats.sourcesInsights}
+              sourcesFull={projectContextStats.sourcesFull}
+              notesCount={projectContextStats.notesCount}
+              tokenCount={projectContextStats.tokenCount}
+              charCount={projectContextStats.charCount}
             />
           )}
 

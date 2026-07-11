@@ -72,16 +72,16 @@ export function replaceSourceInAllQueries(
   )
 }
 
-export function removeSourceFromNotebookQueries(
+export function removeSourceFromProjectQueries(
   queryClient: QueryClient,
-  notebookId: string,
+  projectId: string,
   sourceId: string
 ) {
-  queryClient.setQueryData<SourceListResponse[]>(QUERY_KEYS.sources(notebookId), (old) =>
+  queryClient.setQueryData<SourceListResponse[]>(QUERY_KEYS.sources(projectId), (old) =>
     old?.filter((source) => source.id !== sourceId)
   )
 
-  queryClient.setQueryData<SourcesInfiniteData>(QUERY_KEYS.sourcesInfinite(notebookId), (old) => {
+  queryClient.setQueryData<SourcesInfiniteData>(QUERY_KEYS.sourcesInfinite(projectId), (old) => {
     if (!old?.pages) return old
     return {
       ...old,

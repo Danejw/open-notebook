@@ -103,7 +103,7 @@ export function ModelSelector({
             {t('common.modelConfiguration')}
           </DialogTitle>
           <DialogDescription>
-            {t('transformations.overrideModelDesc')}
+            {t('artifacts.overrideModelDesc')}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -119,7 +119,7 @@ export function ModelSelector({
                     <span>
                       {defaultModel 
                         ? `${t('common.default')} (${defaultModel.name})` 
-                        : t('transformations.systemDefault')}
+                        : t('artifacts.systemDefault')}
                     </span>
                     {defaultModel?.provider && (
                       <span className="text-xs text-muted-foreground ml-2">
@@ -148,7 +148,7 @@ export function ModelSelector({
           {selectedModel && selectedModel !== 'default' && (
             <div className="rounded-lg bg-muted p-3">
               <p className="text-sm text-muted-foreground">
-                {t('transformations.sessionUseReplacement').replace(
+                {t('artifacts.sessionUseReplacement').replace(
                   '{name}', 
                   languageModels.find(m => m.id === selectedModel)?.name || selectedModel
                 )}

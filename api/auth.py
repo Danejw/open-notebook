@@ -6,19 +6,20 @@ from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
-from open_notebook.utils.encryption import get_secret_from_env
+from construction_os.utils.encryption import get_secret_from_env
 
 
 class PasswordAuthMiddleware(BaseHTTPMiddleware):
     """
     Middleware to check password authentication for all API requests.
-    Always active with default password if OPEN_NOTEBOOK_PASSWORD is not set.
-    Supports Docker secrets via OPEN_NOTEBOOK_PASSWORD_FILE.
+    Always active with default password if CONSTRUCTION_OS_PASSWORD is not set.
+    Supports Docker secrets via CONSTRUCTION_OS_PASSWORD_FILE.
+    Legacy fallback: OPEN_NOTEBOOK_PASSWORD / OPEN_NOTEBOOK_PASSWORD_FILE.
     """
 
     def __init__(self, app, excluded_paths: Optional[list] = None):
         super().__init__(app)
-        self.password = get_secret_from_env("OPEN_NOTEBOOK_PASSWORD")
+        self.password = get_secret_from_env("CONSTRUCTION_OS_PASSWORD")
         self.excluded_paths = excluded_paths or [
             "/",
             "/health",
@@ -85,11 +86,11 @@ def check_api_password(
     """
     Utility function to check API password.
     Can be used as a dependency in individual routes if needed.
-    Supports Docker secrets via OPEN_NOTEBOOK_PASSWORD_FILE.
-    Returns True without checking credentials if OPEN_NOTEBOOK_PASSWORD is not configured.
+    Supports Docker secrets via CONSTRUCTION_OS_PASSWORD_FILE.
+    Returns True without checking credentials if CONSTRUCTION_OS_PASSWORD is not configured.
     Raises 401 if credentials are missing or don't match the configured password.
     """
-    password = get_secret_from_env("OPEN_NOTEBOOK_PASSWORD")
+    password = get_secret_from_env("CONSTRUCTION_OS_PASSWORD")
 
     # No password configured - skip authentication
     if not password:

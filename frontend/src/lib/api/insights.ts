@@ -10,14 +10,14 @@ export interface SourceInsightResponse {
 }
 
 export interface CreateSourceInsightRequest {
-  transformation_id: string
+  artifact_id: string
 }
 
 export interface InsightCreationResponse {
   status: 'pending'
   message: string
   source_id: string
-  transformation_id: string
+  artifact_id: string
   command_id?: string
 }
 

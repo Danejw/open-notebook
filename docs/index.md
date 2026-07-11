@@ -1,6 +1,6 @@
-# Open Notebook Documentation
+# Construction OS Documentation
 
-Welcome to Open Notebook - a privacy-focused AI research assistant. This documentation is organized for different needs.
+Welcome to Construction OS - a privacy-focused AI research assistant. This documentation is organized for different needs.
 
 ---
 
@@ -8,7 +8,7 @@ Welcome to Open Notebook - a privacy-focused AI research assistant. This documen
 
 ### I'm brand new
 → Start here: **[0-START-HERE](0-START-HERE/index.md)**
-- Learn what Open Notebook is
+- Learn what Construction OS is
 - Pick your setup path (OpenAI, cloud, local/Ollama)
 - 5-minute quick start
 
@@ -23,8 +23,8 @@ Welcome to Open Notebook - a privacy-focused AI research assistant. This documen
 → Read this: **[2-CORE-CONCEPTS](2-CORE-CONCEPTS/index.md)**
 - Mental models and architecture
 - How RAG (retrieval-augmented generation) works
-- Notebooks, sources, and notes explained
-- Chat vs. transformations vs. podcasts
+- Projects, sources, and notes explained
+- Chat vs. artifacts vs. podcasts
 
 ### I want to use it (tutorials)
 → Follow this: **[3-USER-GUIDE](3-USER-GUIDE/index.md)**
@@ -71,7 +71,7 @@ Welcome to Open Notebook - a privacy-focused AI research assistant. This documen
 ### By Section
 
 **[0-START-HERE](0-START-HERE/index.md)** — Entry point
-- What is Open Notebook?
+- What is Construction OS?
 - Quick start guides (3 routes)
 - First 5 minutes
 
@@ -81,9 +81,9 @@ Welcome to Open Notebook - a privacy-focused AI research assistant. This documen
 - Requirements and setup
 
 **[2-CORE-CONCEPTS](2-CORE-CONCEPTS/index.md)** — Understanding the system
-- Notebooks, sources, notes hierarchy
+- Projects, sources, notes hierarchy
 - RAG (retrieval-augmented generation)
-- Chat, transformations, podcasts
+- Chat, artifacts, podcasts
 - Context management
 
 **[3-USER-GUIDE](3-USER-GUIDE/index.md)** — Using features
@@ -133,7 +133,7 @@ Welcome to Open Notebook - a privacy-focused AI research assistant. This documen
 - Configuration reference? → [5-CONFIGURATION](5-CONFIGURATION/index.md)
 - Provider setup? → [4-AI-PROVIDERS](4-AI-PROVIDERS/index.md)
 
-**Using Open Notebook**
+**Using Construction OS**
 - How to use features? → [3-USER-GUIDE](3-USER-GUIDE/index.md)
 - Understanding concepts? → [2-CORE-CONCEPTS](2-CORE-CONCEPTS/index.md)
 - Chat not working? → [6-TROUBLESHOOTING - AI Issues](6-TROUBLESHOOTING/ai-chat-issues.md)
@@ -160,7 +160,7 @@ Welcome to Open Notebook - a privacy-focused AI research assistant. This documen
 3. [2-CORE-CONCEPTS/index.md](2-CORE-CONCEPTS/index.md) — Understand concepts
 4. [3-USER-GUIDE/index.md](3-USER-GUIDE/index.md) — Learn features
 
-**Result:** Fully understand how to use Open Notebook
+**Result:** Fully understand how to use Construction OS
 
 ### Path 2: Get Running Fast (15 minutes)
 1. [0-START-HERE](0-START-HERE/index.md) — Pick your path
@@ -172,7 +172,7 @@ Welcome to Open Notebook - a privacy-focused AI research assistant. This documen
 ### Path 3: DevOps/Deployment (1-2 hours)
 1. [1-INSTALLATION](1-INSTALLATION/index.md) — Understand routes
 2. [5-CONFIGURATION](5-CONFIGURATION/index.md) — Reference setup
-3. [7-DEVELOPMENT - Architecture](../7-DEVELOPMENT/architecture.md) — Understand system
+3. [7-DEVELOPMENT - Architecture](7-DEVELOPMENT/architecture.md) — Understand system
 
 **Result:** Ready to deploy to production
 
@@ -209,7 +209,7 @@ A: → [6-TROUBLESHOOTING](6-TROUBLESHOOTING/index.md) — Problem solver
 A: → [2-CORE-CONCEPTS](2-CORE-CONCEPTS/index.md) — Architecture and concepts
 
 **Q: Can I contribute?**
-A: → [7-DEVELOPMENT](../7-DEVELOPMENT/index.md) — Contributing guide
+A: → [7-DEVELOPMENT](7-DEVELOPMENT/index.md) — Contributing guide
 
 ---
 
@@ -257,7 +257,7 @@ A: → [7-DEVELOPMENT](../7-DEVELOPMENT/index.md) — Contributing guide
 ## 📞 Getting Help
 
 - **Discord Community** — https://discord.gg/37XJPXfz2w
-- **GitHub Issues** — https://github.com/lfnovo/open-notebook/issues
+- **GitHub Issues** — https://github.com/lfnovo/construction-os/issues
 - **Documentation** — You're reading it!
 
 ---
@@ -275,7 +275,7 @@ A: → [7-DEVELOPMENT](../7-DEVELOPMENT/index.md) — Contributing guide
 
 ## 🎯 Start Here
 
-**First time using Open Notebook?**
+**First time using Construction OS?**
 → Go to **[0-START-HERE](0-START-HERE/index.md)**
 
 **Experienced, looking for specific help?**
@@ -286,4 +286,4 @@ A: → [7-DEVELOPMENT](../7-DEVELOPMENT/index.md) — Contributing guide
 
 ---
 
-Last updated: January 2026 | Open Notebook v1.2.4+
+Last updated: January 2026 | Construction OS v1.2.4+

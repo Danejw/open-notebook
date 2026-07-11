@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from open_notebook.config import UPLOADS_FOLDER
-from open_notebook.domain.notebook import Source
+from construction_os.config import UPLOADS_FOLDER
+from construction_os.domain.project import Source
 
 
 @pytest.fixture
@@ -28,8 +28,8 @@ class TestAsyncSourceAssetPersistence:
 
     @pytest.mark.asyncio
     @patch("api.routers.sources.CommandService.submit_command_job", new_callable=AsyncMock)
-    @patch("api.routers.sources.Source.add_to_notebook", new_callable=AsyncMock)
-    @patch("api.routers.sources.Notebook.get", new_callable=AsyncMock)
+    @patch("api.routers.sources.Source.add_to_project", new_callable=AsyncMock)
+    @patch("api.routers.sources.Project.get", new_callable=AsyncMock)
     async def test_async_link_source_persists_url_asset(
         self, mock_nb_get, mock_add_nb, mock_submit, client
     ):
@@ -50,7 +50,7 @@ class TestAsyncSourceAssetPersistence:
                 data={
                     "type": "link",
                     "url": "https://example.com/article",
-                    "notebooks": '["notebook:1"]',
+                    "projects": '["Project:1"]',
                     "async_processing": "true",
                 },
             )
@@ -65,8 +65,8 @@ class TestAsyncSourceAssetPersistence:
 
     @pytest.mark.asyncio
     @patch("api.routers.sources.CommandService.submit_command_job", new_callable=AsyncMock)
-    @patch("api.routers.sources.Source.add_to_notebook", new_callable=AsyncMock)
-    @patch("api.routers.sources.Notebook.get", new_callable=AsyncMock)
+    @patch("api.routers.sources.Source.add_to_project", new_callable=AsyncMock)
+    @patch("api.routers.sources.Project.get", new_callable=AsyncMock)
     @patch("api.routers.sources.save_uploaded_file", new_callable=AsyncMock)
     async def test_async_upload_source_persists_file_asset(
         self, mock_upload, mock_nb_get, mock_add_nb, mock_submit, client
@@ -88,7 +88,7 @@ class TestAsyncSourceAssetPersistence:
                 "/api/sources",
                 data={
                     "type": "upload",
-                    "notebooks": '["notebook:1"]',
+                    "projects": '["Project:1"]',
                     "async_processing": "true",
                 },
                 files={"file": ("video.mp4", b"fake content", "video/mp4")},
@@ -104,8 +104,8 @@ class TestAsyncSourceAssetPersistence:
 
     @pytest.mark.asyncio
     @patch("api.routers.sources.CommandService.submit_command_job", new_callable=AsyncMock)
-    @patch("api.routers.sources.Source.add_to_notebook", new_callable=AsyncMock)
-    @patch("api.routers.sources.Notebook.get", new_callable=AsyncMock)
+    @patch("api.routers.sources.Source.add_to_project", new_callable=AsyncMock)
+    @patch("api.routers.sources.Project.get", new_callable=AsyncMock)
     async def test_async_text_source_has_no_asset(
         self, mock_nb_get, mock_add_nb, mock_submit, client
     ):
@@ -126,7 +126,7 @@ class TestAsyncSourceAssetPersistence:
                 data={
                     "type": "text",
                     "content": "Some text content",
-                    "notebooks": '["notebook:1"]',
+                    "projects": '["Project:1"]',
                     "async_processing": "true",
                 },
             )
@@ -139,14 +139,14 @@ class TestAsyncSourceAssetPersistence:
 
 
 class TestRetrySourceProcessing:
-    """POST /sources/{id}/retry must find a source's notebooks via the reference
+    """POST /sources/{id}/retry must find a source's projects via the reference
     edge's in/out columns, not a non-existent `source` column (#861)."""
 
     @pytest.mark.asyncio
     @patch("api.routers.sources.CommandService.submit_command_job", new_callable=AsyncMock)
     @patch("api.routers.sources.repo_query", new_callable=AsyncMock)
     @patch("api.routers.sources.Source.get", new_callable=AsyncMock)
-    async def test_retry_finds_notebooks_and_requeues(
+    async def test_retry_finds_projects_and_requeues(
         self, mock_get, mock_repo_query, mock_submit, client
     ):
         source = MagicMock()
@@ -160,8 +160,8 @@ class TestRetrySourceProcessing:
         source.get_embedded_chunks = AsyncMock(return_value=0)
         mock_get.return_value = source
 
-        # The corrected query returns the linked notebook(s)
-        mock_repo_query.return_value = ["notebook:1"]
+        # The corrected query returns the linked Project(s)
+        mock_repo_query.return_value = ["Project:1"]
         # submit_command_job returns str(RecordID), which already includes the
         # "command:" table prefix.
         mock_submit.return_value = "command:123"
@@ -189,12 +189,12 @@ class TestRetrySourceProcessing:
         source.id = "source:1"
         source.command = None
         mock_get.return_value = source
-        mock_repo_query.return_value = []  # genuinely no notebooks
+        mock_repo_query.return_value = []  # genuinely no projects
 
         response = client.post("/api/sources/source:1/retry")
 
         assert response.status_code == 400
-        assert "not associated with any notebooks" in response.json()["detail"]
+        assert "not associated with any projects" in response.json()["detail"]
 
 
 class TestGetSourceNotFound:
@@ -205,7 +205,7 @@ class TestGetSourceNotFound:
     @pytest.mark.asyncio
     @patch("api.routers.sources.Source.get", new_callable=AsyncMock)
     async def test_get_missing_source_returns_404(self, mock_get, client):
-        from open_notebook.exceptions import NotFoundError
+        from construction_os.exceptions import NotFoundError
 
         mock_get.side_effect = NotFoundError("source with id source:gone not found")
 

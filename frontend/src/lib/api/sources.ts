@@ -12,7 +12,7 @@ import {
 
 export const sourcesApi = {
   list: async (params?: {
-    notebook_id?: string
+    project_id?: string
     limit?: number
     offset?: number
     sort_by?: 'created' | 'updated'
@@ -34,11 +34,11 @@ export const sourcesApi = {
     // Add basic fields
     formData.append('type', data.type)
     
-    if (data.notebooks !== undefined) {
-      formData.append('notebooks', JSON.stringify(data.notebooks))
+    if (data.projects !== undefined) {
+      formData.append('projects', JSON.stringify(data.projects))
     }
-    if (data.notebook_id) {
-      formData.append('notebook_id', data.notebook_id)
+    if (data.project_id) {
+      formData.append('project_id', data.project_id)
     }
     if (data.title) {
       formData.append('title', data.title)
@@ -49,8 +49,8 @@ export const sourcesApi = {
     if (data.content) {
       formData.append('content', data.content)
     }
-    if (data.transformations !== undefined) {
-      formData.append('transformations', JSON.stringify(data.transformations))
+    if (data.artifacts !== undefined) {
+      formData.append('artifacts', JSON.stringify(data.artifacts))
     }
     
     const dataWithFile = data as CreateSourceRequest & { file?: File }
@@ -80,10 +80,10 @@ export const sourcesApi = {
     return response.data
   },
 
-  upload: async (file: File, notebook_id: string) => {
+  upload: async (file: File, project_id: string) => {
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('notebook_id', notebook_id)
+    formData.append('project_id', project_id)
     formData.append('type', 'upload')
     formData.append('async_processing', 'true')
     

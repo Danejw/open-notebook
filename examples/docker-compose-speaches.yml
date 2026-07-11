@@ -12,14 +12,14 @@
 #
 # Usage:
 #   1. Copy this file to your project folder as docker-compose.yml
-#   2. Change OPEN_NOTEBOOK_ENCRYPTION_KEY below
+#   2. Change CONSTRUCTION_OS_ENCRYPTION_KEY below
 #   3. Run: docker compose up -d
 #   4. Download models (see instructions below)
 #   5. Configure in UI: Settings → API Keys → Add OpenAI-Compatible
 #
 # Full documentation:
-# - TTS setup: https://github.com/lfnovo/open-notebook/blob/main/docs/5-CONFIGURATION/local-tts.md
-# - STT setup: https://github.com/lfnovo/open-notebook/blob/main/docs/5-CONFIGURATION/local-stt.md
+# - TTS setup: https://github.com/lfnovo/construction-os/blob/main/docs/5-CONFIGURATION/local-tts.md
+# - STT setup: https://github.com/lfnovo/construction-os/blob/main/docs/5-CONFIGURATION/local-stt.md
 
 services:
   surrealdb:
@@ -46,23 +46,23 @@ services:
     # For GPU acceleration, use: ghcr.io/speaches-ai/speaches:latest-cuda
     # and add GPU device mapping (see docs/5-CONFIGURATION/local-tts.md)
 
-  open_notebook:
-    image: lfnovo/open_notebook:v1-latest
+  construction_os:
+    image: lfnovo/construction-os:v1-latest
     ports:
       - "8502:8502"
       - "5055:5055"
     environment:
       # REQUIRED: Change this to your own secret string
-      - OPEN_NOTEBOOK_ENCRYPTION_KEY=change-me-to-a-secret-string
+      - CONSTRUCTION_OS_ENCRYPTION_KEY=change-me-to-a-secret-string
 
       # Database connection
       - SURREAL_URL=ws://surrealdb:8000/rpc
       - SURREAL_USER=root
       - SURREAL_PASSWORD=root
-      - SURREAL_NAMESPACE=open_notebook
-      - SURREAL_DATABASE=open_notebook
+      - SURREAL_NAMESPACE=construction_os
+      - SURREAL_DATABASE=construction_os
     volumes:
-      - ./notebook_data:/app/data
+      - ./construction_os_data:/app/data
     depends_on:
       - surrealdb
       - speaches
@@ -83,7 +83,7 @@ volumes:
 #   docker compose exec speaches uv tool run speaches-cli model download Systran/faster-whisper-small
 #
 # ==========================================
-# CONFIGURATION IN OPEN NOTEBOOK
+# CONFIGURATION IN Construction OS
 # ==========================================
 #
 # 1. Go to Settings → API Keys

@@ -14,8 +14,8 @@
 
 ### Other Commands
 
-- **`process_source_command`**: Ingests content through `source_graph`, creates embeddings (optional), and generates insights. Retries on transaction conflicts (exp. jitter, max 15×, 1-120s). Permanent failures (`ValueError`, e.g. unextractable content) are **re-raised** so the job is marked `failed` (and the source becomes retryable from the UI) rather than completing with a failure payload.
-- **`run_transformation_command`**: Runs a transformation on an existing source to generate an insight. Executes the transformation graph (LLM call) then creates insight via `create_insight_command`. Used by `POST /sources/{id}/insights` API endpoint. Retry: 5 attempts, exponential jitter 1-60s.
+- **`process_source_command`**: Ingests content through `source_graph`, creates embeddings (optional), and generates insights from artifacts. Retries on transaction conflicts (exp. jitter, max 15×, 1-120s). Permanent failures (`ValueError`, e.g. unextractable content) are **re-raised** so the job is marked `failed` (and the source becomes retryable from the UI) rather than completing with a failure payload.
+- **`run_artifact_command`**: Runs an artifact on an existing source to generate an insight. Executes the artifact graph (LLM call) then creates insight via `create_insight_command`. Used by `POST /sources/{id}/insights` API endpoint. Retry: 5 attempts, exponential jitter 1-60s.
 - **`generate_podcast_command`**: Creates podcasts via podcast-creator library. Resolves model registry references and credentials for all profiles before invoking podcast-creator. Validates that outline_llm, transcript_llm, and voice_model are configured.
 - **`process_text_command`** (example): Test fixture for text operations (uppercase, lowercase, reverse, word_count).
 - **`analyze_data_command`** (example): Test fixture for numeric aggregations.
@@ -36,7 +36,7 @@
 ## Dependencies
 
 **External**: `surreal_commands` (command decorator, job queue, submit_command), `loguru`, `pydantic`, `podcast_creator`
-**Internal**: `open_notebook.domain.notebook` (Source, Note, SourceInsight), `open_notebook.utils.chunking` (chunk_text, detect_content_type), `open_notebook.utils.embedding` (generate_embedding, generate_embeddings), `open_notebook.database.repository` (repo_query, repo_insert)
+**Internal**: `construction_os.domain.project` (Source, Note, SourceInsight), `construction_os.domain.artifact` (Artifact), `construction_os.utils.chunking` (chunk_text, detect_content_type), `construction_os.utils.embedding` (generate_embedding, generate_embeddings), `construction_os.database.repository` (repo_query, repo_insert)
 
 ## Quirks & Edge Cases
 
@@ -49,7 +49,7 @@
 ## Code Example
 
 ```python
-@command("process_source", app="open_notebook", retry={
+@command("process_source", app="construction_os", retry={
     "max_attempts": 5,
     "wait_strategy": "exponential_jitter",
     "stop_on": [ValueError],  # Don't retry validation errors
@@ -57,9 +57,15 @@
 async def process_source_command(input_data: SourceProcessingInput) -> SourceProcessingOutput:
     start_time = time.time()
     try:
-        transformations = [await Transformation.get(id) for id in input_data.transformations]
+        artifacts = [await Artifact.get(id) for id in input_data.artifacts]
         source = await Source.get(input_data.source_id)
-        result = await source_graph.ainvoke({...})
+        result = await source_graph.ainvoke({
+            "content_state": input_data.content_state,
+            "project_ids": input_data.project_ids,
+            "apply_artifacts": artifacts,
+            "embed": input_data.embed,
+            "source_id": input_data.source_id,
+        })
         return SourceProcessingOutput(success=True, ...)
     except ValueError as e:
         logger.error(f"Source processing failed (permanent): {e}")

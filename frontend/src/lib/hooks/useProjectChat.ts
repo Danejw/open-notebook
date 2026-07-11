@@ -23,26 +23,26 @@ import {
 } from '@/lib/ag-ui/mcp-tool-calls'
 import { ChatToolCall } from '@/lib/types/mcp'
 import {
-  NotebookChatMessage,
-  CreateNotebookChatSessionRequest,
-  UpdateNotebookChatSessionRequest,
+  ProjectChatMessage,
+  CreateProjectChatSessionRequest,
+  UpdateProjectChatSessionRequest,
   SourceListResponse,
   NoteResponse
 } from '@/lib/types/api'
-import { ContextSelections } from '@/app/(dashboard)/notebooks/[id]/page'
+import type { ContextSelections } from '@/lib/types/project-context'
 
-interface UseNotebookChatParams {
-  notebookId: string
+interface UseProjectChatParams {
+  projectId: string
   sources: SourceListResponse[]
   notes: NoteResponse[]
   contextSelections: ContextSelections
 }
 
-export function useNotebookChat({ notebookId, sources, notes, contextSelections }: UseNotebookChatParams) {
+export function useProjectChat({ projectId, sources, notes, contextSelections }: UseProjectChatParams) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
-  const [messages, setMessages] = useState<NotebookChatMessage[]>([])
+  const [messages, setMessages] = useState<ProjectChatMessage[]>([])
   const [isSending, setIsSending] = useState(false)
   const [tokenCount, setTokenCount] = useState<number>(0)
   const [charCount, setCharCount] = useState<number>(0)
@@ -83,15 +83,15 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     [scheduleStreamingFlush]
   )
 
-  // Fetch sessions for this notebook
+  // Fetch sessions for this project
   const {
     data: sessions = [],
     isLoading: loadingSessions,
     refetch: refetchSessions
   } = useQuery({
-    queryKey: QUERY_KEYS.notebookChatSessions(notebookId),
-    queryFn: () => chatApi.listSessions(notebookId),
-    enabled: !!notebookId
+    queryKey: QUERY_KEYS.projectChatSessions(projectId),
+    queryFn: () => chatApi.listSessions(projectId),
+    enabled: !!projectId
   })
 
   // Fetch current session with messages
@@ -99,9 +99,9 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     data: currentSession,
     refetch: refetchCurrentSession
   } = useQuery({
-    queryKey: QUERY_KEYS.notebookChatSession(currentSessionId!),
+    queryKey: QUERY_KEYS.projectChatSession(currentSessionId!),
     queryFn: () => chatApi.getSession(currentSessionId!),
-    enabled: !!notebookId && !!currentSessionId
+    enabled: !!projectId && !!currentSessionId
   })
 
   // Update messages when current session changes
@@ -141,18 +141,18 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     if (!firstSession) return
 
     void queryClient.prefetchQuery({
-      queryKey: QUERY_KEYS.notebookChatSession(firstSession.id),
+      queryKey: QUERY_KEYS.projectChatSession(firstSession.id),
       queryFn: () => chatApi.getSession(firstSession.id),
     })
   }, [sessions, queryClient])
 
   // Create session mutation
   const createSessionMutation = useMutation({
-    mutationFn: (data: CreateNotebookChatSessionRequest) =>
+    mutationFn: (data: CreateProjectChatSessionRequest) =>
       chatApi.createSession(data),
     onSuccess: (newSession) => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.notebookChatSessions(notebookId)
+        queryKey: QUERY_KEYS.projectChatSessions(projectId)
       })
       setCurrentSessionId(newSession.id)
       toast.success(t('chat.sessionCreated'))
@@ -167,14 +167,14 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
   const updateSessionMutation = useMutation({
     mutationFn: ({ sessionId, data }: {
       sessionId: string
-      data: UpdateNotebookChatSessionRequest
+      data: UpdateProjectChatSessionRequest
     }) => chatApi.updateSession(sessionId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.notebookChatSessions(notebookId)
+        queryKey: QUERY_KEYS.projectChatSessions(projectId)
       })
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.notebookChatSession(currentSessionId!)
+        queryKey: QUERY_KEYS.projectChatSession(currentSessionId!)
       })
       toast.success(t('chat.sessionUpdated'))
     },
@@ -190,7 +190,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
       chatApi.deleteSession(sessionId),
     onSuccess: (_, deletedId) => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.notebookChatSessions(notebookId)
+        queryKey: QUERY_KEYS.projectChatSessions(projectId)
       })
       if (currentSessionId === deletedId) {
         setCurrentSessionId(null)
@@ -239,7 +239,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     const context_config = buildContextConfig()
 
     const response = await chatApi.buildContext({
-      notebook_id: notebookId,
+      project_id: projectId,
       context_config
     })
 
@@ -247,7 +247,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     setCharCount(response.char_count)
 
     return response.context
-  }, [notebookId, buildContextConfig])
+  }, [projectId, buildContextConfig])
 
   // Send message (synchronous, no streaming)
   const sendMessage = useCallback(async (
@@ -264,7 +264,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
           ? `${message.substring(0, 30)}...`
           : message
         const newSession = await chatApi.createSession({
-          notebook_id: notebookId,
+          project_id: projectId,
           title: defaultTitle,
           model_override: pendingModelOverride ?? undefined,
           skill_ids: selectedSkillIds,
@@ -275,7 +275,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
         setPendingModelOverride(null)
         setPendingSkillIds(null)
         queryClient.invalidateQueries({
-          queryKey: QUERY_KEYS.notebookChatSessions(notebookId)
+          queryKey: QUERY_KEYS.projectChatSessions(projectId)
         })
       } catch (err: unknown) {
         const error = err as { response?: { data?: { detail?: string } }, message?: string };
@@ -285,7 +285,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     }
 
     // Add user message optimistically
-    const userMessage: NotebookChatMessage = {
+    const userMessage: ProjectChatMessage = {
       id: `temp-${Date.now()}`,
       type: 'human',
       content: message,
@@ -356,7 +356,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
           case 'TEXT_MESSAGE_START': {
             aiMessageId = (event.messageId as string) || `ai-${Date.now()}`
             streamContentRef.current.set(aiMessageId, '')
-            const newMsg: NotebookChatMessage = {
+            const newMsg: ProjectChatMessage = {
               id: aiMessageId,
               type: 'ai',
               content: '',
@@ -446,7 +446,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
       setLiveMcpToolCalls([])
     }
   }, [
-    notebookId,
+    projectId,
     currentSessionId,
     currentSession,
     pendingModelOverride,
@@ -479,14 +479,14 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
   const createSession = useCallback((title?: string) => {
     setPendingSkillIds(null)
     return createSessionMutation.mutate({
-      notebook_id: notebookId,
+      project_id: projectId,
       title,
       skill_ids: selectedSkillIds,
     })
-  }, [createSessionMutation, notebookId, selectedSkillIds])
+  }, [createSessionMutation, projectId, selectedSkillIds])
 
   // Update session
-  const updateSession = useCallback((sessionId: string, data: UpdateNotebookChatSessionRequest) => {
+  const updateSession = useCallback((sessionId: string, data: UpdateProjectChatSessionRequest) => {
     return updateSessionMutation.mutate({
       sessionId,
       data
@@ -520,10 +520,10 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
         try {
           await chatApi.updateSession(currentSessionId, { skill_ids: ids })
           queryClient.invalidateQueries({
-            queryKey: QUERY_KEYS.notebookChatSessions(notebookId),
+            queryKey: QUERY_KEYS.projectChatSessions(projectId),
           })
           queryClient.invalidateQueries({
-            queryKey: QUERY_KEYS.notebookChatSession(currentSessionId),
+            queryKey: QUERY_KEYS.projectChatSession(currentSessionId),
           })
         } catch (err: unknown) {
           const error = err as { response?: { data?: { detail?: string } }, message?: string }
@@ -534,7 +534,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     } else {
       setPendingSkillIds(ids)
     }
-  }, [currentSessionId, notebookId, queryClient, t])
+  }, [currentSessionId, projectId, queryClient, t])
 
   const setSelectedMcpToolIds = useCallback((ids: string[]) => {
     setSelectedMcpToolIdsState(ids)

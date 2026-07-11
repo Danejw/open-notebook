@@ -5,8 +5,9 @@ This module provides the ProviderConfig singleton model that stores multiple
 API key configurations per provider. Each ProviderCredential contains a complete
 set of configuration options for a provider (api_key, base_url, model, etc.).
 
-Encryption is enabled when OPEN_NOTEBOOK_ENCRYPTION_KEY environment variable
-is set. If not set, keys are stored as plain text with a warning logged.
+Encryption is enabled when CONSTRUCTION_OS_ENCRYPTION_KEY environment variable
+is set (legacy fallback: OPEN_NOTEBOOK_ENCRYPTION_KEY). If not set, keys are
+stored as plain text with a warning logged.
 """
 
 from datetime import datetime
@@ -14,9 +15,9 @@ from typing import ClassVar, Dict, List, Optional
 
 from pydantic import Field, SecretStr, field_validator
 
-from open_notebook.database.repository import ensure_record_id, repo_query, repo_upsert
-from open_notebook.domain.base import RecordModel
-from open_notebook.utils.encryption import decrypt_value, encrypt_value
+from construction_os.database.repository import ensure_record_id, repo_query, repo_upsert
+from construction_os.domain.base import RecordModel
+from construction_os.utils.encryption import decrypt_value, encrypt_value
 
 
 class ProviderCredential:
@@ -185,7 +186,7 @@ class ProviderConfig(RecordModel):
         default = config.get_default_config("openai")
     """
 
-    record_id: ClassVar[str] = "open_notebook:provider_configs"
+    record_id: ClassVar[str] = "construction_os:provider_configs"
 
     # Store credentials organized by provider name
     # Structure: {"openai": [ProviderCredential, ...], "anthropic": [...], ...}
@@ -414,7 +415,7 @@ class ProviderConfig(RecordModel):
 
         SecretStr values are extracted, encrypted, and stored as strings.
         Encryption is performed using Fernet symmetric encryption if
-        OPEN_NOTEBOOK_ENCRYPTION_KEY is configured.
+        CONSTRUCTION_OS_ENCRYPTION_KEY is configured.
         """
         data = {"credentials": {}}
 
@@ -434,7 +435,7 @@ class ProviderConfig(RecordModel):
         and encryption.
         """
         data = self._prepare_save_data()
-        await repo_upsert("open_notebook", self.record_id, data)
+        await repo_upsert("construction_os", self.record_id, data)
         return self
 
     @classmethod

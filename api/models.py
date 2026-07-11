@@ -3,21 +3,21 @@ from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
-# Notebook models
-class NotebookCreate(BaseModel):
-    name: str = Field(..., description="Name of the notebook")
-    description: str = Field(default="", description="Description of the notebook")
+# Project models
+class ProjectCreate(BaseModel):
+    name: str = Field(..., description="Name of the Project")
+    description: str = Field(default="", description="Description of the Project")
 
 
-class NotebookUpdate(BaseModel):
-    name: Optional[str] = Field(None, description="Name of the notebook")
-    description: Optional[str] = Field(None, description="Description of the notebook")
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = Field(None, description="Name of the Project")
+    description: Optional[str] = Field(None, description="Description of the Project")
     archived: Optional[bool] = Field(
-        None, description="Whether the notebook is archived"
+        None, description="Whether the Project is archived"
     )
 
 
-class NotebookResponse(BaseModel):
+class ProjectResponse(BaseModel):
     id: str
     name: str
     description: str
@@ -85,7 +85,7 @@ class ModelResponse(BaseModel):
 
 class DefaultModelsResponse(BaseModel):
     default_chat_model: Optional[str] = None
-    default_transformation_model: Optional[str] = None
+    default_artifact_model: Optional[str] = None
     large_context_model: Optional[str] = None
     default_text_to_speech_model: Optional[str] = None
     default_speech_to_text_model: Optional[str] = None
@@ -101,34 +101,34 @@ class ProviderAvailabilityResponse(BaseModel):
     )
 
 
-# Transformations API models
-class TransformationCreate(BaseModel):
-    name: str = Field(..., description="Transformation name")
-    title: str = Field(..., description="Display title for the transformation")
+# artifacts API models
+class ArtifactCreate(BaseModel):
+    name: str = Field(..., description="Artifact name")
+    title: str = Field(..., description="Display title for the Artifact")
     description: str = Field(
-        ..., description="Description of what this transformation does"
+        ..., description="Description of what this Artifact does"
     )
-    prompt: str = Field(..., description="The transformation prompt")
+    prompt: str = Field(..., description="The Artifact prompt")
     apply_default: bool = Field(
-        False, description="Whether to apply this transformation by default"
+        False, description="Whether to apply this Artifact by default"
     )
 
 
-class TransformationUpdate(BaseModel):
-    name: Optional[str] = Field(None, description="Transformation name")
+class ArtifactUpdate(BaseModel):
+    name: Optional[str] = Field(None, description="Artifact name")
     title: Optional[str] = Field(
-        None, description="Display title for the transformation"
+        None, description="Display title for the Artifact"
     )
     description: Optional[str] = Field(
-        None, description="Description of what this transformation does"
+        None, description="Description of what this Artifact does"
     )
-    prompt: Optional[str] = Field(None, description="The transformation prompt")
+    prompt: Optional[str] = Field(None, description="The Artifact prompt")
     apply_default: Optional[bool] = Field(
-        None, description="Whether to apply this transformation by default"
+        None, description="Whether to apply this Artifact by default"
     )
 
 
-class TransformationResponse(BaseModel):
+class ArtifactResponse(BaseModel):
     id: str
     name: str
     title: str
@@ -139,34 +139,34 @@ class TransformationResponse(BaseModel):
     updated: str
 
 
-class TransformationExecuteRequest(BaseModel):
+class ArtifactExecuteRequest(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
-    transformation_id: str = Field(
-        ..., description="ID of the transformation to execute"
+    artifact_id: str = Field(
+        ..., description="ID of the Artifact to execute"
     )
     input_text: str = Field(..., description="Text to transform")
-    model_id: str = Field(..., description="Model ID to use for the transformation")
+    model_id: str = Field(..., description="Model ID to use for the Artifact")
 
 
-class TransformationExecuteResponse(BaseModel):
+class ArtifactExecuteResponse(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
     output: str = Field(..., description="Transformed text")
-    transformation_id: str = Field(..., description="ID of the transformation used")
+    artifact_id: str = Field(..., description="ID of the Artifact used")
     model_id: str = Field(..., description="Model ID used")
 
 
 # Default Prompt API models
 class DefaultPromptResponse(BaseModel):
-    transformation_instructions: str = Field(
-        ..., description="Default transformation instructions"
+    artifact_instructions: str = Field(
+        ..., description="Default Artifact instructions"
     )
 
 
 class DefaultPromptUpdate(BaseModel):
-    transformation_instructions: str = Field(
-        ..., description="Default transformation instructions"
+    artifact_instructions: str = Field(
+        ..., description="Default Artifact instructions"
     )
 
 
@@ -175,8 +175,8 @@ class NoteCreate(BaseModel):
     title: Optional[str] = Field(None, description="Note title")
     content: str = Field(..., description="Note content")
     note_type: Optional[str] = Field("human", description="Type of note (human, ai)")
-    notebook_id: Optional[str] = Field(
-        None, description="Notebook ID to add the note to"
+    project_id: Optional[str] = Field(
+        None, description="Project ID to add the note to"
     )
 
 
@@ -279,13 +279,13 @@ class AssetModel(BaseModel):
 
 
 class SourceCreate(BaseModel):
-    # Backward compatibility: support old single notebook_id
-    notebook_id: Optional[str] = Field(
-        None, description="Notebook ID to add the source to (deprecated, use notebooks)"
+    # Backward compatibility: support old single project_id
+    project_id: Optional[str] = Field(
+        None, description="Project ID to add the source to (deprecated, use projects)"
     )
-    # New multi-notebook support
-    notebooks: Optional[List[str]] = Field(
-        None, description="List of notebook IDs to add the source to"
+    # New multi-Project support
+    projects: Optional[List[str]] = Field(
+        None, description="List of Project IDs to add the source to"
     )
     # Required fields
     type: str = Field(..., description="Source type: link, upload, or text")
@@ -293,8 +293,8 @@ class SourceCreate(BaseModel):
     file_path: Optional[str] = Field(None, description="File path for upload type")
     content: Optional[str] = Field(None, description="Text content for text type")
     title: Optional[str] = Field(None, description="Source title")
-    transformations: Optional[List[str]] = Field(
-        default_factory=list, description="Transformation IDs to apply"
+    artifacts: Optional[List[str]] = Field(
+        default_factory=list, description="Artifact IDs to apply"
     )
     embed: bool = Field(False, description="Whether to embed content for vector search")
     delete_source: bool = Field(
@@ -306,21 +306,21 @@ class SourceCreate(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_notebook_fields(self):
-        # Ensure only one of notebook_id or notebooks is provided
-        if self.notebook_id is not None and self.notebooks is not None:
+    def validate_project_fields(self):
+        # Ensure only one of project_id or projects is provided
+        if self.project_id is not None and self.projects is not None:
             raise ValueError(
-                "Cannot specify both 'notebook_id' and 'notebooks'. Use 'notebooks' for multi-notebook support."
+                "Cannot specify both 'project_id' and 'projects'. Use 'projects' for multi-Project support."
             )
 
-        # Convert single notebook_id to notebooks array for internal processing
-        if self.notebook_id is not None:
-            self.notebooks = [self.notebook_id]
-            # Keep notebook_id for backward compatibility in response
+        # Convert single project_id to projects array for internal processing
+        if self.project_id is not None:
+            self.projects = [self.project_id]
+            # Keep project_id for backward compatibility in response
 
-        # Set empty array if no notebooks specified (allow sources without notebooks)
-        if self.notebooks is None:
-            self.notebooks = []
+        # Set empty array if no projects specified (allow sources without projects)
+        if self.projects is None:
+            self.projects = []
 
         return self
 
@@ -345,8 +345,8 @@ class SourceResponse(BaseModel):
     command_id: Optional[str] = None
     status: Optional[str] = None
     processing_info: Optional[Dict] = None
-    # Notebook associations
-    notebooks: Optional[List[str]] = None
+    # Project associations
+    projects: Optional[List[str]] = None
 
 
 class SourceListResponse(BaseModel):
@@ -377,14 +377,14 @@ class ContextConfig(BaseModel):
 
 
 class ContextRequest(BaseModel):
-    notebook_id: str = Field(..., description="Notebook ID to get context for")
+    project_id: str = Field(..., description="Project ID to get context for")
     context_config: Optional[ContextConfig] = Field(
         None, description="Context configuration"
     )
 
 
 class ContextResponse(BaseModel):
-    notebook_id: str
+    project_id: str
     sources: List[Dict[str, Any]] = Field(..., description="Source context data")
     notes: List[Dict[str, Any]] = Field(..., description="Note context data")
     total_tokens: Optional[int] = Field(None, description="Estimated token count")
@@ -406,18 +406,18 @@ class InsightCreationResponse(BaseModel):
     status: Literal["pending"] = "pending"
     message: str = "Insight generation started"
     source_id: str
-    transformation_id: str
+    artifact_id: str
     command_id: Optional[str] = None
 
 
 class SaveAsNoteRequest(BaseModel):
-    notebook_id: Optional[str] = Field(None, description="Notebook ID to add note to")
+    project_id: Optional[str] = Field(None, description="Project ID to add note to")
 
 
 class CreateSourceInsightRequest(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
-    transformation_id: str = Field(..., description="ID of transformation to apply")
+    artifact_id: str = Field(..., description="ID of Artifact to apply")
     model_id: Optional[str] = Field(
         None, description="Model ID (uses default if not provided)"
     )
@@ -517,7 +517,7 @@ class ApiKeyStatusResponse(BaseModel):
     )
     encryption_configured: bool = Field(
         ...,
-        description="Whether OPEN_NOTEBOOK_ENCRYPTION_KEY is set (required to store keys in database)",
+        description="Whether CONSTRUCTION_OS_ENCRYPTION_KEY is set (required to store keys in database)",
     )
 
 
@@ -552,7 +552,7 @@ class MigrationResult(BaseModel):
     )
 
 
-# Notebook delete cascade models
+# Project delete cascade models
 # Credential models
 class CreateCredentialRequest(BaseModel):
     """Request to create a new credential."""
@@ -672,22 +672,22 @@ class RegisterModelsResponse(BaseModel):
     existing: int
 
 
-class NotebookDeletePreview(BaseModel):
-    notebook_id: str = Field(..., description="ID of the notebook")
-    notebook_name: str = Field(..., description="Name of the notebook")
+class ProjectDeletePreview(BaseModel):
+    project_id: str = Field(..., description="ID of the Project")
+    project_name: str = Field(..., description="Name of the Project")
     note_count: int = Field(..., description="Number of notes that will be deleted")
     exclusive_source_count: int = Field(
-        ..., description="Number of sources only in this notebook"
+        ..., description="Number of sources only in this Project"
     )
     shared_source_count: int = Field(
-        ..., description="Number of sources shared with other notebooks"
+        ..., description="Number of sources shared with other projects"
     )
 
 
-class NotebookDeleteResponse(BaseModel):
+class ProjectDeleteResponse(BaseModel):
     message: str = Field(..., description="Success message")
     deleted_notes: int = Field(..., description="Number of notes deleted")
     deleted_sources: int = Field(..., description="Number of exclusive sources deleted")
     unlinked_sources: int = Field(
-        ..., description="Number of sources unlinked from notebook"
+        ..., description="Number of sources unlinked from Project"
     )

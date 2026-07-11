@@ -5,7 +5,7 @@ import { useTranslation } from "@/lib/hooks/use-translation"
 import { FormSection } from "@/components/ui/form-section"
 import { CheckboxList } from "@/components/ui/checkbox-list"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Transformation } from "@/lib/types/transformations"
+import { Artifact } from "@/lib/types/artifacts"
 import { SettingsResponse } from "@/lib/types/api"
 
 interface CreateSourceFormData {
@@ -14,46 +14,46 @@ interface CreateSourceFormData {
   url?: string
   content?: string
   file?: FileList | File
-  notebooks?: string[]
-  transformations?: string[]
+  projects?: string[]
+  artifacts?: string[]
   embed: boolean
   async_processing: boolean
 }
 
 interface ProcessingStepProps {
   control: Control<CreateSourceFormData>
-  transformations: Transformation[]
-  selectedTransformations: string[]
-  onToggleTransformation: (transformationId: string) => void
+  artifacts: Artifact[]
+  selectedArtifacts: string[]
+  onToggleArtifact: (artifactId: string) => void
   loading?: boolean
   settings?: SettingsResponse
 }
 
 export function ProcessingStep({
   control,
-  transformations,
-  selectedTransformations,
-  onToggleTransformation,
+  artifacts,
+  selectedArtifacts,
+  onToggleArtifact,
   loading = false,
   settings
 }: ProcessingStepProps) {
   const { t } = useTranslation()
-  const transformationItems = transformations.map((transformation) => ({
-    id: transformation.id,
-    title: transformation.title,
-    description: transformation.description
+  const artifactItems = artifacts.map((artifact) => ({
+    id: artifact.id,
+    title: artifact.title,
+    description: artifact.description
   }))
 
   return (
     <div className="space-y-8">
       <FormSection
-        title={`${t('navigation.transformations')} (${t('common.optional')})`}
+        title={`${t('navigation.artifacts')} (${t('common.optional')})`}
         description={t('sources.processDescription')}
       >
         <CheckboxList
-          items={transformationItems}
-          selectedIds={selectedTransformations}
-          onToggle={onToggleTransformation}
+          items={artifactItems}
+          selectedIds={selectedArtifacts}
+          onToggle={onToggleArtifact}
           loading={loading}
           emptyMessage={t('common.noMatches')}
         />

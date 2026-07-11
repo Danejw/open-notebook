@@ -18,9 +18,9 @@ from loguru import logger
 from pydantic import SecretStr
 
 from api.models import CredentialResponse
-from open_notebook.ai.model_discovery import classify_model_type
-from open_notebook.domain.credential import Credential
-from open_notebook.utils.encryption import get_secret_from_env
+from construction_os.ai.model_discovery import classify_model_type
+from construction_os.domain.credential import Credential
+from construction_os.utils.encryption import get_secret_from_env
 
 # =============================================================================
 # Constants
@@ -198,10 +198,10 @@ def validate_url(url: str, provider: str) -> None:
 
 def require_encryption_key() -> None:
     """Raise ValueError if encryption key is not configured."""
-    if not get_secret_from_env("OPEN_NOTEBOOK_ENCRYPTION_KEY"):
+    if not get_secret_from_env("CONSTRUCTION_OS_ENCRYPTION_KEY"):
         raise ValueError(
             "Encryption key not configured. "
-            "Set OPEN_NOTEBOOK_ENCRYPTION_KEY to enable storing API keys."
+            "Set CONSTRUCTION_OS_ENCRYPTION_KEY to enable storing API keys."
         )
 
 
@@ -325,7 +325,7 @@ async def get_provider_status() -> dict:
     Get configuration status: encryption key status, and per-provider
     configured/source information.
     """
-    encryption_configured = bool(get_secret_from_env("OPEN_NOTEBOOK_ENCRYPTION_KEY"))
+    encryption_configured = bool(get_secret_from_env("CONSTRUCTION_OS_ENCRYPTION_KEY"))
 
     configured: Dict[str, bool] = {}
     source: Dict[str, str] = {}
@@ -373,7 +373,7 @@ async def test_credential(credential_id: str) -> dict:
         cred = await Credential.get(credential_id)
         config = cred.to_esperanto_config()
 
-        from open_notebook.ai.connection_tester import (
+        from construction_os.ai.connection_tester import (
             _test_azure_connection,
             _test_ollama_connection,
             _test_openai_compatible_connection,
@@ -412,7 +412,7 @@ async def test_credential(credential_id: str) -> dict:
         # Standard provider: use Esperanto to create and test
         from esperanto.factory import AIFactory
 
-        from open_notebook.ai.connection_tester import TEST_MODELS
+        from construction_os.ai.connection_tester import TEST_MODELS
 
         if provider not in TEST_MODELS:
             return {
@@ -683,8 +683,8 @@ async def register_models(credential_id: str, models_data: list) -> dict:
     """
     cred = await Credential.get(credential_id)
 
-    from open_notebook.ai.models import Model
-    from open_notebook.database.repository import repo_query
+    from construction_os.ai.models import Model
+    from construction_os.database.repository import repo_query
 
     # Batch fetch existing models for this provider
     existing_models = await repo_query(
@@ -726,7 +726,7 @@ async def migrate_from_provider_config() -> dict:
     require_encryption_key()
     logger.info("Encryption key verified")
 
-    from open_notebook.domain.provider_config import ProviderConfig
+    from construction_os.domain.provider_config import ProviderConfig
 
     config = await ProviderConfig.get_instance()
     logger.info(
@@ -777,8 +777,8 @@ async def migrate_from_provider_config() -> dict:
                 )
 
                 # Link existing models for this provider to the new credential
-                from open_notebook.ai.models import Model
-                from open_notebook.database.repository import repo_query
+                from construction_os.ai.models import Model
+                from construction_os.database.repository import repo_query
 
                 provider_models = await repo_query(
                     "SELECT * FROM model WHERE string::lowercase(provider) = $provider AND credential IS NONE",
@@ -838,8 +838,8 @@ async def migrate_from_env() -> dict:
     require_encryption_key()
     logger.info("Encryption key verified")
 
-    from open_notebook.ai.models import Model
-    from open_notebook.database.repository import repo_query
+    from construction_os.ai.models import Model
+    from construction_os.database.repository import repo_query
 
     migrated = []
     skipped = []

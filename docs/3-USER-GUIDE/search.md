@@ -9,7 +9,7 @@ Search is your gateway into your research. This guide covers two search modes an
 ### Simple Search
 
 ```
-1. Go to your notebook
+1. Go to your project
 2. Type in search box
 3. See results (both sources and notes)
 4. Click result to view source/note
@@ -23,7 +23,7 @@ But you can do much better...
 
 ## Two Search Modes Explained
 
-Open Notebook has two fundamentally different search approaches.
+Construction OS has two fundamentally different search approaches.
 
 ### Search Type 1: TEXT SEARCH (Keyword Matching)
 
@@ -271,7 +271,7 @@ Result: Comprehensive answer, not just search results
 |---------|-------|----------|
 | Text search: no results | Word doesn't appear | Try vector search instead |
 | Vector search: no results | Concept not in content | Try broader search term |
-| Both empty | Content not in notebook | Add sources to notebook |
+| Both empty | Content not in project | Add sources to project |
 | | Sources not processed | Wait for processing to complete |
 
 ### Getting Too Many Results
@@ -421,7 +421,7 @@ SEARCH (find what matters)
   ↓
 CHAT (explore with follow-ups)
   ↓
-TRANSFORMATIONS (batch extract)
+ARTIFACTS (batch extract)
   ↓
 NOTES (save insights)
 ```
@@ -429,7 +429,7 @@ NOTES (save insights)
 ### Workflow Example
 
 ```
-1. Add 10 papers to notebook
+1. Add 10 papers to project
 
 2. Search: "What's the state of the art?"
    (Vector search explores landscape)

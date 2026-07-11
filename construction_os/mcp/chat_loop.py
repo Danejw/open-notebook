@@ -7,10 +7,10 @@ from typing import Any, Callable, Optional
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 
-from open_notebook.mcp.allowlist import build_allowlist
-from open_notebook.mcp.execution import DuplicateCallGuard, reject_unauthorized
-from open_notebook.mcp.langgraph_tools import build_langchain_tools
-from open_notebook.mcp.limits import MAX_TOOL_CALLS, MAX_TOOL_ITERATIONS
+from construction_os.mcp.allowlist import build_allowlist
+from construction_os.mcp.execution import DuplicateCallGuard, reject_unauthorized
+from construction_os.mcp.langgraph_tools import build_langchain_tools
+from construction_os.mcp.limits import MAX_TOOL_CALLS, MAX_TOOL_ITERATIONS
 
 
 async def generate_with_mcp_tools(

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Iterable, List, Optional
 
-from open_notebook.domain.skill import Skill, SkillFile
-from open_notebook.exceptions import InvalidInputError, NotFoundError
-from open_notebook.skills.standard import REQUIRED_ENTRY, normalize_relative_path
+from construction_os.domain.skill import Skill, SkillFile
+from construction_os.exceptions import InvalidInputError, NotFoundError
+from construction_os.skills.standard import REQUIRED_ENTRY, normalize_relative_path
 
 
 async def get_skill_catalog() -> list[dict]:

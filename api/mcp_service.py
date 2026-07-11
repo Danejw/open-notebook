@@ -14,11 +14,11 @@ from api.mcp_models import (
     McpConnectionResponse,
     McpToolResponse,
 )
-from open_notebook.domain.mcp import ChatToolCall, McpConnection, McpTool
-from open_notebook.exceptions import InvalidInputError, NotFoundError
-from open_notebook.mcp.discovery import sync_tools, test_connection
-from open_notebook.mcp.public import public_connection, public_tool, public_tool_call
-from open_notebook.mcp.url_safety import McpUrlError, validate_mcp_url
+from construction_os.domain.mcp import ChatToolCall, McpConnection, McpTool
+from construction_os.exceptions import InvalidInputError, NotFoundError
+from construction_os.mcp.discovery import sync_tools, test_connection
+from construction_os.mcp.public import public_connection, public_tool, public_tool_call
+from construction_os.mcp.url_safety import McpUrlError, validate_mcp_url
 
 
 def _to_connection_response(

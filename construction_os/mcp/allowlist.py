@@ -6,8 +6,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from open_notebook.domain.mcp import McpConnection, McpTool
-from open_notebook.mcp.limits import MAX_SELECTED_TOOLS
+from construction_os.domain.mcp import McpConnection, McpTool
+from construction_os.mcp.limits import MAX_SELECTED_TOOLS
 
 
 @dataclass

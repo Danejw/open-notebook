@@ -1,7 +1,7 @@
 """Tests for MCP allowlist aliases and duplicate-call guard."""
 
-from open_notebook.mcp.allowlist import make_runtime_name
-from open_notebook.mcp.execution import DuplicateCallGuard
+from construction_os.mcp.allowlist import make_runtime_name
+from construction_os.mcp.execution import DuplicateCallGuard
 
 
 def test_runtime_name_includes_connection_identity() -> None:

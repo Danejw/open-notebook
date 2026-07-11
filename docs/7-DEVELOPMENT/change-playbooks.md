@@ -1,6 +1,6 @@
 # Change Playbooks
 
-Step-by-step guides for common types of changes in the Open Notebook codebase. Each playbook lists the files to touch **in order**, what to do at each step, and what to test.
+Step-by-step guides for common types of changes in the Construction OS codebase. Each playbook lists the files to touch **in order**, what to do at each step, and what to test.
 
 > **For AI agents:** Read the relevant playbook BEFORE implementing. Follow the sequence — skipping steps causes incomplete changes that break other layers.
 
@@ -21,7 +21,7 @@ Step-by-step guides for common types of changes in the Open Notebook codebase. E
 
 | Step | File(s) | What to Do |
 |------|---------|------------|
-| 1 | `open_notebook/domain/<model>.py` | Add field with type hint and default value. Follow existing patterns in the class. |
+| 1 | `construction_os/domain/<model>.py` | Add field with type hint and default value. Follow existing patterns in the class. |
 | 2 | `migrations/NNN_<description>.surql` | Create migration. Use next number in sequence. `DEFINE FIELD` for new fields, `UPDATE` for backfilling existing records. |
 | 3 | `api/models.py` | Add field to `*Create`, `*Update` (Optional), and `*Response` schemas. |
 | 4 | `frontend/src/lib/types/api.ts` | Add field to the corresponding TypeScript interface (`*Response`, `Create*Request`, `Update*Request`). |
@@ -35,7 +35,7 @@ Step-by-step guides for common types of changes in the Open Notebook codebase. E
 
 ## Playbook: New API Endpoint
 
-**Example:** "Add endpoint to export notebook as PDF"
+**Example:** "Add endpoint to export project as PDF"
 
 | Step | File(s) | What to Do |
 |------|---------|------------|
@@ -63,7 +63,7 @@ Step-by-step guides for common types of changes in the Open Notebook codebase. E
 | Step | File(s) | What to Do |
 |------|---------|------------|
 | 1 | `prompts/<workflow_name>/*.jinja` | Create Jinja2 prompt templates. Use `Prompter` from ai-prompter. |
-| 2 | `open_notebook/graphs/<workflow_name>.py` | Define `StateDict` (TypedDict), node functions, build graph with `StateGraph`. Use `provision_langchain_model()` for model selection. Wrap LLM calls with `classify_error()`. |
+| 2 | `construction_os/graphs/<workflow_name>.py` | Define `StateDict` (TypedDict), node functions, build graph with `StateGraph`. Use `provision_langchain_model()` for model selection. Wrap LLM calls with `classify_error()`. |
 | 3 | `api/<resource>_service.py` | Invoke graph: `await graph.ainvoke(state, config)`. |
 | 4 | `api/routers/<resource>.py` | Expose endpoint to trigger the workflow. |
 | 5 | `commands/<workflow>_commands.py` | If the workflow should run async: create command with `CommandInput`/`CommandOutput`. Register in command service. |
@@ -72,7 +72,7 @@ Step-by-step guides for common types of changes in the Open Notebook codebase. E
 
 **Key patterns:**
 - Nodes are sync functions (LangGraph requirement) but can call async code via ThreadPoolExecutor
-- Use `classify_error()` to convert raw exceptions to typed `OpenNotebookError` subclasses
+- Use `classify_error()` to convert raw exceptions to typed `ConstructionOSError` subclasses
 - Use `provision_langchain_model()` for model selection — never hardcode a provider
 - State is a TypedDict, NOT a Pydantic model
 
@@ -95,7 +95,7 @@ Step-by-step guides for common types of changes in the Open Notebook codebase. E
 
 ## Playbook: Bug Fix (Cross-Layer)
 
-**Example:** "Creating a source via URL doesn't show in notebook"
+**Example:** "Creating a source via URL doesn't show in project"
 
 | Step | What to Do |
 |------|------------|
@@ -109,7 +109,7 @@ Step-by-step guides for common types of changes in the Open Notebook codebase. E
 
 ## Playbook: Database Migration
 
-**Example:** "Add index on source.notebook_id for query performance"
+**Example:** "Add index on source.project_id for query performance"
 
 | Step | File(s) | What to Do |
 |------|---------|------------|
@@ -128,7 +128,7 @@ Step-by-step guides for common types of changes in the Open Notebook codebase. E
 
 ## Playbook: Frontend-Only Change
 
-**Example:** "Improve notebook list loading state"
+**Example:** "Improve project list loading state"
 
 | Step | File(s) | What to Do |
 |------|---------|------------|
@@ -147,7 +147,7 @@ Step-by-step guides for common types of changes in the Open Notebook codebase. E
 
 ## Playbook: New Background Command
 
-**Example:** "Add command to rebuild all embeddings for a notebook"
+**Example:** "Add command to rebuild all embeddings for a project"
 
 | Step | File(s) | What to Do |
 |------|---------|------------|
@@ -181,11 +181,11 @@ Step-by-step guides for common types of changes in the Open Notebook codebase. E
 
 | Layer | Location | Schema/Types | Tests |
 |-------|----------|-------------|-------|
-| Domain models | `open_notebook/domain/` | Pydantic fields | `tests/` |
-| Database | `open_notebook/database/repository.py` | SurrealQL | `tests/` |
+| Domain models | `construction_os/domain/` | Pydantic fields | `tests/` |
+| Database | `construction_os/database/repository.py` | SurrealQL | `tests/` |
 | Migrations | `migrations/*.surql` | SurrealQL | Auto-run on startup |
-| AI/LLM | `open_notebook/ai/` | Esperanto types | `tests/` |
-| Graphs | `open_notebook/graphs/` | TypedDict state | `tests/` |
+| AI/LLM | `construction_os/ai/` | Esperanto types | `tests/` |
+| Graphs | `construction_os/graphs/` | TypedDict state | `tests/` |
 | Prompts | `prompts/**/*.jinja` | Jinja2 context | — |
 | Commands | `commands/` | CommandInput/Output | `tests/` |
 | API routers | `api/routers/` | `api/models.py` | `tests/` |

@@ -192,7 +192,7 @@ class TestCredentialNumCtx:
     """Tests for the Ollama num_ctx override threaded into esperanto config."""
 
     def test_num_ctx_included_when_set(self):
-        from open_notebook.domain.credential import Credential
+        from construction_os.domain.credential import Credential
 
         cred = Credential(
             name="Local Ollama",
@@ -206,7 +206,7 @@ class TestCredentialNumCtx:
         assert config["base_url"] == "http://localhost:11434"
 
     def test_num_ctx_absent_when_unset(self):
-        from open_notebook.domain.credential import Credential
+        from construction_os.domain.credential import Credential
 
         cred = Credential(
             name="Local Ollama",
@@ -220,7 +220,7 @@ class TestAudioProviderWiring:
     """Tests for the new audio providers (Mistral STT/TTS, Deepgram TTS, xAI TTS)."""
 
     def test_classify_voxtral_and_aura(self):
-        from open_notebook.ai.model_discovery import classify_model_type
+        from construction_os.ai.model_discovery import classify_model_type
 
         # Mistral Voxtral: TTS model must not be mis-detected as STT
         assert classify_model_type("voxtral-mini-tts-2603", "mistral") == "text_to_speech"
@@ -242,7 +242,7 @@ class TestAudioProviderWiring:
 
     def test_deepgram_has_env_and_test_model(self):
         from api.credentials_service import PROVIDER_ENV_CONFIG
-        from open_notebook.ai.connection_tester import TEST_MODELS
+        from construction_os.ai.connection_tester import TEST_MODELS
 
         assert PROVIDER_ENV_CONFIG["deepgram"]["required"] == ["DEEPGRAM_API_KEY"]
         assert TEST_MODELS["deepgram"][1] == "text_to_speech"
@@ -260,7 +260,7 @@ class TestAudioMatrixWiring:
         assert "speech_to_text" in PROVIDER_MODALITIES["elevenlabs"]
 
     def test_classify_matrix(self):
-        from open_notebook.ai.model_discovery import classify_model_type
+        from construction_os.ai.model_discovery import classify_model_type
 
         # Gemini TTS preview is classifiable; plain Gemini STT name stays language
         assert classify_model_type("gemini-3.1-flash-tts-preview", "google") == "text_to_speech"

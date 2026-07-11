@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-interface NotebookColumnsState {
+interface ProjectColumnsState {
   sourcesCollapsed: boolean
   notesCollapsed: boolean
   toggleSources: () => void
@@ -10,7 +10,7 @@ interface NotebookColumnsState {
   setNotes: (collapsed: boolean) => void
 }
 
-export const useNotebookColumnsStore = create<NotebookColumnsState>()(
+export const useProjectColumnsStore = create<ProjectColumnsState>()(
   persist(
     (set) => ({
       sourcesCollapsed: false,
@@ -21,7 +21,7 @@ export const useNotebookColumnsStore = create<NotebookColumnsState>()(
       setNotes: (collapsed) => set({ notesCollapsed: collapsed }),
     }),
     {
-      name: 'notebook-columns-storage',
+      name: 'project-columns-storage',
     }
   )
 )

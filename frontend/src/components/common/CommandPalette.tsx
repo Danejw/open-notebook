@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, useId } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCreateDialogs } from '@/lib/hooks/use-create-dialogs'
-import { useNotebooks } from '@/lib/hooks/use-notebooks'
+import { useProjects } from '@/lib/hooks/use-projects'
 import { useTheme } from '@/lib/stores/theme-store'
 import {
   CommandDialog,
@@ -34,18 +34,18 @@ import type { TFunction } from 'i18next'
 
 const getNavigationItems = (t: TFunction) => [
   { name: t('navigation.sources'), href: '/sources', icon: FileText, keywords: ['files', 'documents', 'upload'] },
-  { name: t('navigation.notebooks'), href: '/notebooks', icon: Book, keywords: ['notes', 'research', 'projects'] },
+  { name: t('navigation.projects'), href: '/projects', icon: Book, keywords: ['notes', 'research', 'projects'] },
   { name: t('navigation.askAndSearch'), href: '/search', icon: Search, keywords: ['find', 'query'] },
   { name: t('navigation.podcasts'), href: '/podcasts', icon: Mic, keywords: ['audio', 'episodes', 'generate'] },
   { name: t('navigation.models'), href: '/settings/api-keys', icon: Bot, keywords: ['ai', 'llm', 'providers', 'openai', 'anthropic'] },
-  { name: t('navigation.transformations'), href: '/transformations', icon: Shuffle, keywords: ['prompts', 'templates', 'actions'] },
+  { name: t('navigation.artifacts'), href: '/artifacts', icon: Shuffle, keywords: ['prompts', 'templates', 'actions'] },
   { name: t('navigation.settings'), href: '/settings', icon: Settings, keywords: ['preferences', 'config', 'options'] },
   { name: t('navigation.advanced'), href: '/advanced', icon: Wrench, keywords: ['debug', 'system', 'tools'] },
 ]
 
 const getCreateItems = (t: TFunction) => [
   { name: t('common.newSource'), action: 'source', icon: FileText },
-  { name: t('common.newNotebook'), action: 'notebook', icon: Book },
+  { name: t('common.newProject'), action: 'project', icon: Book },
   { name: t('common.newPodcast'), action: 'podcast', icon: Mic },
 ]
 
@@ -65,9 +65,9 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const router = useRouter()
-  const { openSourceDialog, openNotebookDialog, openPodcastDialog } = useCreateDialogs()
+  const { openSourceDialog, openProjectDialog, openPodcastDialog } = useCreateDialogs()
   const { setTheme } = useTheme()
-  const { data: notebooks, isLoading: notebooksLoading } = useNotebooks(false, { enabled: open })
+  const { data: projects, isLoading: projectsLoading } = useProjects(false, { enabled: open })
 
   // Global keyboard listener for ⌘K / Ctrl+K
   useEffect(() => {
@@ -125,16 +125,16 @@ export function CommandPalette() {
   const handleCreate = useCallback((action: string) => {
     handleSelect(() => {
       if (action === 'source') openSourceDialog()
-      else if (action === 'notebook') openNotebookDialog()
+      else if (action === 'project') openProjectDialog()
       else if (action === 'podcast') openPodcastDialog()
     })
-  }, [handleSelect, openSourceDialog, openNotebookDialog, openPodcastDialog])
+  }, [handleSelect, openSourceDialog, openProjectDialog, openPodcastDialog])
 
   const handleTheme = useCallback((theme: 'light' | 'dark' | 'system') => {
     handleSelect(() => setTheme(theme))
   }, [handleSelect, setTheme])
 
-  // Check if query matches any command (navigation, create, theme, or notebook)
+  // Check if query matches any command (navigation, create, theme, or project)
   const queryLower = query.toLowerCase().trim()
   const hasCommandMatch = useMemo(() => {
     if (!queryLower) return false
@@ -150,12 +150,12 @@ export function CommandPalette() {
         item.name.toLowerCase().includes(queryLower) ||
         item.keywords.some(k => k.includes(queryLower))
       ) ||
-      (notebooks?.some(nb =>
-        nb.name.toLowerCase().includes(queryLower) ||
-        (nb.description && nb.description.toLowerCase().includes(queryLower))
+      (projects?.some(project =>
+        project.name.toLowerCase().includes(queryLower) ||
+        (project.description && project.description.toLowerCase().includes(queryLower))
       ) ?? false)
     )
-  }, [queryLower, notebooks, navigationItems, createItems, themeItems])
+  }, [queryLower, projects, navigationItems, createItems, themeItems])
 
   // Determine if we should show the Search/Ask section at the top
   const showSearchFirst = query.trim() && !hasCommandMatch
@@ -214,22 +214,22 @@ export function CommandPalette() {
           ))}
         </CommandGroup>
 
-        {/* Notebooks */}
-        <CommandGroup heading={t('notebooks.title')}>
-          {notebooksLoading ? (
+        {/* Projects */}
+        <CommandGroup heading={t('projects.title')}>
+          {projectsLoading ? (
             <CommandItem disabled>
               <InlineSkeleton className="h-4 w-4" />
               <span>{t('common.loading')}</span>
             </CommandItem>
-          ) : notebooks && notebooks.length > 0 ? (
-            notebooks.map((notebook) => (
+          ) : projects && projects.length > 0 ? (
+            projects.map((project) => (
               <CommandItem
-                key={notebook.id}
-                value={`notebook ${notebook.name} ${notebook.description || ''}`}
-                onSelect={() => handleNavigate(`/notebooks/${notebook.id}`)}
+                key={project.id}
+                value={`project ${project.name} ${project.description || ''}`}
+                onSelect={() => handleNavigate(`/projects/${project.id}`)}
               >
                 <Book className="h-4 w-4" />
-                <span>{notebook.name}</span>
+                <span>{project.name}</span>
               </CommandItem>
             ))
           ) : null}

@@ -14,7 +14,7 @@
 | Question | Answer |
 |----------|--------|
 | Why does the app feel slow on open? | **Sequential blocking gates** — `ConnectionGuard` returns `null`, then dashboard auth shows a full-page spinner, then pages add more spinners. |
-| Is the backend the main bottleneck? | **Partially.** Config + auth + credential checks add a **frontend-orchestrated waterfall** before any shell renders. Page data (notebooks, sources) adds more waits. |
+| Is the backend the main bottleneck? | **Partially.** Config + auth + credential checks add a **frontend-orchestrated waterfall** before any shell renders. Page data (projects, sources) adds more waits. |
 | Biggest bundle issues? | **14 i18n locales eager-loaded** (~770 KB source), **global KaTeX CSS**, **markdown/highlight stack** on chat/source pages, **eager modal/dialog trees** in dashboard layout. |
 | Quick wins? | Shell skeletons, `loading.tsx`, lazy locales, lazy modals, skeleton components. |
 | Regression risk if ignored? | High — every new dashboard feature added to layout/providers increases eager load. |
@@ -52,14 +52,14 @@ I18nProvider ──► hidden children until mount
 Dashboard layout ──► full-page LoadingSpinner
     │                 Zustand hydrate
     │                 fetch /api/auth/status
-    │                 fetch /api/notebooks (if auth enabled)
+    │                 fetch /api/projects (if auth enabled)
     ▼
 Page mount ──► AppShell + queries
     │           SetupBanner: credential + env status (2 calls)
-    │           CommandPalette: notebooks list
+    │           CommandPalette: projects list
     │           CreateDialogsProvider + ModalProvider (heavy, eager)
     ▼
-Page-specific queries (notebooks, sources, notes, …)
+Page-specific queries (projects, sources, notes, …)
 ```
 
 ### Blocking components (code references)
@@ -79,11 +79,11 @@ File: `frontend/src/app/(dashboard)/layout.tsx`
 - Shows centered `LoadingSpinner` until auth hydrates and resolves (lines 40–47).
 - Sidebar and page chrome are not visible during auth check.
 
-**3. Notebook detail — another full-page spinner**
+**3. Project detail — another full-page spinner**
 
-File: `frontend/src/app/(dashboard)/notebooks/[id]/page.tsx`
+File: `frontend/src/app/(dashboard)/projects/[id]/page.tsx`
 
-- Returns full-page spinner while `notebookLoading` (lines 193–198).
+- Returns full-page spinner while `projectLoading` (lines 193–198).
 - Shell (`AppShell`, header area) could render immediately with column skeletons.
 
 **4. No App Router loading UI**
@@ -133,9 +133,9 @@ File: `frontend/src/app/(dashboard)/layout.tsx`
 
 | Provider | What loads eagerly | Cost |
 |----------|-------------------|------|
-| `CreateDialogsProvider` | `AddSourceDialog`, `CreateNotebookDialog`, `GeneratePodcastDialog` | Large dialog trees + hooks |
+| `CreateDialogsProvider` | `AddSourceDialog`, `CreateProjectDialog`, `GeneratePodcastDialog` | Large dialog trees + hooks |
 | `ModalProvider` | `SourceDialog` → `SourceDetailContent` (800+ lines, many API hooks) | Heavy even when no modal open |
-| `CommandPalette` | `useNotebooks(false)` on mount | Extra API call |
+| `CommandPalette` | `useProjects(false)` on mount | Extra API call |
 | `AppShell` → `SetupBanner` | `useCredentialStatus()` + `useEnvStatus()` | 2 API calls per page |
 
 ### 3. Loading UX — spinners, no skeletons
@@ -145,15 +145,15 @@ File: `frontend/src/app/(dashboard)/layout.tsx`
 
 Examples:
 
-- `NotebookList.tsx` — full section replaced by spinner while loading.
+- `ProjectList.tsx` — full section replaced by spinner while loading.
 - `ChatColumn.tsx` — entire chat card blocked until sources/notes load.
-- `[id]/page.tsx` — full viewport spinner for notebook metadata.
+- `[id]/page.tsx` — full viewport spinner for project metadata.
 
 ### 4. Data fetching patterns
 
 | Pattern | Current behavior | Recommendation |
 |---------|------------------|----------------|
-| Notebook notes | Fetched in page **and** `ChatColumn` via `useNotes` | React Query dedupes network; pass notes as prop to avoid duplicate subscriptions |
+| Project notes | Fetched in page **and** `ChatColumn` via `useNotes` | React Query dedupes network; pass notes as prop to avoid duplicate subscriptions |
 | Sources staleTime | 5 seconds | Increase to 30–60s; poll only when `status === 'running'` |
 | refetchOnWindowFocus | `true` on sources hooks | Causes flicker on tab return; disable for stable lists |
 | placeholderData | Not used | Show stale data during navigation/refetch |
@@ -191,9 +191,9 @@ loading.tsx files: 0
 |-------------|---------|--------|
 | App open | Blank → spinner → content | Shell skeleton → progressive fill |
 | Sidebar navigate | Wait for page JS + queries | Instant skeleton via `loading.tsx`; cached stale data |
-| ⌘K command palette | Mounted + notebooks prefetched on every page | Lazy mount; fetch on first open |
+| ⌘K command palette | Mounted + projects prefetched on every page | Lazy mount; fetch on first open |
 | Source modal | `SourceDetailContent` always in tree | Dynamic import on modal open |
-| Mobile notebook tabs | Columns remount on tab switch | Preserve mounted state or hide with CSS |
+| Mobile project tabs | Columns remount on tab switch | Preserve mounted state or hide with CSS |
 | Browser tab refocus | Sources refetch at 5s stale | Show cache; background refresh without spinner |
 | Language switch | Full-screen overlay (acceptable) | Keep; lazy locales make switch faster |
 | Long chat thread | All messages re-render markdown | Virtualize + memoize message bubbles |
@@ -208,7 +208,7 @@ loading.tsx files: 0
 |----|--------|--------------|
 | T1-01 | `ConnectionGuard`: render shell skeleton instead of `null` | `ConnectionGuard.tsx` |
 | T1-02 | Dashboard auth: show `AppShell` + skeleton while auth resolves | `(dashboard)/layout.tsx` |
-| T1-03 | Notebook detail: always show shell + column skeletons | `notebooks/[id]/page.tsx` |
+| T1-03 | Project detail: always show shell + column skeletons | `projects/[id]/page.tsx` |
 | T1-04 | Add `loading.tsx` for dashboard and key dynamic routes | `app/(dashboard)/` |
 | T1-05 | Lazy-load i18n locales | `lib/i18n.ts`, `lib/locales/index.ts` |
 | T1-06 | Dynamic-import modals and command palette | `(dashboard)/layout.tsx`, providers |
@@ -223,7 +223,7 @@ loading.tsx files: 0
 | T2-02 | Sidebar `onMouseEnter` → `queryClient.prefetchQuery` |
 | T2-03 | Dynamic-import `MarkdownRenderer`; scope KaTeX CSS to math pages |
 | T2-04 | Defer `SetupBanner` queries (`requestIdleCallback` or `enabled` after paint) |
-| T2-05 | Fetch command palette notebooks only when palette opens |
+| T2-05 | Fetch command palette projects only when palette opens |
 | T2-06 | Parallelize config fetches in `fetchConfig()` |
 | T2-07 | Tune sources `staleTime` and `refetchOnWindowFocus` |
 
@@ -233,7 +233,7 @@ loading.tsx files: 0
 |----|--------|
 | T3-01 | Server/client split — RSC for static shells |
 | T3-02 | Virtualize chat messages and long source lists |
-| T3-03 | Optimistic UI for notebook/source/note CRUD |
+| T3-03 | Optimistic UI for project/source/note CRUD |
 | T3-04 | `@next/bundle-analyzer` in CI with recorded baselines |
 
 ---
@@ -242,7 +242,7 @@ loading.tsx files: 0
 
 ### Phase 1 — Perceived speed (~1–2 days)
 
-Shell skeletons, `loading.tsx`, non-blocking ConnectionGuard/auth, notebook detail skeletons.
+Shell skeletons, `loading.tsx`, non-blocking ConnectionGuard/auth, project detail skeletons.
 
 **Success criteria:** Sidebar visible within first paint; no blank screen on cold open.
 
@@ -263,8 +263,8 @@ keepPreviousData, hover prefetch, refetch tuning, lazy markdown/KaTeX.
 ## How to verify (manual)
 
 1. **Cold open** — DevTools Performance: measure time until sidebar appears (target: no >300ms blank).
-2. **Network on `/notebooks`** — Count requests before interactive UI (config ×2, auth ×1–2, credentials ×2, notebooks ×2 today).
-3. **Navigation** — Click Notebooks → Sources → Search; each should show skeleton immediately.
+2. **Network on `/projects`** — Count requests before interactive UI (config ×2, auth ×1–2, credentials ×2, projects ×2 today).
+3. **Navigation** — Click Projects → Sources → Search; each should show skeleton immediately.
 4. **Coverage** — After lazy-i18n: unused locale bytes should drop sharply.
 5. **Tab refocus** — Switch away and back; sources list should not full-page reload.
 

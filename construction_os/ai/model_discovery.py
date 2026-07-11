@@ -13,9 +13,9 @@ from typing import Dict, List, Optional, Tuple
 import httpx
 from loguru import logger
 
-from open_notebook.ai.models import Model
-from open_notebook.database.repository import repo_query
-from open_notebook.domain.credential import Credential
+from construction_os.ai.models import Model
+from construction_os.database.repository import repo_query
+from construction_os.domain.credential import Credential
 
 
 @dataclass

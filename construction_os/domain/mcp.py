@@ -8,9 +8,9 @@ from typing import Any, ClassVar, Dict, List, Optional
 
 from loguru import logger
 
-from open_notebook.database.repository import ensure_record_id, repo_query
-from open_notebook.domain.base import ObjectModel
-from open_notebook.utils.encryption import decrypt_value, encrypt_value
+from construction_os.database.repository import ensure_record_id, repo_query
+from construction_os.domain.base import ObjectModel
+from construction_os.utils.encryption import decrypt_value, encrypt_value
 
 
 def _utcnow_iso() -> str:

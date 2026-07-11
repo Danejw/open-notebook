@@ -11,7 +11,7 @@ services:
     pull_policy: always
     user: root
     restart: always
-  open_notebook:
+  construction_os:
     build:
       context: .
       dockerfile: Dockerfile
@@ -23,6 +23,6 @@ services:
     depends_on:
       - surrealdb
     volumes:
-      - ./notebook_data:/app/data
+      - ./construction_os_data:/app/data
     restart: always
     

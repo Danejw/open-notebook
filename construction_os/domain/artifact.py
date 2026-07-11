@@ -2,11 +2,11 @@ from typing import ClassVar, Optional
 
 from pydantic import Field
 
-from open_notebook.domain.base import ObjectModel, RecordModel
+from construction_os.domain.base import ObjectModel, RecordModel
 
 
-class Transformation(ObjectModel):
-    table_name: ClassVar[str] = "transformation"
+class Artifact(ObjectModel):
+    table_name: ClassVar[str] = "artifact"
     name: str
     title: str
     description: str
@@ -15,7 +15,7 @@ class Transformation(ObjectModel):
 
 
 class DefaultPrompts(RecordModel):
-    record_id: ClassVar[str] = "open_notebook:default_prompts"
-    transformation_instructions: Optional[str] = Field(
-        None, description="Instructions for executing a transformation"
+    record_id: ClassVar[str] = "construction_os:default_prompts"
+    artifact_instructions: Optional[str] = Field(
+        None, description="Instructions for executing an artifact"
     )

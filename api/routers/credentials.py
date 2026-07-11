@@ -54,9 +54,9 @@ from api.models import (
     RegisterModelsResponse,
     UpdateCredentialRequest,
 )
-from open_notebook.database.repository import ensure_record_id, repo_delete, repo_query
-from open_notebook.domain.credential import Credential
-from open_notebook.exceptions import NotFoundError
+from construction_os.database.repository import ensure_record_id, repo_delete, repo_query
+from construction_os.domain.credential import Credential
+from construction_os.exceptions import NotFoundError
 
 router = APIRouter(prefix="/credentials", tags=["credentials"])
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any, Optional
 
-from open_notebook.mcp.limits import MAX_RESULT_CHARS
+from construction_os.mcp.limits import MAX_RESULT_CHARS
 
 
 def mcp_result_to_text(

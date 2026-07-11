@@ -1,0 +1,3 @@
+-- Rollback migration 19: restore Dense Summary as the default transformation
+
+UPDATE transformation SET apply_default = true WHERE name = "Dense Summary";

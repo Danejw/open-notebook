@@ -12,17 +12,17 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
-from open_notebook.ai.provision import provision_langchain_model
-from open_notebook.domain.notebook import Source, SourceInsight
-from open_notebook.exceptions import OpenNotebookError
-from open_notebook.graphs.progress import emit_agent_progress
-from open_notebook.mcp.chat_loop import generate_with_mcp_tools
-from open_notebook.skills.loader import format_skills_context, load_one_skill_md
-from open_notebook.utils import clean_thinking_content
-from open_notebook.utils.context_builder import ContextBuilder
-from open_notebook.utils.error_classifier import classify_error
-from open_notebook.utils.text_utils import extract_text_content
-from open_notebook.utils.token_utils import token_count
+from construction_os.ai.provision import provision_langchain_model
+from construction_os.domain.project import Source, SourceInsight
+from construction_os.exceptions import ConstructionOSError
+from construction_os.graphs.progress import emit_agent_progress
+from construction_os.mcp.chat_loop import generate_with_mcp_tools
+from construction_os.skills.loader import format_skills_context, load_one_skill_md
+from construction_os.utils import clean_thinking_content
+from construction_os.utils.context_builder import ContextBuilder
+from construction_os.utils.error_classifier import classify_error
+from construction_os.utils.text_utils import extract_text_content
+from construction_os.utils.token_utils import token_count
 
 
 class SourceChatState(TypedDict):
@@ -150,7 +150,7 @@ def loading_skills(state: SourceChatState, config: RunnableConfig) -> dict:
             )
 
         return {"skills_context": format_skills_context(blocks) or None}
-    except OpenNotebookError:
+    except ConstructionOSError:
         raise
     except Exception as e:
         error_class, user_message = classify_error(e)
@@ -221,7 +221,7 @@ def retrieving_context(state: SourceChatState, config: RunnableConfig) -> dict:
             "context": formatted_context,
             "context_indicators": context_indicators,
         }
-    except OpenNotebookError:
+    except ConstructionOSError:
         raise
     except Exception as e:
         error_class, user_message = classify_error(e)
@@ -275,7 +275,7 @@ def generating(state: SourceChatState, config: RunnableConfig) -> dict:
 
         emit_agent_progress("completed", "generating", {}, config)
         return {"messages": cleaned_message}
-    except OpenNotebookError:
+    except ConstructionOSError:
         raise
     except Exception as e:
         error_class, user_message = classify_error(e)

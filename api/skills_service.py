@@ -20,9 +20,9 @@ from api.skill_models import (
     ValidationIssueResponse,
     ValidationResponse,
 )
-from open_notebook.domain.skill import Skill, SkillFile
-from open_notebook.exceptions import InvalidInputError, NotFoundError
-from open_notebook.skills.standard import (
+from construction_os.domain.skill import Skill, SkillFile
+from construction_os.exceptions import InvalidInputError, NotFoundError
+from construction_os.skills.standard import (
     REQUIRED_ENTRY,
     SkillStandardError,
     guess_mime_type,
@@ -30,8 +30,8 @@ from open_notebook.skills.standard import (
     normalize_relative_path,
     parse_skill_md,
 )
-from open_notebook.skills.validation import validate_skill_files
-from open_notebook.skills.zip_io import (
+from construction_os.skills.validation import validate_skill_files
+from construction_os.skills.zip_io import (
     SkillFilePayload,
     build_skill_zip,
     extract_all_skills_from_zip,

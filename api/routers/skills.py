@@ -26,8 +26,8 @@ from api.skill_models import (
     SkillUpdateRequest,
     ValidationResponse,
 )
-from open_notebook.exceptions import InvalidInputError, NotFoundError
-from open_notebook.skills.loader import get_skill_catalog, read_skill_file
+from construction_os.exceptions import InvalidInputError, NotFoundError
+from construction_os.skills.loader import get_skill_catalog, read_skill_file
 
 router = APIRouter()
 

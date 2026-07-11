@@ -15,8 +15,8 @@ from api.mcp_models import (
     McpConnectionResponse,
     McpToolResponse,
 )
-from open_notebook.exceptions import InvalidInputError, NotFoundError
-from open_notebook.domain import mcp as _mcp_domain  # noqa: F401 — register models
+from construction_os.exceptions import InvalidInputError, NotFoundError
+from construction_os.domain import mcp as _mcp_domain  # noqa: F401 — register models
 
 router = APIRouter()
 

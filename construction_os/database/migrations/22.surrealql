@@ -1,0 +1,5 @@
+-- Migration 22: Construction OS — default prompts record + artifact seeds (via rebrand_migration.py)
+-- Placeholder ensures migration version bumps; seeds run at API startup.
+
+RETURN NONE;
+RETURN true;

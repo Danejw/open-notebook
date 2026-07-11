@@ -1,6 +1,6 @@
 # Quick Start - Cloud AI Providers (5 minutes)
 
-Get Open Notebook running with **Anthropic, Google, Groq, or other cloud providers**. Same simplicity as OpenAI, with more choices.
+Get Construction OS running with **Anthropic, Google, Groq, or other cloud providers**. Same simplicity as OpenAI, with more choices.
 
 ## Prerequisites
 
@@ -19,7 +19,7 @@ Get Open Notebook running with **Anthropic, Google, Groq, or other cloud provide
 
 ## Step 1: Create Configuration (1 min)
 
-Create a new folder `open-notebook` and add this file:
+Create a new folder `construction-os` and add this file:
 
 **docker-compose.yml**:
 ```yaml
@@ -34,21 +34,21 @@ services:
     # Removed the healthcheck because the v2 image is too minimal to run wget/curl
     restart: always
 
-  open_notebook:
-    image: lfnovo/open_notebook:v1-latest
+  construction_os:
+    image: lfnovo/construction-os:v1-latest
     pull_policy: always
     ports:
       - "8502:8502"  # Web UI
       - "5055:5055"  # API
     environment:
-      - OPEN_NOTEBOOK_ENCRYPTION_KEY=change-me-to-a-secret-string
+      - CONSTRUCTION_OS_ENCRYPTION_KEY=change-me-to-a-secret-string
       - SURREAL_URL=ws://surrealdb:8000/rpc
       - SURREAL_USER=root
       - SURREAL_PASSWORD=password
-      - SURREAL_NAMESPACE=open_notebook
-      - SURREAL_DATABASE=open_notebook
+      - SURREAL_NAMESPACE=construction_os
+      - SURREAL_DATABASE=construction_os
     volumes:
-      - ./notebook_data:/app/data
+      - ./construction_os_data:/app/data
     depends_on:
       - surrealdb
     restart: always
@@ -62,7 +62,7 @@ services:
 
 ## Step 2: Start Services (1 min)
 
-Open terminal in your `open-notebook` folder:
+Open terminal in your `construction-os` folder:
 
 ```bash
 docker compose up -d
@@ -72,14 +72,14 @@ Wait 15-20 seconds for services to start.
 
 ---
 
-## Step 3: Access Open Notebook (instant)
+## Step 3: Access Construction OS (instant)
 
 Open your browser:
 ```
 http://localhost:8502
 ```
 
-You should see the Open Notebook interface!
+You should see the Construction OS interface!
 
 ---
 
@@ -117,9 +117,9 @@ Your provider's models are now available!
 
 ---
 
-## Step 6: Create Your First Notebook (1 min)
+## Step 6: Create Your First Project (1 min)
 
-1. Click **New Notebook**
+1. Click **New Project**
 2. Name: "My Research"
 3. Click **Create**
 
@@ -141,7 +141,7 @@ Your provider's models are now available!
 - [ ] You can access `http://localhost:8502`
 - [ ] Provider credential is configured and tested
 - [ ] Models are registered
-- [ ] You created a notebook
+- [ ] You created a project
 - [ ] Chat works
 
 **All checked?** You're ready to research!
@@ -204,7 +204,7 @@ Check provider websites for current pricing.
 ## Next Steps
 
 1. **Add Your Content**: PDFs, web links, documents
-2. **Explore Features**: Podcasts, transformations, search
+2. **Explore Features**: Podcasts, artifacts, search
 3. **Full Documentation**: [See all features](../3-USER-GUIDE/index.md)
 
 ---

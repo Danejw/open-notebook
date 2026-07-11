@@ -6,10 +6,10 @@ import { isAxiosError } from 'axios'
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
 import { sourcesApi } from '@/lib/api/sources'
 import { insightsApi, SourceInsightResponse } from '@/lib/api/insights'
-import { transformationsApi } from '@/lib/api/transformations'
+import { artifactsApi } from '@/lib/api/artifacts'
 import { embeddingApi } from '@/lib/api/embedding'
 import { SourceDetailResponse } from '@/lib/types/api'
-import { Transformation } from '@/lib/types/transformations'
+import { Artifact } from '@/lib/types/artifacts'
 import {
   InlineSkeleton,
   ListRowsSkeleton,
@@ -69,7 +69,7 @@ import { getDateLocale } from '@/lib/utils/date-locale'
 import { toast } from 'sonner'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { SourceInsightDialog } from '@/components/source/SourceInsightDialog'
-import { NotebookAssociations } from '@/components/source/NotebookAssociations'
+import { ProjectAssociations } from '@/components/source/ProjectAssociations'
 
 interface SourceDetailContentProps {
   sourceId: string
@@ -88,8 +88,8 @@ export function SourceDetailContent({
   const queryClient = useQueryClient()
   const [source, setSource] = useState<SourceDetailResponse | null>(null)
   const [insights, setInsights] = useState<SourceInsightResponse[]>([])
-  const [transformations, setTransformations] = useState<Transformation[]>([])
-  const [selectedTransformation, setSelectedTransformation] = useState<string>('')
+  const [artifacts, setArtifacts] = useState<Artifact[]>([])
+  const [selectedArtifactId, setSelectedArtifactId] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [loadingInsights, setLoadingInsights] = useState(false)
   const [creatingInsight, setCreatingInsight] = useState(false)
@@ -134,12 +134,12 @@ export function SourceDetailContent({
     }
   }, [sourceId])
 
-  const fetchTransformations = useCallback(async () => {
+  const fetchArtifacts = useCallback(async () => {
     try {
-      const data = await transformationsApi.list()
-      setTransformations(data)
+      const data = await artifactsApi.list()
+      setArtifacts(data)
     } catch (err) {
-      console.error('Failed to fetch transformations:', err)
+      console.error('Failed to fetch artifacts:', err)
     }
   }, [])
 
@@ -147,24 +147,24 @@ export function SourceDetailContent({
     if (sourceId) {
       void fetchSource()
       void fetchInsights()
-      void fetchTransformations()
+      void fetchArtifacts()
     }
-  }, [fetchInsights, fetchSource, fetchTransformations, sourceId])
+  }, [fetchInsights, fetchSource, fetchArtifacts, sourceId])
 
   const createInsight = async () => {
-    if (!selectedTransformation) {
-      toast.error(t('sources.selectTransformation'))
+    if (!selectedArtifactId) {
+      toast.error(t('sources.selectArtifact'))
       return
     }
 
     try {
       setCreatingInsight(true)
       const response = await insightsApi.create(sourceId, {
-        transformation_id: selectedTransformation
+        artifact_id: selectedArtifactId
       })
       // Show toast for async operation
       toast.success(t('sources.insightGenerationStarted'))
-      setSelectedTransformation('')
+      setSelectedArtifactId('')
 
       // Poll for command completion if we have a command_id
       if (response.command_id) {
@@ -175,7 +175,7 @@ export function SourceDetailContent({
         }).then(success => {
           if (success) {
             void fetchInsights()
-            // Invalidate sources queries so notebook page refreshes with updated insights_count
+            // Invalidate sources queries so project page refreshes with updated insights_count
             queryClient.invalidateQueries({ queryKey: ['sources'] })
           }
         }).catch(err => {
@@ -543,7 +543,7 @@ export function SourceDetailContent({
                 {/* Create New Insight */}
                 <div className="rounded-lg border bg-muted/30 p-4">
                   <Label 
-                    htmlFor="transformation-select"
+                    htmlFor="artifact-select"
                     className="mb-3 text-sm font-semibold flex items-center gap-2"
                   >
                     <Sparkles className="h-4 w-4" />
@@ -551,18 +551,18 @@ export function SourceDetailContent({
                   </Label>
                   <div className="flex gap-2">
                     <Select
-                      name="transformation"
-                      value={selectedTransformation}
-                      onValueChange={setSelectedTransformation}
+                      name="artifact"
+                      value={selectedArtifactId}
+                      onValueChange={setSelectedArtifactId}
                       disabled={creatingInsight}
                     >
-                      <SelectTrigger id="transformation-select" className="flex-1">
-                        <SelectValue placeholder={t('sources.selectTransformation')} />
+                      <SelectTrigger id="artifact-select" className="flex-1">
+                        <SelectValue placeholder={t('sources.selectArtifact')} />
                       </SelectTrigger>
                       <SelectContent>
-                        {transformations.map((trans) => (
-                          <SelectItem key={trans.id} value={trans.id}>
-                            {trans.title || trans.name}
+                        {artifacts.map((artifact) => (
+                          <SelectItem key={artifact.id} value={artifact.id}>
+                            {artifact.title || artifact.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -570,7 +570,7 @@ export function SourceDetailContent({
                     <Button
                       size="sm"
                       onClick={createInsight}
-                      disabled={!selectedTransformation || creatingInsight}
+                      disabled={!selectedArtifactId || creatingInsight}
                     >
                       {creatingInsight ? (
                         <>
@@ -775,10 +775,10 @@ export function SourceDetailContent({
               </CardContent>
             </Card>
 
-            {/* Notebook Associations */}
-            <NotebookAssociations
+            {/* Project Associations */}
+            <ProjectAssociations
               sourceId={sourceId}
-              currentNotebookIds={source.notebooks || []}
+              currentProjectIds={source.projects || []}
               onSave={fetchSource}
             />
           </TabsContent>

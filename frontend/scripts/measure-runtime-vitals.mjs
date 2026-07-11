@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Capture browser Web Vitals from a running Open Notebook instance.
+ * Capture browser Web Vitals from a running Construction OS instance.
  *
  * Prerequisites:
  *   npm install -D playwright
@@ -9,7 +9,7 @@
  *
  * Usage (from frontend/):
  *   npm run measure:runtime
- *   npm run measure:runtime -- --url http://localhost:3000 --routes /notebooks,/sources
+ *   npm run measure:runtime -- --url http://localhost:3000 --routes /projects,/sources
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -22,7 +22,7 @@ const outputDir = path.join(repoRoot, 'docs', 'optimization', 'runtime')
 function parseArgs(argv) {
   const args = {
     url: 'http://localhost:3000',
-    routes: ['/notebooks', '/sources'],
+    routes: ['/projects', '/sources'],
     timeoutMs: 20_000,
     label: 'runtime',
   }
@@ -60,7 +60,7 @@ async function waitForVitals(page, timeoutMs) {
   const deadline = Date.now() + timeoutMs
 
   while (Date.now() < deadline) {
-    const vitals = await page.evaluate(() => window.__OPEN_NOTEBOOK_WEB_VITALS__ ?? null)
+    const vitals = await page.evaluate(() => window.__construction_os_WEB_VITALS__ ?? null)
     const latest = vitals?.latest
     if (latest && (latest.LCP || latest.INP || latest.CLS || latest.FCP || latest.TTFB)) {
       return vitals
@@ -68,7 +68,7 @@ async function waitForVitals(page, timeoutMs) {
     await page.waitForTimeout(500)
   }
 
-  return page.evaluate(() => window.__OPEN_NOTEBOOK_WEB_VITALS__ ?? null)
+  return page.evaluate(() => window.__construction_os_WEB_VITALS__ ?? null)
 }
 
 async function main() {

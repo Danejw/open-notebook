@@ -1,31 +1,31 @@
 # Core Concepts - Understand the Mental Model
 
-Before diving into how to use Open Notebook, it's important to understand **how it thinks**. These core concepts explain the "why" behind the design.
+Before diving into how to use Construction OS, it's important to understand **how it thinks**. These core concepts explain the "why" behind the design.
 
 ## The Five Mental Models
 
-### 1. [Notebooks, Sources, and Notes](notebooks-sources-notes.md)
-How Open Notebook organizes your research. Understand the three-tier container structure and how information flows from raw materials to finished insights.
+### 1. [Projects, Sources, and Notes](projects-sources-notes.md)
+How Construction OS organizes your research. Understand the three-tier container structure and how information flows from raw materials to finished insights.
 
-**Key idea**: A notebook is a scoped research container. Sources are inputs (PDFs, URLs, etc.). Notes are outputs (your insights, AI-generated summaries, captured responses).
+**Key idea**: A project is a scoped research container. Sources are inputs (PDFs, URLs, etc.). Notes are outputs (your insights, AI-generated summaries, captured responses).
 
 ---
 
 ### 2. [AI Context & RAG](ai-context-rag.md)
-How Open Notebook makes AI aware of your research - two different approaches.
+How Construction OS makes AI aware of your research - two different approaches.
 
 **Key idea**: **Chat** sends entire selected sources to the LLM (full context, conversational). **Ask** uses RAG (retrieval-augmented generation) to automatically search and retrieve only relevant chunks. Different tools for different needs.
 
 ---
 
-### 3. [Chat vs. Transformations](chat-vs-transformations.md)
-Why Open Notebook has different interaction modes and when to use each one.
+### 3. [Chat vs. Artifacts](chat-vs-artifacts.md)
+Why Construction OS has different interaction modes and when to use each one.
 
-**Key idea**: Chat is conversational exploration (you control context). Transformations are insight extractions. They reduced content to smaller bits of concentrated/dense information, which is much more suitable for an AI to use. 
+**Key idea**: Chat is conversational exploration (you control context). Artifacts are insight extractions. They reduced content to smaller bits of concentrated/dense information, which is much more suitable for an AI to use. 
 
 ---
 
-### 4. [Context Management](chat-vs-transformations.md#context-management-the-control-panel)
+### 4. [Context Management](chat-vs-artifacts.md#context-management-the-control-panel)
 Your control panel for privacy and cost. Decide what data actually reaches AI.
 
 **Key idea**: You choose three levels—not in context (private), summary only (condensed), or full content (complete access). This gives you fine-grained control.
@@ -33,7 +33,7 @@ Your control panel for privacy and cost. Decide what data actually reaches AI.
 ---
 
 ### 5. [Podcasts Explained](podcasts-explained.md)
-Why Open Notebook can turn research into audio and why this matters.
+Why Construction OS can turn research into audio and why this matters.
 
 **Key idea**: Podcasts transform your research into a different consumption format. Instead of reading, someone can listen and absorb your insights passively.
 
@@ -41,9 +41,9 @@ Why Open Notebook can turn research into audio and why this matters.
 
 ## Read This Section If:
 
-- **You're new to Open Notebook** — Start here to understand how the system works conceptually before learning the features
+- **You're new to Construction OS** — Start here to understand how the system works conceptually before learning the features
 - **You're confused about Chat vs Ask** — Section 2 explains the difference (full-content vs RAG)
-- **You're wondering when to use Chat vs Transformations** — Section 3 clarifies the differences
+- **You're wondering when to use Chat vs Artifacts** — Section 3 clarifies the differences
 - **You want to understand privacy controls** — Section 4 shows you what you can control
 - **You're curious about podcasts** — Section 5 explains the architecture and why it's different from competitors
 
@@ -51,7 +51,7 @@ Why Open Notebook can turn research into audio and why this matters.
 
 ## The Big Picture
 
-Open Notebook is built on a simple insight: **Your research deserves to stay yours**.
+Construction OS is built on a simple insight: **Your research deserves to stay yours**.
 
 That means:
 - **Privacy by default** — Your data doesn't leave your infrastructure unless you explicitly choose

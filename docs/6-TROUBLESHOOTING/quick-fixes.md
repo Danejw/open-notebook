@@ -55,7 +55,7 @@ docker compose restart
 **If still broken:**
 - Make sure key has no extra spaces
 - Generate a fresh key from provider dashboard
-- Check that `OPEN_NOTEBOOK_ENCRYPTION_KEY` is set in docker-compose.yml
+- Check that `CONSTRUCTION_OS_ENCRYPTION_KEY` is set in docker-compose.yml
 - See [AI & Chat Issues](ai-chat-issues.md)
 
 ---
@@ -196,7 +196,7 @@ For detailed help: See [Chat Effectively](../3-USER-GUIDE/chat-effectively.md)
 # Try: "transformers" or "neural networks"
 
 # Check sources are processed:
-# Go to notebook
+# Go to project
 # All sources should show green "Ready" status
 ```
 
@@ -356,9 +356,9 @@ docker compose up
 
 ## Prevention Tips
 
-1. **Keep backups** — Export your notebooks regularly
+1. **Keep backups** — Export your projects regularly
 2. **Monitor logs** — Check `docker compose logs` periodically
-3. **Update regularly** — Pull latest image: `docker pull lfnovo/open_notebook:latest`
+3. **Update regularly** — Pull latest image: `docker pull lfnovo/construction-os:v1-latest`
 4. **Document changes** — Keep notes on what you configured
 5. **Test after updates** — Verify everything works
 
@@ -369,4 +369,4 @@ docker compose up
 - **Look up your exact error** in [Troubleshooting Index](index.md)
 - **Check the FAQ** in [FAQ](faq.md)
 - **Check logs:** `docker compose logs | head -50`
-- **Ask for help:** [Discord](https://discord.gg/37XJPXfz2w) or [GitHub Issues](https://github.com/lfnovo/open-notebook/issues)
+- **Ask for help:** [Discord](https://discord.gg/37XJPXfz2w) or [GitHub Issues](https://github.com/lfnovo/construction-os/issues)

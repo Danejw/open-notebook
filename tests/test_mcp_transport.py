@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from open_notebook.mcp.client import McpClient
-from open_notebook.mcp.transport import (
+from construction_os.mcp.client import McpClient
+from construction_os.mcp.transport import (
     McpTransportError,
     parse_mcp_http_body,
     parse_sse_jsonrpc,
@@ -15,7 +15,7 @@ from tests.fixtures.fake_mcp_server import FakeMcpServer
 
 @pytest.fixture
 def fake_mcp(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("OPEN_NOTEBOOK_MCP_ALLOW_PRIVATE_URLS", "true")
+    monkeypatch.setenv("CONSTRUCTION_OS_MCP_ALLOW_PRIVATE_URLS", "true")
     with FakeMcpServer() as server:
         yield server
 

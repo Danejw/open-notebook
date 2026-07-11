@@ -1,12 +1,12 @@
 # Security Guidelines
 
-This document outlines security practices for Open Notebook development. It is informed by real vulnerabilities discovered through coordinated disclosure with [CERT-EU](https://cert.europa.eu) and should be treated as mandatory reading for all contributors.
+This document outlines security practices for Construction OS development. It is informed by real vulnerabilities discovered through coordinated disclosure with [CERT-EU](https://cert.europa.eu) and should be treated as mandatory reading for all contributors.
 
 ## Reporting Vulnerabilities
 
 If you discover a security vulnerability, **do not open a public GitHub issue**. Instead:
 
-1. Use [GitHub Security Advisories](https://github.com/lfnovo/open-notebook/security/advisories/new) to report privately
+1. Use [GitHub Security Advisories](https://github.com/lfnovo/construction-os/security/advisories/new) to report privately
 2. Or email the maintainers directly
 
 We follow coordinated vulnerability disclosure and will work with you on a fix before any public announcement.
@@ -51,7 +51,7 @@ if parts[0] not in allowed_fields:
 if len(parts) > 1 and parts[1] not in allowed_directions:
     raise HTTPException(status_code=400, detail="Invalid sort direction")
 
-query = f"SELECT * FROM notebook ORDER BY {validated_order_by}"
+query = f"SELECT * FROM project ORDER BY {validated_order_by}"
 ```
 
 See `api/routers/sources.py` for the reference implementation of sort parameter validation.
@@ -138,15 +138,15 @@ Never pass user-provided file paths directly to file reading or content extracti
 
 ### Authentication
 
-Open Notebook currently uses simple password-based middleware (`PasswordAuthMiddleware`). This is suitable for single-user self-hosted deployments but should be hardened for production:
+Construction OS currently uses simple password-based middleware (`PasswordAuthMiddleware`). This is suitable for single-user self-hosted deployments but should be hardened for production:
 
-- Change the default password (`OPEN_NOTEBOOK_PASSWORD`)
-- Change the default encryption key (`OPEN_NOTEBOOK_ENCRYPTION_KEY`)
+- Change the default password (`CONSTRUCTION_OS_PASSWORD`)
+- Change the default encryption key (`CONSTRUCTION_OS_ENCRYPTION_KEY`)
 - Consider deploying behind a reverse proxy with proper authentication (OAuth, OIDC)
 
 ### CORS
 
-The default CORS configuration allows all origins (`allow_origins=["*"]`). This is tracked for improvement in [#730](https://github.com/lfnovo/open-notebook/issues/730). For production deployments, restrict origins to only the frontend URL.
+The default CORS configuration allows all origins (`allow_origins=["*"]`). This is tracked for improvement in [#730](https://github.com/lfnovo/construction-os/issues/730). For production deployments, restrict origins to only the frontend URL.
 
 ---
 
@@ -154,10 +154,10 @@ The default CORS configuration allows all origins (`allow_origins=["*"]`). This 
 
 ### Encryption key
 
-`OPEN_NOTEBOOK_ENCRYPTION_KEY` is used to encrypt API keys stored in SurrealDB. In production:
+`CONSTRUCTION_OS_ENCRYPTION_KEY` is used to encrypt API keys stored in SurrealDB. In production:
 
 - Set a strong, unique key (do not use the default)
-- Use Docker secrets via `OPEN_NOTEBOOK_ENCRYPTION_KEY_FILE` when possible
+- Use Docker secrets via `CONSTRUCTION_OS_ENCRYPTION_KEY_FILE` when possible
 - Never log or expose this value
 
 ### Environment variables
@@ -187,7 +187,7 @@ These vulnerabilities were reported by CERT-EU and are documented here as learni
 
 | Version | Vulnerability | Severity | Advisory |
 |---------|--------------|----------|----------|
-| <= 1.8.2 | SurrealDB injection via `order_by` parameter | High (8.7) | [GHSA-5wj9-f8q5-8f9c](https://github.com/lfnovo/open-notebook/security/advisories/GHSA-5wj9-f8q5-8f9c) |
-| <= 1.8.3 | RCE via Jinja2 SSTI in transformations | Critical (9.2) | [GHSA-f35w-wx37-26q7](https://github.com/lfnovo/open-notebook/security/advisories/GHSA-f35w-wx37-26q7) |
-| <= 1.8.3 | Arbitrary file write via path traversal | High (7.0) | [GHSA-x4q2-89g5-594v](https://github.com/lfnovo/open-notebook/security/advisories/GHSA-x4q2-89g5-594v) |
-| <= 1.8.3 | Arbitrary file read via LFI | High (8.2) | [GHSA-842v-h4cj-r646](https://github.com/lfnovo/open-notebook/security/advisories/GHSA-842v-h4cj-r646) |
+| <= 1.8.2 | SurrealDB injection via `order_by` parameter | High (8.7) | [GHSA-5wj9-f8q5-8f9c](https://github.com/lfnovo/construction-os/security/advisories/GHSA-5wj9-f8q5-8f9c) |
+| <= 1.8.3 | RCE via Jinja2 SSTI in artifacts | Critical (9.2) | [GHSA-f35w-wx37-26q7](https://github.com/lfnovo/construction-os/security/advisories/GHSA-f35w-wx37-26q7) |
+| <= 1.8.3 | Arbitrary file write via path traversal | High (7.0) | [GHSA-x4q2-89g5-594v](https://github.com/lfnovo/construction-os/security/advisories/GHSA-x4q2-89g5-594v) |
+| <= 1.8.3 | Arbitrary file read via LFI | High (8.2) | [GHSA-842v-h4cj-r646](https://github.com/lfnovo/construction-os/security/advisories/GHSA-842v-h4cj-r646) |

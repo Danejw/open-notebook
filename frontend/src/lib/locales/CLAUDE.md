@@ -42,9 +42,14 @@ export const enUS = {
     delete: 'Delete',
     // ...
   },
-  notebooks: {
-    title: 'Notebooks',
-    createNew: 'Create Notebook',
+  projects: {
+    title: 'Projects',
+    createNew: 'Create Project',
+    // ...
+  },
+  artifacts: {
+    title: 'Artifacts',
+    createNew: 'Create Artifact',
     // ...
   },
   // ... other sections
@@ -53,9 +58,9 @@ export const enUS = {
 
 **Sections**:
 - `common`: Shared UI elements (buttons, labels, actions)
-- `notebooks`, `sources`, `notes`: Feature-specific strings
+- `projects`, `sources`, `notes`: Feature-specific strings
 - `chat`, `search`, `podcasts`: Module-specific strings
-- `models`, `transformations`, `settings`: Configuration UI
+- `models`, `artifacts`, `settings`: Configuration UI
 - `advanced`: System administration strings
 - `apiErrors`: Backend error message translations
 
@@ -68,7 +73,7 @@ function MyComponent() {
   const { t, language, setLanguage } = useTranslation()
 
   // Standard t() function call
-  return <h1>{t('notebooks.title')}</h1>
+  return <h1>{t('projects.title')}</h1>
 
   // With string interpolation
   return <p>{t('common.updated').replace('{time}', timeAgo)}</p>
@@ -132,6 +137,7 @@ const getNavigation = (t: TFunction) => [
 - **Language change events**: `emitLanguageChangeStart/End` used by `LanguageLoadingOverlay` for UX
 - **No SSR**: `useSuspense: false` disables React Suspense for i18next (avoids hydration issues)
 - **All keys required**: Missing keys in non-English locales fall back to English; keep locales in sync
+- **`connectionErrors.docLink`**: Must use the Construction OS product name in every locale (14 files). The label is shown next to the docs link in `ConnectionErrorOverlay`; do not reuse legacy “Open Project” / “Open Notebook” wording.
 - **ErrorBoundary**: Uses raw `enUS` locale object directly (class component, can't use hooks)
 
 ## Testing Patterns

@@ -1,11 +1,11 @@
 """
-Token utilities for Open Notebook.
+Token utilities for Construction OS.
 Handles token counting and cost calculations for language models.
 """
 
 import os
 
-from open_notebook.config import TIKTOKEN_CACHE_DIR
+from construction_os.config import TIKTOKEN_CACHE_DIR
 
 # Set tiktoken cache directory before importing tiktoken to ensure
 # tokenizer encodings are cached persistently in the data folder

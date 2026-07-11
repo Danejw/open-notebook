@@ -6,7 +6,7 @@ Citations connect AI responses to your source materials. This guide covers how t
 
 ## Why Citations Matter
 
-Every AI-generated response in Open Notebook includes citations to your sources. This lets you:
+Every AI-generated response in Construction OS includes citations to your sources. This lets you:
 
 - **Verify claims** - Check that AI actually read what it claims
 - **Find original context** - See the full passage around a quote
@@ -124,7 +124,7 @@ Verification: Each source linked separately
 Quality: Often more comprehensive than Chat
 ```
 
-### Transformation Citations
+### Artifact Citations
 
 ```
 Context: Single source being transformed

@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import pytest
 
-from open_notebook.domain.mcp import McpConnection, McpTool
-from open_notebook.mcp.discovery import sync_tools
-from open_notebook.mcp.url_safety import validate_mcp_url
+from construction_os.domain.mcp import McpConnection, McpTool
+from construction_os.mcp.discovery import sync_tools
+from construction_os.mcp.url_safety import validate_mcp_url
 from tests.fixtures.fake_mcp_server import FakeMcpServer
 
 
 @pytest.fixture
 def allow_private(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("OPEN_NOTEBOOK_MCP_ALLOW_PRIVATE_URLS", "true")
+    monkeypatch.setenv("CONSTRUCTION_OS_MCP_ALLOW_PRIVATE_URLS", "true")
 
 
 @pytest.mark.asyncio

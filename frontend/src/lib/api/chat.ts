@@ -1,10 +1,10 @@
 import apiClient from '@/lib/api/client'
 import {
-  NotebookChatSession,
-  NotebookChatSessionWithMessages,
-  CreateNotebookChatSessionRequest,
-  UpdateNotebookChatSessionRequest,
-  SendNotebookChatMessageRequest,
+  ProjectChatSession,
+  ProjectChatSessionWithMessages,
+  CreateProjectChatSessionRequest,
+  UpdateProjectChatSessionRequest,
+  SendProjectChatMessageRequest,
   BuildContextRequest,
   BuildContextResponse,
 } from '@/lib/types/api'
@@ -28,16 +28,16 @@ function getAuthToken(): string | null {
 
 export const chatApi = {
   // Session management
-  listSessions: async (notebookId: string) => {
-    const response = await apiClient.get<NotebookChatSession[]>(
+  listSessions: async (projectId: string) => {
+    const response = await apiClient.get<ProjectChatSession[]>(
       `/chat/sessions`,
-      { params: { notebook_id: notebookId } }
+      { params: { project_id: projectId } }
     )
     return response.data
   },
 
-  createSession: async (data: CreateNotebookChatSessionRequest) => {
-    const response = await apiClient.post<NotebookChatSession>(
+  createSession: async (data: CreateProjectChatSessionRequest) => {
+    const response = await apiClient.post<ProjectChatSession>(
       `/chat/sessions`,
       data
     )
@@ -45,14 +45,14 @@ export const chatApi = {
   },
 
   getSession: async (sessionId: string) => {
-    const response = await apiClient.get<NotebookChatSessionWithMessages>(
+    const response = await apiClient.get<ProjectChatSessionWithMessages>(
       `/chat/sessions/${sessionId}`
     )
     return response.data
   },
 
-  updateSession: async (sessionId: string, data: UpdateNotebookChatSessionRequest) => {
-    const response = await apiClient.put<NotebookChatSession>(
+  updateSession: async (sessionId: string, data: UpdateProjectChatSessionRequest) => {
+    const response = await apiClient.put<ProjectChatSession>(
       `/chat/sessions/${sessionId}`,
       data
     )
@@ -64,7 +64,7 @@ export const chatApi = {
   },
 
   // Messaging with AG-UI SSE streaming
-  sendMessage: (data: SendNotebookChatMessageRequest) => {
+  sendMessage: (data: SendProjectChatMessageRequest) => {
     const token = getAuthToken()
     const url = '/api/chat/execute'
 

@@ -15,7 +15,7 @@ export interface ChatMessageListProps {
   streamingMessageId?: string
   editingMessageId: string | null
   editDraft: string
-  notebookId?: string
+  projectId?: string
   toolCallsByMessageId: Map<string, ChatToolCall[]>
   canEdit: boolean
   editLocked: boolean
@@ -35,7 +35,7 @@ export function ChatMessageList({
   streamingMessageId,
   editingMessageId,
   editDraft,
-  notebookId,
+  projectId,
   toolCallsByMessageId,
   canEdit,
   editLocked,
@@ -85,7 +85,7 @@ export function ChatMessageList({
     isEditing: editingMessageId === message.id,
     editDraft,
     isStreaming,
-    notebookId,
+    projectId,
     toolCalls: toolCallsByMessageId.get(message.id),
     canEdit,
     editLocked,

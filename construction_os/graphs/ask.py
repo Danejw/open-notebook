@@ -10,13 +10,13 @@ from langgraph.types import Send
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
-from open_notebook.ai.provision import provision_langchain_model
-from open_notebook.domain.notebook import vector_search
-from open_notebook.exceptions import OpenNotebookError
-from open_notebook.graphs.progress import aemit_agent_progress
-from open_notebook.utils import clean_thinking_content
-from open_notebook.utils.error_classifier import classify_error
-from open_notebook.utils.text_utils import extract_text_content
+from construction_os.ai.provision import provision_langchain_model
+from construction_os.domain.project import vector_search
+from construction_os.exceptions import ConstructionOSError
+from construction_os.graphs.progress import aemit_agent_progress
+from construction_os.utils import clean_thinking_content
+from construction_os.utils.error_classifier import classify_error
+from construction_os.utils.text_utils import extract_text_content
 
 
 class SubGraphState(TypedDict):
@@ -82,7 +82,7 @@ async def call_model_with_messages(state: ThreadState, config: RunnableConfig) -
             config,
         )
         return {"strategy": strategy}
-    except OpenNotebookError:
+    except ConstructionOSError:
         raise
     except Exception as e:
         error_class, user_message = classify_error(e)
@@ -149,7 +149,7 @@ async def provide_answer(state: SubGraphState, config: RunnableConfig) -> dict:
             config,
         )
         return {"answers": [clean_thinking_content(ai_content)]}
-    except OpenNotebookError:
+    except ConstructionOSError:
         raise
     except Exception as e:
         error_class, user_message = classify_error(e)
@@ -181,7 +181,7 @@ async def write_final_answer(state: ThreadState, config: RunnableConfig) -> dict
             config,
         )
         return {"final_answer": clean_thinking_content(final_content)}
-    except OpenNotebookError:
+    except ConstructionOSError:
         raise
     except Exception as e:
         error_class, user_message = classify_error(e)

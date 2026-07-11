@@ -1,11 +1,11 @@
-from open_notebook.skills.standard import (
+from construction_os.skills.standard import (
     REQUIRED_ENTRY,
     SkillStandardError,
     normalize_relative_path,
     parse_skill_md,
 )
-from open_notebook.skills.validation import validate_skill_files
-from open_notebook.skills.zip_io import (
+from construction_os.skills.validation import validate_skill_files
+from construction_os.skills.zip_io import (
     SkillFilePayload,
     build_skill_zip,
     extract_skill_zip,

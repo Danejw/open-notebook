@@ -26,8 +26,8 @@ All models use Esperanto library as provider abstraction (OpenAI, Anthropic, Goo
 - Stores provider-model pairs for AI factory instantiation
 
 #### DefaultModels (RecordModel)
-- Singleton configuration record (record_id: `open_notebook:default_models`)
-- Fields: default_chat_model, default_transformation_model, large_context_model, default_text_to_speech_model, default_speech_to_text_model, default_embedding_model, default_tools_model
+- Singleton configuration record (record_id: `construction_os:default_models`)
+- Fields: default_chat_model, default_artifact_model, large_context_model, default_text_to_speech_model, default_speech_to_text_model, default_embedding_model, default_tools_model
 - `get_instance()`: Always fetches fresh from database (overrides parent caching for real-time updates)
 - Returns fresh instance on each call (no singleton cache)
 
@@ -35,7 +35,7 @@ All models use Esperanto library as provider abstraction (OpenAI, Anthropic, Goo
 - Stateless factory for instantiating AI models
 - `get_model(model_id)`: Retrieves Model by ID; if model has linked credential, uses `credential.to_esperanto_config()` for provider config; otherwise falls back to env var provisioning via `key_provider`
 - `get_defaults()`: Fetches DefaultModels configuration
-- `get_default_model(model_type)`: Smart lookup (e.g., "chat" → default_chat_model, "transformation" → default_transformation_model with fallback to chat)
+- `get_default_model(model_type)`: Smart lookup (e.g., "chat" → default_chat_model, "Artifact" → default_artifact_model with fallback to chat)
 - `get_speech_to_text()`, `get_text_to_speech()`, `get_embedding_model()`: Type-specific convenience methods with assertions
 - **Global instance**: `model_manager` singleton exported for use throughout app
 
@@ -46,7 +46,7 @@ All models use Esperanto library as provider abstraction (OpenAI, Anthropic, Goo
 - **Smart fallback logic**:
   - If tokens > 105,000: Use `large_context_model`
   - Elif `model_id` specified: Use specific model
-  - Else: Use default model for type (e.g., "chat", "transformation")
+  - Else: Use default model for type (e.g., "chat", "Artifact")
 - Returns LangChain-compatible model via `.to_langchain()`
 - Logs model selection decision
 
@@ -81,10 +81,10 @@ All models use Esperanto library as provider abstraction (OpenAI, Anthropic, Goo
 ## Key Dependencies
 
 - `esperanto`: AIFactory.create_language(), create_embedding(), create_speech_to_text(), create_text_to_speech()
-- `open_notebook.database.repository`: repo_query, ensure_record_id
-- `open_notebook.domain.base`: ObjectModel, RecordModel base classes
-- `open_notebook.domain.credential`: Credential for database-stored API keys
-- `open_notebook.utils`: token_count() for context size detection
+- `construction_os.database.repository`: repo_query, ensure_record_id
+- `construction_os.domain.base`: ObjectModel, RecordModel base classes
+- `construction_os.domain.credential`: Credential for database-stored API keys
+- `construction_os.utils`: token_count() for context size detection
 - `loguru`: Logging for model selection decisions
 
 ## Important Quirks & Gotchas
@@ -95,7 +95,7 @@ All models use Esperanto library as provider abstraction (OpenAI, Anthropic, Goo
 - **Type-specific getters use assertions**: get_speech_to_text() asserts isinstance (catches misconfiguration early)
 - **ConfigurationError on missing model**: ModelManager.get_model() and provision_langchain_model() raise `ConfigurationError` (not ValueError) when a model is not found or not configured, so the global exception handler returns HTTP 422 with a descriptive message
 - **Esperanto caching**: Actual model instances cached by Esperanto (not by ModelManager); ModelManager stateless
-- **Fallback chain specificity**: "transformation" type falls back to default_chat_model if not explicitly set (convention-based)
+- **Fallback chain specificity**: "Artifact" type falls back to default_chat_model if not explicitly set (convention-based)
 - **kwargs passed through**: provision_langchain_model() passes kwargs to AIFactory but doesn't validate what's accepted
 - **Key provider sets env vars**: `provision_provider_keys()` modifies `os.environ` to inject DB-stored keys (from `Credential` records); Esperanto reads from env vars (only used as fallback when model has no linked credential)
 
@@ -110,7 +110,7 @@ All models use Esperanto library as provider abstraction (OpenAI, Anthropic, Goo
 ## Usage Example
 
 ```python
-from open_notebook.ai.models import model_manager
+from construction_os.ai.models import model_manager
 
 # Get default chat model
 chat_model = await model_manager.get_default_model("chat")
@@ -122,7 +122,7 @@ embedding_model = await model_manager.get_model("model:openai_embedding")
 embedding_model = await model_manager.get_embedding_model(temperature=0.1)
 
 # Provision model for LangGraph (auto-detects large context)
-from open_notebook.ai.provision import provision_langchain_model
+from construction_os.ai.provision import provision_langchain_model
 langchain_model = await provision_langchain_model(
     content=long_text,
     model_id=None,  # Use default

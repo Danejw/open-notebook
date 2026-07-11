@@ -1,6 +1,6 @@
 # ContextBuilder
 
-A flexible and generic ContextBuilder class for the Open Notebook project that can handle any parameters and build context from sources, notebooks, insights, and notes.
+A flexible and generic ContextBuilder class for the Construction OS project that can handle any parameters and build context from sources, projects, insights, and notes.
 
 ## Features
 
@@ -14,10 +14,10 @@ A flexible and generic ContextBuilder class for the Open Notebook project that c
 ## Basic Usage
 
 ```python
-from open_notebook.utils.context_builder import ContextBuilder, ContextConfig
+from construction_os.utils.context_builder import ContextBuilder, ContextConfig
 
-# Simple notebook context
-builder = ContextBuilder(notebook_id="notebook:123")
+# Simple project context
+builder = ContextBuilder(project_id="project:123")
 context = await builder.build()
 
 # Single source with insights
@@ -32,15 +32,15 @@ context = await builder.build()
 ## Convenience Functions
 
 ```python
-from open_notebook.utils.context_builder import (
-    build_notebook_context,
+from construction_os.utils.context_builder import (
+    build_project_context,
     build_source_context,
     build_mixed_context
 )
 
-# Build notebook context
-context = await build_notebook_context(
-    notebook_id="notebook:123",
+# Build project context
+context = await build_project_context(
+    project_id="project:123",
     max_tokens=5000
 )
 
@@ -61,7 +61,7 @@ context = await build_mixed_context(
 ## Advanced Configuration
 
 ```python
-from open_notebook.utils.context_builder import ContextConfig
+from construction_os.utils.context_builder import ContextConfig
 
 # Custom configuration
 config = ContextConfig(
@@ -84,7 +84,7 @@ config = ContextConfig(
 )
 
 builder = ContextBuilder(
-    notebook_id="notebook:project",
+    project_id="project:abc",
     context_config=config
 )
 context = await builder.build()
@@ -93,7 +93,7 @@ context = await builder.build()
 ## Programmatic Item Management
 
 ```python
-from open_notebook.utils.context_builder import ContextItem
+from construction_os.utils.context_builder import ContextItem
 
 builder = ContextBuilder()
 
@@ -120,7 +120,7 @@ The ContextBuilder accepts any parameters via `**kwargs`, making it extensible f
 
 ```python
 builder = ContextBuilder(
-    notebook_id="notebook:123",
+    project_id="project:123",
     include_insights=True,
     max_tokens=2000,
     
@@ -145,7 +145,7 @@ The ContextBuilder returns a structured response:
     "insights": [...],          # List of insight contexts
     "total_tokens": 1234,       # Total token count
     "total_items": 10,          # Total number of items
-    "notebook_id": "notebook:123",  # If provided
+    "project_id": "project:123",  # If provided
     "metadata": {
         "source_count": 5,
         "note_count": 3,
@@ -171,9 +171,9 @@ The ContextBuilder follows these design principles:
 
 ## Integration
 
-The ContextBuilder integrates seamlessly with the existing Open Notebook architecture:
+The ContextBuilder integrates seamlessly with the existing Construction OS architecture:
 
-- Uses existing domain models (`Source`, `Notebook`, `Note`)
+- Uses existing domain models (`Source`, `Project`, `Note`)
 - Leverages the repository pattern for database access
 - Follows the same async patterns as other services
 - Integrates with the token counting utilities
@@ -182,7 +182,7 @@ The ContextBuilder integrates seamlessly with the existing Open Notebook archite
 
 The ContextBuilder handles errors gracefully:
 
-- Missing notebooks/sources/notes are logged but don't stop execution
+- Missing projects/sources/notes are logged but don't stop execution
 - Database errors are wrapped in `DatabaseOperationError`
 - Invalid parameters raise `InvalidInputError`
 - All errors include detailed context information

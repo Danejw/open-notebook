@@ -21,6 +21,8 @@ Both leverage connection context manager for lifecycle management and automatic 
 **Connection Management**
 - `get_database_url()`: Resolves `SURREAL_URL` or constructs from `SURREAL_ADDRESS`/`SURREAL_PORT` (backward compatible)
 - `get_database_password()`: Falls back from `SURREAL_PASSWORD` to legacy `SURREAL_PASS` env var
+- `get_surreal_namespace()`: Defaults to `construction_os`; falls back to `CONSTRUCTION_OS_NAMESPACE` for legacy installs
+- `get_surreal_database()`: Defaults to `construction_os`; falls back to `CONSTRUCTION_OS_DATABASE` for legacy installs
 - `db_connection()`: Async context manager handling sign-in, namespace/database selection, and cleanup
   - Opens AsyncSurreal, authenticates, selects namespace/database, yields connection, closes on exit
 
@@ -50,10 +52,19 @@ Both leverage connection context manager for lifecycle management and automatic 
   - `run_one_down()`: Rollback latest migration
 
 - `AsyncMigrationManager`: Main orchestrator
-  - Loads 17 up migrations + 17 down migrations (hard-coded in __init__; migrations 11-12 add credential system, 13 adds model-credential link, 14 adds podcast model registry fields, 15 adds the flexible `config` object to the credential table, 16 adds skill + skill_file tables, 17 adds skill_ids on chat_session)
+  - Loads 22 up migrations + 22 down migrations (migrations 20–22: Construction OS rebrand — project→project, artifact→artifact, construction artifact seeds; data copy runs via `rebrand_migration.py` on API startup)
   - `get_current_version()`: Query max version from _sbl_migrations table
   - `needs_migration()`: Boolean check (current < total migrations available)
   - `run_migration_up()`: Run all pending migrations with logging
+
+### rebrand_migration.py
+
+**Construction OS data migrations** (runs after SQL migrations 20–22 on API startup):
+- `migrate_project_to_project()`: Copies `project` → `project`, renames note↔project `artifact` relation → `project_note`, retargets `reference`/`refers_to`, rewrites `project:*` strings in JSON metadata, drops legacy tables
+- `migrate_artifact_to_artifact()`: Copies `artifact` → `artifact`, drops legacy table
+- `migrate_singleton_records()`: Copies `construction_os:*` singletons → `construction_os:*` (renames `artifact_instructions` → `artifact_instructions`, `default_artifact_model` → `default_artifact_model`)
+- `seed_construction_artifacts()`: Inserts construction-industry default artifacts if absent
+- All steps are idempotent (skip when source tables/records already migrated)
 
 **Version Tracking**
 - `get_latest_version()`: Query max version; returns 0 if _sbl_migrations table missing
@@ -87,7 +98,7 @@ Both leverage connection context manager for lifecycle management and automatic 
 ## Important Quirks & Gotchas
 
 - **No connection pooling**: Each repo_* operation creates new connection; adequate for HTTP request-scoped operations but inefficient for bulk workloads
-- **Hard-coded migration files**: AsyncMigrationManager lists migrations 1-14 explicitly; adding new migration requires code change (not auto-discovery)
+- **Hard-coded migration files**: AsyncMigrationManager lists migrations 1-22 explicitly; adding new migration requires code change (not auto-discovery)
 - **Record ID format inconsistency**: repo_update() accepts both `table:id` format and full RecordID; path handling can be subtle
 - **ISO date parsing**: repo_update() parses `created` field from string to datetime if present; assumes ISO format
 - **Timestamp overwrite risk**: repo_create() always sets new timestamps; can't preserve original created time on reimport
@@ -111,14 +122,14 @@ Both leverage connection context manager for lifecycle management and automatic 
 ## Usage Example
 
 ```python
-from open_notebook.database.repository import repo_create, repo_query, repo_update
+from construction_os.database.repository import repo_create, repo_query, repo_update
 
 # Create
-record = await repo_create("notebooks", {"title": "Research"})
+record = await repo_create("project", {"name": "Research"})
 
 # Query
-results = await repo_query("SELECT * FROM notebooks WHERE title = $title", {"title": "Research"})
+results = await repo_query("SELECT * FROM project WHERE name = $name", {"name": "Research"})
 
 # Update
-await repo_update("notebooks", record["id"], {"title": "Updated Research"})
+await repo_update("project", record["id"], {"name": "Updated Research"})
 ```

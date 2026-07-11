@@ -66,7 +66,7 @@ templates playground.
 **Setup:**
 1. Copy to your project folder as `docker-compose.yml`
 2. Run: `docker compose up -d`
-3. Pull a model: `docker exec open_notebook-ollama-1 ollama pull mistral`
+3. Pull a model: `docker exec construction_os-ollama-1 ollama pull mistral`
 4. Configure in UI: Settings → API Keys → Add Ollama (URL: `http://ollama:11434`)
 
 **Recommended models:**
@@ -88,7 +88,7 @@ templates playground.
 ---
 
 ### `docker-compose-dev.yml` - Development Setup
-**Use this if:** You're contributing to Open Notebook or developing custom features
+**Use this if:** You're contributing to Construction OS or developing custom features
 
 **Features:**
 - Hot-reload for code changes
@@ -113,7 +113,7 @@ See [Development Guide](../docs/7-DEVELOPMENT/index.md)
    ```bash
    cp examples/docker-compose-ollama.yml docker-compose.yml
    ```
-3. **Edit** the `OPEN_NOTEBOOK_ENCRYPTION_KEY` value
+3. **Edit** the `CONSTRUCTION_OS_ENCRYPTION_KEY` value
 4. **Run** the services:
    ```bash
    docker compose up -d
@@ -145,7 +145,7 @@ volumes:
 See [Reverse Proxy Guide](../docs/5-CONFIGURATION/reverse-proxy.md)
 
 ### Add Basic Auth
-Add to `open_notebook` service environment:
+Add to `construction_os` service environment:
 ```yaml
 - BASIC_AUTH_USERNAME=admin
 - BASIC_AUTH_PASSWORD=your-secure-password
@@ -164,4 +164,4 @@ Add to `open_notebook` service environment:
 ## 🆘 Need Help?
 
 - **Discord**: [Join our community](https://discord.gg/37XJPXfz2w)
-- **Issues**: [GitHub Issues](https://github.com/lfnovo/open-notebook/issues)
+- **Issues**: [GitHub Issues](https://github.com/lfnovo/construction-os/issues)

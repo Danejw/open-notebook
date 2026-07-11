@@ -7,17 +7,17 @@ error messages and appropriate exception types.
 
 from loguru import logger
 
-from open_notebook.exceptions import (
+from construction_os.exceptions import (
     AuthenticationError,
     ConfigurationError,
     ExternalServiceError,
     NetworkError,
-    OpenNotebookError,
+    ConstructionOSError,
     RateLimitError,
 )
 
 # Classification rules: (keywords, exception_class, user_message or None to pass through)
-_CLASSIFICATION_RULES: list[tuple[list[str], type[OpenNotebookError], str | None]] = [
+_CLASSIFICATION_RULES: list[tuple[list[str], type[ConstructionOSError], str | None]] = [
     # Authentication errors
     (
         ["authentication", "unauthorized", "invalid api key", "invalid_api_key", "401"],
@@ -69,7 +69,7 @@ _CLASSIFICATION_RULES: list[tuple[list[str], type[OpenNotebookError], str | None
 ]
 
 
-def classify_error(exception: BaseException) -> tuple[type[OpenNotebookError], str]:
+def classify_error(exception: BaseException) -> tuple[type[ConstructionOSError], str]:
     """
     Classify a raw exception into a user-friendly error type and message.
 

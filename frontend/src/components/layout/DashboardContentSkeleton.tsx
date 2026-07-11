@@ -3,27 +3,27 @@ import { cn } from '@/lib/utils'
 
 interface DashboardContentSkeletonProps {
   className?: string
-  /** When true, show three-column notebook layout skeleton */
-  notebookDetail?: boolean
+  /** When true, show three-column project layout skeleton */
+  projectDetail?: boolean
 }
 
 /** Main content area skeleton — use inside AppShell when the sidebar is already visible. */
 export function DashboardContentSkeleton({
   className,
-  notebookDetail = false,
+  projectDetail = false,
 }: DashboardContentSkeletonProps) {
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden', className)}>
       <div className="flex-shrink-0 px-4 pt-3">
         <Skeleton className="mb-2 h-8 w-48" />
-        {notebookDetail ? (
+        {projectDetail ? (
           <Skeleton className="h-10 w-full max-w-xl" />
         ) : (
           <Skeleton className="h-4 w-72" />
         )}
       </div>
 
-      {notebookDetail ? (
+      {projectDetail ? (
         <div className="flex flex-1 gap-1 px-1.5 py-2">
           <Skeleton className="min-h-0 flex-[28] rounded-lg" />
           <Skeleton className="min-h-0 flex-[28] rounded-lg" />

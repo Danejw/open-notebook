@@ -1,12 +1,12 @@
 # Security Configuration
 
-Protect your Open Notebook deployment with password authentication and production hardening.
+Protect your Construction OS deployment with password authentication and production hardening.
 
 ---
 
 ## API Key Encryption
 
-Open Notebook encrypts API keys stored in the database using Fernet symmetric encryption (AES-128-CBC with HMAC-SHA256).
+Construction OS encrypts API keys stored in the database using Fernet symmetric encryption (AES-128-CBC with HMAC-SHA256).
 
 ### Configuration Methods
 
@@ -21,7 +21,7 @@ Set the encryption key to any secret string:
 
 ```bash
 # .env or docker.env
-OPEN_NOTEBOOK_ENCRYPTION_KEY=my-secret-passphrase
+CONSTRUCTION_OS_ENCRYPTION_KEY=my-secret-passphrase
 ```
 
 Any string works — it will be securely derived via SHA-256 internally. Use a strong passphrase for production deployments.
@@ -30,10 +30,10 @@ Any string works — it will be securely derived via SHA-256 internally. Use a s
 
 | Setting | Default | Security Level |
 |---------|---------|----------------|
-| Password | `open-notebook-change-me` | Development only |
+| Password | `construction-os-change-me` | Development only |
 | Encryption Key | **None** (must be configured) | Required for API key storage |
 
-**The encryption key has no default.** You must set `OPEN_NOTEBOOK_ENCRYPTION_KEY` before using the API key configuration feature. Without it, encrypting/decrypting API keys will fail.
+**The encryption key has no default.** You must set `CONSTRUCTION_OS_ENCRYPTION_KEY` before using the API key configuration feature. Without it, encrypting/decrypting API keys will fail.
 
 ### Docker Secrets Support
 
@@ -41,8 +41,8 @@ Both settings support Docker secrets via `_FILE` suffix:
 
 ```yaml
 environment:
-  - OPEN_NOTEBOOK_PASSWORD_FILE=/run/secrets/app_password
-  - OPEN_NOTEBOOK_ENCRYPTION_KEY_FILE=/run/secrets/encryption_key
+  - CONSTRUCTION_OS_PASSWORD_FILE=/run/secrets/app_password
+  - CONSTRUCTION_OS_ENCRYPTION_KEY_FILE=/run/secrets/encryption_key
 ```
 
 ### Security Notes
@@ -84,12 +84,12 @@ environment:
 ```yaml
 # Add to your docker-compose.yml (requires surrealdb service, see installation guide)
 services:
-  open_notebook:
-    image: lfnovo/open_notebook:v1-latest
+  construction_os:
+    image: lfnovo/construction-os:v1-latest
     pull_policy: always
     environment:
-      - OPEN_NOTEBOOK_ENCRYPTION_KEY=your-secret-encryption-key
-      - OPEN_NOTEBOOK_PASSWORD=your_secure_password
+      - CONSTRUCTION_OS_ENCRYPTION_KEY=your-secret-encryption-key
+      - CONSTRUCTION_OS_PASSWORD=your_secure_password
     # ... rest of config
 ```
 
@@ -97,8 +97,8 @@ Or using environment file:
 
 ```bash
 # docker.env
-OPEN_NOTEBOOK_ENCRYPTION_KEY=your-secret-encryption-key
-OPEN_NOTEBOOK_PASSWORD=your_secure_password
+CONSTRUCTION_OS_ENCRYPTION_KEY=your-secret-encryption-key
+CONSTRUCTION_OS_PASSWORD=your_secure_password
 ```
 
 > **Important**: The encryption key is **required** for credential storage. Without it, you cannot save AI provider credentials via the Settings UI. If you change or lose the encryption key, all stored credentials become unreadable.
@@ -107,7 +107,7 @@ OPEN_NOTEBOOK_PASSWORD=your_secure_password
 
 ```bash
 # .env
-OPEN_NOTEBOOK_PASSWORD=your_secure_password
+CONSTRUCTION_OS_PASSWORD=your_secure_password
 ```
 
 ---
@@ -118,20 +118,20 @@ OPEN_NOTEBOOK_PASSWORD=your_secure_password
 
 ```bash
 # Strong: 20+ characters, mixed case, numbers, symbols
-OPEN_NOTEBOOK_PASSWORD=MySecure2024!Research#Tool
-OPEN_NOTEBOOK_PASSWORD=Notebook$Dev$2024$Strong!
+CONSTRUCTION_OS_PASSWORD=MySecure2024!Research#Tool
+CONSTRUCTION_OS_PASSWORD=Project$Dev$2024$Strong!
 
 # Generated (recommended)
-OPEN_NOTEBOOK_PASSWORD=$(openssl rand -base64 24)
+CONSTRUCTION_OS_PASSWORD=$(openssl rand -base64 24)
 ```
 
 ### Bad Passwords
 
 ```bash
 # DON'T use these
-OPEN_NOTEBOOK_PASSWORD=password123
-OPEN_NOTEBOOK_PASSWORD=opennotebook
-OPEN_NOTEBOOK_PASSWORD=admin
+CONSTRUCTION_OS_PASSWORD=password123
+CONSTRUCTION_OS_PASSWORD=constructionos
+CONSTRUCTION_OS_PASSWORD=admin
 ```
 
 ---
@@ -152,10 +152,10 @@ All API endpoints require authentication:
 ```bash
 # Authenticated request
 curl -H "Authorization: Bearer your_password" \
-  http://localhost:5055/api/notebooks
+  http://localhost:5055/api/projects
 
 # Unauthenticated (will fail)
-curl http://localhost:5055/api/notebooks
+curl http://localhost:5055/api/projects
 # Returns: {"detail": "Missing authorization header"}
 ```
 
@@ -174,16 +174,16 @@ These work without authentication:
 ### curl
 
 ```bash
-# List notebooks
+# List projects
 curl -H "Authorization: Bearer your_password" \
-  http://localhost:5055/api/notebooks
+  http://localhost:5055/api/projects
 
-# Create notebook
+# Create project
 curl -X POST \
   -H "Authorization: Bearer your_password" \
   -H "Content-Type: application/json" \
-  -d '{"name": "My Notebook", "description": "Research notes"}' \
-  http://localhost:5055/api/notebooks
+  -d '{"name": "My Project", "description": "Research notes"}' \
+  http://localhost:5055/api/projects
 
 # Upload file
 curl -X POST \
@@ -197,29 +197,29 @@ curl -X POST \
 ```python
 import requests
 
-class OpenNotebookClient:
+class ConstructionOSClient:
     def __init__(self, base_url: str, password: str):
         self.base_url = base_url
         self.headers = {"Authorization": f"Bearer {password}"}
 
-    def get_notebooks(self):
+    def get_projects(self):
         response = requests.get(
-            f"{self.base_url}/api/notebooks",
+            f"{self.base_url}/api/projects",
             headers=self.headers
         )
         return response.json()
 
-    def create_notebook(self, name: str, description: str = None):
+    def create_project(self, name: str, description: str = None):
         response = requests.post(
-            f"{self.base_url}/api/notebooks",
+            f"{self.base_url}/api/projects",
             headers=self.headers,
             json={"name": name, "description": description}
         )
         return response.json()
 
 # Usage
-client = OpenNotebookClient("http://localhost:5055", "your_password")
-notebooks = client.get_notebooks()
+client = ConstructionOSClient("http://localhost:5055", "your_password")
+projects = client.get_projects()
 ```
 
 ### JavaScript/TypeScript
@@ -228,8 +228,8 @@ notebooks = client.get_notebooks()
 const API_URL = 'http://localhost:5055';
 const PASSWORD = 'your_password';
 
-async function getNotebooks() {
-  const response = await fetch(`${API_URL}/api/notebooks`, {
+async function getProjects() {
+  const response = await fetch(`${API_URL}/api/projects`, {
     headers: {
       'Authorization': `Bearer ${PASSWORD}`
     }
@@ -247,13 +247,13 @@ async function getNotebooks() {
 ```yaml
 # Add to your docker-compose.yml (requires surrealdb service, see installation guide)
 services:
-  open_notebook:
-    image: lfnovo/open_notebook:v1-latest
+  construction_os:
+    image: lfnovo/construction-os:v1-latest
     pull_policy: always
     ports:
       - "127.0.0.1:8502:8502"  # Bind to localhost only
     environment:
-      - OPEN_NOTEBOOK_PASSWORD=your_secure_password
+      - CONSTRUCTION_OS_PASSWORD=your_secure_password
     security_opt:
       - no-new-privileges:true
     deploy:
@@ -297,10 +297,10 @@ When `CORS_ORIGINS` is not set, the API logs a startup warning prompting you to 
 
 ```bash
 # Single origin
-CORS_ORIGINS=https://notebook.example.com
+CORS_ORIGINS=https://project.example.com
 
 # Multiple origins (comma-separated)
-CORS_ORIGINS=https://notebook.example.com,https://admin.example.com
+CORS_ORIGINS=https://project.example.com,https://admin.example.com
 ```
 
 **Guidelines:**
@@ -316,7 +316,7 @@ CORS_ORIGINS=https://notebook.example.com,https://admin.example.com
 
 ## Security Limitations
 
-Open Notebook's password protection provides **basic access control**, not enterprise-grade security:
+Construction OS's password protection provides **basic access control**, not enterprise-grade security:
 
 | Feature | Status |
 |---------|--------|
@@ -359,10 +359,10 @@ For deployments requiring advanced security:
 
 ```bash
 # Check env var is set
-docker exec open-notebook env | grep OPEN_NOTEBOOK_PASSWORD
+docker exec construction-os env | grep CONSTRUCTION_OS_PASSWORD
 
 # Check logs
-docker logs open-notebook | grep -i auth
+docker logs construction-os | grep -i auth
 
 # Test API directly
 curl -H "Authorization: Bearer your_password" \
@@ -374,10 +374,10 @@ curl -H "Authorization: Bearer your_password" \
 ```bash
 # Check header format
 curl -v -H "Authorization: Bearer your_password" \
-  http://localhost:5055/api/notebooks
+  http://localhost:5055/api/projects
 
 # Verify password matches
-echo "Password length: $(echo -n $OPEN_NOTEBOOK_PASSWORD | wc -c)"
+echo "Password length: $(echo -n $CONSTRUCTION_OS_PASSWORD | wc -c)"
 ```
 
 ### Cannot Access After Setting Password
@@ -391,12 +391,12 @@ echo "Password length: $(echo -n $OPEN_NOTEBOOK_PASSWORD | wc -c)"
 
 ```bash
 # Without password (should fail)
-curl http://localhost:5055/api/notebooks
+curl http://localhost:5055/api/projects
 # Expected: {"detail": "Missing authorization header"}
 
 # With correct password (should succeed)
 curl -H "Authorization: Bearer your_password" \
-  http://localhost:5055/api/notebooks
+  http://localhost:5055/api/projects
 
 # Health check (should work without password)
 curl http://localhost:5055/health

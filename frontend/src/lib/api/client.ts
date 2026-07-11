@@ -5,7 +5,7 @@ import { getApiUrl } from '@/lib/config'
 // The base URL is fetched from the API config endpoint on first request
 //
 // Request timeout defaults to 10 minutes (600000ms) to accommodate slow LLM
-// operations (transformations, insights, synchronous chat) on slower hardware
+// operations (artifacts, insights, synchronous chat) on slower hardware
 // (Ollama, LM Studio). Configure it via NEXT_PUBLIC_API_TIMEOUT_MS for models
 // that can take longer than 10 minutes to respond (#880).
 // Note: value is in milliseconds; an explicit 0 disables the timeout entirely.

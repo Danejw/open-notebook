@@ -2,7 +2,7 @@
 
 Multi-container setup with separate services. **Best for most users.**
 
-> **Alternative Registry:** All images are available on both Docker Hub (`lfnovo/open_notebook`) and GitHub Container Registry (`ghcr.io/lfnovo/open-notebook`). Use GHCR if Docker Hub is blocked or you prefer GitHub-native workflows.
+> **Alternative Registry:** All images are available on both Docker Hub (`lfnovo/construction-os`) and GitHub Container Registry (`ghcr.io/lfnovo/construction-os`). Use GHCR if Docker Hub is blocked or you prefer GitHub-native workflows.
 
 ## Prerequisites
 
@@ -14,12 +14,12 @@ Multi-container setup with separate services. **Best for most users.**
 
 **Option A: Download from repository**
 ```bash
-curl -o docker-compose.yml https://raw.githubusercontent.com/lfnovo/open-notebook/main/docker-compose.yml
+curl -o docker-compose.yml https://raw.githubusercontent.com/lfnovo/construction-os/main/docker-compose.yml
 ```
 
 **Option B: Use the official file from the repo**
 
-The official `docker-compose.yml` is in the root of our repository: [View on GitHub](https://github.com/lfnovo/open-notebook/blob/main/docker-compose.yml)
+The official `docker-compose.yml` is in the root of our repository: [View on GitHub](https://github.com/lfnovo/construction-os/blob/main/docker-compose.yml)
 
 Copy that file to your project folder.
 
@@ -42,23 +42,23 @@ services:
     restart: always
     pull_policy: always
 
-  open_notebook:
-    image: lfnovo/open_notebook:v1-latest
+  construction_os:
+    image: lfnovo/construction-os:v1-latest
     ports:
       - "8502:8502"  # Web UI
       - "5055:5055"  # REST API
     environment:
       # REQUIRED: Change this to your own secret string
-      - OPEN_NOTEBOOK_ENCRYPTION_KEY=change-me-to-a-secret-string
+      - CONSTRUCTION_OS_ENCRYPTION_KEY=change-me-to-a-secret-string
 
       # Database connection (default values - no need to change)
       - SURREAL_URL=ws://surrealdb:8000/rpc
       - SURREAL_USER=root
       - SURREAL_PASSWORD=root
-      - SURREAL_NAMESPACE=open_notebook
-      - SURREAL_DATABASE=open_notebook
+      - SURREAL_NAMESPACE=construction_os
+      - SURREAL_DATABASE=construction_os
     volumes:
-      - ./notebook_data:/app/data
+      - ./construction_os_data:/app/data
     depends_on:
       - surrealdb
     restart: always
@@ -72,7 +72,7 @@ services:
 
 ## Step 2: Start Services (2 min)
 
-Open terminal in the `open-notebook` folder:
+Open terminal in the `construction-os` folder:
 
 ```bash
 docker compose up -d
@@ -81,7 +81,7 @@ docker compose up -d
 Wait 15-20 seconds for all services to start:
 ```
 ✅ surrealdb running on :8000
-✅ open_notebook running on :8502 (UI) and :5055 (API)
+✅ construction_os running on :8502 (UI) and :5055 (API)
 ```
 
 Check status:
@@ -105,7 +105,7 @@ Open browser to:
 http://localhost:8502
 ```
 
-You should see the Open Notebook interface!
+You should see the Construction OS interface!
 
 ---
 
@@ -129,14 +129,14 @@ Your models are now available!
 
 ---
 
-## Step 5: First Notebook (2 min)
+## Step 5: First Project (2 min)
 
-1. Click **New Notebook**
+1. Click **New Project**
 2. Name: "My Research"
 3. Description: "Getting started"
 4. Click **Create**
 
-Done! You now have a fully working Open Notebook instance.
+Done! You now have a fully working Construction OS instance.
 
 ---
 
@@ -148,7 +148,7 @@ Instead of manually editing, use our ready-made example:
 
 ```bash
 # Download the Ollama example
-curl -o docker-compose.yml https://raw.githubusercontent.com/lfnovo/open-notebook/main/examples/docker-compose-ollama.yml
+curl -o docker-compose.yml https://raw.githubusercontent.com/lfnovo/construction-os/main/examples/docker-compose-ollama.yml
 
 # Or copy from repo
 cp examples/docker-compose-ollama.yml docker-compose.yml
@@ -174,7 +174,7 @@ volumes:
 Then restart and pull a model:
 ```bash
 docker compose restart
-docker exec open-notebook-local-ollama-1 ollama pull mistral
+docker exec construction-os-local-ollama-1 ollama pull mistral
 ```
 
 Configure Ollama in the Settings UI:
@@ -190,14 +190,14 @@ Configure Ollama in the Settings UI:
 
 | Variable | Purpose | Example |
 |----------|---------|---------|
-| `OPEN_NOTEBOOK_ENCRYPTION_KEY` | Encryption key for credentials | `my-secret-key` |
+| `CONSTRUCTION_OS_ENCRYPTION_KEY` | Encryption key for credentials | `my-secret-key` |
 | `SURREAL_URL` | Database connection | `ws://surrealdb:8000/rpc` |
 | `SURREAL_USER` | Database user | `root` |
 | `SURREAL_PASSWORD` | Database password | `root` |
-| `SURREAL_NAMESPACE` | Database namespace | `open_notebook` |
-| `SURREAL_DATABASE` | Database name | `open_notebook` |
+| `SURREAL_NAMESPACE` | Database namespace | `construction_os` |
+| `SURREAL_DATABASE` | Database name | `construction_os` |
 | `API_URL` | API external URL | `http://localhost:5055` |
-| `OPEN_NOTEBOOK_EMBEDDING_BATCH_SIZE` | Override embedding batch size for stricter/local providers (recommended: `8` for CPU-only local setups) | `50` |
+| `CONSTRUCTION_OS_EMBEDDING_BATCH_SIZE` | Override embedding batch size for stricter/local providers (recommended: `8` for CPU-only local setups) | `50` |
 
 See [Environment Reference](../5-CONFIGURATION/environment-reference.md) for complete list.
 
@@ -337,9 +337,9 @@ Each example includes detailed comments and usage instructions.
 
 ## Next Steps
 
-1. **Add Content**: Sources, notebooks, documents
+1. **Add Content**: Sources, projects, documents
 2. **Configure Models**: Settings → Models (choose your preferences)
-3. **Explore Features**: Chat, search, transformations
+3. **Explore Features**: Chat, search, artifacts
 4. **Read Guide**: [User Guide](../3-USER-GUIDE/index.md)
 
 ---
@@ -355,5 +355,5 @@ For production use, see:
 ## Getting Help
 
 - **Discord**: [Community support](https://discord.gg/37XJPXfz2w)
-- **Issues**: [GitHub Issues](https://github.com/lfnovo/open-notebook/issues)
+- **Issues**: [GitHub Issues](https://github.com/lfnovo/construction-os/issues)
 - **Docs**: [Full documentation](../index.md)

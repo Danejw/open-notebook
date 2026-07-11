@@ -8,7 +8,7 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
-      - 'notebooks/**'
+      - 'frontend/src/app/(dashboard)/projects/**'
       - '.github/workflows/claude*.yml'
   workflow_dispatch:
     inputs:
@@ -27,8 +27,8 @@ permissions:
   packages: write
 
 env:
-  GHCR_IMAGE: ghcr.io/lfnovo/open-notebook
-  DOCKERHUB_IMAGE: lfnovo/open_notebook
+  GHCR_IMAGE: ghcr.io/lfnovo/construction-os
+  DOCKERHUB_IMAGE: lfnovo/construction-os
 
 jobs:
   extract-version:

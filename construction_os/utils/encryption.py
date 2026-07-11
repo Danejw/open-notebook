@@ -4,9 +4,10 @@ Field-level encryption for sensitive data using API keys.
 This module provides encryption/decryption for API keys stored in the database.
 Fernet uses AES-128-CBC with HMAC-SHA256 for authenticated encryption.
 
-OPEN_NOTEBOOK_ENCRYPTION_KEY accepts **any string**. A Fernet key is derived
+CONSTRUCTION_OS_ENCRYPTION_KEY accepts **any string**. A Fernet key is derived
 from it via SHA-256, so users can set a simple passphrase like
-``OPEN_NOTEBOOK_ENCRYPTION_KEY=my-secret`` and it will work.
+``CONSTRUCTION_OS_ENCRYPTION_KEY=my-secret`` and it will work.
+Legacy installs may still use ``OPEN_NOTEBOOK_ENCRYPTION_KEY`` (same value).
 
 Usage:
     # Encrypt before storing
@@ -26,19 +27,8 @@ from cryptography.fernet import Fernet, InvalidToken
 from loguru import logger
 
 
-def get_secret_from_env(var_name: str) -> Optional[str]:
-    """
-    Get a secret from environment, supporting Docker secrets pattern.
-
-    Checks for VAR_FILE first (Docker secrets), then falls back to VAR.
-
-    Args:
-        var_name: Base name of the environment variable (e.g., "OPEN_NOTEBOOK_ENCRYPTION_KEY")
-
-    Returns:
-        The secret value, or None if not configured.
-    """
-    # Check for _FILE variant first (Docker secrets)
+def _read_secret_var(var_name: str) -> Optional[str]:
+    """Read a single secret var, supporting Docker ``_FILE`` secrets."""
     file_path = os.environ.get(f"{var_name}_FILE")
     if file_path:
         try:
@@ -48,15 +38,41 @@ def get_secret_from_env(var_name: str) -> Optional[str]:
                 if secret:
                     logger.debug(f"Loaded {var_name} from file: {file_path}")
                     return secret
-                else:
-                    logger.warning(f"{var_name}_FILE points to empty file: {file_path}")
+                logger.warning(f"{var_name}_FILE points to empty file: {file_path}")
             else:
                 logger.warning(f"{var_name}_FILE path does not exist: {file_path}")
         except Exception as e:
             logger.error(f"Failed to read {var_name} from file {file_path}: {e}")
 
-    # Fall back to direct environment variable
     return os.environ.get(var_name)
+
+
+def get_secret_from_env(var_name: str, legacy_var_name: Optional[str] = None) -> Optional[str]:
+    """
+    Get a secret from environment, supporting Docker secrets pattern.
+
+    Checks for VAR_FILE first (Docker secrets), then VAR. When ``var_name`` uses
+    the ``CONSTRUCTION_OS_*`` prefix, falls back to the legacy
+    ``OPEN_NOTEBOOK_*`` name unless ``legacy_var_name`` is provided explicitly.
+
+    Args:
+        var_name: Primary environment variable (e.g., "CONSTRUCTION_OS_ENCRYPTION_KEY")
+        legacy_var_name: Optional legacy variable name override
+
+    Returns:
+        The secret value, or None if not configured.
+    """
+    secret = _read_secret_var(var_name)
+    if secret:
+        return secret
+
+    if legacy_var_name is None and var_name.startswith("CONSTRUCTION_OS_"):
+        legacy_var_name = "OPEN_NOTEBOOK_" + var_name.removeprefix("CONSTRUCTION_OS_")
+
+    if legacy_var_name:
+        return _read_secret_var(legacy_var_name)
+
+    return None
 
 
 def _get_or_create_encryption_key() -> str:
@@ -64,10 +80,11 @@ def _get_or_create_encryption_key() -> str:
     Get encryption key from environment, requires explicit configuration.
 
     Priority:
-    1. OPEN_NOTEBOOK_ENCRYPTION_KEY_FILE (Docker secrets)
-    2. OPEN_NOTEBOOK_ENCRYPTION_KEY (environment variable)
+    1. CONSTRUCTION_OS_ENCRYPTION_KEY_FILE (Docker secrets)
+    2. CONSTRUCTION_OS_ENCRYPTION_KEY (environment variable)
+    3. OPEN_NOTEBOOK_ENCRYPTION_KEY_FILE / OPEN_NOTEBOOK_ENCRYPTION_KEY (legacy)
 
-    For production deployments, you MUST set OPEN_NOTEBOOK_ENCRYPTION_KEY explicitly!
+    For production deployments, you MUST set CONSTRUCTION_OS_ENCRYPTION_KEY explicitly!
 
     Returns:
         Encryption key string.
@@ -76,12 +93,12 @@ def _get_or_create_encryption_key() -> str:
         ValueError: If no encryption key is configured.
     """
     # First check environment/Docker secrets
-    key = get_secret_from_env("OPEN_NOTEBOOK_ENCRYPTION_KEY")
+    key = get_secret_from_env("CONSTRUCTION_OS_ENCRYPTION_KEY")
     if key:
         return key
 
     raise ValueError(
-        "OPEN_NOTEBOOK_ENCRYPTION_KEY is not set. "
+        "CONSTRUCTION_OS_ENCRYPTION_KEY is not set. "
         "Set this environment variable to any secret string to enable "
         "encrypted storage of API keys in the database."
     )
@@ -189,7 +206,7 @@ def decrypt_value(value: str) -> str:
             # Looks like encrypted data but failed to decrypt - likely wrong key
             raise ValueError(
                 "Decryption failed: data appears to be encrypted but key is incorrect. "
-                "Check OPEN_NOTEBOOK_ENCRYPTION_KEY configuration."
+                "Check CONSTRUCTION_OS_ENCRYPTION_KEY configuration."
             )
         # Not a valid token - treat as legacy plaintext
         return value

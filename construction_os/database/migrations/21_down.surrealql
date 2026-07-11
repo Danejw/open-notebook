@@ -1,0 +1,3 @@
+-- Rollback migration 21
+
+REMOVE TABLE artifact;

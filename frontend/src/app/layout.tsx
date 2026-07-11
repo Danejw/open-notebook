@@ -17,8 +17,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Open Notebook",
-  description: "Privacy-focused research and knowledge management",
+  title: "Construction OS",
+  description:
+    "AI-powered construction project intelligence — manage specs, plans, and RFQs; run artifacts for takeoffs and bid scope; chat with your project context.",
 };
 
 export default function RootLayout({

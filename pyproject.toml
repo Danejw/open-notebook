@@ -1,7 +1,7 @@
 [project]
-name = "open-notebook"
+name = "construction-os"
 version = "1.10.0"
-description = "An open source implementation of a research assistant, inspired by Google Notebook LM"
+description = "Open-source, privacy-focused AI research assistant for construction workflows — a self-hosted alternative to Google Notebook LM"
 authors = [
     {name = "Luis Novo", email = "lfnovo@gmail.com"}
 ]
@@ -45,10 +45,10 @@ dependencies = [
 ]
 
 [tool.setuptools]
-package-dir = {"open_notebook" = "open_notebook"}
+package-dir = {"construction_os" = "construction_os"}
 
 [tool.setuptools.package-data]
-open_notebook = ["ai/assets/*"]
+construction_os = ["ai/assets/*"]
 
 
 [project.optional-dependencies]

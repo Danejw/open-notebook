@@ -48,13 +48,13 @@ export function generate(input: Input): Output {
       env: [
         `API_URL=https://$(PRIMARY_DOMAIN)`,
         `INTERNAL_API_URL=http://localhost:5055`,
-        `OPEN_NOTEBOOK_ENCRYPTION_KEY=${encryptionKey}`,
-        `OPEN_NOTEBOOK_PASSWORD=${appPassword}`,
+        `CONSTRUCTION_OS_ENCRYPTION_KEY=${encryptionKey}`,
+        `CONSTRUCTION_OS_PASSWORD=${appPassword}`,
         `SURREAL_URL=ws://$(PROJECT_NAME)_${input.databaseServiceName}:8000/rpc`,
         `SURREAL_USER=root`,
         `SURREAL_PASSWORD=${databasePassword}`,
-        `SURREAL_NAMESPACE=open_notebook`,
-        `SURREAL_DATABASE=open_notebook`,
+        `SURREAL_NAMESPACE=construction_os`,
+        `SURREAL_DATABASE=construction_os`,
       ].join("\n"),
       source: {
         type: "image",

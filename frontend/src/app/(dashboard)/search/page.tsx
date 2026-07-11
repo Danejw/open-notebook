@@ -22,7 +22,7 @@ import { useModalManager } from '@/lib/hooks/use-modal-manager'
 import { InlineSkeleton, PickerDialogSkeleton, SearchButtonSkeleton } from '@/components/common/LoadingSkeletons'
 import { StreamingResponse } from '@/components/search/StreamingResponse'
 import { AdvancedModelsDialog } from '@/components/search/AdvancedModelsDialog'
-import { SaveToNotebooksDialog } from '@/components/search/SaveToNotebooksDialog'
+import { SaveToProjectsDialog } from '@/components/search/SaveToProjectsDialog'
 
 const SEARCH_PAGE_SIZE = 30
 
@@ -301,7 +301,7 @@ export default function SearchPage() {
                           className="w-full"
                         >
                           <Save className="h-4 w-4 mr-2" />
-                          {t('searchPage.saveToNotebooks')}
+                          {t('searchPage.saveToProjects')}
                         </Button>
                       )}
                     </div>
@@ -332,7 +332,7 @@ export default function SearchPage() {
 
                 {/* Save to Notebooks Dialog */}
                 {ask.finalAnswer && (
-                  <SaveToNotebooksDialog
+                  <SaveToProjectsDialog
                     open={showSaveDialog}
                     onOpenChange={setShowSaveDialog}
                     question={askQuestion}

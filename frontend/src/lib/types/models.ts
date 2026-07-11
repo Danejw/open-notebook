@@ -17,7 +17,7 @@ export interface CreateModelRequest {
 
 export interface ModelDefaults {
   default_chat_model?: string | null
-  default_transformation_model?: string | null
+  default_artifact_model?: string | null
   large_context_model?: string | null
   default_text_to_speech_model?: string | null
   default_speech_to_text_model?: string | null

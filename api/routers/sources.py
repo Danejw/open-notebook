@@ -29,11 +29,11 @@ from api.models import (
     SourceUpdate,
 )
 from commands.source_commands import SourceProcessingInput
-from open_notebook.config import UPLOADS_FOLDER
-from open_notebook.database.repository import ensure_record_id, repo_query
-from open_notebook.domain.notebook import Asset, Notebook, Source
-from open_notebook.domain.transformation import Transformation
-from open_notebook.exceptions import InvalidInputError, NotFoundError
+from construction_os.config import UPLOADS_FOLDER
+from construction_os.database.repository import ensure_record_id, repo_query
+from construction_os.domain.project import Asset, Project, Source
+from construction_os.domain.artifact import Artifact
+from construction_os.exceptions import InvalidInputError, NotFoundError
 
 router = APIRouter()
 
@@ -96,12 +96,12 @@ async def save_uploaded_file(upload_file: UploadFile) -> str:
 
 def parse_source_form_data(
     type: str = Form(...),
-    notebook_id: Optional[str] = Form(None),
-    notebooks: Optional[str] = Form(None),  # JSON string of notebook IDs
+    project_id: Optional[str] = Form(None),
+    projects: Optional[str] = Form(None),  # JSON string of Project IDs
     url: Optional[str] = Form(None),
     content: Optional[str] = Form(None),
     title: Optional[str] = Form(None),
-    transformations: Optional[str] = Form(None),  # JSON string of transformation IDs
+    artifacts: Optional[str] = Form(None),  # JSON string of Artifact IDs
     embed: str = Form("false"),  # Accept as string, convert to bool
     delete_source: str = Form("false"),  # Accept as string, convert to bool
     async_processing: str = Form("false"),  # Accept as string, convert to bool
@@ -119,33 +119,33 @@ def parse_source_form_data(
     async_processing_bool = str_to_bool(async_processing)
 
     # Parse JSON strings
-    notebooks_list = None
-    if notebooks:
+    projects_list = None
+    if projects:
         try:
-            notebooks_list = json.loads(notebooks)
+            projects_list = json.loads(projects)
         except json.JSONDecodeError:
-            logger.error(f"Invalid JSON in notebooks field: {notebooks}")
-            raise ValueError("Invalid JSON in notebooks field")
+            logger.error(f"Invalid JSON in projects field: {projects}")
+            raise ValueError("Invalid JSON in projects field")
 
-    transformations_list = []
-    if transformations:
+    artifacts_list = []
+    if artifacts:
         try:
-            transformations_list = json.loads(transformations)
+            artifacts_list = json.loads(artifacts)
         except json.JSONDecodeError:
-            logger.error(f"Invalid JSON in transformations field: {transformations}")
-            raise ValueError("Invalid JSON in transformations field")
+            logger.error(f"Invalid JSON in artifacts field: {artifacts}")
+            raise ValueError("Invalid JSON in artifacts field")
 
     # Create SourceCreate instance
     try:
         source_data = SourceCreate(
             type=type,
-            notebook_id=notebook_id,
-            notebooks=notebooks_list,
+            project_id=project_id,
+            projects=projects_list,
             url=url,
             content=content,
             title=title,
             file_path=None,  # Will be set later if file is uploaded
-            transformations=transformations_list,
+            artifacts=artifacts_list,
             embed=embed_bool,
             delete_source=delete_source_bool,
             async_processing=async_processing_bool,
@@ -160,7 +160,7 @@ def parse_source_form_data(
 
 @router.get("/sources", response_model=List[SourceListResponse])
 async def get_sources(
-    notebook_id: Optional[str] = Query(None, description="Filter by notebook ID"),
+    project_id: Optional[str] = Query(None, description="Filter by Project ID"),
     limit: int = Query(
         50, ge=1, le=100, description="Number of sources to return (1-100)"
     ),
@@ -186,18 +186,18 @@ async def get_sources(
         order_clause = f"ORDER BY {sort_by} {sort_order.upper()}"
 
         # Build the query
-        if notebook_id:
-            # Verify notebook exists first
-            notebook = await Notebook.get(notebook_id)
-            if not notebook:
-                raise HTTPException(status_code=404, detail="Notebook not found")
+        if project_id:
+            # Verify Project exists first
+            project = await Project.get(project_id)
+            if not project:
+                raise HTTPException(status_code=404, detail="Project not found")
 
-            # Query sources for specific notebook - include command field with FETCH
+            # Query sources for specific Project - include command field with FETCH
             query = f"""
                 SELECT id, asset, created, title, updated, topics, command,
                 (SELECT VALUE count() FROM source_insight WHERE source = $parent.id GROUP ALL)[0].count OR 0 AS insights_count,
                 (SELECT VALUE id FROM source_embedding WHERE source = $parent.id LIMIT 1) != [] AS embedded
-                FROM (select value in from reference where out=$notebook_id)
+                FROM (select value in from reference where out=$project_id)
                 {order_clause}
                 LIMIT $limit START $offset
                 FETCH command
@@ -205,7 +205,7 @@ async def get_sources(
             result = await repo_query(
                 query,
                 {
-                    "notebook_id": ensure_record_id(notebook_id),
+                    "project_id": ensure_record_id(project_id),
                     "limit": limit,
                     "offset": offset,
                 },
@@ -299,12 +299,12 @@ async def create_source(
     file_path = None
 
     try:
-        # Verify all specified notebooks exist (backward compatibility support)
-        for notebook_id in source_data.notebooks or []:
-            notebook = await Notebook.get(notebook_id)
-            if not notebook:
+        # Verify all specified projects exist (backward compatibility support)
+        for project_id in source_data.projects or []:
+            project = await Project.get(project_id)
+            if not project:
                 raise HTTPException(
-                    status_code=404, detail=f"Notebook {notebook_id} not found"
+                    status_code=404, detail=f"Project {project_id} not found"
                 )
 
         # Handle file upload if provided
@@ -356,13 +356,13 @@ async def create_source(
                 detail="Invalid source type. Must be link, upload, or text",
             )
 
-        # Validate transformations exist
-        transformation_ids = source_data.transformations or []
-        for trans_id in transformation_ids:
-            transformation = await Transformation.get(trans_id)
-            if not transformation:
+        # Validate artifacts exist
+        artifact_ids = source_data.artifacts or []
+        for artifact_id in artifact_ids:
+            artifact = await Artifact.get(artifact_id)
+            if not artifact:
                 raise HTTPException(
-                    status_code=404, detail=f"Transformation {trans_id} not found"
+                    status_code=404, detail=f"Artifact {artifact_id} not found"
                 )
 
         # Branch based on processing mode
@@ -386,10 +386,10 @@ async def create_source(
             )
             await source.save()
 
-            # Add source to notebooks immediately so it appears in the UI
+            # Add source to projects immediately so it appears in the UI
             # The source_graph will skip adding duplicates
-            for notebook_id in source_data.notebooks or []:
-                await source.add_to_notebook(notebook_id)
+            for project_id in source_data.projects or []:
+                await source.add_to_project(project_id)
 
             try:
                 # Import command modules to ensure they're registered
@@ -399,13 +399,13 @@ async def create_source(
                 command_input = SourceProcessingInput(
                     source_id=str(source.id),
                     content_state=content_state,
-                    notebook_ids=source_data.notebooks,
-                    transformations=transformation_ids,
+                    project_ids=source_data.projects,
+                    artifacts=artifact_ids,
                     embed=source_data.embed,
                 )
 
                 command_id = await CommandService.submit_command_job(
-                    "open_notebook",  # app name
+                    "construction_os",  # app name
                     "process_source",  # command name
                     command_input.model_dump(),
                 )
@@ -465,17 +465,17 @@ async def create_source(
                 )
                 await source.save()
 
-                # Add source to notebooks immediately so it appears in the UI
+                # Add source to projects immediately so it appears in the UI
                 # The source_graph will skip adding duplicates
-                for notebook_id in source_data.notebooks or []:
-                    await source.add_to_notebook(notebook_id)
+                for project_id in source_data.projects or []:
+                    await source.add_to_project(project_id)
 
                 # Execute command synchronously
                 command_input = SourceProcessingInput(
                     source_id=str(source.id),
                     content_state=content_state,
-                    notebook_ids=source_data.notebooks,
-                    transformations=transformation_ids,
+                    project_ids=source_data.projects,
+                    artifacts=artifact_ids,
                     embed=source_data.embed,
                 )
 
@@ -484,7 +484,7 @@ async def create_source(
                 # be called from an already-running event loop (FastAPI)
                 result = await asyncio.to_thread(
                     execute_command_sync,
-                    "open_notebook",  # app name
+                    "construction_os",  # app name
                     "process_source",  # command name
                     command_input.model_dump(),
                     timeout=300,  # 5 minute timeout for sync processing
@@ -645,13 +645,13 @@ async def get_source(source_id: str):
 
         embedded_chunks = await source.get_embedded_chunks()
 
-        # Get associated notebooks
-        notebooks_query = await repo_query(
+        # Get associated projects
+        projects_query = await repo_query(
             "SELECT VALUE out FROM reference WHERE in = $source_id",
             {"source_id": ensure_record_id(source.id or source_id)},
         )
-        notebook_ids = (
-            [str(nb_id) for nb_id in notebooks_query] if notebooks_query else []
+        project_ids = (
+            [str(pid) for pid in projects_query] if projects_query else []
         )
 
         return SourceResponse(
@@ -674,8 +674,8 @@ async def get_source(source_id: str):
             command_id=str(source.command) if source.command else None,
             status=status,
             processing_info=processing_info,
-            # Notebook associations
-            notebooks=notebook_ids,
+            # Project associations
+            projects=project_ids,
         )
     except HTTPException:
         raise
@@ -844,19 +844,19 @@ async def retry_source_processing(source_id: str):
                 )
                 # Continue with retry if we can't check status
 
-        # Get notebooks that this source belongs to. `reference` is a graph edge
-        # (RELATE source->reference->notebook), so it only has `in`/`out` columns —
-        # there is no `source`/`notebook` column. Mirror the working query at the
+        # Get projects that this source belongs to. `reference` is a graph edge
+        # (RELATE source->reference->Project), so it only has `in`/`out` columns —
+        # there is no `source`/`Project` column. Mirror the working query at the
         # source-list path above. See issue #861.
         references = await repo_query(
             "SELECT VALUE out FROM reference WHERE in = $source_id",
             {"source_id": ensure_record_id(source.id or source_id)},
         )
-        notebook_ids = [str(nb_id) for nb_id in references] if references else []
+        project_ids = [str(nb_id) for nb_id in references] if references else []
 
-        if not notebook_ids:
+        if not project_ids:
             raise HTTPException(
-                status_code=400, detail="Source is not associated with any notebooks"
+                status_code=400, detail="Source is not associated with any projects"
             )
 
         # Prepare content_state based on source asset
@@ -890,13 +890,13 @@ async def retry_source_processing(source_id: str):
             command_input = SourceProcessingInput(
                 source_id=str(source.id),
                 content_state=content_state,
-                notebook_ids=notebook_ids,
-                transformations=[],  # Use default transformations on retry
+                project_ids=project_ids,
+                artifacts=[],  # No artifacts on retry unless user re-applies manually
                 embed=True,  # Always embed on retry
             )
 
             command_id = await CommandService.submit_command_job(
-                "open_notebook",  # app name
+                "construction_os",  # app name
                 "process_source",  # command name
                 command_input.model_dump(),
             )
@@ -1005,10 +1005,10 @@ async def get_source_insights(source_id: str):
 )
 async def create_source_insight(source_id: str, request: CreateSourceInsightRequest):
     """
-    Start insight generation for a source by running a transformation.
+    Start insight generation for a source by running a Artifact.
 
     This endpoint returns immediately with a 202 Accepted status.
-    The transformation runs asynchronously in the background via the job queue.
+    The Artifact runs asynchronously in the background via the job queue.
     Poll GET /sources/{source_id}/insights to see when the insight is ready.
     """
     try:
@@ -1017,22 +1017,22 @@ async def create_source_insight(source_id: str, request: CreateSourceInsightRequ
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
 
-        # Validate transformation exists
-        transformation = await Transformation.get(request.transformation_id)
-        if not transformation:
-            raise HTTPException(status_code=404, detail="Transformation not found")
+        # Validate Artifact exists
+        artifact = await Artifact.get(request.artifact_id)
+        if not artifact:
+            raise HTTPException(status_code=404, detail="Artifact not found")
 
-        # Submit transformation as background job (fire-and-forget)
+        # Submit Artifact as background job (fire-and-forget)
         command_id = submit_command(
-            "open_notebook",
-            "run_transformation",
+            "construction_os",
+            "run_artifact",
             {
                 "source_id": source_id,
-                "transformation_id": request.transformation_id,
+                "artifact_id": request.artifact_id,
             },
         )
         logger.info(
-            f"Submitted run_transformation command {command_id} for source {source_id}"
+            f"Submitted run_artifact command {command_id} for source {source_id}"
         )
 
         # Return immediately with command_id for status tracking
@@ -1040,7 +1040,7 @@ async def create_source_insight(source_id: str, request: CreateSourceInsightRequ
             status="pending",
             message="Insight generation started",
             source_id=source_id,
-            transformation_id=request.transformation_id,
+            artifact_id=request.artifact_id,
             command_id=str(command_id),
         )
 

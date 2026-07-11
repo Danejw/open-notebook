@@ -26,7 +26,7 @@ from api.routers import (
     languages,
     mcp,
     models,
-    notebooks,
+    projects,
     notes,
     podcasts,
     search,
@@ -35,21 +35,21 @@ from api.routers import (
     source_chat,
     sources,
     speaker_profiles,
-    transformations,
+    artifacts,
 )
 from api.routers import commands as commands_router
-from open_notebook.database.async_migrate import AsyncMigrationManager
-from open_notebook.exceptions import (
+from construction_os.database.async_migrate import AsyncMigrationManager
+from construction_os.exceptions import (
     AuthenticationError,
     ConfigurationError,
     ExternalServiceError,
     InvalidInputError,
     NetworkError,
     NotFoundError,
-    OpenNotebookError,
+    ConstructionOSError,
     RateLimitError,
 )
-from open_notebook.utils.encryption import get_secret_from_env
+from construction_os.utils.encryption import get_secret_from_env
 
 
 def _parse_cors_origins(raw: str) -> list[str]:
@@ -107,11 +107,11 @@ async def lifespan(app: FastAPI):
     logger.info("Starting API initialization...")
 
     # Security check: Encryption key
-    if not get_secret_from_env("OPEN_NOTEBOOK_ENCRYPTION_KEY"):
+    if not get_secret_from_env("CONSTRUCTION_OS_ENCRYPTION_KEY"):
         logger.warning(
-            "OPEN_NOTEBOOK_ENCRYPTION_KEY not set. "
+            "CONSTRUCTION_OS_ENCRYPTION_KEY not set. "
             "API key encryption will fail until this is configured. "
-            "Set OPEN_NOTEBOOK_ENCRYPTION_KEY to any secret string."
+            "Set CONSTRUCTION_OS_ENCRYPTION_KEY to any secret string."
         )
 
     # Run database migrations
@@ -138,9 +138,29 @@ async def lifespan(app: FastAPI):
         # Fail fast - don't start the API with an outdated database schema
         raise RuntimeError(f"Failed to run database migrations: {str(e)}") from e
 
+    # Run Construction OS rebrand data migrations (notebook→project, transformation→artifact)
+    try:
+        from construction_os.database.rebrand_migration import run_construction_os_rebrand
+
+        await run_construction_os_rebrand()
+    except Exception as e:
+        logger.error(f"Construction OS rebrand migration failed: {e}")
+        logger.exception(e)
+        raise RuntimeError(f"Failed to run Construction OS rebrand migration: {e}") from e
+
+    # Copy legacy open_notebook namespace data into construction_os when needed
+    try:
+        from construction_os.database.namespace_migration import migrate_legacy_namespace_if_needed
+
+        await migrate_legacy_namespace_if_needed()
+    except Exception as e:
+        logger.error(f"Namespace migration failed: {e}")
+        logger.exception(e)
+        raise RuntimeError(f"Failed to run namespace migration: {e}") from e
+
     # Run podcast profile data migration (legacy strings -> Model registry)
     try:
-        from open_notebook.podcasts.migration import migrate_podcast_profiles
+        from construction_os.podcasts.migration import migrate_podcast_profiles
 
         await migrate_podcast_profiles()
     except Exception as e:
@@ -150,9 +170,9 @@ async def lifespan(app: FastAPI):
     # AsyncSqliteSaver for chat graphs (required by ag-ui-langgraph aget_state/astream)
     try:
         from api.ag_ui_agents import refresh_agents
-        from open_notebook.graphs import chat as chat_module
-        from open_notebook.graphs import source_chat as source_chat_module
-        from open_notebook.graphs.checkpointer import init_checkpointer
+        from construction_os.graphs import chat as chat_module
+        from construction_os.graphs import source_chat as source_chat_module
+        from construction_os.graphs.checkpointer import init_checkpointer
 
         checkpointer = await init_checkpointer()
         chat_module.bind_checkpointer(checkpointer)
@@ -171,7 +191,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown: cleanup if needed
     try:
-        from open_notebook.graphs.checkpointer import close_checkpointer
+        from construction_os.graphs.checkpointer import close_checkpointer
 
         await close_checkpointer()
     except Exception as e:
@@ -180,8 +200,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Open Notebook API",
-    description="API for Open Notebook - Research Assistant",
+    title="Construction OS API",
+    description="API for Construction OS - Research Assistant",
     lifespan=lifespan,
 )
 
@@ -190,7 +210,7 @@ if CORS_IS_DEFAULT_WILDCARD:
         "CORS_ORIGINS is not set — API accepts cross-origin requests from any "
         "origin (default: '*'). For production deployments, set CORS_ORIGINS to "
         "your frontend origin(s), e.g. "
-        "CORS_ORIGINS=https://notebook.example.com"
+        "CORS_ORIGINS=https://app.example.com"
     )
 else:
     logger.info(f"CORS allowed origins: {CORS_ALLOWED_ORIGINS}")
@@ -302,8 +322,8 @@ async def external_service_error_handler(request: Request, exc: ExternalServiceE
     )
 
 
-@app.exception_handler(OpenNotebookError)
-async def open_notebook_error_handler(request: Request, exc: OpenNotebookError):
+@app.exception_handler(ConstructionOSError)
+async def construction_os_error_handler(request: Request, exc: ConstructionOSError):
     return JSONResponse(
         status_code=500,
         content={"detail": str(exc)},
@@ -314,10 +334,10 @@ async def open_notebook_error_handler(request: Request, exc: OpenNotebookError):
 # Include routers
 app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(config.router, prefix="/api", tags=["config"])
-app.include_router(notebooks.router, prefix="/api", tags=["notebooks"])
+app.include_router(projects.router, prefix="/api", tags=["projects"])
 app.include_router(search.router, prefix="/api", tags=["search"])
 app.include_router(models.router, prefix="/api", tags=["models"])
-app.include_router(transformations.router, prefix="/api", tags=["transformations"])
+app.include_router(artifacts.router, prefix="/api", tags=["artifacts"])
 app.include_router(skills.router, prefix="/api", tags=["skills"])
 app.include_router(mcp.router, prefix="/api", tags=["mcp"])
 app.include_router(notes.router, prefix="/api", tags=["notes"])
@@ -341,7 +361,7 @@ app.include_router(languages.router, prefix="/api", tags=["languages"])
 
 @app.get("/")
 async def root():
-    return {"message": "Open Notebook API is running"}
+    return {"message": "Construction OS API is running"}
 
 
 @app.get("/health")

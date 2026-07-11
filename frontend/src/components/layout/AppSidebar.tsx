@@ -45,40 +45,43 @@ import {
   Plug2,
 } from 'lucide-react'
 
-const getNavigation = (t: TFunction) => [
+type NavSection = {
+  title?: string
+  items: Array<{
+    name: string
+    href: string
+    icon: typeof Book
+  }>
+}
+
+const getNavigation = (t: TFunction): NavSection[] => [
   {
-    title: t('navigation.collect'),
     items: [
-      { name: t('navigation.sources'), href: '/sources', icon: FileText },
+      { name: t('navigation.projects'), href: '/projects', icon: Book },
+      { name: t('navigation.skills'), href: '/skills', icon: Sparkles },
+      { name: t('navigation.tools'), href: '/tools', icon: Plug2 },
+      { name: t('navigation.artifacts'), href: '/artifacts', icon: Shuffle },
     ],
   },
   {
-    title: t('navigation.process'),
+    title: t('navigation.learn'),
     items: [
-      { name: t('navigation.notebooks'), href: '/notebooks', icon: Book },
       { name: t('navigation.askAndSearch'), href: '/search', icon: Search },
-    ],
-  },
-  {
-    title: t('navigation.create'),
-    items: [
       { name: t('navigation.podcasts'), href: '/podcasts', icon: Mic },
     ],
   },
   {
     title: t('navigation.manage'),
     items: [
+      { name: t('navigation.sources'), href: '/sources', icon: FileText },
       { name: t('navigation.models'), href: '/settings/api-keys', icon: Bot },
-      { name: t('navigation.transformations'), href: '/transformations', icon: Shuffle },
-      { name: t('navigation.skills'), href: '/skills', icon: Sparkles },
-      { name: t('navigation.tools'), href: '/tools', icon: Plug2 },
-      { name: t('navigation.settings'), href: '/settings', icon: Settings },
       { name: t('navigation.advanced'), href: '/advanced', icon: Wrench },
+      { name: t('navigation.settings'), href: '/settings', icon: Settings },
     ],
   },
-] as const
+]
 
-type CreateTarget = 'source' | 'notebook' | 'podcast'
+type CreateTarget = 'source' | 'project' | 'podcast'
 
 export function AppSidebar() {
   const { t } = useTranslation()
@@ -86,7 +89,7 @@ export function AppSidebar() {
   const pathname = usePathname()
   const { logout } = useAuth()
   const { isCollapsed, toggleCollapse } = useSidebarStore()
-  const { openSourceDialog, openNotebookDialog, openPodcastDialog } = useCreateDialogs()
+  const { openSourceDialog, openProjectDialog, openPodcastDialog } = useCreateDialogs()
   const prefetchRoute = useRoutePrefetch()
 
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
@@ -101,8 +104,8 @@ export function AppSidebar() {
 
     if (target === 'source') {
       openSourceDialog()
-    } else if (target === 'notebook') {
-      openNotebookDialog()
+    } else if (target === 'project') {
+      openProjectDialog()
     } else if (target === 'podcast') {
       openPodcastDialog()
     }
@@ -162,7 +165,7 @@ export function AppSidebar() {
             <div className="group relative flex w-full items-center justify-center">
               <Image
                 src="/logo.svg"
-                alt="Open Notebook"
+                alt={t('common.appName')}
                 width={24}
                 height={24}
                 className="transition-opacity group-hover:opacity-0"
@@ -249,12 +252,12 @@ export function AppSidebar() {
                 <DropdownMenuItem
                   onSelect={(event) => {
                     event.preventDefault()
-                    handleCreateSelection('notebook')
+                    handleCreateSelection('project')
                   }}
                   className="gap-2 text-sm"
                 >
                   <Book className="h-3.5 w-3.5" />
-                  {t('common.notebook')}
+                  {t('common.project')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={(event) => {
@@ -271,8 +274,8 @@ export function AppSidebar() {
           </div>
 
           {navigation.map((section, index) => (
-            <div key={section.title} className={cn(index > 0 && 'mt-2')}>
-              {!isCollapsed && (
+            <div key={section.title ?? `section-${index}`} className={cn(index > 0 && 'mt-2')}>
+              {!isCollapsed && section.title && (
                 <h3 className="mb-0.5 px-2 text-[10px] font-semibold uppercase tracking-wide text-sidebar-foreground/55">
                   {section.title}
                 </h3>

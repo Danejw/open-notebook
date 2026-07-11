@@ -21,9 +21,9 @@ from typing import Any, ClassVar, Dict, List, Optional
 from loguru import logger
 from pydantic import SecretStr, model_validator
 
-from open_notebook.database.repository import ensure_record_id, repo_query
-from open_notebook.domain.base import ObjectModel
-from open_notebook.utils.encryption import decrypt_value, encrypt_value
+from construction_os.database.repository import ensure_record_id, repo_query
+from construction_os.domain.base import ObjectModel
+from construction_os.utils.encryption import decrypt_value, encrypt_value
 
 
 class Credential(ObjectModel):
@@ -216,7 +216,7 @@ class Credential(ObjectModel):
         """Get all models linked to this credential."""
         if not self.id:
             return []
-        from open_notebook.ai.models import Model
+        from construction_os.ai.models import Model
 
         results = await repo_query(
             "SELECT * FROM model WHERE credential = $cred_id",

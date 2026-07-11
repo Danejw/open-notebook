@@ -1,8 +1,8 @@
-# Open Notebook Architecture
+# Construction OS Architecture
 
 ## High-Level Overview
 
-Open Notebook follows a three-tier architecture with clear separation of concerns:
+Construction OS follows a three-tier architecture with clear separation of concerns:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -33,13 +33,13 @@ Open Notebook follows a three-tier architecture with clear separation of concern
 - **v1.1+**: Next.js automatically proxies `/api/*` requests to the backend, simplifying reverse proxy setup
 - Your browser loads the frontend from port 8502
 - The frontend needs to know where to find the API - when accessing remotely, set: `API_URL=http://your-server-ip:5055`
-- **Behind reverse proxy?** You only need to proxy to port 8502 now! See [Reverse Proxy Configuration](../5-CONFIGURATION/reverse-proxy.md)
+- **Behind reverse proxy?** You only need to proxy to port 8502 now! (Matches root `docker-compose.yml`, which maps `8502:8502` for the UI and `5055:5055` for direct API access.) See [Reverse Proxy Configuration](../5-CONFIGURATION/reverse-proxy.md)
 
 ---
 
 ## Detailed Architecture
 
-Open Notebook is built on a **three-tier, async-first architecture** designed for scalability, modularity, and multi-provider AI flexibility. The system separates concerns across frontend, API, and database layers, with LangGraph powering intelligent workflows and Esperanto enabling seamless integration with 8+ AI providers.
+Construction OS is built on a **three-tier, async-first architecture** designed for scalability, modularity, and multi-provider AI flexibility. The system separates concerns across frontend, API, and database layers, with LangGraph powering intelligent workflows and Esperanto enabling seamless integration with 8+ AI providers.
 
 **Core Philosophy**:
 - Privacy-first: Users control their data and AI provider choice
@@ -64,7 +64,7 @@ Open Notebook is built on a **three-tier, async-first architecture** designed fo
 - **Build Tool**: Webpack (bundled via Next.js)
 
 **Key Responsibilities**:
-- Render notebooks, sources, notes, chat sessions, and podcasts
+- Render projects, sources, notes, chat sessions, and podcasts
 - Handle user interactions (create, read, update, delete operations)
 - Manage complex UI state (modals, file uploads, real-time search)
 - Stream responses from API (chat, podcast generation)
@@ -74,13 +74,13 @@ Open Notebook is built on a **three-tier, async-first architecture** designed fo
 - All data fetched via REST API (async requests to port 5055)
 - Configured base URL: `http://localhost:5055` (dev) or environment-specific (prod)
 - TanStack Query handles caching, refetching, and data synchronization
-- Zustand stores global state (user, notebooks, selected context)
+- Zustand stores global state (user, projects, selected context)
 - CORS enabled on API side for cross-origin requests
 
 **Component Architecture**:
 - `/src/app/`: Next.js App Router (pages, layouts)
 - `/src/components/`: Reusable React components (buttons, forms, cards)
-- `/src/hooks/`: Custom hooks (useNotebook, useChat, useSearch)
+- `/src/hooks/`: Custom hooks (useProject, useChat, useSearch)
 - `/src/lib/`: Utility functions, API clients, validators
 - `/src/styles/`: Global CSS, Tailwind config
 
@@ -88,7 +88,7 @@ Open Notebook is built on a **three-tier, async-first architecture** designed fo
 
 ### Layer 2: API (FastAPI @ port 5055)
 
-**Purpose**: RESTful backend exposing operations on notebooks, sources, notes, chat sessions, and AI models.
+**Purpose**: RESTful backend exposing operations on projects, sources, notes, chat sessions, and AI models.
 
 **Technology Stack**:
 - **Framework**: FastAPI 0.104+ (async Python web framework)
@@ -101,12 +101,12 @@ Open Notebook is built on a **three-tier, async-first architecture** designed fo
 ```
 FastAPI App (main.py)
   ├── Routers (HTTP endpoints)
-  │   ├── routers/notebooks.py (CRUD operations)
+  │   ├── routers/projects.py (CRUD operations)
   │   ├── routers/sources.py (content ingestion, upload)
   │   ├── routers/notes.py (note management)
   │   ├── routers/chat.py (conversation sessions)
   │   ├── routers/search.py (full-text + vector search)
-  │   ├── routers/transformations.py (custom transformations)
+  │   ├── routers/artifacts.py (custom artifacts)
   │   ├── routers/models.py (AI model configuration)
   │   └── routers/*.py (11 additional routers)
   │
@@ -162,29 +162,29 @@ Response ← Pydantic serialization ← Service ← Result
 
 | Table | Purpose | Key Fields |
 |-------|---------|-----------|
-| `notebook` | Research project container | id, name, description, archived, created, updated |
+| `project` | Research project container | id, name, description, archived, created, updated |
 | `source` | Content item (PDF, URL, text) | id, title, full_text, topics, asset, created, updated |
 | `source_embedding` | Vector embeddings for semantic search | id, source, embedding, chunk_text, chunk_index |
 | `note` | User-created research notes | id, title, content, note_type (human/ai), created, updated |
-| `chat_session` | Conversation session | id, notebook_id, title, messages (JSON), created, updated |
-| `transformation` | Custom transformation rules | id, name, description, prompt, created, updated |
-| `source_insight` | Transformation output | id, source_id, insight_type, content, created, updated |
-| `reference` | Relationship: source → notebook | out (source), in (notebook) |
-| `artifact` | Relationship: note → notebook | out (note), in (notebook) |
+| `chat_session` | Conversation session | id, project_id, title, messages (JSON), created, updated |
+| `artifact` | Custom artifact rules | id, name, description, prompt, created, updated |
+| `source_insight` | Artifact output | id, source_id, insight_type, content, created, updated |
+| `reference` | Relationship: source → project | out (source), in (project) |
+| `artifact` | Relationship: note → project | out (note), in (project) |
 
 **Relationship Graph**:
 ```
-Notebook
+Project
   ↓ (referenced_by)
 Source
   ├→ SourceEmbedding (1:many for chunked text)
-  ├→ SourceInsight (1:many for transformation outputs)
+  ├→ SourceInsight (1:many for artifact outputs)
   └→ Note (via artifact relationship)
     ├→ Embedding (semantic search)
     └→ Topics (tags)
 
 ChatSession
-  ├→ Notebook
+  ├→ Project
   └→ Messages (stored as JSON array)
 ```
 
@@ -269,9 +269,9 @@ ChatSession
 
 ## LangGraph Workflows
 
-LangGraph is a state machine library that orchestrates multi-step AI workflows. Open Notebook uses five core workflows:
+LangGraph is a state machine library that orchestrates multi-step AI workflows. Construction OS uses five core workflows:
 
-### 1. **Source Processing Workflow** (`open_notebook/graphs/source.py`)
+### 1. **Source Processing Workflow** (`construction_os/graphs/source.py`)
 
 **Purpose**: Ingest content (PDF, URL, text) and prepare for search/insights.
 
@@ -302,7 +302,7 @@ Output (Source record with embeddings)
   "full_text": str,
   "embeddings": List[Dict],
   "topics": List[str],
-  "notebook_ids": List[str],
+  "project_ids": List[str],
 }
 ```
 
@@ -310,9 +310,9 @@ Output (Source record with embeddings)
 
 ---
 
-### 2. **Chat Workflow** (`open_notebook/graphs/chat.py`)
+### 2. **Chat Workflow** (`construction_os/graphs/chat.py`)
 
-**Purpose**: Conduct multi-turn conversations with AI model, referencing notebook context.
+**Purpose**: Conduct multi-turn conversations with AI model, referencing project context.
 
 **Flow**:
 ```
@@ -354,7 +354,7 @@ Output (complete message)
 
 ---
 
-### 3. **Ask Workflow** (`open_notebook/graphs/ask.py`)
+### 3. **Ask Workflow** (`construction_os/graphs/ask.py`)
 
 **Purpose**: Answer user questions by searching sources and synthesizing responses.
 
@@ -392,13 +392,13 @@ Output (final answer)
 
 ---
 
-### 4. **Transformation Workflow** (`open_notebook/graphs/transformation.py`)
+### 4. **Artifact Workflow** (`construction_os/graphs/artifact.py`)
 
-**Purpose**: Apply custom transformations to sources (extract summaries, key points, etc).
+**Purpose**: Apply custom artifacts to sources (extract summaries, key points, etc).
 
 **Flow**:
 ```
-Source + Transformation Rule
+Source + Artifact Rule
   ↓
 Generate Prompt (Jinja2 template)
   ↓
@@ -411,7 +411,7 @@ Create SourceInsight record
 Output (insight with type + content)
 ```
 
-**Example Transformations**:
+**Example Artifacts**:
 - Summary (5-sentence overview)
 - Key Points (bulleted list)
 - Quotes (notable excerpts)
@@ -421,7 +421,7 @@ Output (insight with type + content)
 
 ---
 
-### 5. **Prompt Workflow** (`open_notebook/graphs/prompt.py`)
+### 5. **Prompt Workflow** (`construction_os/graphs/prompt.py`)
 
 **Purpose**: Generic LLM task execution (e.g., auto-generate note titles, analyze content).
 
@@ -442,7 +442,7 @@ Output (completion)
 
 ### ModelManager: Centralized Factory
 
-Located in `open_notebook/ai/models.py`, ModelManager handles:
+Located in `construction_os/ai/models.py`, ModelManager handles:
 
 1. **Provider Detection**: Check environment variables for available providers
 2. **Model Selection**: Choose best model based on context size and task
@@ -452,7 +452,7 @@ Located in `open_notebook/ai/models.py`, ModelManager handles:
 
 **Usage**:
 ```python
-from open_notebook.ai.provision import provision_langchain_model
+from construction_os.ai.provision import provision_langchain_model
 
 # Get best LLM for context size
 model = await provision_langchain_model(
@@ -511,15 +511,15 @@ result = await graph.ainvoke(
 
 ### 1. **Domain-Driven Design (DDD)**
 
-**Domain Objects** (`open_notebook/domain/`):
-- `Notebook`: Research container with relationships to sources/notes
+**Domain Objects** (`construction_os/domain/`):
+- `Project`: Research container with relationships to sources/notes
 - `Source`: Content item (PDF, URL, text) with embeddings
 - `Note`: User-created or AI-generated research note
-- `ChatSession`: Conversation history for a notebook
-- `Transformation`: Custom rule for extracting insights
+- `ChatSession`: Conversation history for a project
+- `Artifact`: Custom rule for extracting insights
 
 **Repository Pattern**:
-- Database access layer (`open_notebook/database/repository.py`)
+- Database access layer (`construction_os/database/repository.py`)
 - `repo_query()`: Execute SurrealQL queries
 - `repo_create()`: Insert records
 - `repo_upsert()`: Merge records
@@ -528,10 +528,10 @@ result = await graph.ainvoke(
 **Entity Methods**:
 ```python
 # Domain methods (business logic)
-notebook = await Notebook.get(id)
-await notebook.save()
-notes = await notebook.get_notes()
-sources = await notebook.get_sources()
+project = await Project.get(id)
+await project.save()
+notes = await project.get_notes()
+sources = await project.get_sources()
 ```
 
 ### 2. **Async-First Architecture**
@@ -563,14 +563,14 @@ async def create_source(source_data: SourceCreate):
 Services orchestrate domain objects, repositories, and workflows:
 
 ```python
-# api/notebook_service.py
-class NotebookService:
-    async def get_notebook_with_stats(notebook_id: str):
-        notebook = await Notebook.get(notebook_id)
-        sources = await notebook.get_sources()
-        notes = await notebook.get_notes()
+# api/project_service.py
+class ProjectService:
+    async def get_project_with_stats(project_id: str):
+        project = await Project.get(project_id)
+        sources = await project.get_sources()
+        notes = await project.get_notes()
         return {
-            "notebook": notebook,
+            "project": project,
             "source_count": len(sources),
             "note_count": len(notes),
         }
@@ -603,7 +603,7 @@ For async background tasks (source processing), use Surreal-Commands job queue:
 ```python
 # Submit job
 command_id = await CommandService.submit_command_job(
-    app="open_notebook",
+    app="construction_os",
     command="process_source",
     input={...}
 )
@@ -644,8 +644,8 @@ const source = await response.json();
 ```python
 # API
 result = await repo_query(
-    "SELECT * FROM source WHERE notebook = $notebook_id",
-    {"notebook_id": ensure_record_id(notebook_id)}
+    "SELECT * FROM source WHERE project = $project_id",
+    {"project_id": ensure_record_id(project_id)}
 )
 ```
 
@@ -687,14 +687,14 @@ status = await response.json()  # returns { status: "running|queued|completed|fa
 ### Core Schema Structure
 
 **Tables** (20+):
-- Notebooks (with soft-delete via `archived` flag)
+- Projects (with soft-delete via `archived` flag)
 - Sources (content + metadata)
 - SourceEmbeddings (vector chunks)
 - Notes (user-created + AI-generated)
 - ChatSessions (conversation history)
-- Transformations (custom rules)
-- SourceInsights (transformation outputs)
-- Relationships (notebook→source, notebook→note)
+- Artifacts (custom rules)
+- SourceInsights (artifact outputs)
+- Relationships (project→source, project→note)
 
 **Migrations**:
 - Automatic on API startup
@@ -707,7 +707,7 @@ status = await response.json()  # returns { status: "running|queued|completed|fa
 
 **Graph Relationships**:
 ```
-Notebook
+Project
   ← reference ← Source (many:many)
   ← artifact ← Note (many:many)
 
@@ -718,19 +718,19 @@ Source
 
 ChatSession
   → messages (JSON array in database)
-  → notebook_id (reference to Notebook)
+  → project_id (reference to Project)
 
-Transformation
+Artifact
   → source_insight (one:many)
 ```
 
-**Query Example** (get all sources in a notebook with counts):
+**Query Example** (get all sources in a project with counts):
 ```sql
 SELECT id, title,
   count(<-reference.in) as note_count,
   count(<-embedding.in) as embedded_chunks
 FROM source
-WHERE notebook = $notebook_id
+WHERE project = $project_id
 ORDER BY updated DESC
 ```
 
@@ -752,7 +752,7 @@ Built-in support for 8+ AI providers prevents vendor lock-in.
 
 ### 3. **Graph-First Workflows**
 
-LangGraph state machines for complex multi-step operations (ask, chat, transformations).
+LangGraph state machines for complex multi-step operations (ask, chat, artifacts).
 
 **Trade-off**: Steeper learning curve vs. maintainable, debuggable workflows.
 
@@ -780,7 +780,7 @@ Async job submission (source processing, podcast generation) prevents request ti
 
 ### Database Operations
 
-- **Record IDs use SurrealDB syntax** (table:id format, e.g., "notebook:abc123")
+- **Record IDs use SurrealDB syntax** (table:id format, e.g., "project:abc123")
 - **ensure_record_id()** helper prevents malformed IDs
 - **Soft deletes** via `archived` field (data not removed, just marked inactive)
 - **Timestamps in ISO 8601 format** (created, updated fields)
@@ -839,7 +839,7 @@ Async job submission (source processing, podcast generation) prevents request ti
 
 ### Adding a New Workflow
 
-1. Create `open_notebook/graphs/workflow_name.py`
+1. Create `construction_os/graphs/workflow_name.py`
 2. Define StateDict and node functions
 3. Build graph with `.add_node()` / `.add_edge()`
 4. Create service in `api/workflow_service.py`
@@ -848,7 +848,7 @@ Async job submission (source processing, podcast generation) prevents request ti
 
 ### Adding a New Data Model
 
-1. Create model in `open_notebook/domain/model_name.py`
+1. Create model in `construction_os/domain/model_name.py`
 2. Inherit from BaseModel (domain object)
 3. Implement `save()`, `get()`, `delete()` methods (CRUD)
 4. Add repository functions if complex queries needed
@@ -888,4 +888,4 @@ Async job submission (source processing, podcast generation) prevents request ti
 
 ## Summary
 
-Open Notebook's architecture provides a solid foundation for privacy-focused, AI-powered research. The separation of concerns (frontend/API/database), async-first design, and multi-provider flexibility enable rapid development and easy deployment. LangGraph workflows orchestrate complex AI tasks, while Esperanto abstracts provider details. The result is a scalable, maintainable system that puts users in control of their data and AI provider choice.
+Construction OS's architecture provides a solid foundation for privacy-focused, AI-powered research. The separation of concerns (frontend/API/database), async-first design, and multi-provider flexibility enable rapid development and easy deployment. LangGraph workflows orchestrate complex AI tasks, while Esperanto abstracts provider details. The result is a scalable, maintainable system that puts users in control of their data and AI provider choice.

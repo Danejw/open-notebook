@@ -8,7 +8,7 @@ import aiosqlite
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from loguru import logger
 
-from open_notebook.config import LANGGRAPH_CHECKPOINT_FILE
+from construction_os.config import LANGGRAPH_CHECKPOINT_FILE
 
 _conn: Optional[aiosqlite.Connection] = None
 _checkpointer: Optional[AsyncSqliteSaver] = None

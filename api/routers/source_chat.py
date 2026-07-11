@@ -7,13 +7,13 @@ from loguru import logger
 from pydantic import BaseModel, Field
 
 from api import ag_ui_agents
-from open_notebook.database.repository import ensure_record_id, repo_query
-from open_notebook.domain.notebook import ChatSession, Source
-from open_notebook.exceptions import (
+from construction_os.database.repository import ensure_record_id, repo_query
+from construction_os.domain.project import ChatSession, Source
+from construction_os.exceptions import (
     NotFoundError,
 )
-from open_notebook.graphs import source_chat as source_chat_module
-from open_notebook.utils.graph_utils import get_session_message_count
+from construction_os.graphs import source_chat as source_chat_module
+from construction_os.utils.graph_utils import get_session_message_count
 
 router = APIRouter()
 

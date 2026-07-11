@@ -4,9 +4,19 @@ import type { NextRequest } from 'next/server'
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Redirect root to notebooks
+  // Redirect root to projects
   if (pathname === '/') {
-    return NextResponse.redirect(new URL('/notebooks', request.url))
+    return NextResponse.redirect(new URL('/projects', request.url))
+  }
+
+  if (pathname === '/notebooks' || pathname.startsWith('/notebooks/')) {
+    const suffix = pathname.slice('/notebooks'.length)
+    return NextResponse.redirect(new URL(`/projects${suffix}`, request.url))
+  }
+
+  if (pathname === '/transformations' || pathname.startsWith('/transformations/')) {
+    const suffix = pathname.slice('/transformations'.length)
+    return NextResponse.redirect(new URL(`/artifacts${suffix}`, request.url))
   }
 
   return NextResponse.next()

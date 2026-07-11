@@ -1,5 +1,5 @@
 """
-Unified embedding utilities for Open Notebook.
+Unified embedding utilities for Construction OS.
 
 Provides centralized embedding generation with support for:
 - Single text embedding (with automatic chunking and mean pooling for large texts)
@@ -11,13 +11,13 @@ to ensure consistent behavior and proper handling of large content.
 """
 
 import asyncio
-import os
 from typing import TYPE_CHECKING, List, Optional
 
 import numpy as np
 from loguru import logger
 
 from .chunking import CHUNK_SIZE, ContentType, chunk_text
+from .env import get_env
 from .token_utils import token_count
 
 
@@ -28,7 +28,7 @@ def _get_embedding_batch_size() -> int:
     This is intentionally configurable because provider limits vary widely, and
     CPU-only local embedding endpoints often need smaller batches than cloud APIs.
     """
-    raw = os.getenv("OPEN_NOTEBOOK_EMBEDDING_BATCH_SIZE", "50").strip()
+    raw = (get_env("CONSTRUCTION_OS_EMBEDDING_BATCH_SIZE", "50") or "50").strip()
     try:
         value = int(raw)
         if value < 1:
@@ -36,7 +36,7 @@ def _get_embedding_batch_size() -> int:
         return value
     except ValueError:
         logger.warning(
-            "Invalid OPEN_NOTEBOOK_EMBEDDING_BATCH_SIZE='{}'; falling back to 50",
+            "Invalid CONSTRUCTION_OS_EMBEDDING_BATCH_SIZE='{}'; falling back to 50",
             raw,
         )
         return 50
@@ -49,7 +49,7 @@ EMBEDDING_RETRY_DELAY = 2  # seconds
 # Lazy import to avoid circular dependency:
 # utils -> embedding -> models -> key_provider -> provider_config -> utils
 if TYPE_CHECKING:
-    from open_notebook.ai.models import ModelManager
+    from construction_os.ai.models import ModelManager
 
 
 async def mean_pool_embeddings(embeddings: List[List[float]]) -> List[float]:
@@ -133,7 +133,7 @@ async def generate_embeddings(
         return []
 
     # Lazy import to avoid circular dependency
-    from open_notebook.ai.models import model_manager
+    from construction_os.ai.models import model_manager
 
     embedding_model = await model_manager.get_embedding_model()
     if not embedding_model:

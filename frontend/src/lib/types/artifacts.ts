@@ -1,4 +1,4 @@
-export interface Transformation {
+export interface Artifact {
   id: string
   name: string
   title: string
@@ -9,7 +9,7 @@ export interface Transformation {
   updated: string
 }
 
-export interface CreateTransformationRequest {
+export interface CreateArtifactRequest {
   name: string
   title: string
   description: string
@@ -17,7 +17,7 @@ export interface CreateTransformationRequest {
   apply_default?: boolean
 }
 
-export interface UpdateTransformationRequest {
+export interface UpdateArtifactRequest {
   name?: string
   title?: string
   description?: string
@@ -25,18 +25,18 @@ export interface UpdateTransformationRequest {
   apply_default?: boolean
 }
 
-export interface ExecuteTransformationRequest {
-  transformation_id: string
+export interface ExecuteArtifactRequest {
+  artifact_id: string
   input_text: string
   model_id: string
 }
 
-export interface ExecuteTransformationResponse {
+export interface ExecuteArtifactResponse {
   output: string
-  transformation_id: string
+  artifact_id: string
   model_id: string
 }
 
 export interface DefaultPrompt {
-  transformation_instructions: string
+  artifact_instructions: string
 }

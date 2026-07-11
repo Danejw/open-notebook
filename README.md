@@ -11,17 +11,17 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="https://github.com/lfnovo/open-notebook">
+  <a href="https://github.com/lfnovo/construction-os">
     <img src="docs/assets/hero.svg" alt="Logo">
   </a>
 
-  <h3 align="center">Open Notebook</h3>
+  <h3 align="center">Construction OS</h3>
 
   <p align="center">
-    An open source, privacy-focused alternative to Google's Notebook LM!
+    An open source, privacy-focused AI workspace for construction teams — and a full alternative to Google Notebook LM!
     <br /><strong>Join our <a href="https://discord.gg/37XJPXfz2w">Discord server</a> for help, to share workflow ideas, and suggest features!</strong>
     <br />
-    <a href="https://www.open-notebook.ai"><strong>Checkout our website »</strong></a>
+    <a href="https://www.construction-os.ai"><strong>Checkout our website »</strong></a>
     <br />
     <br />
     <a href="docs/0-START-HERE/index.md">📚 Get Started</a>
@@ -35,55 +35,58 @@
 </div>
 
 <p align="center">
-<a href="https://trendshift.io/repositories/14536" target="_blank"><img src="https://trendshift.io/api/badge/repositories/14536" alt="lfnovo%2Fopen-notebook | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+<a href="https://trendshift.io/repositories/14536" target="_blank"><img src="https://trendshift.io/api/badge/repositories/14536" alt="lfnovo%2Fconstruction-os | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
-
-<div align="center">
-  <!-- Keep these links. Translations will automatically update with the README. -->
-  <a href="https://zdoc.app/de/lfnovo/open-notebook">Deutsch</a> | 
-  <a href="https://zdoc.app/es/lfnovo/open-notebook">Español</a> | 
-  <a href="https://zdoc.app/fr/lfnovo/open-notebook">français</a> | 
-  <a href="https://zdoc.app/ja/lfnovo/open-notebook">日本語</a> | 
-  <a href="https://zdoc.app/ko/lfnovo/open-notebook">한국어</a> | 
-  <a href="https://zdoc.app/pt/lfnovo/open-notebook">Português</a> | 
-  <a href="https://zdoc.app/ru/lfnovo/open-notebook">Русский</a> | 
-  <a href="https://zdoc.app/zh/lfnovo/open-notebook">中文</a>
-</div>
 
 ## A private, multi-model, 100% local, full-featured alternative to Notebook LM
 
-![New Notebook](docs/assets/asset_list.png)
+![New Project](docs/assets/asset_list.png)
 
 In a world dominated by Artificial Intelligence, having the ability to think 🧠 and acquire new knowledge 💡, is a skill that should not be a privilege for a few, nor restricted to a single provider.
 
-**Open Notebook empowers you to:**
-- 🔒 **Control your data** - Keep your research private and secure
+**Construction OS empowers you to:**
+- 🔒 **Control your data** - Keep bids, specs, and research private and secure
 - 🤖 **Choose your AI models** - Support for 18+ providers including OpenAI, Anthropic, Ollama, LM Studio, and more
-- 📚 **Organize multi-modal content** - PDFs, videos, audio, web pages, and more
+- 📁 **Organize with Projects** - Scope each bid, RFQ, or job folder with sources, notes, and chat
+- ⚙️ **Run Artifacts** - Extract bid scopes, takeoffs, schedule milestones, and compliance checklists from documents
+- 🧠 **Attach Skills & Tools** - Bring domain expertise and MCP integrations into project chat
+- 📚 **Ingest multi-modal content** - PDFs, plans, RFQs, videos, audio, web pages, and more
 - 🎙️ **Generate professional podcasts** - Advanced multi-speaker podcast generation
 - 🔍 **Search intelligently** - Full-text and vector search across all your content
-- 💬 **Chat with context** - AI conversations powered by your research
+- 💬 **Chat with context** - AI conversations powered by your project materials
 - 🌐 **Multi-language UI** - English, Portuguese, Chinese (Simplified & Traditional), Japanese, Russian, and Bengali support
 
-Learn more about our project at [https://www.open-notebook.ai](https://www.open-notebook.ai)
+### Built for construction workflows
+
+Construction OS extends the Notebook LM research model for the field:
+
+| Concept | What it does in construction |
+|---------|-------------------------------|
+| **Projects** | One container per bid, job, or research effort (specs, submittals, meeting notes) |
+| **Sources** | Plans, RFQs, contracts, code references, and site photos |
+| **Artifacts** | Repeatable extractions — bid scope summaries, quantity takeoffs, RFQ requirements, safety checklists |
+| **Skills** | Reusable prompt packs you attach to chat (estimating, spec review, scheduling) |
+| **Tools (MCP)** | Connect external systems (issue trackers, estimating tools, document stores) during chat |
+
+Learn more about our project at [https://www.construction-os.ai](https://www.construction-os.ai)
 
 ---
 
-## 🆚 Open Notebook vs Google Notebook LM
+## 🆚 Construction OS vs Google Notebook LM
 
-| Feature | Open Notebook | Google Notebook LM | Advantage |
+| Feature | Construction OS | Google Notebook LM | Advantage |
 |---------|---------------|--------------------|-----------|
 | **Privacy & Control** | Self-hosted, your data | Google cloud only | Complete data sovereignty |
 | **AI Provider Choice** | 18+ providers (OpenAI, Anthropic, Ollama, LM Studio, etc.) | Google models only | Flexibility and cost optimization |
 | **Podcast Speakers** | 1-4 speakers with custom profiles | 2 speakers only | Extreme flexibility |
-| **Content Transformations** | Custom and built-in | Limited options | Unlimited processing power |
+| **Content Artifacts** | Custom and built-in | Limited options | Unlimited processing power |
 | **API Access** | Full REST API | No API | Complete automation |
 | **Deployment** | Docker, cloud, or local | Google hosted only | Deploy anywhere |
 | **Citations** | Basic references (will improve) | Comprehensive with sources | Research integrity |
 | **Customization** | Open source, fully customizable | Closed system | Unlimited extensibility |
 | **Cost** | Pay only for AI usage | Free tier + Monthly subscription | Transparent and controllable |
 
-**Why Choose Open Notebook?**
+**Why Choose Construction OS?**
 - 🔒 **Privacy First**: Your sensitive research stays completely private
 - 💰 **Cost Control**: Choose cheaper AI providers or run locally with Ollama
 - 🎙️ **Better Podcasts**: Full script control and multi-speaker flexibility vs limited 2-speaker deep-dive format
@@ -104,7 +107,7 @@ Learn more about our project at [https://www.open-notebook.ai](https://www.open-
 
 **Option A:** Download directly
 ```bash
-curl -o docker-compose.yml https://raw.githubusercontent.com/lfnovo/open-notebook/main/docker-compose.yml
+curl -o docker-compose.yml https://raw.githubusercontent.com/lfnovo/construction-os/main/docker-compose.yml
 ```
 
 **Option B:** Create the file manually
@@ -122,20 +125,20 @@ services:
       - ./surreal_data:/mydata
     restart: always
 
-  open_notebook:
-    image: lfnovo/open_notebook:v1-latest
+  construction_os:
+    image: lfnovo/construction-os:v1-latest
     ports:
       - "8502:8502"
       - "5055:5055"
     environment:
-      - OPEN_NOTEBOOK_ENCRYPTION_KEY=change-me-to-a-secret-string
+      - CONSTRUCTION_OS_ENCRYPTION_KEY=change-me-to-a-secret-string
       - SURREAL_URL=ws://surrealdb:8000/rpc
       - SURREAL_USER=root
       - SURREAL_PASSWORD=root
-      - SURREAL_NAMESPACE=open_notebook
-      - SURREAL_DATABASE=open_notebook
+      - SURREAL_NAMESPACE=construction_os
+      - SURREAL_DATABASE=construction_os
     volumes:
-      - ./notebook_data:/app/data
+      - ./construction_os_data:/app/data
     depends_on:
       - surrealdb
     restart: always
@@ -144,7 +147,7 @@ services:
 ### Step 2: Set Your Encryption Key
 Edit `docker-compose.yml` and change this line:
 ```yaml
-- OPEN_NOTEBOOK_ENCRYPTION_KEY=change-me-to-a-secret-string
+- CONSTRUCTION_OS_ENCRYPTION_KEY=change-me-to-a-secret-string
 ```
 to any secret value (e.g., `my-super-secret-key-123`)
 
@@ -163,7 +166,7 @@ Wait 15-20 seconds, then open: **http://localhost:8502**
 5. Click **Sync Models** and check models to include
 6. Under **Default Model Assignments**, click **Auto-Assign Defaults** or manually specify which models to use for what 
 
-Done! You're ready to create your first notebook.
+Done! You're ready to create your first project.
 
 > **Need an API key?** Get one from:
 > [OpenAI](https://platform.openai.com/api-keys) · [Anthropic](https://console.anthropic.com/) · [Google](https://aistudio.google.com/) · [Groq](https://console.groq.com/) (free tier)
@@ -182,16 +185,16 @@ Done! You're ready to create your first notebook.
 
 ### 📖 Need Help?
 
-- **🤖 AI Installation Assistant**: [CustomGPT to help you install](https://chatgpt.com/g/g-68776e2765b48191bd1bae3f30212631-open-notebook-installation-assistant)
+- **🤖 AI Installation Assistant**: [CustomGPT to help you install](https://chatgpt.com/g/g-68776e2765b48191bd1bae3f30212631-construction-os-installation-assistant)
 - **🆘 Troubleshooting**: [5-minute troubleshooting guide](docs/6-TROUBLESHOOTING/quick-fixes.md)
 - **💬 Community Support**: [Discord Server](https://discord.gg/37XJPXfz2w)
-- **🐛 Report Issues**: [GitHub Issues](https://github.com/lfnovo/open-notebook/issues)
+- **🐛 Report Issues**: [GitHub Issues](https://github.com/lfnovo/construction-os/issues)
 
 ---
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=lfnovo/open-notebook&type=date&legend=top-left)](https://www.star-history.com/#lfnovo/open-notebook&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/svg?repos=lfnovo/construction-os&type=date&legend=top-left)](https://www.star-history.com/#lfnovo/construction-os&type=date&legend=top-left)
 
 
 ## Provider Support Matrix
@@ -225,7 +228,7 @@ Thanks to the [Esperanto](https://github.com/lfnovo/esperanto) library, we suppo
 
 ### Core Capabilities
 - **🔒 Privacy-First**: Your data stays under your control - no cloud dependencies
-- **🎯 Multi-Notebook Organization**: Manage multiple research projects seamlessly
+- **🎯 Multi-Project Organization**: Manage multiple research projects seamlessly
 - **📚 Universal Content Support**: PDFs, videos, audio, web pages, Office docs, and more
 - **🤖 Multi-Model AI Support**: 18+ providers including OpenAI, Anthropic, Ollama, Google, LM Studio, and more
 - **🎙️ Professional Podcast Generation**: Advanced multi-speaker podcasts with Episode Profiles
@@ -235,7 +238,7 @@ Thanks to the [Esperanto](https://github.com/lfnovo/esperanto) library, we suppo
 
 ### Advanced Features
 - **⚡ Reasoning Model Support**: Full support for thinking models like DeepSeek-R1 and Qwen3
-- **🔧 Content Transformations**: Powerful customizable actions to summarize and extract insights
+- **🔧 Content Artifacts**: Powerful customizable actions to summarize and extract insights
 - **🌐 Comprehensive REST API**: Full programmatic access for custom integrations [![API Docs](https://img.shields.io/badge/API-Documentation-blue?style=flat-square)](http://localhost:5055/docs)
 - **🔐 Optional Password Protection**: Secure public deployments with authentication
 - **📊 Fine-Grained Context Control**: Choose exactly what to share with AI models
@@ -249,22 +252,22 @@ Thanks to the [Esperanto](https://github.com/lfnovo/esperanto) library, we suppo
 ## 📚 Documentation
 
 ### Getting Started
-- **[📖 Introduction](docs/0-START-HERE/index.md)** - Learn what Open Notebook offers
-- **[⚡ Quick Start](docs/0-START-HERE/quick-start.md)** - Get up and running in 5 minutes
+- **[📖 Introduction](docs/0-START-HERE/index.md)** - Learn what Construction OS offers
+- **[⚡ Quick Start](docs/0-START-HERE/quick-start-local.md)** - Get up and running in 5 minutes
 - **[🔧 Installation](docs/1-INSTALLATION/index.md)** - Comprehensive setup guide
-- **[🎯 Your First Notebook](docs/0-START-HERE/first-notebook.md)** - Step-by-step tutorial
+- **[🎯 Your First Project](docs/2-CORE-CONCEPTS/projects-sources-notes.md)** - Step-by-step tutorial
 
 ### User Guide
 - **[📱 Interface Overview](docs/3-USER-GUIDE/interface-overview.md)** - Understanding the layout
-- **[📚 Notebooks](docs/3-USER-GUIDE/notebooks.md)** - Organizing your research
-- **[📄 Sources](docs/3-USER-GUIDE/sources.md)** - Managing content types
-- **[📝 Notes](docs/3-USER-GUIDE/notes.md)** - Creating and managing notes
-- **[💬 Chat](docs/3-USER-GUIDE/chat.md)** - AI conversations
+- **[📚 Projects](docs/2-CORE-CONCEPTS/projects-sources-notes.md)** - Organizing your research
+- **[📄 Sources](docs/3-USER-GUIDE/adding-sources.md)** - Managing content types
+- **[📝 Notes](docs/3-USER-GUIDE/working-with-notes.md)** - Creating and managing notes
+- **[💬 Chat](docs/3-USER-GUIDE/chat-effectively.md)** - AI conversations
 - **[🔍 Search](docs/3-USER-GUIDE/search.md)** - Finding information
 
 ### Advanced Topics
-- **[🎙️ Podcast Generation](docs/2-CORE-CONCEPTS/podcasts.md)** - Create professional podcasts
-- **[🔧 Content Transformations](docs/2-CORE-CONCEPTS/transformations.md)** - Customize content processing
+- **[🎙️ Podcast Generation](docs/2-CORE-CONCEPTS/podcasts-explained.md)** - Create professional podcasts
+- **[🔧 Content Artifacts](docs/3-USER-GUIDE/artifacts.md)** - Customize content processing
 - **[🤖 AI Models](docs/4-AI-PROVIDERS/index.md)** - AI model configuration
 - **[🔌 MCP Integration](docs/5-CONFIGURATION/mcp-integration.md)** - Connect with Claude Desktop, VS Code and other MCP clients
 - **[🔧 REST API Reference](docs/7-DEVELOPMENT/api-reference.md)** - Complete API documentation
@@ -278,7 +281,7 @@ Thanks to the [Esperanto](https://github.com/lfnovo/esperanto) library, we suppo
 ### Upcoming Features
 - **Live Front-End Updates**: Real-time UI updates for smoother experience
 - **Async Processing**: Faster UI through asynchronous content processing
-- **Cross-Notebook Sources**: Reuse research materials across projects
+- **Cross-Project Sources**: Reuse research materials across projects
 - **Bookmark Integration**: Connect with your favorite bookmarking apps
 
 ### Recently Completed ✅
@@ -286,32 +289,32 @@ Thanks to the [Esperanto](https://github.com/lfnovo/esperanto) library, we suppo
 - **Comprehensive REST API**: Full programmatic access to all functionality
 - **Multi-Model Support**: 18+ AI providers including OpenAI, Anthropic, Ollama, LM Studio
 - **Advanced Podcast Generator**: Professional multi-speaker podcasts with Episode Profiles
-- **Content Transformations**: Powerful customizable actions for content processing
+- **Content Artifacts**: Powerful customizable actions for content processing
 - **Enhanced Citations**: Improved layout and finer control for source citations
-- **Multiple Chat Sessions**: Manage different conversations within notebooks
+- **Multiple Chat Sessions**: Manage different conversations within projects
 
-See the [open issues](https://github.com/lfnovo/open-notebook/issues) for a full list of proposed features and known issues.
+See the [open issues](https://github.com/lfnovo/construction-os/issues) for a full list of proposed features and known issues.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
 ## 📖 Need Help?
-- **🤖 AI Installation Assistant**: We have a [CustomGPT built to help you install Open Notebook](https://chatgpt.com/g/g-68776e2765b48191bd1bae3f30212631-open-notebook-installation-assistant) - it will guide you through each step!
-- **New to Open Notebook?** Start with our [Getting Started Guide](docs/0-START-HERE/index.md)
+- **🤖 AI Installation Assistant**: We have a [CustomGPT built to help you install Construction OS](https://chatgpt.com/g/g-68776e2765b48191bd1bae3f30212631-construction-os-installation-assistant) - it will guide you through each step!
+- **New to Construction OS?** Start with our [Getting Started Guide](docs/0-START-HERE/index.md)
 - **Need installation help?** Check our [Installation Guide](docs/1-INSTALLATION/index.md)
-- **Want to see it in action?** Try our [Quick Start Tutorial](docs/0-START-HERE/quick-start.md)
+- **Want to see it in action?** Try our [Quick Start Tutorial](docs/0-START-HERE/quick-start-local.md)
 
 ## 🤝 Community & Contributing
 
 ### Join the Community
 - 💬 **[Discord Server](https://discord.gg/37XJPXfz2w)** - Get help, share ideas, and connect with other users
-- 🐛 **[GitHub Issues](https://github.com/lfnovo/open-notebook/issues)** - Report bugs and request features
-- ⭐ **Star this repo** - Show your support and help others discover Open Notebook
+- 🐛 **[GitHub Issues](https://github.com/lfnovo/construction-os/issues)** - Report bugs and request features
+- ⭐ **Star this repo** - Show your support and help others discover Construction OS
 
 ### Contributing
 We welcome contributions! We're especially looking for help with:
 - **Frontend Development**: Help improve our modern Next.js/React UI
-- **Testing & Bug Fixes**: Make Open Notebook more robust
+- **Testing & Bug Fixes**: Make Construction OS more robust
 - **Feature Development**: Build the coolest research tool together
 - **Documentation**: Improve guides and tutorials
 
@@ -325,29 +328,29 @@ See our [Contributing Guide](CONTRIBUTING.md) for detailed information on how to
 
 ## 📄 License
 
-Open Notebook is MIT licensed. See the [LICENSE](LICENSE) file for details.
+Construction OS is MIT licensed. See the [LICENSE](LICENSE) file for details.
 
 
 **Community Support**:
 - 💬 [Discord Server](https://discord.gg/37XJPXfz2w) - Get help, share ideas, and connect with users
-- 🐛 [GitHub Issues](https://github.com/lfnovo/open-notebook/issues) - Report bugs and request features
-- 🌐 [Website](https://www.open-notebook.ai) - Learn more about the project
+- 🐛 [GitHub Issues](https://github.com/lfnovo/construction-os/issues) - Report bugs and request features
+- 🌐 [Website](https://www.construction-os.ai) - Learn more about the project
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[contributors-shield]: https://img.shields.io/github/contributors/lfnovo/open-notebook.svg?style=for-the-badge
-[contributors-url]: https://github.com/lfnovo/open-notebook/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/lfnovo/open-notebook.svg?style=for-the-badge
-[forks-url]: https://github.com/lfnovo/open-notebook/network/members
-[stars-shield]: https://img.shields.io/github/stars/lfnovo/open-notebook.svg?style=for-the-badge
-[stars-url]: https://github.com/lfnovo/open-notebook/stargazers
-[issues-shield]: https://img.shields.io/github/issues/lfnovo/open-notebook.svg?style=for-the-badge
-[issues-url]: https://github.com/lfnovo/open-notebook/issues
-[license-shield]: https://img.shields.io/github/license/lfnovo/open-notebook.svg?style=for-the-badge
-[license-url]: https://github.com/lfnovo/open-notebook/blob/master/LICENSE.txt
+[contributors-shield]: https://img.shields.io/github/contributors/lfnovo/construction-os.svg?style=for-the-badge
+[contributors-url]: https://github.com/lfnovo/construction-os/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/lfnovo/construction-os.svg?style=for-the-badge
+[forks-url]: https://github.com/lfnovo/construction-os/network/members
+[stars-shield]: https://img.shields.io/github/stars/lfnovo/construction-os.svg?style=for-the-badge
+[stars-url]: https://github.com/lfnovo/construction-os/stargazers
+[issues-shield]: https://img.shields.io/github/issues/lfnovo/construction-os.svg?style=for-the-badge
+[issues-url]: https://github.com/lfnovo/construction-os/issues
+[license-shield]: https://img.shields.io/github/license/lfnovo/construction-os.svg?style=for-the-badge
+[license-url]: https://github.com/lfnovo/construction-os/blob/main/LICENSE.txt
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
 [linkedin-url]: https://linkedin.com/in/lfnovo
 [product-screenshot]: images/screenshot.png

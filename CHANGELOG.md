@@ -8,20 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- List view for the Notebooks page — a tile/list toggle in the header lets you switch between the visual card grid and a compact row layout (name, description, source/note counts, last updated) for easier scanning of large collections. The choice is remembered across reloads and translated across all 14 locales (#885)
+- Full product rebrand from **Open Notebook** to **Construction OS**: domain concepts renamed (Notebooks → Projects, Transformations → Artifacts), Python package `construction_os`, SurrealDB namespace `construction_os`, and updated documentation across the repo
+- List view for the Projects page — a tile/list toggle in the header lets you switch between the visual card grid and a compact row layout (name, description, source/note counts, last updated) for easier scanning of large collections. The choice is remembered across reloads and translated across all 14 locales (#885)
 - Documented the `ESPERANTO_TTS_TIMEOUT` environment variable (default `300`s) in the environment reference; raise it for slow or self-hosted TTS providers so long podcast segments don't fail with a timeout (#937)
 - `SECURITY.md` with a coordinated-disclosure policy: how to privately report a vulnerability via GitHub's private vulnerability reporting, supported versions, and response expectations (#943)
-- LaTeX math rendering (KaTeX) now also applies to source content, source insights, Ask answers, transformation output, and the note editor preview — previously only chat had it (#269)
+- LaTeX math rendering (KaTeX) now also applies to source content, source insights, Ask answers, artifact output, and the note editor preview — previously only chat had it (#269)
 - "Refresh content" action on web-link sources — re-fetches the URL and re-embeds the source so its content stays current, available from the source card menu once processing has completed (translated across all 14 locales) (#259)
 
 ### Changed
 - `docker-compose.yml` now sources the SurrealDB credentials from `SURREAL_USER` / `SURREAL_PASSWORD` (applied to both the database server and the app), defaulting to `root:root` so the zero-config quick start is unchanged. Set them in a `.env` file to use your own credentials before exposing the instance; `.env.example` and the compose file note this (#946)
 
 ### Fixed
-- Windows native install guide no longer points users at a `start-open-notebook.bat` that doesn't exist in the repo; the Quick Start now documents starting the four services manually with `uv run`, plus an optional sample launcher you can save yourself (#846)
+- Windows native install guide no longer points users at a `start-construction-os.bat` that doesn't exist in the repo; the Quick Start now documents starting the four services manually with `uv run`, plus an optional sample launcher you can save yourself (#846)
 - OpenRouter (and other providers') "Discover models" dialog no longer cuts off the submit button: the dialog now uses a fixed header/footer with a scrollable body (`grid-rows-[auto_1fr_auto]`) instead of scrolling the whole content, so the "Add" button stays visible regardless of how many models are listed (#816)
 - Chat references using the short `[insight:<id>]` form (emitted by some models) are now rendered as clickable citations like `[source_insight:<id>]` and `[note:<id>]` already were; `insight` is treated as an alias for `source_insight`, so clicking it opens the insight (#490)
-- CRUD endpoints now return `404` (not `500`) for a non-existent resource. `ObjectModel.get()` raises `NotFoundError` rather than returning a falsy value, so the broad `except Exception` in each handler was masking it as a server error. Added an explicit `NotFoundError → 404` arm to the notebook (update / delete / delete-preview / add-source / remove-source), note (get / update / delete / list / create), model (delete), credential (update / delete) and embed handlers (#862)
+- CRUD endpoints now return `404` (not `500`) for a non-existent resource. `ObjectModel.get()` raises `NotFoundError` rather than returning a falsy value, so the broad `except Exception` in each handler was masking it as a server error. Added an explicit `NotFoundError → 404` arm to the project (update / delete / delete-preview / add-source / remove-source), note (get / update / delete / list / create), model (delete), credential (update / delete) and embed handlers (#862)
 - Token counting no longer raises `ValueError: disallowed special token '<|endoftext|>'` when source/context content contains special-token sequences; `token_count()` now encodes with `disallowed_special=()` so such substrings are treated as ordinary text (#667)
 - Single-container image no longer hangs at "API not ready yet" on a brand-new instance. `supervisord.single.conf` ran the API and worker with `uv run` (without `--no-sync`), so at startup `uv` tried to sync dev dependencies it couldn't resolve against the `--no-dev` build. Both processes now use `uv run --no-sync`, matching the multi-container `supervisord.conf` (#609)
 - Note editor now expands to fill the dialog instead of being capped at `500px`; removed the `max-h-[500px]` constraint that overrode the `flex-1` parent and cramped editing on tall windows (#932)
@@ -69,9 +70,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **xAI** text-to-speech (#827)
   - **Google** speech-to-text & text-to-speech, **Vertex** text-to-speech, and **ElevenLabs** speech-to-text (Scribe), completing the audio provider matrix (#828)
 - Optional per-credential **`num_ctx`** (context window) override for Ollama models, configurable in Settings → API Keys and translated across all 13 locales (#825)
-- `OPEN_NOTEBOOK_EMBEDDING_BATCH_SIZE` environment variable to override the embedding batch size; default remains `50`. Helps with CPU-only local embedding and stricter OpenAI-compatible endpoints (#735)
+- `construction_os_EMBEDDING_BATCH_SIZE` environment variable to override the embedding batch size; default remains `50`. Helps with CPU-only local embedding and stricter OpenAI-compatible endpoints (#735)
 - `CORS_ORIGINS` environment variable to configure the API's allowed origins (comma-separated). Default remains `*` for backward compatibility; the API now logs a startup warning prompting users to set it for production deployments. Exception responses honor the configured origins when explicitly set (#585, #597, #730)
-- `OPEN_NOTEBOOK_MIN_CHUNK_SIZE` environment variable (default: 5 tokens) to filter out degenerate tiny chunks before embedding. Set to `0` to disable.
+- `construction_os_MIN_CHUNK_SIZE` environment variable (default: 5 tokens) to filter out degenerate tiny chunks before embedding. Set to `0` to disable.
 
 ### Changed
 - Bumped **Esperanto 2.20.0 → 2.22.0**. Beyond the new audio providers above, this inherits several upstream fixes and behavior changes (see below).
@@ -96,7 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Embedding chunking is now token-based instead of character-based, improving chunk sizing consistency for CJK and mixed-language content (#542, #749)
-- `OPEN_NOTEBOOK_CHUNK_SIZE` and `OPEN_NOTEBOOK_CHUNK_OVERLAP` semantics changed from characters to tokens; default reduced from 1200 characters to 400 tokens to stay safely below the 512-token ceiling of BERT-family embedders (e.g. mxbai-embed-large) after accounting for tokenizer mismatch and splitter overshoot. Existing stored embeddings are unaffected; only new ingestions use the new chunking.
+- `construction_os_CHUNK_SIZE` and `construction_os_CHUNK_OVERLAP` semantics changed from characters to tokens; default reduced from 1200 characters to 400 tokens to stay safely below the 512-token ceiling of BERT-family embedders (e.g. mxbai-embed-large) after accounting for tokenizer mismatch and splitter overshoot. Existing stored embeddings are unaffected; only new ingestions use the new chunking.
 
 ### Fixed
 - Credentials endpoint no longer crashes (500) when encryption key doesn't match stored credentials (#740)
@@ -246,9 +247,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Environment variable API keys deprecated in favor of Settings UI
 
 - **Security Enhancements**
-  - Docker secrets support via `_FILE` suffix pattern (e.g., `OPEN_NOTEBOOK_PASSWORD_FILE`)
+  - Docker secrets support via `_FILE` suffix pattern (e.g., `construction_os_PASSWORD_FILE`)
   - Default encryption key derived from "0p3n-N0t3b0ok" for easy setup (change in production!)
-  - Default password "open-notebook-change-me" for out-of-box experience (change in production!)
+  - Default password "construction-os-change-me" for out-of-box experience (change in production!)
   - URL validation for SSRF protection - blocks private IPs and localhost (except for Ollama which runs locally)
   - Security warnings logged when using default credentials
 
@@ -321,7 +322,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Content-type aware text chunking with automatic HTML, Markdown, and plain text detection (#350, #142)
 - Unified embedding generation with mean pooling for large content that exceeds model context limits
 - Dedicated embedding commands: `embed_note`, `embed_insight`, `embed_source`
-- New utility modules: `chunking.py` and `embedding.py` in `open_notebook/utils/`
+- New utility modules: `chunking.py` and `embedding.py` in `construction_os/utils/`
 - Japanese (ja-JP) language support (#450)
 
 ### Changed

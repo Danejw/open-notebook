@@ -75,11 +75,11 @@ Data migration for podcast profiles: maps legacy provider/model strings to Model
 
 - `pydantic`: Field validators, ObjectModel inheritance
 - `surrealdb`: RecordID type for job and model references
-- `open_notebook.database.repository`: repo_query, ensure_record_id
-- `open_notebook.domain.base`: ObjectModel base class
-- `open_notebook.ai.models`: Model class (for `_resolve_model_config`)
-- `open_notebook.ai.key_provider`: provision_provider_keys (fallback)
-- `open_notebook.domain.credential`: Credential (for migration)
+- `construction_os.database.repository`: repo_query, ensure_record_id
+- `construction_os.domain.base`: ObjectModel base class
+- `construction_os.ai.models`: Model class (for `_resolve_model_config`)
+- `construction_os.ai.key_provider`: provision_provider_keys (fallback)
+- `construction_os.domain.credential`: Credential (for migration)
 - `surreal_commands` (optional): get_command_status() for job status
 
 ## Important Quirks & Gotchas

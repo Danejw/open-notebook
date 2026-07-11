@@ -1,15 +1,15 @@
 # Frequently Asked Questions
 
-Common questions about Open Notebook usage, configuration, and best practices.
+Common questions about Construction OS usage, configuration, and best practices.
 
 ---
 
 ## General Usage
 
-### What is Open Notebook?
+### What is Construction OS?
 
-Open Notebook is an open-source, privacy-focused alternative to Google's Notebook LM. It allows you to:
-- Create and manage research notebooks
+Construction OS is an open-source, privacy-focused alternative to Google Notebook LM. It allows you to:
+- Create and manage research projects
 - Chat with your documents using AI
 - Generate podcasts from your content
 - Search across all your sources with semantic search
@@ -22,7 +22,7 @@ Open Notebook is an open-source, privacy-focused alternative to Google's Noteboo
 **Customization**: Open source, so you can modify and extend functionality
 **Control**: You control your data, models, and processing
 
-### Can I use Open Notebook offline?
+### Can I use Construction OS offline?
 
 **Partially**: The application runs locally, but requires internet for:
 - AI model API calls (unless using local models like Ollama)
@@ -122,22 +122,22 @@ tar -xzf backup-20240101.tar.gz
 - Use shared network storage for data directories
 - Manual backup/restore between devices
 
-### What happens if I delete a notebook?
+### What happens if I delete a project?
 
-**Soft deletion**: Notebooks are marked as archived, not permanently deleted.
-**Recovery**: Archived notebooks can be restored from the database.
+**Soft deletion**: Projects are marked as archived, not permanently deleted.
+**Recovery**: Archived projects can be restored from the database.
 
 ---
 
 ## Best Practices
 
-### How should I organize my notebooks?
+### How should I organize my projects?
 
-- **By topic**: Separate notebooks for different research areas
-- **By project**: One notebook per project or course
-- **By time period**: Monthly or quarterly notebooks
+- **By topic**: Separate projects for different research areas
+- **By project**: One project per project or course
+- **By time period**: Monthly or quarterly projects
 
-**Recommended size**: 20-100 sources per notebook for best performance.
+**Recommended size**: 20-100 sources per project for best performance.
 
 ### How do I get the best search results?
 
@@ -156,7 +156,7 @@ tar -xzf backup-20240101.tar.gz
 ### What are the security best practices?
 
 - Never share API keys publicly
-- Use `OPEN_NOTEBOOK_PASSWORD` for public deployments
+- Use `CONSTRUCTION_OS_PASSWORD` for public deployments
 - Use HTTPS for production (via reverse proxy)
 - Keep Docker images updated
 - Encrypt backups if they contain sensitive data
@@ -165,14 +165,14 @@ tar -xzf backup-20240101.tar.gz
 
 ## Technical Questions
 
-### Can I use Open Notebook programmatically?
+### Can I use Construction OS programmatically?
 
-**Yes**: Open Notebook provides a REST API:
+**Yes**: Construction OS provides a REST API:
 - Full API documentation at `http://localhost:5055/docs`
 - Support for all UI functionality
 - Authentication via password header
 
-### Can I run Open Notebook in production?
+### Can I run Construction OS in production?
 
 **Yes**: Designed for production use with:
 - Docker deployment
@@ -241,7 +241,7 @@ Include:
 - System information
 - Configuration details (without API keys)
 
-Submit to: [GitHub Issues](https://github.com/lfnovo/open-notebook/issues)
+Submit to: [GitHub Issues](https://github.com/lfnovo/construction-os/issues)
 
 ### Where can I get help?
 

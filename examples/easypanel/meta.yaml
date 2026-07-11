@@ -1,24 +1,24 @@
-name: Open Notebook
+name: Construction OS
 description:
-  Open Notebook is an open-source, self-hosted notebook and research workspace
+  Construction OS is an open-source, self-hosted project and research workspace
   for collecting sources, taking notes, searching, chatting with content, and
   generating podcasts.
 instructions:
   Deploy the template, open the generated EasyPanel domain, and log in with the
-  configured Open Notebook password. Configure AI providers from Settings > API
+  configured Construction OS password. Configure AI providers from Settings > API
   Keys after the first login. If the password field is left blank, a random
-  password is generated and stored as OPEN_NOTEBOOK_PASSWORD in the app service
+  password is generated and stored as CONSTRUCTION_OS_PASSWORD in the app service
   environment.
 changeLog:
   - date: 2026-06-19
     description: First release
 links:
   - label: Website
-    url: https://www.open-notebook.ai
+    url: https://www.construction-os.ai
   - label: Documentation
-    url: https://github.com/lfnovo/open-notebook/tree/main/docs
+    url: https://github.com/lfnovo/construction-os/tree/main/docs
   - label: Github
-    url: https://github.com/lfnovo/open-notebook
+    url: https://github.com/lfnovo/construction-os
 contributors:
   - name: nyxst4ck
     url: https://github.com/nyxst4ck
@@ -33,11 +33,11 @@ schema:
     appServiceName:
       type: string
       title: App Service Name
-      default: open-notebook
+      default: construction-os
     appServiceImage:
       type: string
       title: App Service Image
-      default: lfnovo/open_notebook:1.10.0
+      default: lfnovo/construction-os:1.10.0
     databaseServiceName:
       type: string
       title: Database Service Name
@@ -48,12 +48,12 @@ schema:
       default: surrealdb/surrealdb:v2
     appPassword:
       type: string
-      title: Open Notebook Password
+      title: Construction OS Password
       default: ""
 benefits:
   - title: One-click deployment
     description:
-      Creates the Open Notebook app and SurrealDB database services with the
+      Creates the Construction OS app and SurrealDB database services with the
       required environment variables and persistent volumes.
   - title: Secure defaults
     description:
@@ -61,17 +61,17 @@ benefits:
       supports a user-provided or generated application password.
   - title: Reverse-proxy friendly
     description:
-      Exposes only the frontend port and uses Open Notebook's built-in Next.js
+      Exposes only the frontend port and uses Construction OS's built-in Next.js
       API proxy for backend requests.
 features:
   - title: Source collection
     description: Save documents, web pages, audio, video, and other research sources.
-  - title: Notebook workspace
-    description: Organize sources and notes into reusable research notebooks.
+  - title: Project workspace
+    description: Organize sources and notes into reusable research projects.
   - title: AI chat and search
-    description: Ask questions across notebook context with citations.
+    description: Ask questions across project context with citations.
   - title: Podcast generation
-    description: Generate podcast-style audio from selected notebook content.
+    description: Generate podcast-style audio from selected project content.
 tags:
   - AI
   - Knowledge Management

@@ -15,7 +15,7 @@ Zustand-based state management for authentication, modals, and application-level
 - **Hydration tracking**: `setHasHydrated()` marks when localStorage data loaded; used to avoid hydration mismatch in SSR
 - **Auth caching**: 30-second cache on `checkAuth()` to avoid excessive API calls; stores `lastAuthCheck` timestamp
 - **Network resilience**: Handles 401 globally in API interceptor; graceful degradation if API unreachable
-- **API validation**: Uses actual API call (`/notebooks` endpoint) to validate token instead of parsing JWT
+- **API validation**: Uses an actual API call (`/projects` endpoint) to validate the token instead of parsing JWT
 
 ## Key Dependencies
 
@@ -48,7 +48,7 @@ Zustand-based state management for authentication, modals, and application-level
 - **Error messages from HTTP**: Shows 401/403/5xx status codes to user; helps with debugging but may leak info
 - **Network timeout handling**: Network errors in `checkAuthRequired()` set `authRequired: null` (safe default); `login()` shows generic message
 - **Logout doesn't invalidate session**: Client-side logout only clears local token; server session may still be valid
-- **Double authentication**: Both `login()` and `checkAuth()` test same `/notebooks` endpoint; could be optimized with dedicated endpoint
+- **Double authentication**: Both `login()` and `checkAuth()` test the same `/projects` endpoint; this could be optimized with a dedicated endpoint
 
 ## Testing Patterns
 

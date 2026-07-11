@@ -5,7 +5,7 @@ Axios-based client and resource-specific API modules for backend communication w
 ## Key Components
 
 - **`client.ts`**: Central Axios instance with request/response interceptors, auth headers, base URL resolution
-- **Resource modules** (`sources.ts`, `notebooks.ts`, `chat.ts`, `search.ts`, `podcasts.ts`, etc.): Endpoint-specific functions returning typed responses
+- **Resource modules** (`sources.ts`, `projects.ts`, `artifacts.ts`, `chat.ts`, `search.ts`, `podcasts.ts`, etc.): Endpoint-specific functions returning typed responses
 - **`query-client.ts`**: TanStack Query client configuration with default options
 - **`models.ts`, `notes.ts`, `embeddings.ts`, `settings.ts`**: Additional resource APIs
 
@@ -40,7 +40,7 @@ Axios-based client and resource-specific API modules for backend communication w
 ## Important Quirks & Gotchas
 
 - **Base URL delay**: First request waits for `getApiUrl()` to resolve; can be slow on startup
-- **FormData fields as JSON strings**: Nested objects (arrays, objects) must be JSON stringified in FormData (e.g., `notebooks`, `transformations`)
+- **FormData fields as JSON strings**: Nested objects (arrays, objects) must be JSON stringified in FormData (for example, `projects` and `artifacts`)
 - **Timeout for streaming**: the default 10-minute timeout may not cover very long-running LLM operations; raise it via `NEXT_PUBLIC_API_TIMEOUT_MS` (or set `0` to disable)
 - **Auth token management**: Token stored in localStorage `auth-storage` key; uses Zustand persist middleware
 - **Headers mutation in interceptor**: Mutating `config.headers` directly; be careful with middleware order
@@ -51,13 +51,13 @@ Axios-based client and resource-specific API modules for backend communication w
 
 ```typescript
 // Basic list
-const sources = await sourcesApi.list({ notebook_id: notebookId })
+const sources = await sourcesApi.list({ project_id: projectId })
 
 // File upload with FormData
 const response = await sourcesApi.create({
   type: 'upload',
   file: fileObj,
-  notebook_id: notebookId,
+  project_id: projectId,
   async_processing: true
 })
 

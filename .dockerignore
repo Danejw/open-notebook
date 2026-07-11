@@ -29,7 +29,7 @@ frontend/*.log
 tmp
 data
 mydata
-notebook_data
+construction_os_data
 surreal_data
 surreal-data
 surreal_single_data

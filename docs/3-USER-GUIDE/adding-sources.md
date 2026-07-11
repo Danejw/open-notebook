@@ -1,4 +1,4 @@
-# Adding Sources - Getting Content Into Your Notebook
+# Adding Sources - Getting Content Into Your Project
 
 Sources are the raw materials of your research. This guide covers how to add different types of content.
 
@@ -9,12 +9,12 @@ Sources are the raw materials of your research. This guide covers how to add dif
 ### Option 1: Upload a File (PDF, Word, etc.)
 
 ```
-1. In your notebook, click "Add Source"
+1. In your project, click "Add Source"
 2. Select "Upload File"
 3. Choose a file from your computer
 4. Click "Upload"
 5. Wait 30-60 seconds for processing
-6. Done! Source appears in your notebook
+6. Done! Source appears in your project
 ```
 
 ### Option 2: Add a Web Link
@@ -249,7 +249,7 @@ You can add to each source:
 **Why this matters:**
 - Makes sources easier to find
 - Helps when contextualizing for Chat
-- Useful for organizing large notebooks
+- Useful for organizing large projects
 
 ### Searching Within Sources
 
@@ -259,7 +259,7 @@ After sources are added, you can:
 Text search: "Find exact phrase"
 Vector search: "Find conceptually similar"
 
-Both search across all sources in notebook.
+Both search across all sources in project.
 Results show:
   - Which source
   - Which section
@@ -295,7 +295,7 @@ Example: "Use this as context but focus on the main source"
 AI sees: Nothing (excluded)
 Cost: 0 tokens
 Use when: Confidential, not relevant, or archived
-Example: "Keep this in notebook but don't use in this conversation"
+Example: "Keep this in project but don't use in this conversation"
 ```
 
 ### How to Set Context (in Chat)
@@ -322,7 +322,7 @@ Example: "Keep this in notebook but don't use in this conversation"
 | Forget source titles | Can't distinguish between similar sources | Rename sources with descriptive titles right after uploading |
 | Don't tag sources | Hard to find and organize later | Add tags immediately: "primary", "background", etc. |
 | Mix languages in one source | Transcription/embedding quality drops | Keep each language in separate sources |
-| Use same source multiple times | Takes up space, creates confusion | Add once; reuse in multiple chats/notebooks |
+| Use same source multiple times | Takes up space, creates confusion | Add once; reuse in multiple chats/projects |
 
 ---
 
@@ -339,7 +339,7 @@ Example: "Keep this in notebook but don't use in this conversation"
 🟢 Ready
   → Source is processed and searchable
   → Can use immediately in Chat
-  → Can apply transformations
+  → Can apply artifacts
 
 🔴 Error
   → Something went wrong
@@ -408,7 +408,7 @@ Once you've added sources, you can:
 
 - **Chat** → Ask questions (see [Chat Effectively](chat-effectively.md))
 - **Search** → Find specific content (see [Search Effectively](search.md))
-- **Transformations** → Extract structured insights (see [Working with Notes](working-with-notes.md))
+- **Artifacts** → Extract structured insights (see [Artifacts](artifacts.md))
 - **Ask** → Get comprehensive answers (see [Search Effectively](search.md))
 - **Podcasts** → Turn into audio (see [Creating Podcasts](creating-podcasts.md))
 
@@ -426,4 +426,4 @@ Before adding sources, confirm:
 - [ ] You've added tags for organization
 - [ ] You understand context levels (Full/Summary/Excluded)
 
-Done! Sources are now ready for Chat, Search, Transformations, and more.
+Done! Sources are now ready for Chat, Search, Artifacts, and more.

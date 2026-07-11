@@ -9,26 +9,26 @@ from langgraph.types import Send
 from loguru import logger
 from typing_extensions import Annotated, TypedDict
 
-from open_notebook.ai.models import Model, ModelManager
-from open_notebook.domain.content_settings import ContentSettings
-from open_notebook.domain.notebook import Asset, Source
-from open_notebook.domain.transformation import Transformation
-from open_notebook.graphs.transformation import graph as transform_graph
+from construction_os.ai.models import Model, ModelManager
+from construction_os.domain.content_settings import ContentSettings
+from construction_os.domain.project import Asset, Source
+from construction_os.domain.artifact import Artifact
+from construction_os.graphs.artifact import graph as artifact_graph
 
 
 class SourceState(TypedDict):
     content_state: ProcessSourceState
-    apply_transformations: List[Transformation]
+    apply_artifacts: List[Artifact]
     source_id: str
-    notebook_ids: List[str]
+    project_ids: List[str]
     source: Source
-    transformation: Annotated[list, operator.add]
+    artifacts: Annotated[list, operator.add]
     embed: bool
 
 
-class TransformationState(TypedDict):
+class ApplyArtifactState(TypedDict):
     source: Source
-    transformation: Transformation
+    artifact: Artifact
 
 
 async def content_process(state: SourceState) -> dict:
@@ -125,7 +125,7 @@ async def save_source(state: SourceState) -> dict:
 
     await source.save()
 
-    # NOTE: Notebook associations are created by the API immediately for UI responsiveness
+    # NOTE: Project associations are created by the API immediately for UI responsiveness
     # No need to create them here to avoid duplicate edges
 
     if state["embed"]:
@@ -140,42 +140,42 @@ async def save_source(state: SourceState) -> dict:
     return {"source": source}
 
 
-def trigger_transformations(state: SourceState, config: RunnableConfig) -> List[Send]:
-    if len(state["apply_transformations"]) == 0:
+def trigger_artifacts(state: SourceState, config: RunnableConfig) -> List[Send]:
+    if len(state["apply_artifacts"]) == 0:
         return []
 
-    to_apply = state["apply_transformations"]
-    logger.debug(f"Applying transformations {to_apply}")
+    to_apply = state["apply_artifacts"]
+    logger.debug(f"Applying artifacts {to_apply}")
 
     return [
         Send(
             "transform_content",
             {
                 "source": state["source"],
-                "transformation": t,
+                "artifact": artifact,
             },
         )
-        for t in to_apply
+        for artifact in to_apply
     ]
 
 
-async def transform_content(state: TransformationState) -> Optional[dict]:
+async def transform_content(state: ApplyArtifactState) -> Optional[dict]:
     source = state["source"]
     content = source.full_text
     if not content:
         return None
-    transformation: Transformation = state["transformation"]
+    artifact = state["artifact"]
 
-    logger.debug(f"Applying transformation {transformation.name}")
-    result = await transform_graph.ainvoke(
-        dict(input_text=content, transformation=transformation)  # type: ignore[arg-type]
+    logger.debug(f"Applying artifact {artifact.name}")
+    result = await artifact_graph.ainvoke(
+        dict(input_text=content, artifact=artifact)  # type: ignore[arg-type]
     )
-    await source.add_insight(transformation.title, result["output"])
+    await source.add_insight(artifact.title, result["output"])
     return {
-        "transformation": [
+        "artifacts": [
             {
                 "output": result["output"],
-                "transformation_name": transformation.name,
+                "artifact_name": artifact.name,
             }
         ]
     }
@@ -192,7 +192,7 @@ workflow.add_node("transform_content", transform_content)
 workflow.add_edge(START, "content_process")
 workflow.add_edge("content_process", "save_source")
 workflow.add_conditional_edges(
-    "save_source", trigger_transformations, ["transform_content"]
+    "save_source", trigger_artifacts, ["transform_content"]
 )
 workflow.add_edge("transform_content", END)
 

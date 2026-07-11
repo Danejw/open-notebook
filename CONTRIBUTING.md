@@ -1,4 +1,4 @@
-# Contributing to Open Notebook
+# Contributing to Construction OS
 
 **📍 This file has moved!**
 

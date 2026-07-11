@@ -1,8 +1,8 @@
 """
-Generic ContextBuilder for the Open Notebook project.
+Generic ContextBuilder for the Construction OS project.
 
 This module provides a flexible ContextBuilder class that can handle any parameters
-and build context from sources, notebooks, insights, and notes.
+and build context from sources, projects, insights, and notes.
 """
 
 from __future__ import annotations
@@ -12,8 +12,8 @@ from typing import Any, Dict, List, Literal, Optional
 
 from loguru import logger
 
-from open_notebook.domain.notebook import Note, Notebook, Source
-from open_notebook.exceptions import DatabaseOperationError, NotFoundError
+from construction_os.domain.project import Note, Project, Source
+from construction_os.exceptions import DatabaseOperationError, NotFoundError
 
 from .token_utils import token_count
 
@@ -59,7 +59,7 @@ class ContextConfig:
 class ContextBuilder:
     """
     Generic ContextBuilder that can handle any parameters and build context
-    from sources, notebooks, insights, and notes.
+    from sources, projects, insights, and notes.
     """
 
     def __init__(self, **kwargs):
@@ -68,7 +68,7 @@ class ContextBuilder:
 
         Supported parameters:
         - source_id: str - Include specific source
-        - notebook_id: str - Include notebook content
+        - project_id: str - Include Project content
         - include_insights: bool - Include source insights
         - include_notes: bool - Include notes
         - context_config: ContextConfig - Custom context configuration
@@ -80,7 +80,7 @@ class ContextBuilder:
 
         # Extract commonly used parameters
         self.source_id: Optional[str] = kwargs.get("source_id")
-        self.notebook_id: Optional[str] = kwargs.get("notebook_id")
+        self.project_id: Optional[str] = kwargs.get("project_id")
         self.include_insights: bool = kwargs.get("include_insights", True)
         self.include_notes: bool = kwargs.get("include_notes", True)
         self.max_tokens: Optional[int] = kwargs.get("max_tokens")
@@ -119,8 +119,8 @@ class ContextBuilder:
             if self.source_id:
                 await self._add_source_context(self.source_id)
 
-            if self.notebook_id:
-                await self._add_notebook_context(self.notebook_id)
+            if self.project_id:
+                await self._add_project_context(self.project_id)
 
             # Process any additional custom parameters
             await self._process_custom_params()
@@ -207,17 +207,17 @@ class ContextBuilder:
             logger.error(f"Error adding source context for {source_id}: {str(e)}")
             raise
 
-    async def _add_notebook_context(self, notebook_id: str) -> None:
+    async def _add_project_context(self, project_id: str) -> None:
         """
-        Add notebook content based on context configuration.
+        Add Project content based on context configuration.
 
         Args:
-            notebook_id: ID of the notebook
+            project_id: ID of the Project
         """
         try:
-            notebook = await Notebook.get(notebook_id)
-            if not notebook:
-                raise NotFoundError(f"Notebook {notebook_id} not found")
+            project = await Project.get(project_id)
+            if not project:
+                raise NotFoundError(f"Project {project_id} not found")
 
             # Process sources from context config or get all
             config_sources = self.context_config.sources
@@ -226,7 +226,7 @@ class ContextBuilder:
                     await self._add_source_context(source_id, status)
             else:
                 # Default: get all sources with insights
-                sources = await notebook.get_sources()
+                sources = await project.get_sources()
                 for source in sources:
                     if source.id:
                         await self._add_source_context(source.id, "insights")
@@ -240,15 +240,15 @@ class ContextBuilder:
                             await self._add_note_context(note_id, status)
                 else:
                     # Default: get all notes with short content
-                    notes = await notebook.get_notes()
+                    notes = await project.get_notes()
                     for note in notes:
                         if note.id:
                             await self._add_note_context(note.id, "full content")
 
-            logger.debug(f"Added notebook context for {notebook_id}")
+            logger.debug(f"Added Project context for {project_id}")
 
         except Exception as e:
-            logger.error(f"Error adding notebook context for {notebook_id}: {str(e)}")
+            logger.error(f"Error adding Project context for {project_id}: {str(e)}")
             raise
 
     async def _add_note_context(
@@ -405,9 +405,9 @@ class ContextBuilder:
             },
         }
 
-        # Add notebook_id if provided
-        if self.notebook_id:
-            response["notebook_id"] = self.notebook_id
+        # Add project_id if provided
+        if self.project_id:
+            response["project_id"] = self.project_id
 
         logger.info(
             f"Built context with {len(self.items)} items, {total_tokens} tokens"
@@ -419,16 +419,16 @@ class ContextBuilder:
 # Convenience functions for common use cases
 
 
-async def build_notebook_context(
-    notebook_id: str,
+async def build_project_context(
+    project_id: str,
     context_config: Optional[ContextConfig] = None,
     max_tokens: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
-    Build context for a notebook.
+    Build context for a Project.
 
     Args:
-        notebook_id: ID of the notebook
+        project_id: ID of the Project
         context_config: Optional context configuration
         max_tokens: Optional token limit
 
@@ -436,7 +436,7 @@ async def build_notebook_context(
         Built context
     """
     builder = ContextBuilder(
-        notebook_id=notebook_id, context_config=context_config, max_tokens=max_tokens
+        project_id=project_id, context_config=context_config, max_tokens=max_tokens
     )
     return await builder.build()
 
@@ -464,7 +464,7 @@ async def build_source_context(
 async def build_mixed_context(
     source_ids: Optional[List[str]] = None,
     note_ids: Optional[List[str]] = None,
-    notebook_id: Optional[str] = None,
+    project_id: Optional[str] = None,
     max_tokens: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
@@ -473,7 +473,7 @@ async def build_mixed_context(
     Args:
         source_ids: List of source IDs
         note_ids: List of note IDs
-        notebook_id: Optional notebook ID
+        project_id: Optional Project ID
         max_tokens: Optional token limit
 
     Returns:
@@ -490,6 +490,6 @@ async def build_mixed_context(
         context_config.notes = {nid: "full content" for nid in note_ids}
 
     builder = ContextBuilder(
-        notebook_id=notebook_id, context_config=context_config, max_tokens=max_tokens
+        project_id=project_id, context_config=context_config, max_tokens=max_tokens
     )
     return await builder.build()

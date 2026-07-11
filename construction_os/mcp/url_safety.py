@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import ipaddress
-import os
+from construction_os.utils.env import get_env
 import socket
 from urllib.parse import urlparse
 
-from open_notebook.mcp.limits import ALLOW_PRIVATE_URLS_ENV
+from construction_os.mcp.limits import ALLOW_PRIVATE_URLS_ENV
 
 
 class McpUrlError(Exception):
@@ -16,7 +16,7 @@ class McpUrlError(Exception):
 
 def allow_private_urls() -> bool:
     """Return True when private/loopback MCP URLs are explicitly allowed."""
-    return os.environ.get(ALLOW_PRIVATE_URLS_ENV, "").strip().lower() in {
+    return (get_env(ALLOW_PRIVATE_URLS_ENV) or "").strip().lower() in {
         "1",
         "true",
         "yes",

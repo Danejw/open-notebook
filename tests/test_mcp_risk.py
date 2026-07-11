@@ -1,6 +1,6 @@
 """Tests for MCP tool risk classification."""
 
-from open_notebook.mcp.risk import classify_tool_risk
+from construction_os.mcp.risk import classify_tool_risk
 
 
 def test_readonly_annotation() -> None:

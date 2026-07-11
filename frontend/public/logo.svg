@@ -1,60 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="240" height="240" viewBox="0 0 240 240" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Gradient Definitions -->
+<svg width="240" height="240" viewBox="0 0 240 240" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Construction OS">
   <defs>
-    <linearGradient id="nodeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#bd34fe;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#41d1ff;stop-opacity:1" />
+    <linearGradient id="helmetGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#D97706"/>
     </linearGradient>
-    <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#bd34fe;stop-opacity:0.3" />
-      <stop offset="100%" style="stop-color:#41d1ff;stop-opacity:0.3" />
+    <linearGradient id="buildingGradient" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#1E3A8A"/>
+      <stop offset="100%" stop-color="#2563EB"/>
     </linearGradient>
   </defs>
 
-  <!-- Connection Lines -->
-  <g class="connections">
-    <path d="M120 80L80 120" stroke="url(#lineGradient)" stroke-width="2"/>
-    <path d="M120 80L160 120" stroke="url(#lineGradient)" stroke-width="2"/>
-    <path d="M80 120L120 160" stroke="url(#lineGradient)" stroke-width="2"/>
-    <path d="M160 120L120 160" stroke="url(#lineGradient)" stroke-width="2"/>
-    <path d="M80 120L160 120" stroke="url(#lineGradient)" stroke-width="2"/>
-  </g>
+  <!-- Building base -->
+  <rect x="72" y="118" width="96" height="72" rx="4" fill="url(#buildingGradient)"/>
+  <rect x="88" y="134" width="16" height="16" rx="2" fill="#93C5FD" opacity="0.9"/>
+  <rect x="112" y="134" width="16" height="16" rx="2" fill="#93C5FD" opacity="0.9"/>
+  <rect x="136" y="134" width="16" height="16" rx="2" fill="#93C5FD" opacity="0.9"/>
+  <rect x="88" y="158" width="16" height="16" rx="2" fill="#93C5FD" opacity="0.7"/>
+  <rect x="112" y="158" width="16" height="16" rx="2" fill="#93C5FD" opacity="0.7"/>
+  <rect x="136" y="158" width="16" height="16" rx="2" fill="#93C5FD" opacity="0.7"/>
+  <rect x="108" y="174" width="24" height="16" rx="2" fill="#1E40AF"/>
 
-  <!-- Nodes -->
-  <g class="nodes">
-    <!-- Central Node -->
-    <circle cx="120" cy="80" r="20" fill="url(#nodeGradient)"/>
-    <circle cx="120" cy="80" r="24" stroke="url(#nodeGradient)" stroke-width="1" fill="none"/>
-    
-    <!-- Left Node -->
-    <circle cx="80" cy="120" r="16" fill="url(#nodeGradient)"/>
-    <circle cx="80" cy="120" r="20" stroke="url(#nodeGradient)" stroke-width="1" fill="none"/>
-    
-    <!-- Right Node -->
-    <circle cx="160" cy="120" r="16" fill="url(#nodeGradient)"/>
-    <circle cx="160" cy="120" r="20" stroke="url(#nodeGradient)" stroke-width="1" fill="none"/>
-    
-    <!-- Bottom Node -->
-    <circle cx="120" cy="160" r="18" fill="url(#nodeGradient)"/>
-    <circle cx="120" cy="160" r="22" stroke="url(#nodeGradient)" stroke-width="1" fill="none"/>
-  </g>
+  <!-- Hard hat -->
+  <path d="M60 118C60 96 88 82 120 82C152 82 180 96 180 118H60Z" fill="url(#helmetGradient)"/>
+  <path d="M54 118H186C188 118 190 120 190 122V128C190 130 188 132 186 132H54C52 132 50 130 50 128V122C50 120 52 118 54 118Z" fill="#B45309"/>
+  <rect x="112" y="70" width="16" height="14" rx="3" fill="#FBBF24"/>
 
-  <!-- Pulse Animation -->
-  <style>
-    @keyframes pulse {
-      0% { transform: scale(1); opacity: 0.8; }
-      50% { transform: scale(1.1); opacity: 1; }
-      100% { transform: scale(1); opacity: 0.8; }
-    }
-    .nodes circle {
-      animation: pulse 3s infinite ease-in-out;
-    }
-    .nodes circle:nth-child(2n) {
-      animation-delay: 1s;
-    }
-    .nodes circle:nth-child(3n) {
-      animation-delay: 2s;
-    }
-  </style>
+  <!-- Wordmark -->
+  <text x="120" y="214" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="18" font-weight="700" fill="#1F2937" letter-spacing="0.5">Construction OS</text>
 </svg>

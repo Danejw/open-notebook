@@ -5,14 +5,14 @@ from loguru import logger
 from pydantic import BaseModel
 from surreal_commands import CommandInput, CommandOutput, command
 
-from open_notebook.database.repository import ensure_record_id
-from open_notebook.domain.notebook import Source
-from open_notebook.domain.transformation import Transformation
-from open_notebook.exceptions import ConfigurationError
+from construction_os.database.repository import ensure_record_id
+from construction_os.domain.project import Source
+from construction_os.domain.artifact import Artifact
+from construction_os.exceptions import ConfigurationError
 
 try:
-    from open_notebook.graphs.source import source_graph
-    from open_notebook.graphs.transformation import graph as transform_graph
+    from construction_os.graphs.source import source_graph
+    from construction_os.graphs.artifact import graph as artifact_graph
 except ImportError as e:
     logger.error(f"Failed to import graphs: {e}")
     raise ValueError("graphs not available")
@@ -32,8 +32,8 @@ def full_model_dump(model):
 class SourceProcessingInput(CommandInput):
     source_id: str
     content_state: Dict[str, Any]
-    notebook_ids: List[str]
-    transformations: List[str]
+    project_ids: List[str]
+    artifacts: List[str]
     embed: bool
 
 
@@ -48,7 +48,7 @@ class SourceProcessingOutput(CommandOutput):
 
 @command(
     "process_source",
-    app="open_notebook",
+    app="construction_os",
     retry={
         "max_attempts": 15,  # Handle deep queues (workaround for SurrealDB v2 transaction conflicts)
         "wait_strategy": "exponential_jitter",
@@ -68,20 +68,20 @@ async def process_source_command(
 
     try:
         logger.info(f"Starting source processing for source: {input_data.source_id}")
-        logger.info(f"Notebook IDs: {input_data.notebook_ids}")
-        logger.info(f"Transformations: {input_data.transformations}")
+        logger.info(f"Project IDs: {input_data.project_ids}")
+        logger.info(f"Artifacts: {input_data.artifacts}")
         logger.info(f"Embed: {input_data.embed}")
 
-        # 1. Load transformation objects from IDs
-        transformations = []
-        for trans_id in input_data.transformations:
-            logger.info(f"Loading transformation: {trans_id}")
-            transformation = await Transformation.get(trans_id)
-            if not transformation:
-                raise ValueError(f"Transformation '{trans_id}' not found")
-            transformations.append(transformation)
+        # 1. Load artifact objects from IDs
+        artifacts = []
+        for artifact_id in input_data.artifacts:
+            logger.info(f"Loading artifact: {artifact_id}")
+            artifact = await Artifact.get(artifact_id)
+            if not artifact:
+                raise ValueError(f"Artifact '{artifact_id}' not found")
+            artifacts.append(artifact)
 
-        logger.info(f"Loaded {len(transformations)} transformations")
+        logger.info(f"Loaded {len(artifacts)} artifacts")
 
         # 2. Get existing source record to update its command field
         source = await Source.get(input_data.source_id)
@@ -98,23 +98,23 @@ async def process_source_command(
 
         logger.info(f"Updated source {source.id} with command reference")
 
-        # 3. Process source with all notebooks
-        logger.info(f"Processing source with {len(input_data.notebook_ids)} notebooks")
+        # 3. Process source with all projects
+        logger.info(f"Processing source with {len(input_data.project_ids)} projects")
 
-        # Execute source_graph with all notebooks
+        # Execute source_graph with all projects
         result = await source_graph.ainvoke(
             {  # type: ignore[arg-type]
                 "content_state": input_data.content_state,
-                "notebook_ids": input_data.notebook_ids,  # Use notebook_ids (plural) as expected by SourceState
-                "apply_transformations": transformations,
+                "project_ids": input_data.project_ids,
+                "apply_artifacts": artifacts,
                 "embed": input_data.embed,
-                "source_id": input_data.source_id,  # Add the source_id to the state
+                "source_id": input_data.source_id,
             }
         )
 
         processed_source = result["source"]
 
-        # 4. Gather processing results (notebook associations handled by source_graph)
+        # 4. Gather processing results (project associations handled by source_graph)
         # Note: embedding is fire-and-forget (async job), so we can't query the
         # count here — it hasn't completed yet. The embed_source_command logs
         # the actual count when it finishes.
@@ -156,30 +156,30 @@ async def process_source_command(
 
 
 # =============================================================================
-# RUN TRANSFORMATION COMMAND
+# RUN ARTIFACT COMMAND
 # =============================================================================
 
 
-class RunTransformationInput(CommandInput):
-    """Input for running a transformation on an existing source."""
+class RunArtifactInput(CommandInput):
+    """Input for running an artifact on an existing source."""
 
     source_id: str
-    transformation_id: str
+    artifact_id: str
 
 
-class RunTransformationOutput(CommandOutput):
-    """Output from transformation command."""
+class RunArtifactOutput(CommandOutput):
+    """Output from run_artifact command."""
 
     success: bool
     source_id: str
-    transformation_id: str
+    artifact_id: str
     processing_time: float
     error_message: Optional[str] = None
 
 
 @command(
-    "run_transformation",
-    app="open_notebook",
+    "run_artifact",
+    app="construction_os",
     retry={
         "max_attempts": 5,
         "wait_strategy": "exponential_jitter",
@@ -189,14 +189,14 @@ class RunTransformationOutput(CommandOutput):
         "retry_log_level": "debug",
     },
 )
-async def run_transformation_command(
-    input_data: RunTransformationInput,
-) -> RunTransformationOutput:
+async def run_artifact_command(
+    input_data: RunArtifactInput,
+) -> RunArtifactOutput:
     """
-    Run a transformation on an existing source to generate an insight.
+    Run an artifact on an existing source to generate an insight.
 
-    This command runs the transformation graph which:
-    1. Loads the source and transformation
+    This command runs the artifact graph which:
+    1. Loads the source and artifact
     2. Calls the LLM to generate insight content
     3. Creates the insight via create_insight command (fire-and-forget)
 
@@ -212,7 +212,7 @@ async def run_transformation_command(
 
     try:
         logger.info(
-            f"Running transformation {input_data.transformation_id} "
+            f"Running artifact {input_data.artifact_id} "
             f"on source {input_data.source_id}"
         )
 
@@ -221,28 +221,28 @@ async def run_transformation_command(
         if not source:
             raise ValueError(f"Source '{input_data.source_id}' not found")
 
-        # Load transformation
-        transformation = await Transformation.get(input_data.transformation_id)
-        if not transformation:
+        # Load artifact
+        artifact = await Artifact.get(input_data.artifact_id)
+        if not artifact:
             raise ValueError(
-                f"Transformation '{input_data.transformation_id}' not found"
+                f"Artifact '{input_data.artifact_id}' not found"
             )
 
-        # Run transformation graph (includes LLM call + insight creation)
-        await transform_graph.ainvoke(
-            input=dict(source=source, transformation=transformation)
+        # Run artifact graph (includes LLM call + insight creation)
+        await artifact_graph.ainvoke(
+            input=dict(source=source, artifact=artifact)
         )
 
         processing_time = time.time() - start_time
         logger.info(
-            f"Successfully ran transformation {input_data.transformation_id} "
+            f"Successfully ran artifact {input_data.artifact_id} "
             f"on source {input_data.source_id} in {processing_time:.2f}s"
         )
 
-        return RunTransformationOutput(
+        return RunArtifactOutput(
             success=True,
             source_id=input_data.source_id,
-            transformation_id=input_data.transformation_id,
+            artifact_id=input_data.artifact_id,
             processing_time=processing_time,
         )
 
@@ -250,20 +250,20 @@ async def run_transformation_command(
         # Validation errors are permanent failures - don't retry
         processing_time = time.time() - start_time
         logger.error(
-            f"Failed to run transformation {input_data.transformation_id} "
+            f"Failed to run artifact {input_data.artifact_id} "
             f"on source {input_data.source_id}: {e}"
         )
-        return RunTransformationOutput(
+        return RunArtifactOutput(
             success=False,
             source_id=input_data.source_id,
-            transformation_id=input_data.transformation_id,
+            artifact_id=input_data.artifact_id,
             processing_time=processing_time,
             error_message=str(e),
         )
     except Exception as e:
         # Transient failure - will be retried (surreal-commands logs final failure)
         logger.debug(
-            f"Transient error running transformation {input_data.transformation_id} "
+            f"Transient error running artifact {input_data.artifact_id} "
             f"on source {input_data.source_id}: {e}"
         )
         raise

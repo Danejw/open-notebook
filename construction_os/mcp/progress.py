@@ -7,10 +7,10 @@ from typing import TYPE_CHECKING, Optional
 from langchain_core.callbacks.manager import dispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 
-from open_notebook.mcp.public import public_tool_call
+from construction_os.mcp.public import public_tool_call
 
 if TYPE_CHECKING:
-    from open_notebook.domain.mcp import ChatToolCall
+    from construction_os.domain.mcp import ChatToolCall
 
 MCP_TOOL_CALL_EVENT = "mcp_tool_call"
 

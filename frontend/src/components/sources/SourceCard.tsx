@@ -28,18 +28,18 @@ import { useTranslation } from '@/lib/hooks/use-translation'
 import type { TFunction } from 'i18next'
 import { cn } from '@/lib/utils'
 import { ContextToggle } from '@/components/common/ContextToggle'
-import { ContextMode } from '@/app/(dashboard)/notebooks/[id]/page'
+import { ContextMode } from '@/app/(dashboard)/projects/[id]/page'
 
 interface SourceCardProps {
   source: SourceListResponse
   onDelete?: (sourceId: string) => void
   onRetry?: (sourceId: string) => void
   onRefreshContent?: (sourceId: string) => void
-  onRemoveFromNotebook?: (sourceId: string) => void
+  onRemoveFromProject?: (sourceId: string) => void
   onClick?: (sourceId: string) => void
   onRefresh?: () => void
   className?: string
-  showRemoveFromNotebook?: boolean
+  showRemoveFromProject?: boolean
   contextMode?: ContextMode
   onContextModeChange?: (mode: ContextMode) => void
 }
@@ -102,10 +102,10 @@ function SourceCardImpl({
   onDelete,
   onRetry,
   onRefreshContent,
-  onRemoveFromNotebook,
+  onRemoveFromProject,
   onRefresh,
   className,
-  showRemoveFromNotebook = false,
+  showRemoveFromProject = false,
   contextMode,
   onContextModeChange
 }: SourceCardProps) {
@@ -186,9 +186,9 @@ function SourceCardImpl({
     }
   }
 
-  const handleRemoveFromNotebook = () => {
-    if (onRemoveFromNotebook) {
-      onRemoveFromNotebook(source.id)
+  const handleRemoveFromProject = () => {
+    if (onRemoveFromProject) {
+      onRemoveFromProject(source.id)
     }
   }
 
@@ -277,17 +277,17 @@ function SourceCardImpl({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              {showRemoveFromNotebook && (
+              {showRemoveFromProject && (
                 <>
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation()
-                      handleRemoveFromNotebook()
+                      handleRemoveFromProject()
                     }}
-                    disabled={!onRemoveFromNotebook}
+                    disabled={!onRemoveFromProject}
                   >
                     <Unlink className="h-4 w-4 mr-2" />
-                    {t('sources.removeFromNotebook')}
+                    {t('sources.removeFromProject')}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                 </>
@@ -435,7 +435,7 @@ function areEqual(prev: SourceCardProps, next: SourceCardProps): boolean {
     p.asset?.file_path === n.asset?.file_path &&
     topicsEqual(p.topics, n.topics) &&
     prev.contextMode === next.contextMode &&
-    prev.showRemoveFromNotebook === next.showRemoveFromNotebook &&
+    prev.showRemoveFromProject === next.showRemoveFromProject &&
     prev.className === next.className
   )
 }

@@ -1,0 +1,14 @@
+-- Migration 20: Construction OS — prepare project schema (data moved by rebrand_migration.py)
+
+DEFINE TABLE IF NOT EXISTS project SCHEMAFULL;
+
+DEFINE FIELD IF NOT EXISTS name ON TABLE project TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS description ON TABLE project TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS archived ON TABLE project TYPE option<bool> DEFAULT False;
+
+DEFINE FIELD IF NOT EXISTS created ON project DEFAULT time::now() VALUE $before OR time::now();
+DEFINE FIELD IF NOT EXISTS updated ON project DEFAULT time::now() VALUE time::now();
+
+DEFINE TABLE IF NOT EXISTS project_note
+TYPE RELATION
+FROM note TO project;

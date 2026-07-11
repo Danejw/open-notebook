@@ -1,13 +1,13 @@
 # Developer Guide
 
-This guide is for developers working on Open Notebook. For end-user documentation, see [README.md](README.md) and [docs/](docs/).
+This guide is for developers working on Construction OS. For end-user documentation, see [README.md](README.md) and [docs/](docs/).
 
 ## Quick Start for Development
 
 ```bash
 # 1. Clone and setup
-git clone https://github.com/lfnovo/open-notebook.git
-cd open-notebook
+git clone https://github.com/lfnovo/construction-os.git
+cd construction-os
 
 # 2. Copy environment files
 cp .env.example .env
@@ -135,13 +135,13 @@ make docker-build-local
 ```
 
 This creates two tags:
-- `lfnovo/open_notebook:<version>` (from pyproject.toml)
-- `lfnovo/open_notebook:local`
+- `lfnovo/construction-os:<version>` (from pyproject.toml)
+- `lfnovo/construction-os:local`
 
 ### Run Locally
 
 ```bash
-docker run -p 5055:5055 -p 3000:3000 lfnovo/open_notebook:local
+docker run -p 5055:5055 -p 3000:3000 lfnovo/construction-os:local
 ```
 
 ### When to Use
@@ -246,7 +246,7 @@ cd frontend && npm install package-name
 
 ### Adding a New Language (i18n)
 
-Open Notebook supports internationalization. To add a new language:
+Construction OS supports internationalization. To add a new language:
 
 1. **Create locale file**: Copy an existing locale as template
    ```bash
@@ -255,7 +255,7 @@ Open Notebook supports internationalization. To add a new language:
 
 2. **Translate all strings** in the new file. The structure includes:
    - `common`: Shared UI elements (buttons, labels)
-   - `notebooks`, `sources`, `notes`: Feature-specific strings
+   - `projects`, `sources`, `notes`: Feature-specific strings
    - `chat`, `search`, `podcasts`: Module-specific strings
    - `apiErrors`: Error message translations
 
@@ -355,10 +355,10 @@ make docker-build-local
 ## Project Structure
 
 ```
-open-notebook/
+construction-os/
 ├── api/                    # FastAPI backend
 ├── frontend/               # Next.js React frontend
-├── open_notebook/          # Python core library
+├── construction_os/          # Python core library
 │   ├── domain/            # Domain models
 │   ├── graphs/            # LangGraph workflows
 │   ├── ai/                # AI provider integration
@@ -372,7 +372,7 @@ open-notebook/
 See component-specific CLAUDE.md files for detailed architecture:
 - [frontend/CLAUDE.md](frontend/CLAUDE.md)
 - [api/CLAUDE.md](api/CLAUDE.md)
-- [open_notebook/CLAUDE.md](open_notebook/CLAUDE.md)
+- [construction_os/CLAUDE.md](construction_os/CLAUDE.md)
 
 ---
 
@@ -385,7 +385,7 @@ See component-specific CLAUDE.md files for detailed architecture:
 SURREAL_URL=ws://localhost:8000
 SURREAL_USER=root
 SURREAL_PASS=root
-SURREAL_DB=open_notebook
+SURREAL_DB=construction_os
 SURREAL_NS=production
 
 # AI Provider (at least one required)
@@ -438,9 +438,9 @@ make clean-cache
 
 ## Resources
 
-- **Documentation:** https://open-notebook.ai
+- **Documentation:** https://www.construction-os.ai
 - **Discord:** https://discord.gg/37XJPXfz2w
-- **Issues:** https://github.com/lfnovo/open-notebook/issues
+- **Issues:** https://github.com/lfnovo/construction-os/issues
 - **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
 - **Maintainer Guide:** [MAINTAINER_GUIDE.md](MAINTAINER_GUIDE.md)
 

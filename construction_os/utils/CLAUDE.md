@@ -24,20 +24,20 @@ Each utility is stateless and can be imported independently.
 
 The chunking behavior can be configured via environment variables:
 
-- **OPEN_NOTEBOOK_CHUNK_SIZE**: Maximum chunk size in tokens (default: 400)
+- **construction_os_CHUNK_SIZE**: Maximum chunk size in tokens (default: 400)
   - Minimum: 100 tokens
   - Warnings: Values > 8192 tokens or invalid values
   - Use case: Conservative baseline that leaves headroom below 512-token embedders (e.g. mxbai-embed-large). Buffer accounts for tokenizer mismatch between our `o200k_base` measurement and the embedder's own tokenizer, plus occasional splitter overshoot and special tokens.
 
-- **OPEN_NOTEBOOK_CHUNK_OVERLAP**: Overlap between chunks in tokens (default: 15% of CHUNK_SIZE)
+- **construction_os_CHUNK_OVERLAP**: Overlap between chunks in tokens (default: 15% of CHUNK_SIZE)
   - Must be: >= 0 and < CHUNK_SIZE
   - Warnings: Invalid values or values >= CHUNK_SIZE
   - Use case: Control how much context is shared between adjacent chunks
 
 Example for embedders with larger context windows (e.g. OpenAI text-embedding-3 family, 8191 tokens):
 ```bash
-export OPEN_NOTEBOOK_CHUNK_SIZE=1500
-export OPEN_NOTEBOOK_CHUNK_OVERLAP=150
+export construction_os_CHUNK_SIZE=1500
+export construction_os_CHUNK_OVERLAP=150
 ```
 
 Note: Changes require restart of the application.
@@ -63,8 +63,8 @@ Note: Changes require restart of the application.
 
 ### chunking.py
 - **ContentType**: Enum (HTML, MARKDOWN, PLAIN)
-- **CHUNK_SIZE**: Configurable via `OPEN_NOTEBOOK_CHUNK_SIZE` env var (default: 400)
-- **CHUNK_OVERLAP**: Configurable via `OPEN_NOTEBOOK_CHUNK_OVERLAP` env var (default: 15% of CHUNK_SIZE)
+- **CHUNK_SIZE**: Configurable via `construction_os_CHUNK_SIZE` env var (default: 400)
+- **CHUNK_OVERLAP**: Configurable via `construction_os_CHUNK_OVERLAP` env var (default: 15% of CHUNK_SIZE)
 - **detect_content_type_from_extension(file_path)**: Detect type from file extension
 - **detect_content_type_from_heuristics(text)**: Detect type from content patterns (returns type + confidence)
 - **detect_content_type(text, file_path)**: Combined detection (extension primary, heuristics fallback)
@@ -125,9 +125,9 @@ Note: Changes require restart of the application.
 
 ## Key Dependencies
 
-- `open_notebook.domain.notebook`: Source, Note, SourceInsight models; vector_search function
-- `open_notebook.ai.models`: model_manager for embedding model access
-- `open_notebook.exceptions`: DatabaseOperationError, NotFoundError
+- `construction_os.domain.project`: Project, Source, Note, SourceInsight models; vector_search function
+- `construction_os.ai.models`: model_manager for embedding model access
+- `construction_os.exceptions`: DatabaseOperationError, NotFoundError
 - `langchain_text_splitters`: HTMLHeaderTextSplitter, MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
 - `numpy`: Mean pooling calculations
 - `tiktoken`: Token encoding for GPT models
@@ -136,13 +136,13 @@ Note: Changes require restart of the application.
 ## Important Quirks & Gotchas
 
 - **Token count estimation**: Uses `o200k_base` encoding; may differ slightly from actual model tokens
-- **Chunk size semantics changed**: `OPEN_NOTEBOOK_CHUNK_SIZE` and `OPEN_NOTEBOOK_CHUNK_OVERLAP` are token-based, not character-based
+- **Chunk size semantics changed**: `construction_os_CHUNK_SIZE` and `construction_os_CHUNK_OVERLAP` are token-based, not character-based
 - **Default chunk size**: The token-based default is 400 — leaves ~20% margin below the 512-token ceiling of BERT-family embedders (e.g. mxbai-embed-large) to absorb tokenizer mismatch (we measure with `o200k_base`, they tokenize with WordPiece), splitter overshoot, and special tokens
 - **Content type detection order**: Extension checked first, then heuristics; high-confidence heuristics (≥0.8) can override PLAIN extensions
 - **Mean pooling normalization**: Each embedding normalized before mean, result normalized after
 - **Priority weights default**: If not specified, ContextConfig uses default weights (source=1, note=0.8, insight=1.2)
-- **Vector search required**: ContextBuilder assumes vector_search is available on Notebook model; fails if not
-- **Circular import risk**: context_builder imports from domain.notebook; avoid domain importing utils
+- **Vector search required**: ContextBuilder uses vector_search from domain.project for text search fallback
+- **Circular import risk**: context_builder imports from domain.project; avoid domain importing utils
 - **Max tokens hard limit**: ContextBuilder stops adding items once max_tokens exceeded (not prorated)
 - **No caching**: Every build() call re-fetches from database (use cache layer if needed)
 
@@ -150,7 +150,7 @@ Note: Changes require restart of the application.
 
 1. **Add new context source type**: Create fetch method in ContextBuilder; update ContextConfig.sources dict
 2. **Add content type**: Add to ContentType enum; create splitter getter; update chunk_text()
-3. **Change chunk size**: Set OPEN_NOTEBOOK_CHUNK_SIZE and OPEN_NOTEBOOK_CHUNK_OVERLAP environment variables
+3. **Change chunk size**: Set construction_os_CHUNK_SIZE and construction_os_CHUNK_OVERLAP environment variables
 4. **Add text preprocessing**: Add new function to text_utils (e.g., remove_urls, extract_keywords)
 5. **Change tokenization**: Replace tiktoken with alternative library in token_utils; update all calls
 6. **Add context filtering**: Extend ContextConfig with filter_by_date, filter_by_topic fields
@@ -159,7 +159,7 @@ Note: Changes require restart of the application.
 
 ### Chunking
 ```python
-from open_notebook.utils.chunking import chunk_text, detect_content_type, ContentType
+from construction_os.utils.chunking import chunk_text, detect_content_type, ContentType
 
 # Auto-detect content type and chunk
 chunks = chunk_text(long_text, file_path="document.md")
@@ -170,7 +170,7 @@ chunks = chunk_text(html_content, content_type=ContentType.HTML)
 
 ### Embedding
 ```python
-from open_notebook.utils.embedding import generate_embedding, generate_embeddings
+from construction_os.utils.embedding import generate_embedding, generate_embeddings
 
 # Single text (handles chunking + mean pooling automatically)
 embedding = await generate_embedding(long_text)
@@ -181,13 +181,13 @@ embeddings = await generate_embeddings(["text1", "text2", "text3"])
 
 ### Context Building
 ```python
-from open_notebook.utils.context_builder import ContextBuilder, ContextConfig
+from construction_os.utils.context_builder import ContextBuilder, ContextConfig
 
 config = ContextConfig(
     sources={"source:123": "full", "source:456": "summary"},
     max_tokens=2000,
 )
-builder = ContextBuilder(notebook, config)
+builder = ContextBuilder(project_id="project:123", context_config=config)
 context_items = await builder.build()
 
 for item in context_items:
@@ -202,21 +202,21 @@ for item in context_items:
 **Purpose**: Provides field-level encryption for sensitive data (API keys) stored in the database. Uses Fernet symmetric encryption (AES-128-CBC with HMAC-SHA256) for authenticated encryption.
 
 **Key behavior**:
-- Key source: OPEN_NOTEBOOK_ENCRYPTION_KEY_FILE (Docker secrets) → OPEN_NOTEBOOK_ENCRYPTION_KEY (env var)
+- Key source: construction_os_ENCRYPTION_KEY_FILE (Docker secrets) → construction_os_ENCRYPTION_KEY (env var)
 - Accepts **any string**: always derived to a Fernet key via SHA-256
 - No default key — encryption is unavailable until the env var is set
 - Graceful fallback on decryption: InvalidToken errors (legacy unencrypted data) return the original value
 - Lazy-loaded key: initialized on first use, not at import time
 
 **Security considerations**:
-- OPEN_NOTEBOOK_ENCRYPTION_KEY must be set explicitly (no default)
+- construction_os_ENCRYPTION_KEY must be set explicitly (no default)
 - Docker secrets pattern supported for secure key injection in containerized environments
 - Key rotation would require re-encrypting all stored keys (not currently implemented)
 - Encryption is transparent to callers; unencrypted legacy data continues to work
 
 **Usage Example**:
 ```python
-from open_notebook.utils.encryption import encrypt_value, decrypt_value
+from construction_os.utils.encryption import encrypt_value, decrypt_value
 
 # Encrypt before storing in database
 encrypted_api_key = encrypt_value(api_key)
@@ -225,5 +225,5 @@ encrypted_api_key = encrypt_value(api_key)
 decrypted_api_key = decrypt_value(encrypted_api_key)
 
 # Set any string as encryption key:
-# OPEN_NOTEBOOK_ENCRYPTION_KEY=my-secret-passphrase
+# construction_os_ENCRYPTION_KEY=my-secret-passphrase
 ```

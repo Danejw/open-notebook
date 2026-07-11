@@ -26,6 +26,24 @@ def get_database_password():
     return os.getenv("SURREAL_PASSWORD") or os.getenv("SURREAL_PASS")
 
 
+def get_surreal_namespace() -> str:
+    """Resolve Surreal namespace with Construction OS default and legacy fallback."""
+    return (
+        os.getenv("SURREAL_NAMESPACE")
+        or os.getenv("OPEN_NOTEBOOK_NAMESPACE")
+        or "construction_os"
+    )
+
+
+def get_surreal_database() -> str:
+    """Resolve Surreal database with Construction OS default and legacy fallback."""
+    return (
+        os.getenv("SURREAL_DATABASE")
+        or os.getenv("OPEN_NOTEBOOK_DATABASE")
+        or "construction_os"
+    )
+
+
 def parse_record_ids(obj: Any) -> Any:
     """Recursively parse and convert RecordIDs into strings."""
     if isinstance(obj, dict):
@@ -53,9 +71,7 @@ async def db_connection():
             "password": get_database_password(),
         }
     )
-    await db.use(
-        os.environ.get("SURREAL_NAMESPACE"), os.environ.get("SURREAL_DATABASE")
-    )
+    await db.use(get_surreal_namespace(), get_surreal_database())
     try:
         yield db
     finally:

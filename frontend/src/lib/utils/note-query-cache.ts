@@ -16,13 +16,13 @@ export function removeNoteFromAllQueries(queryClient: QueryClient, noteId: strin
   patchAllNoteListQueries(queryClient, (notes) => notes.filter((note) => note.id !== noteId))
 }
 
-export function prependNoteToNotebookQuery(
+export function prependNoteToProjectQuery(
   queryClient: QueryClient,
-  notebookId: string | undefined,
+  projectId: string | undefined,
   note: NoteResponse
 ) {
-  if (!notebookId) return
-  queryClient.setQueryData<NoteResponse[]>(['notes', notebookId], (old) => {
+  if (!projectId) return
+  queryClient.setQueryData<NoteResponse[]>(['notes', projectId], (old) => {
     const list = old ?? []
     if (list.some((item) => item.id === note.id)) return list
     return [note, ...list]
@@ -50,7 +50,7 @@ export function buildOptimisticNote(
     title?: string
     content: string
     note_type?: string
-    notebook_id?: string
+    project_id?: string
   },
   id = `optimistic-${Date.now()}`
 ): NoteResponse {

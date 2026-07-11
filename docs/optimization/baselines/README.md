@@ -103,11 +103,8 @@ are noisy and do not directly represent initial user-visible loading.
 ## Runtime Web Vitals
 
 The client keeps a bounded history of Next.js Web Vitals without sending
-network requests. Browser automation and DevTools can read:
-
-```js
-window.__OPEN_NOTEBOOK_WEB_VITALS__
-```
+network requests. Browser automation and DevTools can read the global defined in
+`frontend/src/components/providers/WebVitalsReporter.tsx` (attached to `window` for benchmark scripts).
 
 This includes the latest LCP, INP, and CLS values after those metrics have
 settled. An automated browser fixture is still needed before these values can

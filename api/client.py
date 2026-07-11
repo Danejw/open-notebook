@@ -1,6 +1,6 @@
 """
-API client for Open Notebook API.
-This module provides a client interface to interact with the Open Notebook API.
+API client for Construction OS API.
+This module provides a client interface to interact with the Construction OS API.
 """
 
 import os
@@ -9,14 +9,16 @@ from typing import Any, Dict, List, Optional, Union
 import httpx
 from loguru import logger
 
+from construction_os.utils.encryption import get_secret_from_env
+
 
 class APIClient:
-    """Client for Open Notebook API."""
+    """Client for Construction OS API."""
 
     def __init__(self, base_url: Optional[str] = None):
         self.base_url = base_url or os.getenv("API_BASE_URL", "http://127.0.0.1:5055")
         # Timeout increased to 5 minutes (300s) to accommodate slow LLM operations
-        # (transformations, insights) on slower hardware (Ollama, LM Studio, remote APIs)
+        # (artifacts, insights) on slower hardware (Ollama, LM Studio, remote APIs)
         # Configurable via API_CLIENT_TIMEOUT environment variable (in seconds)
         timeout_str = os.getenv("API_CLIENT_TIMEOUT", "300.0")
         try:
@@ -41,7 +43,7 @@ class APIClient:
 
         # Add authentication header if password is set
         self.headers = {}
-        password = os.getenv("OPEN_NOTEBOOK_PASSWORD")
+        password = get_secret_from_env("CONSTRUCTION_OS_PASSWORD")
         if password:
             self.headers["Authorization"] = f"Bearer {password}"
 
@@ -76,42 +78,42 @@ class APIClient:
             logger.error(f"Unexpected error for {method} {url}: {str(e)}")
             raise
 
-    # Notebooks API methods
-    def get_notebooks(
+    # projects API methods
+    def get_projects(
         self, archived: Optional[bool] = None, order_by: str = "updated desc"
     ) -> List[Dict[Any, Any]]:
-        """Get all notebooks."""
+        """Get all projects."""
         params: Dict[str, Any] = {"order_by": order_by}
         if archived is not None:
             params["archived"] = str(archived).lower()
 
-        result = self._make_request("GET", "/api/notebooks", params=params)
+        result = self._make_request("GET", "/api/projects", params=params)
         return result if isinstance(result, list) else [result]
 
-    def create_notebook(
+    def create_project(
         self, name: str, description: str = ""
     ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
-        """Create a new notebook."""
+        """Create a new Project."""
         data = {"name": name, "description": description}
-        return self._make_request("POST", "/api/notebooks", json=data)
+        return self._make_request("POST", "/api/projects", json=data)
 
-    def get_notebook(
-        self, notebook_id: str
+    def get_project(
+        self, project_id: str
     ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
-        """Get a specific notebook."""
-        return self._make_request("GET", f"/api/notebooks/{notebook_id}")
+        """Get a specific Project."""
+        return self._make_request("GET", f"/api/projects/{project_id}")
 
-    def update_notebook(
-        self, notebook_id: str, **updates
+    def update_project(
+        self, project_id: str, **updates
     ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
-        """Update a notebook."""
-        return self._make_request("PUT", f"/api/notebooks/{notebook_id}", json=updates)
+        """Update a Project."""
+        return self._make_request("PUT", f"/api/projects/{project_id}", json=updates)
 
-    def delete_notebook(
-        self, notebook_id: str
+    def delete_project(
+        self, project_id: str
     ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
-        """Delete a notebook."""
-        return self._make_request("DELETE", f"/api/notebooks/{notebook_id}")
+        """Delete a Project."""
+        return self._make_request("DELETE", f"/api/projects/{project_id}")
 
     # Search API methods
     def search(
@@ -189,13 +191,13 @@ class APIClient:
         """Update default model assignments."""
         return self._make_request("PUT", "/api/models/defaults", json=defaults)
 
-    # Transformations API methods
-    def get_transformations(self) -> List[Dict[Any, Any]]:
-        """Get all transformations."""
-        result = self._make_request("GET", "/api/transformations")
+    # artifacts API methods
+    def get_artifacts(self) -> List[Dict[Any, Any]]:
+        """Get all Artifacts."""
+        result = self._make_request("GET", "/api/artifacts")
         return result if isinstance(result, list) else [result]
 
-    def create_transformation(
+    def create_artifact(
         self,
         name: str,
         title: str,
@@ -203,7 +205,7 @@ class APIClient:
         prompt: str,
         apply_default: bool = False,
     ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
-        """Create a new transformation."""
+        """Create a new Artifact."""
         data = {
             "name": name,
             "title": title,
@@ -211,48 +213,48 @@ class APIClient:
             "prompt": prompt,
             "apply_default": apply_default,
         }
-        return self._make_request("POST", "/api/transformations", json=data)
+        return self._make_request("POST", "/api/artifacts", json=data)
 
-    def get_transformation(
-        self, transformation_id: str
+    def get_artifact(
+        self, artifact_id: str
     ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
-        """Get a specific transformation."""
-        return self._make_request("GET", f"/api/transformations/{transformation_id}")
+        """Get a specific Artifact."""
+        return self._make_request("GET", f"/api/artifacts/{artifact_id}")
 
-    def update_transformation(
-        self, transformation_id: str, **updates
+    def update_artifact(
+        self, artifact_id: str, **updates
     ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
-        """Update a transformation."""
+        """Update an Artifact."""
         return self._make_request(
-            "PUT", f"/api/transformations/{transformation_id}", json=updates
+            "PUT", f"/api/artifacts/{artifact_id}", json=updates
         )
 
-    def delete_transformation(
-        self, transformation_id: str
+    def delete_artifact(
+        self, artifact_id: str
     ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
-        """Delete a transformation."""
-        return self._make_request("DELETE", f"/api/transformations/{transformation_id}")
+        """Delete an Artifact."""
+        return self._make_request("DELETE", f"/api/artifacts/{artifact_id}")
 
-    def execute_transformation(
-        self, transformation_id: str, input_text: str, model_id: str
+    def execute_artifact(
+        self, artifact_id: str, input_text: str, model_id: str
     ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
-        """Execute a transformation on input text."""
+        """Execute an Artifact on input text."""
         data = {
-            "transformation_id": transformation_id,
+            "artifact_id": artifact_id,
             "input_text": input_text,
             "model_id": model_id,
         }
-        # Use configured timeout for transformation operations
+        # Use configured timeout for Artifact operations
         return self._make_request(
-            "POST", "/api/transformations/execute", json=data, timeout=self.timeout
+            "POST", "/api/artifacts/execute", json=data, timeout=self.timeout
         )
 
     # Notes API methods
-    def get_notes(self, notebook_id: Optional[str] = None) -> List[Dict[Any, Any]]:
-        """Get all notes with optional notebook filtering."""
+    def get_notes(self, project_id: Optional[str] = None) -> List[Dict[Any, Any]]:
+        """Get all notes with optional Project filtering."""
         params = {}
-        if notebook_id:
-            params["notebook_id"] = notebook_id
+        if project_id:
+            params["project_id"] = project_id
         result = self._make_request("GET", "/api/notes", params=params)
         return result if isinstance(result, list) else [result]
 
@@ -261,7 +263,7 @@ class APIClient:
         content: str,
         title: Optional[str] = None,
         note_type: str = "human",
-        notebook_id: Optional[str] = None,
+        project_id: Optional[str] = None,
     ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
         """Create a new note."""
         data = {
@@ -270,8 +272,8 @@ class APIClient:
         }
         if title:
             data["title"] = title
-        if notebook_id:
-            data["notebook_id"] = notebook_id
+        if project_id:
+            data["project_id"] = project_id
         return self._make_request("POST", "/api/notes", json=data)
 
     def get_note(self, note_id: str) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
@@ -343,37 +345,37 @@ class APIClient:
         return self._make_request("PUT", "/api/settings", json=settings)
 
     # Context API methods
-    def get_notebook_context(
-        self, notebook_id: str, context_config: Optional[Dict] = None
+    def get_project_context(
+        self, project_id: str, context_config: Optional[Dict] = None
     ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
-        """Get context for a notebook."""
-        data: Dict[str, Any] = {"notebook_id": notebook_id}
+        """Get context for a Project."""
+        data: Dict[str, Any] = {"project_id": project_id}
         if context_config:
             data["context_config"] = context_config
         result = self._make_request(
-            "POST", f"/api/notebooks/{notebook_id}/context", json=data
+            "POST", f"/api/projects/{project_id}/context", json=data
         )
         return result if isinstance(result, dict) else {}
 
     # Sources API methods
-    def get_sources(self, notebook_id: Optional[str] = None) -> List[Dict[Any, Any]]:
-        """Get all sources with optional notebook filtering."""
+    def get_sources(self, project_id: Optional[str] = None) -> List[Dict[Any, Any]]:
+        """Get all sources with optional Project filtering."""
         params = {}
-        if notebook_id:
-            params["notebook_id"] = notebook_id
+        if project_id:
+            params["project_id"] = project_id
         result = self._make_request("GET", "/api/sources", params=params)
         return result if isinstance(result, list) else [result]
 
     def create_source(
         self,
-        notebook_id: Optional[str] = None,
-        notebooks: Optional[List[str]] = None,
+        project_id: Optional[str] = None,
+        projects: Optional[List[str]] = None,
         source_type: str = "text",
         url: Optional[str] = None,
         file_path: Optional[str] = None,
         content: Optional[str] = None,
         title: Optional[str] = None,
-        transformations: Optional[List[str]] = None,
+        artifacts: Optional[List[str]] = None,
         embed: bool = False,
         delete_source: bool = False,
         async_processing: bool = False,
@@ -386,13 +388,13 @@ class APIClient:
             "async_processing": async_processing,
         }
 
-        # Handle backward compatibility for notebook_id vs notebooks
-        if notebooks:
-            data["notebooks"] = notebooks
-        elif notebook_id:
-            data["notebook_id"] = notebook_id
+        # Handle backward compatibility for project_id vs projects
+        if projects:
+            data["projects"] = projects
+        elif project_id:
+            data["project_id"] = project_id
         else:
-            raise ValueError("Either notebook_id or notebooks must be provided")
+            raise ValueError("Either project_id or projects must be provided")
 
         if url:
             data["url"] = url
@@ -402,8 +404,8 @@ class APIClient:
             data["content"] = content
         if title:
             data["title"] = title
-        if transformations:
-            data["transformations"] = transformations
+        if artifacts:
+            data["Artifacts"] = Artifacts
 
         # Use configured timeout for source creation (especially PDF processing with OCR)
         return self._make_request(
@@ -451,21 +453,21 @@ class APIClient:
         return self._make_request("DELETE", f"/api/insights/{insight_id}")
 
     def save_insight_as_note(
-        self, insight_id: str, notebook_id: Optional[str] = None
+        self, insight_id: str, project_id: Optional[str] = None
     ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
         """Convert an insight to a note."""
         data = {}
-        if notebook_id:
-            data["notebook_id"] = notebook_id
+        if project_id:
+            data["project_id"] = project_id
         return self._make_request(
             "POST", f"/api/insights/{insight_id}/save-as-note", json=data
         )
 
     def create_source_insight(
-        self, source_id: str, transformation_id: str, model_id: Optional[str] = None
+        self, source_id: str, artifact_id: str, model_id: Optional[str] = None
     ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
-        """Create a new insight for a source by running a transformation."""
-        data = {"transformation_id": transformation_id}
+        """Create a new insight for a source by running a Artifact."""
+        data = {"artifact_id": artifact_id}
         if model_id:
             data["model_id"] = model_id
         return self._make_request(

@@ -1,6 +1,6 @@
 # Podcasts Explained - Research as Audio Dialogue
 
-Podcasts are Open Notebook's highest-level transformation: converting your research into audio dialogue for a different consumption pattern.
+Podcasts are Construction OS's highest-level artifact: converting your research into audio dialogue for a different consumption pattern.
 
 ---
 
@@ -40,7 +40,7 @@ After (Podcast):
 
 ---
 
-## What Makes It Special: Open Notebook vs. Competitors
+## What Makes It Special: Construction OS vs. Competitors
 
 ### Google Notebook LM Podcasts
 - **Fixed format**: 2 hosts, always conversational
@@ -48,7 +48,7 @@ After (Podcast):
 - **One TTS voice per speaker**: Can't customize voices
 - **Only uses cloud services**: No local options
 
-### Open Notebook Podcasts
+### Construction OS Podcasts
 - **Customizable format**: 1-4 speakers, you design them
 - **Rich speaker profiles**: Create personas with backstories and expertise
 - **Multiple TTS options**:
@@ -67,7 +67,7 @@ After (Podcast):
 
 You choose what goes into the podcast:
 ```
-Notebook content → Which sources? → Which notes?
+Project content → Which sources? → Which notes?
                 → Which topics to focus on?
                 → Depth of coverage?
 ```
@@ -232,7 +232,7 @@ Can generate podcasts entirely offline with local text-to-speech.
 Traditional: Academic paper → PDF
 Problem: Hard to consume, linear reading required
 
-Open Notebook:
+Construction OS:
 Research materials → Podcast (expert explaining methodology)
                   → Podcast (debate format: different interpretations)
                   → Different consumption for different audiences
@@ -306,9 +306,9 @@ New team member listens, gets context faster than reading 100 documents
 ## How Podcasts Fit Into Your Workflow
 
 ```
-1. Build notebook (add sources)
+1. Build project (add sources)
    ↓
-2. Apply transformations (extract insights)
+2. Apply artifacts (extract insights)
    ↓
 3. Chat/Ask (explore content)
    ↓
@@ -361,7 +361,7 @@ Each tells the same story from different angles.
 ```
 Your outline → API call to TTS provider
             → Audio returned
-            → Stored in your notebook
+            → Stored in your project
 
 Provider sees: Your outlined script (not raw sources)
 Privacy level: Medium (outline is shared, sources aren't)
@@ -371,7 +371,7 @@ Privacy level: Medium (outline is shared, sources aren't)
 ```
 Your outline → Local TTS engine (runs on your machine)
             → Audio generated locally
-            → Stored in your notebook
+            → Stored in your project
 
 Provider sees: Nothing
 Privacy level: Maximum (everything local)
@@ -416,7 +416,7 @@ A 30-minute podcast costs:
 | **Engagement** | Academic | Conversational |
 | **Accessibility** | Text-based | Audio-based |
 
-**In Open Notebook specifically:**
+**In Construction OS specifically:**
 - **Full customization** — you create speakers and format
 - **Privacy options** — local TTS for sensitive content
 - **Cost control** — choose TTS provider based on budget

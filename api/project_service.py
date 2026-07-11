@@ -1,5 +1,5 @@
 """
-Notebook service layer using API.
+Project service layer using API.
 """
 
 from typing import List, Optional
@@ -7,81 +7,79 @@ from typing import List, Optional
 from loguru import logger
 
 from api.client import api_client
-from open_notebook.domain.notebook import Notebook
+from construction_os.domain.project import Project
 
 
-class NotebookService:
-    """Service layer for notebook operations using API."""
+class ProjectService:
+    """Service layer for Project operations using API."""
 
     def __init__(self):
-        logger.info("Using API for notebook operations")
+        logger.info("Using API for Project operations")
 
-    def get_all_notebooks(self, order_by: str = "updated desc") -> List[Notebook]:
-        """Get all notebooks."""
-        notebooks_data = api_client.get_notebooks(order_by=order_by)
-        # Convert API response to Notebook objects
-        notebooks = []
-        for nb_data in notebooks_data:
-            nb = Notebook(
-                name=nb_data["name"],
-                description=nb_data["description"],
-                archived=nb_data["archived"],
+    def get_all_projects(self, order_by: str = "updated desc") -> List[Project]:
+        """Get all projects."""
+        projects_data = api_client.get_projects(order_by=order_by)
+        projects = []
+        for project_data in projects_data:
+            project = Project(
+                name=project_data["name"],
+                description=project_data["description"],
+                archived=project_data["archived"],
             )
-            nb.id = nb_data["id"]
-            nb.created = nb_data["created"]
-            nb.updated = nb_data["updated"]
-            notebooks.append(nb)
-        return notebooks
+            project.id = project_data["id"]
+            project.created = project_data["created"]
+            project.updated = project_data["updated"]
+            projects.append(project)
+        return projects
 
-    def get_notebook(self, notebook_id: str) -> Optional[Notebook]:
-        """Get a specific notebook."""
-        response = api_client.get_notebook(notebook_id)
-        nb_data = response if isinstance(response, dict) else response[0]
-        nb = Notebook(
-            name=nb_data["name"],
-            description=nb_data["description"],
-            archived=nb_data["archived"],
+    def get_project(self, project_id: str) -> Optional[Project]:
+        """Get a specific Project."""
+        response = api_client.get_project(project_id)
+        project_data = response if isinstance(response, dict) else response[0]
+        project = Project(
+            name=project_data["name"],
+            description=project_data["description"],
+            archived=project_data["archived"],
         )
-        nb.id = nb_data["id"]
-        nb.created = nb_data["created"]
-        nb.updated = nb_data["updated"]
-        return nb
+        project.id = project_data["id"]
+        project.created = project_data["created"]
+        project.updated = project_data["updated"]
+        return project
 
-    def create_notebook(self, name: str, description: str = "") -> Notebook:
-        """Create a new notebook."""
-        response = api_client.create_notebook(name, description)
-        nb_data = response if isinstance(response, dict) else response[0]
-        nb = Notebook(
-            name=nb_data["name"],
-            description=nb_data["description"],
-            archived=nb_data["archived"],
+    def create_project(self, name: str, description: str = "") -> Project:
+        """Create a new Project."""
+        response = api_client.create_project(name, description)
+        project_data = response if isinstance(response, dict) else response[0]
+        project = Project(
+            name=project_data["name"],
+            description=project_data["description"],
+            archived=project_data["archived"],
         )
-        nb.id = nb_data["id"]
-        nb.created = nb_data["created"]
-        nb.updated = nb_data["updated"]
-        return nb
+        project.id = project_data["id"]
+        project.created = project_data["created"]
+        project.updated = project_data["updated"]
+        return project
 
-    def update_notebook(self, notebook: Notebook) -> Notebook:
-        """Update a notebook."""
+    def update_project(self, project: Project) -> Project:
+        """Update a Project."""
         updates = {
-            "name": notebook.name,
-            "description": notebook.description,
-            "archived": notebook.archived,
+            "name": project.name,
+            "description": project.description,
+            "archived": project.archived,
         }
-        response = api_client.update_notebook(notebook.id or "", **updates)
-        nb_data = response if isinstance(response, dict) else response[0]
-        # Update the notebook object with the response
-        notebook.name = nb_data["name"]
-        notebook.description = nb_data["description"]
-        notebook.archived = nb_data["archived"]
-        notebook.updated = nb_data["updated"]
-        return notebook
+        response = api_client.update_project(project.id or "", **updates)
+        project_data = response if isinstance(response, dict) else response[0]
+        project.name = project_data["name"]
+        project.description = project_data["description"]
+        project.archived = project_data["archived"]
+        project.updated = project_data["updated"]
+        return project
 
-    def delete_notebook(self, notebook: Notebook) -> bool:
-        """Delete a notebook."""
-        api_client.delete_notebook(notebook.id or "")
+    def delete_project(self, project: Project) -> bool:
+        """Delete a Project."""
+        api_client.delete_project(project.id or "")
         return True
 
 
 # Global service instance
-notebook_service = NotebookService()
+project_service = ProjectService()

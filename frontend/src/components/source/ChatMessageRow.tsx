@@ -21,7 +21,7 @@ export interface ChatMessageRowProps {
   isEditing: boolean
   editDraft: string
   isStreaming: boolean
-  notebookId?: string
+  projectId?: string
   toolCalls?: ChatToolCall[]
   canEdit: boolean
   editLocked: boolean
@@ -39,7 +39,7 @@ function ChatMessageRowImpl({
   isEditing,
   editDraft,
   isStreaming,
-  notebookId,
+  projectId,
   toolCalls = EMPTY_TOOL_CALLS,
   canEdit,
   editLocked,
@@ -131,7 +131,7 @@ function ChatMessageRowImpl({
             )}
             {message.type === 'ai' && (
               <div className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                <MessageActions content={message.content} notebookId={notebookId} />
+                <MessageActions content={message.content} projectId={projectId} />
               </div>
             )}
             {message.type === 'ai' && toolCalls.length > 0 && (
@@ -163,7 +163,7 @@ function areChatMessageRowPropsEqual(prev: ChatMessageRowProps, next: ChatMessag
   if (prev.message.type !== next.message.type) return false
   if (prev.isStreamingThisMessage !== next.isStreamingThisMessage) return false
   if (prev.isStreaming !== next.isStreaming) return false
-  if (prev.notebookId !== next.notebookId) return false
+  if (prev.projectId !== next.projectId) return false
   if (prev.canEdit !== next.canEdit) return false
   if (prev.editLocked !== next.editLocked) return false
   if (!toolCallsEqual(prev.toolCalls ?? EMPTY_TOOL_CALLS, next.toolCalls ?? EMPTY_TOOL_CALLS)) {

@@ -19,21 +19,21 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { searchApi } from '@/lib/api/search'
 import { sourcesApi } from '@/lib/api/sources'
-import { useSources, useAddSourcesToNotebook } from '@/lib/hooks/use-sources'
+import { useSources, useAddSourcesToProject } from '@/lib/hooks/use-sources'
 import { SourceListResponse } from '@/lib/types/api'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
 interface AddExistingSourceDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  notebookId: string
+  projectId: string
   onSuccess?: () => void
 }
 
 export function AddExistingSourceDialog({
   open,
   onOpenChange,
-  notebookId,
+  projectId,
   onSuccess,
 }: AddExistingSourceDialogProps) {
   const { t } = useTranslation()
@@ -44,14 +44,14 @@ export function AddExistingSourceDialog({
   const [filteredSources, setFilteredSources] = useState<SourceListResponse[]>([])
   const [isSearching, setIsSearching] = useState(false)
 
-  // Get sources already in this notebook
-  const { data: currentNotebookSources } = useSources(notebookId)
+  // Get sources already in this project
+  const { data: currentProjectSources } = useSources(projectId)
   const currentSourceIds = useMemo(
-    () => new Set(currentNotebookSources?.map(s => s.id) || []),
-    [currentNotebookSources]
+    () => new Set(currentProjectSources?.map(s => s.id) || []),
+    [currentProjectSources]
   )
 
-  const addSources = useAddSourcesToNotebook()
+  const addSources = useAddSourcesToProject()
 
   const loadAllSources = useCallback(async () => {
     try {
@@ -147,7 +147,7 @@ export function AddExistingSourceDialog({
 
     try {
       await addSources.mutateAsync({
-        notebookId,
+        projectId,
         sourceIds: selectedSourceIds,
       })
 
@@ -218,7 +218,7 @@ export function AddExistingSourceDialog({
             ) : filteredSources.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
                 <FileText className="h-12 w-12 mb-2 opacity-50" />
-                <p>{t('sources.noNotebooksFound')}</p>
+                <p>{t('sources.noProjectsFound')}</p>
               </div>
             ) : (
               <div className="space-y-2 p-4">

@@ -1,6 +1,6 @@
 # Code Standards
 
-This document outlines coding standards and best practices for Open Notebook contributions. All code should follow these guidelines to ensure consistency, readability, and maintainability.
+This document outlines coding standards and best practices for Construction OS contributions. All code should follow these guidelines to ensure consistency, readability, and maintainability.
 
 ## Python Standards
 
@@ -51,19 +51,19 @@ def fetch_data(url: str) -> Dict[str, Any]:
 Use structured error handling with custom exceptions:
 
 ```python
-from open_notebook.exceptions import DatabaseOperationError, InvalidInputError
+from construction_os.exceptions import DatabaseOperationError, InvalidInputError
 
-async def create_notebook(name: str, description: str) -> Notebook:
-    """Create a new notebook with validation."""
+async def create_project(name: str, description: str) -> Project:
+    """Create a new project with validation."""
     if not name.strip():
-        raise InvalidInputError("Notebook name cannot be empty")
+        raise InvalidInputError("Project name cannot be empty")
 
     try:
-        notebook = Notebook(name=name, description=description)
-        await notebook.save()
-        return notebook
+        project = Project(name=name, description=description)
+        await project.save()
+        return project
     except Exception as e:
-        raise DatabaseOperationError(f"Failed to create notebook: {str(e)}")
+        raise DatabaseOperationError(f"Failed to create project: {str(e)}")
 ```
 
 ### Documentation (Google-style Docstrings)
@@ -96,26 +96,26 @@ async def vector_search(
 #### Module Docstrings
 ```python
 """
-Notebook domain model and operations.
+Project domain model and operations.
 
-This module contains the core Notebook class and related operations for
-managing research notebooks within the Open Notebook system.
+This module contains the core Project class and related operations for
+managing research projects within the Construction OS system.
 """
 ```
 
 #### Class Docstrings
 ```python
-class Notebook(BaseModel):
-    """A research notebook containing sources, notes, and chat sessions.
+class Project(BaseModel):
+    """A research project containing sources, notes, and chat sessions.
 
-    Notebooks are the primary organizational unit in Open Notebook, allowing
+    Projects are the primary organizational unit in Construction OS, allowing
     users to group related research materials and maintain separate contexts
     for different projects.
 
     Attributes:
-        name: The notebook's display name
-        description: Optional description of the notebook's purpose
-        archived: Whether the notebook is archived (default: False)
+        name: The project's display name
+        description: Optional description of the project's purpose
+        archived: Whether the project is archived (default: False)
         created: Timestamp of creation
         updated: Timestamp of last update
     """
@@ -123,20 +123,20 @@ class Notebook(BaseModel):
 
 #### Function Docstrings
 ```python
-async def create_notebook(
+async def create_project(
     name: str,
     description: str = "",
     user_id: Optional[str] = None
-) -> Notebook:
-    """Create a new notebook with validation.
+) -> Project:
+    """Create a new project with validation.
 
     Args:
-        name: The notebook name (required, non-empty)
-        description: Optional notebook description
+        name: The project name (required, non-empty)
+        description: Optional project description
         user_id: Optional user ID for multi-user deployments
 
     Returns:
-        The created notebook instance
+        The created project instance
 
     Raises:
         InvalidInputError: If name is empty or invalid
@@ -144,7 +144,7 @@ async def create_notebook(
 
     Example:
         ```python
-        notebook = await create_notebook(
+        project = await create_project(
             name="AI Research",
             description="Research on AI applications"
         )
@@ -159,18 +159,18 @@ async def create_notebook(
 Organize endpoints by domain:
 
 ```python
-# api/routers/notebooks.py
+# api/routers/projects.py
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
 
 router = APIRouter()
 
-@router.get("/notebooks", response_model=List[NotebookResponse])
-async def get_notebooks(
+@router.get("/projects", response_model=List[ProjectResponse])
+async def get_projects(
     archived: Optional[bool] = Query(None, description="Filter by archived status"),
     order_by: str = Query("updated desc", description="Order by field and direction"),
 ):
-    """Get all notebooks with optional filtering and ordering."""
+    """Get all projects with optional filtering and ordering."""
     # Implementation
 ```
 
@@ -182,11 +182,11 @@ Use Pydantic models for validation:
 from pydantic import BaseModel, Field
 from typing import Optional
 
-class NotebookCreate(BaseModel):
-    name: str = Field(..., description="Name of the notebook", min_length=1)
-    description: str = Field(default="", description="Description of the notebook")
+class ProjectCreate(BaseModel):
+    name: str = Field(..., description="Name of the project", min_length=1)
+    description: str = Field(default="", description="Description of the project")
 
-class NotebookResponse(BaseModel):
+class ProjectResponse(BaseModel):
     id: str
     name: str
     description: str
@@ -219,18 +219,18 @@ Use FastAPI's automatic documentation features:
 
 ```python
 @router.post(
-    "/notebooks",
-    response_model=NotebookResponse,
-    summary="Create a new notebook",
-    description="Create a new notebook with the specified name and description.",
+    "/projects",
+    response_model=ProjectResponse,
+    summary="Create a new project",
+    description="Create a new project with the specified name and description.",
     responses={
-        201: {"description": "Notebook created successfully"},
+        201: {"description": "Project created successfully"},
         400: {"description": "Invalid input data"},
         500: {"description": "Internal server error"}
     }
 )
-async def create_notebook(notebook: NotebookCreate):
-    """Create a new notebook."""
+async def create_project(project: ProjectCreate):
+    """Create a new project."""
     # Implementation
 ```
 
@@ -241,25 +241,25 @@ async def create_notebook(notebook: NotebookCreate):
 Use the repository pattern consistently:
 
 ```python
-from open_notebook.database.repository import repo_create, repo_query, repo_update
+from construction_os.database.repository import repo_create, repo_query, repo_update
 
 # Create records
-async def create_notebook(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Create a new notebook record."""
-    return await repo_create("notebook", data)
+async def create_project(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a new project record."""
+    return await repo_create("project", data)
 
 # Query with parameters
-async def find_notebooks_by_user(user_id: str) -> List[Dict[str, Any]]:
-    """Find notebooks for a specific user."""
+async def find_projects_by_user(user_id: str) -> List[Dict[str, Any]]:
+    """Find projects for a specific user."""
     return await repo_query(
-        "SELECT * FROM notebook WHERE user_id = $user_id",
+        "SELECT * FROM project WHERE user_id = $user_id",
         {"user_id": user_id}
     )
 
 # Update records
-async def update_notebook(notebook_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
-    """Update a notebook record."""
-    return await repo_update("notebook", notebook_id, data)
+async def update_project(project_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Update a project record."""
+    return await repo_update("project", project_id, data)
 ```
 
 ### Schema Management
@@ -319,22 +319,22 @@ We use these tools to maintain code quality:
 ### Async Database Operations
 
 ```python
-async def get_notebook_with_sources(notebook_id: str) -> Notebook:
-    """Retrieve notebook with all related sources."""
-    notebook_data = await repo_query(
-        "SELECT * FROM notebook WHERE id = $id",
-        {"id": notebook_id}
+async def get_project_with_sources(project_id: str) -> Project:
+    """Retrieve project with all related sources."""
+    construction_os_data = await repo_query(
+        "SELECT * FROM project WHERE id = $id",
+        {"id": project_id}
     )
-    if not notebook_data:
-        raise InvalidInputError(f"Notebook {notebook_id} not found")
+    if not construction_os_data:
+        raise InvalidInputError(f"Project {project_id} not found")
 
     sources_data = await repo_query(
-        "SELECT * FROM source WHERE notebook_id = $notebook_id",
-        {"notebook_id": notebook_id}
+        "SELECT * FROM source WHERE project_id = $project_id",
+        {"project_id": project_id}
     )
 
-    return Notebook(
-        **notebook_data[0],
+    return Project(
+        **construction_os_data[0],
         sources=[Source(**s) for s in sources_data]
     )
 ```
@@ -344,7 +344,7 @@ async def get_notebook_with_sources(notebook_id: str) -> Notebook:
 ```python
 from pydantic import BaseModel, validator
 
-class NotebookInput(BaseModel):
+class ProjectInput(BaseModel):
     name: str
     description: str = ""
 

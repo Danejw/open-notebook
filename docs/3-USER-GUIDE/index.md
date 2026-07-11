@@ -1,8 +1,8 @@
-# User Guide - How to Use Open Notebook
+# User Guide - How to Use Construction OS
 
-This guide covers practical, step-by-step usage of Open Notebook features. You already understand the concepts; now learn how to actually use them.
+This guide covers practical, step-by-step usage of Construction OS features. You already understand the concepts; now learn how to actually use them.
 
-> **Prerequisite**: Review [2-CORE-CONCEPTS](../2-CORE-CONCEPTS/index.md) first to understand the mental models (notebooks, sources, notes, chat, transformations, podcasts).
+> **Prerequisite**: Review [2-CORE-CONCEPTS](../2-CORE-CONCEPTS/index.md) first to understand the mental models (projects, sources, notes, chat, artifacts, podcasts).
 
 ---
 
@@ -16,7 +16,7 @@ Learn the layout before diving in. Understand the three-panel design and where e
 ## Eight Core Features
 
 ### 1. [Adding Sources](adding-sources.md)
-How to bring content into your notebook. Supports PDFs, web links, audio, video, text, and more.
+How to bring content into your project. Supports PDFs, web links, audio, video, text, and more.
 
 **Quick links:**
 - Upload a PDF or document
@@ -33,9 +33,9 @@ Creating, organizing, and using notes (both manual and AI-generated).
 **Quick links:**
 - Create a manual note
 - Save AI responses as notes
-- Apply transformations to generate insights
+- Apply artifacts to generate insights
 - Organize with tags and naming
-- Use notes across your notebook
+- Use notes across your project
 
 ---
 
@@ -75,14 +75,14 @@ Two search modes: text-based (keyword) and vector-based (semantic). Know when to
 
 ---
 
-### 6. [Transformations](transformations.md)
+### 6. [Artifacts](artifacts.md)
 Batch-process sources with predefined templates. Extract the same insights from multiple documents.
 
 **Quick links:**
-- Built-in transformation templates
-- Creating custom transformations
+- Built-in artifact templates
+- Creating custom artifacts
 - Applying to single or multiple sources
-- Managing transformation output
+- Managing artifact output
 
 ---
 
@@ -119,10 +119,10 @@ Task: "I want one comprehensive answer"
 → Use: Search / Ask (system finds relevant content)
 
 Task: "I want to extract the same info from many sources"
-→ Use: Transformations (define template, apply to all)
+→ Use: Artifacts (define template, apply to all)
 
 Task: "I want summaries of all my sources"
-→ Use: Transformations (with built-in summary template)
+→ Use: Artifacts (with built-in summary template)
 
 Task: "I want to share my research in audio form"
 → Use: Podcasts (create speakers, generate episode)
@@ -141,7 +141,7 @@ Task: "I need to add or change my AI provider API keys"
 
 ## Quick-Start Checklist: First 15 Minutes
 
-**Step 1: Create a Notebook (1 min)**
+**Step 1: Create a Project (1 min)**
 - Name: Something descriptive ("Q1 Market Research", "AI Safety Papers", etc.)
 - Description: 1-2 sentences about what you're researching
 - This is your research container
@@ -168,7 +168,7 @@ Task: "I need to add or change my AI provider API keys"
 - Ask a question that compares them
 - Follow up with clarifying questions
 
-**Done!** You've used the core workflow: notebook → sources → chat → notes
+**Done!** You've used the core workflow: project → sources → chat → notes
 
 ---
 
@@ -176,7 +176,7 @@ Task: "I need to add or change my AI provider API keys"
 
 | Mistake | Problem | Fix |
 |---------|---------|-----|
-| Adding everything to one notebook | No isolation between projects | Create separate notebooks for different topics |
+| Adding everything to one project | No isolation between projects | Create separate projects for different topics |
 | Expecting AI to know your context | Questions get generic answers | Describe your research focus in chat context |
 | Forgetting to cite sources | You can't verify claims | Click citations to check source chunks |
 | Using Chat for one-time questions | Slower than Ask | Use Ask for comprehensive Q&A, Chat for exploration |
@@ -189,7 +189,7 @@ Task: "I need to add or change my AI provider API keys"
 ## Next Steps
 
 1. **Follow each guide** in order (sources → notes → chat → podcasts → search)
-2. **Create your first notebook** with real content
+2. **Create your first project** with real content
 3. **Practice each feature** with your own research
 4. **Return to CORE-CONCEPTS** if you need to understand the "why"
 

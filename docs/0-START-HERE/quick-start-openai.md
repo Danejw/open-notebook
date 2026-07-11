@@ -1,6 +1,6 @@
 # Quick Start - OpenAI (5 minutes)
 
-Get Open Notebook running with OpenAI's GPT models. Fast, powerful, and simple.
+Get Construction OS running with OpenAI's GPT models. Fast, powerful, and simple.
 
 ## Prerequisites
 
@@ -16,7 +16,7 @@ Get Open Notebook running with OpenAI's GPT models. Fast, powerful, and simple.
 
 ## Step 1: Create Configuration (1 min)
 
-Create a new folder `open-notebook` and add this file:
+Create a new folder `construction-os` and add this file:
 
 **docker-compose.yml**:
 ```yaml
@@ -29,24 +29,24 @@ services:
     volumes:
       - ./surreal_data:/mydata
 
-  open_notebook:
-    image: lfnovo/open_notebook:v1-latest
+  construction_os:
+    image: lfnovo/construction-os:v1-latest
     pull_policy: always
     ports:
       - "8502:8502"  # Web UI
       - "5055:5055"  # API
     environment:
       # Encryption key for credential storage (required)
-      - OPEN_NOTEBOOK_ENCRYPTION_KEY=change-me-to-a-secret-string
+      - CONSTRUCTION_OS_ENCRYPTION_KEY=change-me-to-a-secret-string
 
       # Database (required)
       - SURREAL_URL=ws://surrealdb:8000/rpc
       - SURREAL_USER=root
       - SURREAL_PASSWORD=password
-      - SURREAL_NAMESPACE=open_notebook
-      - SURREAL_DATABASE=open_notebook
+      - SURREAL_NAMESPACE=construction_os
+      - SURREAL_DATABASE=construction_os
     volumes:
-      - ./notebook_data:/app/data
+      - ./construction_os_data:/app/data
     depends_on:
       - surrealdb
     restart: always
@@ -60,7 +60,7 @@ services:
 
 ## Step 2: Start Services (1 min)
 
-Open terminal in your `open-notebook` folder:
+Open terminal in your `construction-os` folder:
 
 ```bash
 docker compose up -d
@@ -70,14 +70,14 @@ Wait 15-20 seconds for services to start.
 
 ---
 
-## Step 3: Access Open Notebook (instant)
+## Step 3: Access Construction OS (instant)
 
 Open your browser:
 ```
 http://localhost:8502
 ```
 
-You should see the Open Notebook interface!
+You should see the Construction OS interface!
 
 ---
 
@@ -96,9 +96,9 @@ Your OpenAI models are now available!
 
 ---
 
-## Step 5: Create Your First Notebook (1 min)
+## Step 5: Create Your First Project (1 min)
 
-1. Click **New Notebook**
+1. Click **New Project**
 2. Name: "My Research"
 3. Click **Create**
 
@@ -128,7 +128,7 @@ Your OpenAI models are now available!
 - [ ] Docker is running
 - [ ] You can access `http://localhost:8502`
 - [ ] OpenAI credential is configured and tested
-- [ ] You created a notebook
+- [ ] You created a project
 - [ ] You added a source
 - [ ] Chat works
 
@@ -138,7 +138,7 @@ Your OpenAI models are now available!
 
 ## Using Different Models
 
-In your notebook, go to **Settings** → **Models** to choose:
+In your project, go to **Settings** → **Models** to choose:
 - `gpt-4o` - Best quality (recommended)
 - `gpt-4o-mini` - Fast and cheap (good for testing)
 
@@ -176,7 +176,7 @@ docker compose restart  # Restart everything
 ## Next Steps
 
 1. **Add Your Own Content**: PDFs, web links, documents
-2. **Explore Features**: Podcasts, transformations, search
+2. **Explore Features**: Podcasts, artifacts, search
 3. **Full Documentation**: [See all features](../3-USER-GUIDE/index.md)
 
 ---

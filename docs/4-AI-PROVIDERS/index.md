@@ -1,6 +1,6 @@
 # AI Providers - Comparison & Selection Guide
 
-Open Notebook supports 17+ AI providers. This guide helps you **choose the right provider** for your needs.
+Construction OS supports 17+ AI providers. This guide helps you **choose the right provider** for your needs.
 
 > 💡 **Just want to set up a provider?** Skip to the [Configuration Guide](../5-CONFIGURATION/ai-providers.md) for detailed setup instructions.
 
@@ -40,7 +40,7 @@ Open Notebook supports 17+ AI providers. This guide helps you **choose the right
 - Cost: ~$0.05 per 1M tokens (cheapest)
 - Speed: Ultra-fast (fastest available)
 - Quality: Good
-- Best for: Budget-conscious, transformations, speed-critical tasks
+- Best for: Budget-conscious, artifacts, speed-critical tasks
 - Disadvantage: Limited model selection
 
 → [Setup Guide](../5-CONFIGURATION/ai-providers.md#groq)
@@ -208,7 +208,7 @@ Any use: Free (electricity only)
 2. **Follow the setup guide**: [AI Providers Configuration](../5-CONFIGURATION/ai-providers.md)
 3. **Add your credential** in Settings → API Keys
 4. **Test your connection** and discover models
-5. **Start using Open Notebook!**
+5. **Start using Construction OS!**
 
 ---
 

@@ -10,7 +10,7 @@ Frontend can't reach API or services won't communicate.
 - Browser shows error page
 - "Unable to reach API"
 - "Cannot connect to server"
-- UI loads but can't create notebooks
+- UI loads but can't create projects
 
 **Diagnosis:**
 
@@ -267,13 +267,13 @@ ping -c 100 google.com | grep "packet loss"
 
 ## Different Machine / Remote Access
 
-**You want to access Open Notebook from another computer**
+**You want to access Construction OS from another computer**
 
 **Solution:**
 
 ### Step 1: Get Your Machine IP
 ```bash
-# On the server running Open Notebook:
+# On the server running Construction OS:
 ifconfig | grep "inet "
 # or
 hostname -I

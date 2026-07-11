@@ -9,9 +9,9 @@ from esperanto import (
 )
 from loguru import logger
 
-from open_notebook.database.repository import ensure_record_id, repo_query
-from open_notebook.domain.base import ObjectModel, RecordModel
-from open_notebook.exceptions import ConfigurationError
+from construction_os.database.repository import ensure_record_id, repo_query
+from construction_os.domain.base import ObjectModel, RecordModel
+from construction_os.exceptions import ConfigurationError
 
 ModelType = Union[LanguageModel, EmbeddingModel, SpeechToTextModel, TextToSpeechModel]
 
@@ -50,7 +50,7 @@ class Model(ObjectModel):
         """Get the Credential object linked to this model, if any."""
         if not self.credential:
             return None
-        from open_notebook.domain.credential import Credential
+        from construction_os.domain.credential import Credential
 
         try:
             return await Credential.get(self.credential)
@@ -60,9 +60,9 @@ class Model(ObjectModel):
 
 
 class DefaultModels(RecordModel):
-    record_id: ClassVar[str] = "open_notebook:default_models"
+    record_id: ClassVar[str] = "construction_os:default_models"
     default_chat_model: Optional[str] = None
-    default_transformation_model: Optional[str] = None
+    default_artifact_model: Optional[str] = None
     large_context_model: Optional[str] = None
     default_text_to_speech_model: Optional[str] = None
     default_speech_to_text_model: Optional[str] = None
@@ -132,12 +132,12 @@ class ModelManager:
                     f"Falling back to env vars."
                 )
                 # Fall back to env var provisioning
-                from open_notebook.ai.key_provider import provision_provider_keys
+                from construction_os.ai.key_provider import provision_provider_keys
 
                 await provision_provider_keys(model.provider)
         else:
             # No credential linked - use env var fallback
-            from open_notebook.ai.key_provider import provision_provider_keys
+            from construction_os.ai.key_provider import provision_provider_keys
 
             await provision_provider_keys(model.provider)
 
@@ -231,9 +231,9 @@ class ModelManager:
 
         if model_type == "chat":
             model_id = defaults.default_chat_model
-        elif model_type == "transformation":
+        elif model_type == "Artifact":
             model_id = (
-                defaults.default_transformation_model or defaults.default_chat_model
+                defaults.default_artifact_model or defaults.default_chat_model
             )
         elif model_type == "tools":
             model_id = defaults.default_tools_model or defaults.default_chat_model

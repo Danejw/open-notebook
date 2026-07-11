@@ -6,8 +6,8 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from typing_extensions import TypedDict
 
-from open_notebook.ai.provision import provision_langchain_model
-from open_notebook.utils.text_utils import clean_thinking_content, extract_text_content
+from construction_os.ai.provision import provision_langchain_model
+from construction_os.utils.text_utils import clean_thinking_content, extract_text_content
 
 
 class PatternChainState(TypedDict):
@@ -26,7 +26,7 @@ async def call_model(state: dict, config: RunnableConfig) -> dict:
     chain = await provision_langchain_model(
         str(payload),
         config.get("configurable", {}).get("model_id"),
-        "transformation",
+        "artifact",
         max_tokens=5000,
     )
 

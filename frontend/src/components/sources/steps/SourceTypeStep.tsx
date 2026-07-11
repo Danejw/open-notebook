@@ -18,8 +18,8 @@ interface CreateSourceFormData {
   url?: string
   content?: string
   file?: FileList | File
-  notebooks?: string[]
-  transformations?: string[]
+  projects?: string[]
+  artifacts?: string[]
   embed: boolean
   async_processing: boolean
 }

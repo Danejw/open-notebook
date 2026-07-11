@@ -1,5 +1,5 @@
 """
-Unit tests for the open_notebook.graphs module.
+Unit tests for the construction_os.graphs module.
 
 This test suite focuses on testing graph structures, tools, and validation
 without heavy mocking of the actual processing logic.
@@ -10,15 +10,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from open_notebook.domain.notebook import Source
-from open_notebook.graphs.prompt import PatternChainState, graph
-from open_notebook.graphs.tools import get_current_timestamp
-from open_notebook.graphs.transformation import (
-    TransformationState,
-    run_transformation,
+from construction_os.domain.project import Source
+from construction_os.graphs.prompt import PatternChainState, graph
+from construction_os.graphs.tools import get_current_timestamp
+from construction_os.graphs.artifact import (
+    ArtifactState,
+    run_artifact,
 )
-from open_notebook.graphs.transformation import (
-    graph as transformation_graph,
+from construction_os.graphs.artifact import (
+    graph as artifact_graph,
 )
 
 # ============================================================================
@@ -97,60 +97,60 @@ class TestPromptGraph:
 
 
 # ============================================================================
-# TEST SUITE 3: Transformation Graph
+# TEST SUITE 3: Artifact Graph
 # ============================================================================
 
 
-class TestTransformationGraph:
-    """Test suite for transformation graph workflows."""
+class TestArtifactGraph:
+    """Test suite for Artifact graph workflows."""
 
-    def test_transformation_state_structure(self):
-        """Test TransformationState structure and fields."""
+    def test_Artifact_state_structure(self):
+        """Test ArtifactState structure and fields."""
         from unittest.mock import MagicMock
 
-        from open_notebook.domain.notebook import Source
-        from open_notebook.domain.transformation import Transformation
+        from construction_os.domain.project import Source
+        from construction_os.domain.artifact import Artifact
 
         mock_source = MagicMock(spec=Source)
-        mock_transformation = MagicMock(spec=Transformation)
+        mock_Artifact = MagicMock(spec=Artifact)
 
-        state = TransformationState(
+        state = ArtifactState(
             input_text="Test text",
             source=mock_source,
-            transformation=mock_transformation,
+            Artifact=mock_Artifact,
             output="",
         )
 
         assert state["input_text"] == "Test text"
         assert state["source"] == mock_source
-        assert state["transformation"] == mock_transformation
+        assert state["Artifact"] == mock_Artifact
         assert state["output"] == ""
 
     @pytest.mark.asyncio
-    async def test_run_transformation_assertion_no_content(self):
-        """Test transformation raises assertion with no content."""
+    async def test_run_artifact_assertion_no_content(self):
+        """Test Artifact raises assertion with no content."""
         from unittest.mock import MagicMock
 
-        from open_notebook.domain.transformation import Transformation
+        from construction_os.domain.artifact import Artifact
 
-        mock_transformation = MagicMock(spec=Transformation)
+        mock_Artifact = MagicMock(spec=Artifact)
 
         state = {
             "input_text": None,
-            "transformation": mock_transformation,
+            "Artifact": mock_Artifact,
             "source": None,
         }
 
         config = {"configurable": {"model_id": None}}
 
         with pytest.raises(AssertionError, match="No content to transform"):
-            await run_transformation(state, config)
+            await run_artifact(state, config)
 
-    def test_transformation_graph_compilation(self):
-        """Test that transformation graph compiles correctly."""
-        assert transformation_graph is not None
-        assert hasattr(transformation_graph, "invoke")
-        assert hasattr(transformation_graph, "ainvoke")
+    def test_artifact_graph_compilation(self):
+        """Test that Artifact graph compiles correctly."""
+        assert artifact_graph is not None
+        assert hasattr(artifact_graph, "invoke")
+        assert hasattr(artifact_graph, "ainvoke")
 
 
 # ============================================================================
@@ -162,10 +162,10 @@ class TestSaveSourceTitlePreservation:
     """Test save_source node preserves user-set titles (#670)."""
 
     @pytest.mark.asyncio
-    @patch("open_notebook.graphs.source.Source.get")
+    @patch("construction_os.graphs.source.Source.get")
     async def test_custom_title_preserved(self, mock_get):
         """User-set title is NOT overwritten by content_state.title."""
-        from open_notebook.graphs.source import save_source
+        from construction_os.graphs.source import save_source
 
         mock_source = MagicMock(spec=Source)
         mock_source.title = "My Custom Research Title"
@@ -182,7 +182,7 @@ class TestSaveSourceTitlePreservation:
             "source_id": "source:123",
             "content_state": content_state,
             "embed": False,
-            "apply_transformations": [],
+            "apply_Artifacts": [],
         }
 
         await save_source(state)
@@ -191,10 +191,10 @@ class TestSaveSourceTitlePreservation:
         mock_source.save.assert_awaited_once()
 
     @pytest.mark.asyncio
-    @patch("open_notebook.graphs.source.Source.get")
+    @patch("construction_os.graphs.source.Source.get")
     async def test_placeholder_title_replaced(self, mock_get):
         """Placeholder 'Processing...' title IS replaced by extracted title."""
-        from open_notebook.graphs.source import save_source
+        from construction_os.graphs.source import save_source
 
         mock_source = MagicMock(spec=Source)
         mock_source.title = "Processing..."
@@ -211,7 +211,7 @@ class TestSaveSourceTitlePreservation:
             "source_id": "source:123",
             "content_state": content_state,
             "embed": False,
-            "apply_transformations": [],
+            "apply_Artifacts": [],
         }
 
         await save_source(state)
@@ -220,10 +220,10 @@ class TestSaveSourceTitlePreservation:
         mock_source.save.assert_awaited_once()
 
     @pytest.mark.asyncio
-    @patch("open_notebook.graphs.source.Source.get")
+    @patch("construction_os.graphs.source.Source.get")
     async def test_none_title_replaced(self, mock_get):
         """None title IS replaced by extracted title."""
-        from open_notebook.graphs.source import save_source
+        from construction_os.graphs.source import save_source
 
         mock_source = MagicMock(spec=Source)
         mock_source.title = None
@@ -240,7 +240,7 @@ class TestSaveSourceTitlePreservation:
             "source_id": "source:123",
             "content_state": content_state,
             "embed": False,
-            "apply_transformations": [],
+            "apply_Artifacts": [],
         }
 
         await save_source(state)
@@ -249,10 +249,10 @@ class TestSaveSourceTitlePreservation:
         mock_source.save.assert_awaited_once()
 
     @pytest.mark.asyncio
-    @patch("open_notebook.graphs.source.Source.get")
+    @patch("construction_os.graphs.source.Source.get")
     async def test_empty_title_replaced(self, mock_get):
         """Empty string title IS replaced by extracted title."""
-        from open_notebook.graphs.source import save_source
+        from construction_os.graphs.source import save_source
 
         mock_source = MagicMock(spec=Source)
         mock_source.title = ""
@@ -269,7 +269,7 @@ class TestSaveSourceTitlePreservation:
             "source_id": "source:123",
             "content_state": content_state,
             "embed": False,
-            "apply_transformations": [],
+            "apply_Artifacts": [],
         }
 
         await save_source(state)

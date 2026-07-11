@@ -1,10 +1,10 @@
 # Quick Start - External Ollama
 
-Run Open Notebook with a **separately installed Ollama** (not via Docker). This avoids Docker running the Ollama service while you use your own local Ollama installation.
+Run Construction OS with a **separately installed Ollama** (not via Docker). This avoids Docker running the Ollama service while you use your own local Ollama installation.
 
 ## Prerequisites
 
-1. **Docker Desktop** installed (for SurrealDB and Open Notebook)
+1. **Docker Desktop** installed (for SurrealDB and Construction OS)
    - [Download here](https://www.docker.com/products/docker-desktop/)
 
 2. **Ollama** installed separately
@@ -39,7 +39,7 @@ OLLAMA_HOST=0.0.0.0:11434 ollama serve
 
 ## Step 2: Create Configuration (1 min)
 
-Create a new folder `open-notebook-external-ollama` and add these files:
+Create a new folder `construction-os-external-ollama` and add these files:
 
 **docker-compose.yml**:
 ```yaml
@@ -53,24 +53,24 @@ services:
     volumes:
       - ./surreal_data:/mydata
 
-  open_notebook:
-    image: lfnovo/open_notebook:v1-latest
+  construction_os:
+    image: lfnovo/construction-os:v1-latest
     pull_policy: always
     ports:
       - "8502:8502"  # Web UI (React frontend)
       - "5055:5055"  # API (required!)
     environment:
       # Encryption key for credential storage (required)
-      - OPEN_NOTEBOOK_ENCRYPTION_KEY=change-me-to-a-secret-string
+      - CONSTRUCTION_OS_ENCRYPTION_KEY=change-me-to-a-secret-string
 
       # Database (required)
       - SURREAL_URL=ws://surrealdb:8000/rpc
       - SURREAL_USER=root
       - SURREAL_PASSWORD=password
-      - SURREAL_NAMESPACE=open_notebook
-      - SURREAL_DATABASE=open_notebook
+      - SURREAL_NAMESPACE=construction_os
+      - SURREAL_DATABASE=construction_os
     volumes:
-      - ./notebook_data:/app/data
+      - ./construction_os_data:/app/data
     depends_on:
       - surrealdb
     restart: always
@@ -81,11 +81,11 @@ services:
 
 ---
 
-## Step 3: Connect Open Notebook to Host Ollama (1 min)
+## Step 3: Connect Construction OS to Host Ollama (1 min)
 
-When Open Notebook runs inside Docker, it cannot reach `localhost:11434` on your host directly. Use the special hostname:
+When Construction OS runs inside Docker, it cannot reach `localhost:11434` on your host directly. Use the special hostname:
 
-| Host OS | Ollama URL in Open Notebook |
+| Host OS | Ollama URL in Construction OS |
 |---------|----------------------------|
 | Linux | `http://host.containers.internal:11434` |
 | macOS | `http://host.docker.internal:11434` |
@@ -93,9 +93,9 @@ When Open Notebook runs inside Docker, it cannot reach `localhost:11434` on your
 
 ---
 
-## Step 4: Start Open Notebook (1 min)
+## Step 4: Start Construction OS (1 min)
 
-Open terminal in your `open-notebook-external-ollama` folder:
+Open terminal in your `construction-os-external-ollama` folder:
 
 ```bash
 docker compose up -d
@@ -130,7 +130,7 @@ Wait 10-15 seconds for services to start.
 
 ---
 
-## Step 7: Access Open Notebook (instant)
+## Step 7: Access Construction OS (instant)
 
 Open your browser:
 ```
@@ -163,7 +163,7 @@ http://localhost:8502
 
 3. For Windows/macOS, ensure `host.docker.internal` is reachable from inside the container:
    ```bash
-   docker exec <open_notebook_container> curl http://host.docker.internal:11434/api/version
+   docker exec <construction_os_container> curl http://host.docker.internal:11434/api/version
    ```
 
 ### Ollama not starting
@@ -203,7 +203,7 @@ docker compose up -d
 
 ## Going Further
 
-- **Add more models**: Run `ollama pull <model>`, then re-discover from Open Notebook
+- **Add more models**: Run `ollama pull <model>`, then re-discover from Construction OS
 - **Check Ollama status**: `ollama list` shows downloaded models
 - **Customize Ollama**: Edit `~/.ollama/config.yaml` for advanced settings
 

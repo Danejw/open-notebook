@@ -8,8 +8,8 @@ const AddSourceDialog = dynamic(
   { ssr: false, loading: () => null }
 )
 
-const CreateNotebookDialog = dynamic(
-  () => import('@/components/notebooks/CreateNotebookDialog').then((m) => m.CreateNotebookDialog),
+const CreateProjectDialog = dynamic(
+  () => import('@/components/projects/CreateProjectDialog').then((m) => m.CreateProjectDialog),
   { ssr: false, loading: () => null }
 )
 
@@ -20,7 +20,7 @@ const GeneratePodcastDialog = dynamic(
 
 interface CreateDialogsContextType {
   openSourceDialog: () => void
-  openNotebookDialog: () => void
+  openProjectDialog: () => void
   openPodcastDialog: () => void
 }
 
@@ -28,18 +28,18 @@ const CreateDialogsContext = createContext<CreateDialogsContextType | null>(null
 
 export function CreateDialogsProvider({ children }: { children: ReactNode }) {
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false)
-  const [notebookDialogOpen, setNotebookDialogOpen] = useState(false)
+  const [projectDialogOpen, setProjectDialogOpen] = useState(false)
   const [podcastDialogOpen, setPodcastDialogOpen] = useState(false)
 
   const openSourceDialog = useCallback(() => setSourceDialogOpen(true), [])
-  const openNotebookDialog = useCallback(() => setNotebookDialogOpen(true), [])
+  const openProjectDialog = useCallback(() => setProjectDialogOpen(true), [])
   const openPodcastDialog = useCallback(() => setPodcastDialogOpen(true), [])
 
   return (
     <CreateDialogsContext.Provider
       value={{
         openSourceDialog,
-        openNotebookDialog,
+        openProjectDialog,
         openPodcastDialog,
       }}
     >
@@ -47,8 +47,8 @@ export function CreateDialogsProvider({ children }: { children: ReactNode }) {
       {sourceDialogOpen ? (
         <AddSourceDialog open={sourceDialogOpen} onOpenChange={setSourceDialogOpen} />
       ) : null}
-      {notebookDialogOpen ? (
-        <CreateNotebookDialog open={notebookDialogOpen} onOpenChange={setNotebookDialogOpen} />
+      {projectDialogOpen ? (
+        <CreateProjectDialog open={projectDialogOpen} onOpenChange={setProjectDialogOpen} />
       ) : null}
       {podcastDialogOpen ? (
         <GeneratePodcastDialog open={podcastDialogOpen} onOpenChange={setPodcastDialogOpen} />

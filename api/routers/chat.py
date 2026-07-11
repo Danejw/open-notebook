@@ -8,13 +8,13 @@ from loguru import logger
 from pydantic import BaseModel, Field
 
 from api import ag_ui_agents
-from open_notebook.database.repository import ensure_record_id, repo_query
-from open_notebook.domain.notebook import ChatSession, Note, Notebook, Source
-from open_notebook.exceptions import (
+from construction_os.database.repository import ensure_record_id, repo_query
+from construction_os.domain.project import ChatSession, Note, Project, Source
+from construction_os.exceptions import (
     NotFoundError,
 )
-from open_notebook.graphs import chat as chat_graph_module
-from open_notebook.utils.graph_utils import (
+from construction_os.graphs import chat as chat_graph_module
+from construction_os.utils.graph_utils import (
     get_session_message_count,
     truncate_messages_from_id,
 )
@@ -24,7 +24,7 @@ router = APIRouter()
 
 # Request/Response models
 class CreateSessionRequest(BaseModel):
-    notebook_id: str = Field(..., description="Notebook ID to create session for")
+    project_id: str = Field(..., description="Project ID to create session for")
     title: Optional[str] = Field(None, description="Optional session title")
     model_override: Optional[str] = Field(
         None, description="Optional model override for this session"
@@ -54,7 +54,7 @@ class ChatMessage(BaseModel):
 class ChatSessionResponse(BaseModel):
     id: str = Field(..., description="Session ID")
     title: str = Field(..., description="Session title")
-    notebook_id: Optional[str] = Field(None, description="Notebook ID")
+    project_id: Optional[str] = Field(None, description="Project ID")
     created: str = Field(..., description="Creation timestamp")
     updated: str = Field(..., description="Last update timestamp")
     message_count: Optional[int] = Field(
@@ -108,7 +108,7 @@ class ExecuteChatResponse(BaseModel):
 
 
 class BuildContextRequest(BaseModel):
-    notebook_id: str = Field(..., description="Notebook ID")
+    project_id: str = Field(..., description="Project ID")
     context_config: Dict[str, Any] = Field(..., description="Context configuration")
 
 
@@ -124,16 +124,16 @@ class SuccessResponse(BaseModel):
 
 
 @router.get("/chat/sessions", response_model=List[ChatSessionResponse])
-async def get_sessions(notebook_id: str = Query(..., description="Notebook ID")):
-    """Get all chat sessions for a notebook."""
+async def get_sessions(project_id: str = Query(..., description="Project ID")):
+    """Get all chat sessions for a Project."""
     try:
-        # Get notebook to verify it exists
-        notebook = await Notebook.get(notebook_id)
-        if not notebook:
-            raise HTTPException(status_code=404, detail="Notebook not found")
+        # Get Project to verify it exists
+        project = await Project.get(project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
 
-        # Get sessions for this notebook
-        sessions_list = await notebook.get_chat_sessions()
+        # Get sessions for this Project
+        sessions_list = await project.get_chat_sessions()
 
         results = []
         for session in sessions_list:
@@ -146,7 +146,7 @@ async def get_sessions(notebook_id: str = Query(..., description="Notebook ID"))
                 ChatSessionResponse(
                     id=session.id or "",
                     title=session.title or "Untitled Session",
-                    notebook_id=notebook_id,
+                    project_id=project_id,
                     created=str(session.created),
                     updated=str(session.updated),
                     message_count=msg_count,
@@ -157,7 +157,7 @@ async def get_sessions(notebook_id: str = Query(..., description="Notebook ID"))
 
         return results
     except NotFoundError:
-        raise HTTPException(status_code=404, detail="Notebook not found")
+        raise HTTPException(status_code=404, detail="Project not found")
     except Exception as e:
         logger.error(f"Error fetching chat sessions: {str(e)}")
         raise HTTPException(
@@ -169,10 +169,10 @@ async def get_sessions(notebook_id: str = Query(..., description="Notebook ID"))
 async def create_session(request: CreateSessionRequest):
     """Create a new chat session."""
     try:
-        # Verify notebook exists
-        notebook = await Notebook.get(request.notebook_id)
-        if not notebook:
-            raise HTTPException(status_code=404, detail="Notebook not found")
+        # Verify Project exists
+        project = await Project.get(request.project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
 
         # Create new session
         session = ChatSession(
@@ -183,13 +183,13 @@ async def create_session(request: CreateSessionRequest):
         )
         await session.save()
 
-        # Relate session to notebook
-        await session.relate_to_notebook(request.notebook_id)
+        # Relate session to Project
+        await session.relate_to_project(request.project_id)
 
         return ChatSessionResponse(
             id=session.id or "",
             title=session.title or "",
-            notebook_id=request.notebook_id,
+            project_id=request.project_id,
             created=str(session.created),
             updated=str(session.updated),
             message_count=0,
@@ -197,7 +197,7 @@ async def create_session(request: CreateSessionRequest):
             skill_ids=session.skill_ids or [],
         )
     except NotFoundError:
-        raise HTTPException(status_code=404, detail="Notebook not found")
+        raise HTTPException(status_code=404, detail="Project not found")
     except Exception as e:
         logger.error(f"Error creating chat session: {str(e)}")
         raise HTTPException(
@@ -240,7 +240,7 @@ async def get_session(session_id: str):
                     )
                 )
 
-        # Find notebook_id (we need to query the relationship)
+        # Find project_id (we need to query the relationship)
         # Ensure session_id has proper table prefix
         full_session_id = (
             session_id
@@ -248,23 +248,23 @@ async def get_session(session_id: str):
             else f"chat_session:{session_id}"
         )
 
-        notebook_query = await repo_query(
+        project_query = await repo_query(
             "SELECT out FROM refers_to WHERE in = $session_id",
             {"session_id": ensure_record_id(full_session_id)},
         )
 
-        notebook_id = notebook_query[0]["out"] if notebook_query else None
+        project_id = project_query[0]["out"] if project_query else None
 
-        if not notebook_id:
+        if not project_id:
             # This might be an old session created before API migration
             logger.warning(
-                f"No notebook relationship found for session {session_id} - may be an orphaned session"
+                f"No Project relationship found for session {session_id} - may be an orphaned session"
             )
 
         return ChatSessionWithMessagesResponse(
             id=session.id or "",
             title=session.title or "Untitled Session",
-            notebook_id=notebook_id,
+            project_id=project_id,
             created=str(session.created),
             updated=str(session.updated),
             message_count=len(messages),
@@ -306,18 +306,18 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
 
         await session.save()
 
-        # Find notebook_id
+        # Find project_id
         # Ensure session_id has proper table prefix
         full_session_id = (
             session_id
             if session_id.startswith("chat_session:")
             else f"chat_session:{session_id}"
         )
-        notebook_query = await repo_query(
+        project_query = await repo_query(
             "SELECT out FROM refers_to WHERE in = $session_id",
             {"session_id": ensure_record_id(full_session_id)},
         )
-        notebook_id = notebook_query[0]["out"] if notebook_query else None
+        project_id = project_query[0]["out"] if project_query else None
 
         # Get message count from LangGraph state
         msg_count = await get_session_message_count(chat_graph_module.graph, full_session_id)
@@ -325,7 +325,7 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
         return ChatSessionResponse(
             id=session.id or "",
             title=session.title or "",
-            notebook_id=notebook_id,
+            project_id=project_id,
             created=str(session.created),
             updated=str(session.updated),
             message_count=msg_count,
@@ -378,22 +378,22 @@ async def execute_chat(request: ExecuteChatRequest):
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
 
-        # Fetch notebook linked to this session
-        notebook_query = await repo_query(
+        # Fetch Project linked to this session
+        project_query = await repo_query(
             "SELECT out FROM refers_to WHERE in = $session_id",
             {"session_id": ensure_record_id(full_session_id)},
         )
-        notebook = None
-        notebook_id = None
-        notebook_meta = None
-        if notebook_query:
-            notebook = await Notebook.get(notebook_query[0]["out"])
-            if notebook:
-                notebook_id = getattr(notebook, "id", None)
-                notebook_meta = {
-                    "id": notebook_id,
-                    "name": getattr(notebook, "name", None),
-                    "description": getattr(notebook, "description", None),
+        project = None
+        project_id = None
+        project_meta = None
+        if project_query:
+            project = await Project.get(project_query[0]["out"])
+            if project:
+                project_id = getattr(project, "id", None)
+                project_meta = {
+                    "id": project_id,
+                    "name": getattr(project, "name", None),
+                    "description": getattr(project, "description", None),
                 }
 
         # Determine model override (per-request override takes precedence over session-level)
@@ -433,8 +433,8 @@ async def execute_chat(request: ExecuteChatRequest):
             forwarded_props={
                 "context": request.context,
                 "context_config": request.context_config,
-                "notebook_id": notebook_id,
-                "notebook": notebook_meta,
+                "project_id": project_id,
+                "project": project_meta,
                 "model_override": model_override,
                 "skill_ids": skill_ids,
                 "mcp_tool_ids": list(request.mcp_tool_ids or []),
@@ -443,7 +443,7 @@ async def execute_chat(request: ExecuteChatRequest):
         )
 
         return ag_ui_agents.ag_ui_streaming_response(
-            ag_ui_agents.notebook_chat_agent,
+            ag_ui_agents.project_chat_agent,
             run_input,
             configurable={"model_id": model_override},
         )
@@ -464,12 +464,12 @@ async def execute_chat(request: ExecuteChatRequest):
 
 @router.post("/chat/context", response_model=BuildContextResponse)
 async def build_context(request: BuildContextRequest):
-    """Build context for a notebook based on context configuration."""
+    """Build context for a Project based on context configuration."""
     try:
-        # Verify notebook exists
-        notebook = await Notebook.get(request.notebook_id)
-        if not notebook:
-            raise HTTPException(status_code=404, detail="Notebook not found")
+        # Verify Project exists
+        project = await Project.get(request.project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
 
         context_data: dict[str, list[dict[str, str]]] = {"sources": [], "notes": []}
         total_content = ""
@@ -529,7 +529,7 @@ async def build_context(request: BuildContextRequest):
                     continue
         else:
             # Default behavior - include all sources and notes with short context
-            sources = await notebook.get_sources()
+            sources = await project.get_sources()
             for source in sources:
                 try:
                     source_context = await source.get_context(context_size="short")
@@ -539,7 +539,7 @@ async def build_context(request: BuildContextRequest):
                     logger.warning(f"Error processing source {source.id}: {str(e)}")
                     continue
 
-            notes = await notebook.get_notes()
+            notes = await project.get_notes()
             for note in notes:
                 try:
                     note_context = note.get_context(context_size="short")
@@ -553,7 +553,7 @@ async def build_context(request: BuildContextRequest):
         char_count = len(total_content)
         # Use token count utility if available
         try:
-            from open_notebook.utils import token_count
+            from construction_os.utils import token_count
 
             estimated_tokens = token_count(total_content) if total_content else 0
         except ImportError:

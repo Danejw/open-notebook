@@ -16,10 +16,10 @@ import {
 import { Button } from '@/components/ui/button'
 import { WizardContainer, WizardStep } from '@/components/ui/wizard-container'
 import { SourceTypeStep, parseAndValidateUrls } from './steps/SourceTypeStep'
-import { NotebooksStep } from './steps/NotebooksStep'
+import { ProjectsStep } from './steps/ProjectsStep'
 import { ProcessingStep } from './steps/ProcessingStep'
-import { useNotebooks } from '@/lib/hooks/use-notebooks'
-import { useTransformations } from '@/lib/hooks/use-transformations'
+import { useProjects } from '@/lib/hooks/use-projects'
+import { useArtifacts } from '@/lib/hooks/use-artifacts'
 import { useCreateSource } from '@/lib/hooks/use-sources'
 import { useSettings } from '@/lib/hooks/use-settings'
 import { CreateSourceRequest } from '@/lib/types/api'
@@ -33,8 +33,8 @@ const createSourceSchema = z.object({
   url: z.string().optional(),
   content: z.string().optional(),
   file: z.any().optional(),
-  notebooks: z.array(z.string()).optional(),
-  transformations: z.array(z.string()).optional(),
+  projects: z.array(z.string()).optional(),
+  artifacts: z.array(z.string()).optional(),
   embed: z.boolean(),
   async_processing: z.boolean(),
 }).refine((data) => {
@@ -70,7 +70,7 @@ type CreateSourceFormData = z.infer<typeof createSourceSchema>
 interface AddSourceDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  defaultNotebookId?: string
+  defaultprojectId?: string
 }
 
 interface ProcessingState {
@@ -88,13 +88,13 @@ interface BatchProgress {
 export function AddSourceDialog({ 
   open, 
   onOpenChange, 
-  defaultNotebookId 
+  defaultprojectId 
 }: AddSourceDialogProps) {
   const { t } = useTranslation()
 
   const WIZARD_STEPS: readonly WizardStep[] = [
     { number: 1, title: t('sources.addSource'), description: t('sources.processDescription') },
-    { number: 2, title: t('navigation.notebooks'), description: t('notebooks.searchPlaceholder') },
+    { number: 2, title: t('navigation.projects'), description: t('projects.searchPlaceholder') },
     { number: 3, title: t('navigation.process'), description: t('sources.processDescription') },
   ]
 
@@ -102,10 +102,10 @@ export function AddSourceDialog({
   const [currentStep, setCurrentStep] = useState(1)
   const [processing, setProcessing] = useState(false)
   const [processingStatus, setProcessingStatus] = useState<ProcessingState | null>(null)
-  const [selectedNotebooks, setSelectedNotebooks] = useState<string[]>(
-    defaultNotebookId ? [defaultNotebookId] : []
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>(
+    defaultprojectId ? [defaultprojectId] : []
   )
-  const [selectedTransformations, setSelectedTransformations] = useState<string[]>([])
+  const [selectedArtifactIds, setSelectedArtifactIds] = useState<string[]>([])
 
   // Batch-specific state
   const [urlValidationErrors, setUrlValidationErrors] = useState<{ url: string; line: number }[]>([])
@@ -116,8 +116,8 @@ export function AddSourceDialog({
 
   // API hooks
   const createSource = useCreateSource()
-  const { data: notebooks = [], isLoading: notebooksLoading } = useNotebooks()
-  const { data: transformations = [], isLoading: transformationsLoading } = useTransformations()
+  const { data: projects = [], isLoading: projectsLoading } = useProjects()
+  const { data: artifacts = [], isLoading: artifactsLoading } = useArtifacts()
   const { data: settings } = useSettings()
 
   // Form setup
@@ -132,34 +132,34 @@ export function AddSourceDialog({
   } = useForm<CreateSourceFormData>({
     resolver: zodResolver(createSourceSchema),
     defaultValues: {
-      notebooks: defaultNotebookId ? [defaultNotebookId] : [],
+      projects: defaultprojectId ? [defaultprojectId] : [],
       embed: settings?.default_embedding_option === 'always' || settings?.default_embedding_option === 'ask',
       async_processing: true,
-      transformations: [],
+      artifacts: [],
     },
   })
 
-  // Initialize form values when settings and transformations are loaded
+  // Initialize form values when settings and artifacts are loaded
   useEffect(() => {
-    if (settings && transformations.length > 0) {
-      const defaultTransformations = transformations
-        .filter(t => t.apply_default)
-        .map(t => t.id)
+    if (settings && artifacts.length > 0) {
+      const defaultArtifacts = artifacts
+        .filter(a => a.apply_default)
+        .map(a => a.id)
 
-      setSelectedTransformations(defaultTransformations)
+      setSelectedArtifactIds(defaultArtifacts)
 
       // Reset form with proper embed value based on settings
       const embedValue = settings.default_embedding_option === 'always' ||
                          (settings.default_embedding_option === 'ask')
 
       reset({
-        notebooks: defaultNotebookId ? [defaultNotebookId] : [],
+        projects: defaultprojectId ? [defaultprojectId] : [],
         embed: embedValue,
         async_processing: true,
-        transformations: [],
+        artifacts: [],
       })
     }
-  }, [settings, transformations, defaultNotebookId, reset])
+  }, [settings, artifacts, defaultprojectId, reset])
 
   // Cleanup effect
   useEffect(() => {
@@ -282,29 +282,29 @@ export function AddSourceDialog({
   }
 
   // Selection handlers
-  const handleNotebookToggle = (notebookId: string) => {
-    const updated = selectedNotebooks.includes(notebookId)
-      ? selectedNotebooks.filter(id => id !== notebookId)
-      : [...selectedNotebooks, notebookId]
-    setSelectedNotebooks(updated)
+  const handleProjectToggle = (projectId: string) => {
+    const updated = selectedProjectIds.includes(projectId)
+      ? selectedProjectIds.filter(id => id !== projectId)
+      : [...selectedProjectIds, projectId]
+    setSelectedProjectIds(updated)
   }
 
-  const handleTransformationToggle = (transformationId: string) => {
-    const updated = selectedTransformations.includes(transformationId)
-      ? selectedTransformations.filter(id => id !== transformationId)
-      : [...selectedTransformations, transformationId]
-    setSelectedTransformations(updated)
+  const handleArtifactToggle = (artifactId: string) => {
+    const updated = selectedArtifactIds.includes(artifactId)
+      ? selectedArtifactIds.filter(id => id !== artifactId)
+      : [...selectedArtifactIds, artifactId]
+    setSelectedArtifactIds(updated)
   }
 
   // Single source submission
   const submitSingleSource = async (data: CreateSourceFormData): Promise<void> => {
     const createRequest: CreateSourceRequest = {
       type: data.type,
-      notebooks: selectedNotebooks,
+      projects: selectedProjectIds,
       url: data.type === 'link' ? data.url : undefined,
       content: data.type === 'text' ? data.content : undefined,
       title: data.title,
-      transformations: selectedTransformations,
+      artifacts: selectedArtifactIds,
       embed: data.embed,
       delete_source: false,
       async_processing: true,
@@ -352,9 +352,9 @@ export function AddSourceDialog({
       try {
         const createRequest: CreateSourceRequest = {
           type: item.type === 'url' ? 'link' : 'upload',
-          notebooks: selectedNotebooks,
+          projects: selectedProjectIds,
           url: item.type === 'url' ? item.value as string : undefined,
-          transformations: selectedTransformations,
+          artifacts: selectedArtifactIds,
           embed: data.embed,
           delete_source: false,
           async_processing: true,
@@ -433,18 +433,18 @@ export function AddSourceDialog({
     setCurrentStep(1)
     setProcessing(false)
     setProcessingStatus(null)
-    setSelectedNotebooks(defaultNotebookId ? [defaultNotebookId] : [])
+    setSelectedProjectIds(defaultprojectId ? [defaultprojectId] : [])
     setUrlValidationErrors([])
     setBatchProgress(null)
 
-    // Reset to default transformations
-    if (transformations.length > 0) {
-      const defaultTransformations = transformations
-        .filter(t => t.apply_default)
-        .map(t => t.id)
-      setSelectedTransformations(defaultTransformations)
+    // Reset to default artifacts
+    if (artifacts.length > 0) {
+      const defaultArtifacts = artifacts
+        .filter(a => a.apply_default)
+        .map(a => a.id)
+      setSelectedArtifactIds(defaultArtifacts)
     } else {
-      setSelectedTransformations([])
+      setSelectedArtifactIds([])
     }
 
     onOpenChange(false)
@@ -558,11 +558,11 @@ export function AddSourceDialog({
             )}
             
             {currentStep === 2 && (
-              <NotebooksStep
-                notebooks={notebooks}
-                selectedNotebooks={selectedNotebooks}
-                onToggleNotebook={handleNotebookToggle}
-                loading={notebooksLoading}
+              <ProjectsStep
+                projects={projects}
+                selectedProjectIds={selectedProjectIds}
+                onToggleProject={handleProjectToggle}
+                loading={projectsLoading}
               />
             )}
             
@@ -570,10 +570,10 @@ export function AddSourceDialog({
               <ProcessingStep
                 // @ts-expect-error - Type inference issue with zod schema
                 control={control}
-                transformations={transformations}
-                selectedTransformations={selectedTransformations}
-                onToggleTransformation={handleTransformationToggle}
-                loading={transformationsLoading}
+                artifacts={artifacts}
+                selectedArtifacts={selectedArtifactIds}
+                onToggleArtifact={handleArtifactToggle}
+                loading={artifactsLoading}
                 settings={settings}
               />
             )}

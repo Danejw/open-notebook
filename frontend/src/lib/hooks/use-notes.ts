@@ -7,18 +7,18 @@ import { getApiErrorKey } from '@/lib/utils/error-handler'
 import {
   buildOptimisticNote,
   patchAllNoteListQueries,
-  prependNoteToNotebookQuery,
+  prependNoteToProjectQuery,
   removeNoteFromAllQueries,
   restoreNoteListQueries,
   snapshotNoteListQueries,
 } from '@/lib/utils/note-query-cache'
 import { CreateNoteRequest, NoteResponse, UpdateNoteRequest } from '@/lib/types/api'
 
-export function useNotes(notebookId?: string) {
+export function useNotes(projectId?: string) {
   return useQuery({
-    queryKey: QUERY_KEYS.notes(notebookId),
-    queryFn: () => notesApi.list({ notebook_id: notebookId }),
-    enabled: !!notebookId,
+    queryKey: QUERY_KEYS.notes(projectId),
+    queryFn: () => notesApi.list({ project_id: projectId }),
+    enabled: !!projectId,
   })
 }
 
@@ -42,21 +42,21 @@ export function useCreateNote() {
       await queryClient.cancelQueries({ queryKey: ['notes'] })
       const previous = snapshotNoteListQueries(queryClient)
       const optimistic = buildOptimisticNote(variables)
-      prependNoteToNotebookQuery(queryClient, variables.notebook_id, optimistic)
-      return { previous, optimisticId: optimistic.id, notebookId: variables.notebook_id }
+      prependNoteToProjectQuery(queryClient, variables.project_id, optimistic)
+      return { previous, optimisticId: optimistic.id, projectId: variables.project_id }
     },
     onSuccess: (result, variables, context) => {
       if (context?.optimisticId) {
         patchAllNoteListQueries(queryClient, (notes) =>
           notes.map((note) => (note.id === context.optimisticId ? result : note))
         )
-        if (variables.notebook_id) {
+        if (variables.project_id) {
           queryClient.setQueryData(QUERY_KEYS.note(result.id), result)
         }
       }
       toast({
         title: t('common.success'),
-        description: t('notebooks.noteCreatedSuccess'),
+        description: t('projects.noteCreatedSuccess'),
       })
     },
     onError: (error: unknown, _variables, context) => {
@@ -65,13 +65,13 @@ export function useCreateNote() {
       }
       toast({
         title: t('common.error'),
-        description: getApiErrorKey(error, t('notebooks.failedToCreateNote')),
+        description: getApiErrorKey(error, t('projects.failedToCreateNote')),
         variant: 'destructive',
       })
     },
     onSettled: (_data, _error, variables) => {
-      if (variables.notebook_id) {
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notes(variables.notebook_id) })
+      if (variables.project_id) {
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notes(variables.project_id) })
       }
     },
   })
@@ -120,7 +120,7 @@ export function useUpdateNote() {
       queryClient.setQueryData(QUERY_KEYS.note(id), result)
       toast({
         title: t('common.success'),
-        description: t('notebooks.noteUpdatedSuccess'),
+        description: t('projects.noteUpdatedSuccess'),
       })
     },
     onError: (error: unknown, { id }, context) => {
@@ -132,7 +132,7 @@ export function useUpdateNote() {
       }
       toast({
         title: t('common.error'),
-        description: getApiErrorKey(error, t('notebooks.failedToUpdateNote')),
+        description: getApiErrorKey(error, t('projects.failedToUpdateNote')),
         variant: 'destructive',
       })
     },
@@ -158,7 +158,7 @@ export function useDeleteNote() {
     onSuccess: () => {
       toast({
         title: t('common.success'),
-        description: t('notebooks.noteDeletedSuccess'),
+        description: t('projects.noteDeletedSuccess'),
       })
     },
     onError: (error: unknown, _id, context) => {
@@ -167,7 +167,7 @@ export function useDeleteNote() {
       }
       toast({
         title: t('common.error'),
-        description: getApiErrorKey(error, t('notebooks.failedToDeleteNote')),
+        description: getApiErrorKey(error, t('projects.failedToDeleteNote')),
         variant: 'destructive',
       })
     },

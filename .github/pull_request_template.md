@@ -37,7 +37,7 @@ Fixes #<!-- issue number -->
 
 <!-- This section helps ensure your PR aligns with our project vision -->
 
-**Which design principles does this PR support?** (See [DESIGN_PRINCIPLES.md](../DESIGN_PRINCIPLES.md))
+**Which design principles does this PR support?** (See [Design Principles](docs/7-DEVELOPMENT/design-principles.md))
 
 - [ ] Privacy First
 - [ ] Simplicity Over Features
@@ -81,8 +81,7 @@ Fixes #<!-- issue number -->
 
 ### Breaking Changes
 - [ ] This PR includes breaking changes
-- [ ] I have documented the migration path for users
-- [ ] I have updated MIGRATION.md (if applicable)
+- [ ] I have documented the migration path for users (see [change-playbooks.md](docs/7-DEVELOPMENT/change-playbooks.md) if applicable)
 
 ## Screenshots (if applicable)
 
@@ -97,11 +96,11 @@ Fixes #<!-- issue number -->
 Before submitting, please verify:
 
 - [ ] I have read [CONTRIBUTING.md](../CONTRIBUTING.md)
-- [ ] I have read [DESIGN_PRINCIPLES.md](../DESIGN_PRINCIPLES.md)
+- [ ] I have read [Design Principles](docs/7-DEVELOPMENT/design-principles.md)
 - [ ] This PR addresses an approved issue that was assigned to me
 - [ ] I have not included unrelated changes in this PR
 - [ ] My PR title follows conventional commits format (e.g., "feat: add user authentication")
 
 ---
 
-**Thank you for contributing to Open Notebook!** 🎉
+**Thank you for contributing to Construction OS!** 🎉

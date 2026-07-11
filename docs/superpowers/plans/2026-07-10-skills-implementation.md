@@ -4,7 +4,7 @@
 
 **Goal:** Ship Skills as SurrealDB-backed folder packages with ZIP import/export, tree editing, validation, and chat progressive disclosure (manual select; no AI create/critique).
 
-**Architecture:** `skill` + `skill_file` ObjectModels; shared `open_notebook/skills/standard.py`; service layer for ZIP/validate/export; Transformations-like UI; chat accepts `skill_ids` and injects SKILL.md + on-demand file read.
+**Architecture:** `skill` + `skill_file` ObjectModels; shared `construction_os/skills/standard.py`; service layer for ZIP/validate/export; Artifacts-like UI; chat accepts `skill_ids` and injects SKILL.md + on-demand file read.
 
 **Tech Stack:** FastAPI, SurrealDB, Pydantic, Next.js, TanStack Query, MarkdownEditor, zipfile
 
@@ -14,12 +14,12 @@
 
 | Path | Role |
 |------|------|
-| `open_notebook/skills/standard.py` | Canonical rules + frontmatter parse |
-| `open_notebook/skills/zip_io.py` | Safe extract + ZIP rebuild |
-| `open_notebook/skills/validation.py` | Deterministic validation |
-| `open_notebook/skills/loader.py` | Build chat skill context + file read |
-| `open_notebook/domain/skill.py` | Skill, SkillFile models |
-| `open_notebook/database/migrations/16.surrealql` | Schema |
+| `construction_os/skills/standard.py` | Canonical rules + frontmatter parse |
+| `construction_os/skills/zip_io.py` | Safe extract + ZIP rebuild |
+| `construction_os/skills/validation.py` | Deterministic validation |
+| `construction_os/skills/loader.py` | Build chat skill context + file read |
+| `construction_os/domain/skill.py` | Skill, SkillFile models |
+| `construction_os/database/migrations/16.surrealql` | Schema |
 | `api/skills_service.py` | Domain orchestration |
 | `api/routers/skills.py` | HTTP API |
 | `api/models.py` / `api/skill_models.py` | Schemas |
@@ -32,7 +32,7 @@
 
 ### Task 1: Standard + ZIP + validation (pure Python)
 
-- [ ] Create `open_notebook/skills/` package
+- [ ] Create `construction_os/skills/` package
 - [ ] Implement standard, zip_io, validation with tests first
 - [ ] Cover path traversal, missing SKILL.md, frontmatter, round-trip ZIP
 
@@ -61,7 +61,7 @@
 
 ### Task 6: Frontend chat picker
 
-- [ ] Multi-select skills in notebook chat (and source chat)
+- [ ] Multi-select skills in project chat (and source chat)
 - [ ] Pass `skill_ids` on send
 
 ### Task 7: Verify

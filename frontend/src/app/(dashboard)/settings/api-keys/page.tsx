@@ -123,7 +123,7 @@ const PROVIDER_DOCS: Record<string, string> = {
   deepgram: 'https://console.deepgram.com/',
   azure: 'https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub/~/OpenAI',
   vertex: 'https://cloud.google.com/vertex-ai/docs/start/cloud-environment',
-  openai_compatible: 'https://github.com/lfnovo/open-notebook/blob/main/docs/5-CONFIGURATION/openai-compatible.md',
+  openai_compatible: 'https://github.com/lfnovo/construction-os/blob/main/docs/5-CONFIGURATION/openai-compatible.md',
   dashscope: 'https://help.aliyun.com/zh/model-studio/getting-started/',
   minimax: 'https://platform.minimaxi.com/document/Guides',
 }
@@ -810,7 +810,7 @@ function CredentialItem({
   if (defaults) {
     const slotMap: Record<string, string | null | undefined> = {
       'Chat': defaults.default_chat_model,
-      'Transform': defaults.default_transformation_model,
+      'Transform': defaults.default_artifact_model,
       'Tools': defaults.default_tools_model,
       'Large Ctx': defaults.large_context_model,
       'Embedding': defaults.default_embedding_model,
@@ -1138,7 +1138,7 @@ function DefaultModelSelectors({
   ]
 
   const advancedConfigs: DefaultConfig[] = [
-    { key: 'default_transformation_model', label: t('models.transformationModelLabel'), description: t('models.transformationModelDesc'), modelType: 'language', required: true, id: `${generatedId}-transform` },
+    { key: 'default_artifact_model', label: t('models.artifactModelLabel'), description: t('models.artifactModelDesc'), modelType: 'language', required: true, id: `${generatedId}-transform` },
     { key: 'default_tools_model', label: t('models.toolsModelLabel'), description: t('models.toolsModelDesc'), modelType: 'language', id: `${generatedId}-tools` },
     { key: 'large_context_model', label: t('models.largeContextModelLabel'), description: t('models.largeContextModelDesc'), modelType: 'language', id: `${generatedId}-large` },
   ]
@@ -1428,7 +1428,7 @@ export default function ApiKeysPage() {
           {/* Help link */}
           <div className="border-t pt-4">
             <a
-              href="https://github.com/lfnovo/open-notebook/blob/main/docs/5-CONFIGURATION/ai-providers.md"
+              href="https://github.com/lfnovo/construction-os/blob/main/docs/5-CONFIGURATION/ai-providers.md"
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-primary hover:underline"

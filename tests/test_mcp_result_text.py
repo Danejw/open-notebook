@@ -1,6 +1,6 @@
 """Tests for MCP result text bounding."""
 
-from open_notebook.mcp.result_text import bound_error_message, mcp_result_to_text
+from construction_os.mcp.result_text import bound_error_message, mcp_result_to_text
 
 
 def test_extracts_text_content() -> None:

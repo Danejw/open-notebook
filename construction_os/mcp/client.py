@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from open_notebook.mcp.transport import McpStreamableHttpTransport
+from construction_os.mcp.transport import McpStreamableHttpTransport
 
 
 class McpClient:

@@ -9,13 +9,13 @@ from typing import Any, Optional
 import httpx
 from loguru import logger
 
-from open_notebook.mcp.limits import (
+from construction_os.mcp.limits import (
     MAX_ERROR_CHARS,
     MAX_LOG_DETAIL_CHARS,
     MCP_PROTOCOL_VERSION,
     MCP_REQUEST_TIMEOUT_SECONDS,
 )
-from open_notebook.mcp.result_text import bound_error_message
+from construction_os.mcp.result_text import bound_error_message
 
 
 class McpTransportError(Exception):
@@ -68,7 +68,7 @@ class McpStreamableHttpTransport:
         params = {
             "protocolVersion": self.protocol_version,
             "capabilities": {},
-            "clientInfo": {"name": "open-notebook", "version": "1.0.0"},
+            "clientInfo": {"name": "construction-os", "version": "1.0.0"},
         }
         result = await self._request("initialize", params)
         if isinstance(result, dict):

@@ -1,21 +1,21 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-export type NotebookViewMode = 'tile' | 'list'
+export type ProjectViewMode = 'tile' | 'list'
 
-interface NotebookViewState {
-  viewMode: NotebookViewMode
-  setViewMode: (mode: NotebookViewMode) => void
+interface ProjectViewState {
+  viewMode: ProjectViewMode
+  setViewMode: (mode: ProjectViewMode) => void
 }
 
-export const useNotebookViewStore = create<NotebookViewState>()(
+export const useProjectViewStore = create<ProjectViewState>()(
   persist(
     (set) => ({
       viewMode: 'tile',
       setViewMode: (mode) => set({ viewMode: mode }),
     }),
     {
-      name: 'notebook-view-storage',
+      name: 'project-view-storage',
     }
   )
 )

@@ -26,7 +26,7 @@ class TestNoteCreation:
         mock_note.created = "2026-01-01T00:00:00Z"
         mock_note.updated = "2026-01-01T00:00:00Z"
         mock_note.save.return_value = "command:embed123"
-        mock_note.add_to_notebook = AsyncMock()
+        mock_note.add_to_project = AsyncMock()
         mock_note_cls.return_value = mock_note
 
         response = client.post(
@@ -52,7 +52,7 @@ class TestNoteCreation:
         mock_note.created = "2026-01-01T00:00:00Z"
         mock_note.updated = "2026-01-01T00:00:00Z"
         mock_note.save.return_value = None
-        mock_note.add_to_notebook = AsyncMock()
+        mock_note.add_to_project = AsyncMock()
         mock_note_cls.return_value = mock_note
 
         response = client.post(

@@ -7,7 +7,7 @@ from typing import List, Optional
 from loguru import logger
 
 from api.client import api_client
-from open_notebook.domain.notebook import Note, SourceInsight
+from construction_os.domain.project import Note, SourceInsight
 
 
 class InsightsService:
@@ -56,10 +56,10 @@ class InsightsService:
         return True
 
     def save_insight_as_note(
-        self, insight_id: str, notebook_id: Optional[str] = None
+        self, insight_id: str, project_id: Optional[str] = None
     ) -> Note:
         """Convert an insight to a note."""
-        note_response = api_client.save_insight_as_note(insight_id, notebook_id)
+        note_response = api_client.save_insight_as_note(insight_id, project_id)
         note_data = (
             note_response if isinstance(note_response, dict) else note_response[0]
         )
@@ -74,11 +74,11 @@ class InsightsService:
         return note
 
     def create_source_insight(
-        self, source_id: str, transformation_id: str, model_id: Optional[str] = None
+        self, source_id: str, artifact_id: str, model_id: Optional[str] = None
     ) -> SourceInsight:
-        """Create a new insight for a source by running a transformation."""
+        """Create a new insight for a source by running a Artifact."""
         insight_response = api_client.create_source_insight(
-            source_id, transformation_id, model_id
+            source_id, artifact_id, model_id
         )
         insight_data = (
             insight_response

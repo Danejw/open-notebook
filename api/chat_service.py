@@ -9,6 +9,8 @@ from typing import Any, Dict, List, Optional
 import httpx
 from loguru import logger
 
+from construction_os.utils.encryption import get_secret_from_env
+
 
 class ChatService:
     """Service for chat-related API operations"""
@@ -17,17 +19,17 @@ class ChatService:
         self.base_url = os.getenv("API_BASE_URL", "http://127.0.0.1:5055")
         # Add authentication header if password is set
         self.headers = {}
-        password = os.getenv("OPEN_NOTEBOOK_PASSWORD")
+        password = get_secret_from_env("CONSTRUCTION_OS_PASSWORD")
         if password:
             self.headers["Authorization"] = f"Bearer {password}"
 
-    async def get_sessions(self, notebook_id: str) -> List[Dict[str, Any]]:
-        """Get all chat sessions for a notebook"""
+    async def get_sessions(self, project_id: str) -> List[Dict[str, Any]]:
+        """Get all chat sessions for a Project"""
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     f"{self.base_url}/api/chat/sessions",
-                    params={"notebook_id": notebook_id},
+                    params={"project_id": project_id},
                     headers=self.headers,
                 )
                 response.raise_for_status()
@@ -38,13 +40,13 @@ class ChatService:
 
     async def create_session(
         self,
-        notebook_id: str,
+        project_id: str,
         title: Optional[str] = None,
         model_override: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Create a new chat session"""
         try:
-            data: Dict[str, Any] = {"notebook_id": notebook_id}
+            data: Dict[str, Any] = {"project_id": project_id}
             if title is not None:
                 data["title"] = title
             if model_override is not None:
@@ -147,11 +149,11 @@ class ChatService:
             raise
 
     async def build_context(
-        self, notebook_id: str, context_config: Dict[str, Any]
+        self, project_id: str, context_config: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Build context for a notebook"""
+        """Build context for a Project"""
         try:
-            data = {"notebook_id": notebook_id, "context_config": context_config}
+            data = {"project_id": project_id, "context_config": context_config}
 
             async with httpx.AsyncClient() as client:
                 response = await client.post(

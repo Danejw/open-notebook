@@ -6,7 +6,7 @@ import { SourceDialog } from '@/components/source/SourceDialog'
 
 const NoteEditorDialog = dynamic(
   () =>
-    import('@/app/(dashboard)/notebooks/components/NoteEditorDialog').then((m) => ({
+    import('@/app/(dashboard)/projects/components/NoteEditorDialog').then((m) => ({
       default: m.NoteEditorDialog,
     })),
   {
@@ -56,7 +56,7 @@ export function ModalProvider() {
           onOpenChange={(open) => {
             if (!open) closeModal()
           }}
-          notebookId=""
+          projectId=""
           note={{ id: modalId, title: null, content: null }}
         />
       ) : null}

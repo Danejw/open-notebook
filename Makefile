@@ -6,8 +6,8 @@
 VERSION := $(shell grep -m1 version pyproject.toml | cut -d'"' -f2)
 
 # Image names for both registries
-DOCKERHUB_IMAGE := lfnovo/open_notebook
-GHCR_IMAGE := ghcr.io/lfnovo/open-notebook
+DOCKERHUB_IMAGE := lfnovo/construction-os
+GHCR_IMAGE := ghcr.io/lfnovo/construction-os
 
 # Build platforms
 PLATFORMS := linux/amd64,linux/arm64
@@ -154,7 +154,7 @@ worker-restart: worker-stop
 
 # === Service Management ===
 start-all:
-	@echo "🚀 Starting Open Notebook (Database + API + Worker + Frontend)..."
+	@echo "🚀 Starting Construction OS (Database + API + Worker + Frontend)..."
 	@echo "📊 Starting SurrealDB..."
 	@docker compose -f docker-compose.dev.yml up -d surrealdb
 	@sleep 3
@@ -172,7 +172,7 @@ start-all:
 	cd frontend && npm run dev
 
 stop-all:
-	@echo "🛑 Stopping all Open Notebook services..."
+	@echo "🛑 Stopping all Construction OS services..."
 	@pkill -f "next dev" || true
 	@pkill -f "surreal-commands-worker" || true
 	@pkill -f "run_api.py" || true
@@ -181,7 +181,7 @@ stop-all:
 	@echo "✅ All services stopped!"
 
 status:
-	@echo "📊 Open Notebook Service Status:"
+	@echo "📊 Construction OS Service Status:"
 	@echo "Database (SurrealDB):"
 	@docker compose ps surrealdb 2>/dev/null || echo "  ❌ Not running"
 	@echo "API Backend:"

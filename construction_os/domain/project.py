@@ -8,13 +8,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from surreal_commands import submit_command
 from surrealdb import RecordID
 
-from open_notebook.database.repository import ensure_record_id, repo_query
-from open_notebook.domain.base import ObjectModel
-from open_notebook.exceptions import DatabaseOperationError, InvalidInputError
+from construction_os.database.repository import ensure_record_id, repo_query
+from construction_os.domain.base import ObjectModel
+from construction_os.exceptions import DatabaseOperationError, InvalidInputError
 
 
-class Notebook(ObjectModel):
-    table_name: ClassVar[str] = "notebook"
+class Project(ObjectModel):
+    table_name: ClassVar[str] = "project"
     name: str
     description: str
     archived: Optional[bool] = False
@@ -23,7 +23,7 @@ class Notebook(ObjectModel):
     @classmethod
     def name_must_not_be_empty(cls, v):
         if not v.strip():
-            raise InvalidInputError("Notebook name cannot be empty")
+            raise InvalidInputError("Project name cannot be empty")
         return v
 
     async def get_sources(self, include_full_text: bool = False) -> List["Source"]:
@@ -40,7 +40,7 @@ class Notebook(ObjectModel):
             )
             return [Source(**src["source"]) for src in srcs] if srcs else []
         except Exception as e:
-            logger.error(f"Error fetching sources for notebook {self.id}: {str(e)}")
+            logger.error(f"Error fetching sources for Project {self.id}: {str(e)}")
             logger.exception(e)
             raise DatabaseOperationError(e)
 
@@ -54,7 +54,7 @@ class Notebook(ObjectModel):
             srcs = await repo_query(
                 f"""
             select *{note_projection} from (
-                select in as note from artifact where out=$id
+                select in as note FROM project_note WHERE out=$id
                 fetch note
             ) order by note.updated desc
             """,
@@ -62,13 +62,13 @@ class Notebook(ObjectModel):
             )
             return [Note(**src["note"]) for src in srcs] if srcs else []
         except Exception as e:
-            logger.error(f"Error fetching notes for notebook {self.id}: {str(e)}")
+            logger.error(f"Error fetching notes for Project {self.id}: {str(e)}")
             logger.exception(e)
             raise DatabaseOperationError(e)
 
     async def get_context(self) -> str:
         """
-        Build long-form notebook context for podcast and LLM workflows.
+        Build long-form Project context for podcast and LLM workflows.
 
         Normal list retrieval omits large source/note bodies, so this method uses
         opt-in full-content fetches and formats only substantive context blocks.
@@ -146,41 +146,41 @@ class Notebook(ObjectModel):
             )
         except Exception as e:
             logger.error(
-                f"Error fetching chat sessions for notebook {self.id}: {str(e)}"
+                f"Error fetching chat sessions for Project {self.id}: {str(e)}"
             )
             logger.exception(e)
             raise DatabaseOperationError(e)
 
     async def get_delete_preview(self) -> Dict[str, Any]:
         """
-        Get counts of items that would be affected by deleting this notebook.
+        Get counts of items that would be affected by deleting this Project.
 
         Returns a dict with:
         - note_count: Number of notes that will be deleted
-        - exclusive_source_count: Sources only in this notebook (can be deleted)
-        - shared_source_count: Sources in other notebooks (will be unlinked only)
+        - exclusive_source_count: Sources only in this Project (can be deleted)
+        - shared_source_count: Sources in other projects (will be unlinked only)
         """
         try:
-            notebook_id = ensure_record_id(self.id)
+            project_id = ensure_record_id(self.id)
 
             # Count notes
             note_result = await repo_query(
-                "SELECT count() as count FROM artifact WHERE out = $notebook_id GROUP ALL",
-                {"notebook_id": notebook_id},
+                "SELECT count() as count FROM project_note WHERE out = $project_id GROUP ALL",
+                {"project_id": project_id},
             )
             note_count = note_result[0]["count"] if note_result else 0
 
-            # Get sources with count of references to OTHER notebooks
-            # If assigned_others = 0, source is exclusive to this notebook
-            # If assigned_others > 0, source is shared with other notebooks
+            # Get sources with count of references to OTHER projects
+            # If assigned_others = 0, source is exclusive to this Project
+            # If assigned_others > 0, source is shared with other projects
             source_counts = await repo_query(
                 """
                 SELECT
                     id,
-                    count(->reference[WHERE out != $notebook_id].out) as assigned_others
-                FROM (SELECT VALUE <-reference.in AS sources FROM $notebook_id)[0]
+                    count(->reference[WHERE out != $project_id].out) as assigned_others
+                FROM (SELECT VALUE <-reference.in AS sources FROM $project_id)[0]
                 """,
-                {"notebook_id": notebook_id},
+                {"project_id": project_id},
             )
 
             exclusive_count = 0
@@ -197,55 +197,55 @@ class Notebook(ObjectModel):
                 "shared_source_count": shared_count,
             }
         except Exception as e:
-            logger.error(f"Error getting delete preview for notebook {self.id}: {e}")
+            logger.error(f"Error getting delete preview for Project {self.id}: {e}")
             logger.exception(e)
             raise DatabaseOperationError(e)
 
     async def delete(self, delete_exclusive_sources: bool = False) -> Dict[str, int]:
         """
-        Delete notebook with cascade deletion of notes and optional source deletion.
+        Delete Project with cascade deletion of notes and optional source deletion.
 
         Args:
             delete_exclusive_sources: If True, also delete sources that belong
-                                     only to this notebook. Default is False.
+                                     only to this Project. Default is False.
 
         Returns:
             Dict with counts: deleted_notes, deleted_sources, unlinked_sources
         """
         if self.id is None:
-            raise InvalidInputError("Cannot delete notebook without an ID")
+            raise InvalidInputError("Cannot delete project without an ID")
 
         try:
-            notebook_id = ensure_record_id(self.id)
+            project_id = ensure_record_id(self.id)
             deleted_notes = 0
             deleted_sources = 0
             unlinked_sources = 0
 
-            # 1. Get and delete all notes linked to this notebook
+            # 1. Get and delete all notes linked to this Project
             notes = await self.get_notes()
             for note in notes:
                 await note.delete()
                 deleted_notes += 1
-            logger.info(f"Deleted {deleted_notes} notes for notebook {self.id}")
+            logger.info(f"Deleted {deleted_notes} notes for Project {self.id}")
 
-            # Delete artifact relationships
+            # Delete project_note relationships
             await repo_query(
-                "DELETE artifact WHERE out = $notebook_id",
-                {"notebook_id": notebook_id},
+                "DELETE project_note WHERE out = $project_id",
+                {"project_id": project_id},
             )
 
             # 2. Handle sources
             if delete_exclusive_sources:
-                # Find sources with count of references to OTHER notebooks
-                # If assigned_others = 0, source is exclusive to this notebook
+                # Find sources with count of references to OTHER projects
+                # If assigned_others = 0, source is exclusive to this Project
                 source_counts = await repo_query(
                     """
                     SELECT
                         id,
-                        count(->reference[WHERE out != $notebook_id].out) as assigned_others
-                    FROM (SELECT VALUE <-reference.in AS sources FROM $notebook_id)[0]
+                        count(->reference[WHERE out != $project_id].out) as assigned_others
+                    FROM (SELECT VALUE <-reference.in AS sources FROM $project_id)[0]
                     """,
-                    {"notebook_id": notebook_id},
+                    {"project_id": project_id},
                 )
 
                 for src in source_counts:
@@ -265,24 +265,24 @@ class Notebook(ObjectModel):
             else:
                 # Just count sources that will be unlinked
                 source_result = await repo_query(
-                    "SELECT count() as count FROM reference WHERE out = $notebook_id GROUP ALL",
-                    {"notebook_id": notebook_id},
+                    "SELECT count() as count FROM reference WHERE out = $project_id GROUP ALL",
+                    {"project_id": project_id},
                 )
                 unlinked_sources = source_result[0]["count"] if source_result else 0
 
             # Delete reference relationships (unlink all sources)
             await repo_query(
-                "DELETE reference WHERE out = $notebook_id",
-                {"notebook_id": notebook_id},
+                "DELETE reference WHERE out = $project_id",
+                {"project_id": project_id},
             )
             logger.info(
                 f"Unlinked {unlinked_sources} sources, deleted {deleted_sources} "
-                f"exclusive sources for notebook {self.id}"
+                f"exclusive sources for Project {self.id}"
             )
 
-            # 3. Delete the notebook record itself
+            # 3. Delete the Project record itself
             await super().delete()
-            logger.info(f"Deleted notebook {self.id}")
+            logger.info(f"Deleted Project {self.id}")
 
             return {
                 "deleted_notes": deleted_notes,
@@ -291,9 +291,9 @@ class Notebook(ObjectModel):
             }
 
         except Exception as e:
-            logger.error(f"Error deleting notebook {self.id}: {e}")
+            logger.error(f"Error deleting Project {self.id}: {e}")
             logger.exception(e)
-            raise DatabaseOperationError(f"Failed to delete notebook: {e}")
+            raise DatabaseOperationError(f"Failed to delete project: {e}")
 
 
 class Asset(BaseModel):
@@ -339,15 +339,15 @@ class SourceInsight(ObjectModel):
             logger.exception(e)
             raise DatabaseOperationError(e)
 
-    async def save_as_note(self, notebook_id: Optional[str] = None) -> Any:
+    async def save_as_note(self, project_id: Optional[str] = None) -> Any:
         source = await self.get_source()
         note = Note(
             title=f"{self.insight_type} from source {source.title}",
             content=self.content,
         )
         await note.save()
-        if notebook_id:
-            await note.add_to_notebook(notebook_id)
+        if project_id:
+            await note.add_to_project(project_id)
         return note
 
 
@@ -469,10 +469,10 @@ class Source(ObjectModel):
             logger.exception(e)
             raise DatabaseOperationError("Failed to fetch insights for source")
 
-    async def add_to_notebook(self, notebook_id: str) -> Any:
-        if not notebook_id:
-            raise InvalidInputError("Notebook ID must be provided")
-        return await self.relate("reference", notebook_id)
+    async def add_to_project(self, project_id: str) -> Any:
+        if not project_id:
+            raise InvalidInputError("Project ID must be provided")
+        return await self.relate("reference", project_id)
 
     async def vectorize(self) -> str:
         """
@@ -500,7 +500,7 @@ class Source(ObjectModel):
 
             # Submit the embed_source command
             command_id = submit_command(
-                "open_notebook",
+                "construction_os",
                 "embed_source",
                 {"source_id": str(self.id)},
             )
@@ -551,7 +551,7 @@ class Source(ObjectModel):
             # Submit create_insight command (fire-and-forget)
             # Command handles retries internally for transaction conflicts
             command_id = submit_command(
-                "open_notebook",
+                "construction_os",
                 "create_insight",
                 {
                     "source_id": str(self.id),
@@ -649,7 +649,7 @@ class Note(ObjectModel):
         # Submit embedding command (fire-and-forget) if note has content
         if self.id and self.content and self.content.strip():
             command_id = submit_command(
-                "open_notebook",
+                "construction_os",
                 "embed_note",
                 {"note_id": str(self.id)},
             )
@@ -658,10 +658,10 @@ class Note(ObjectModel):
 
         return None
 
-    async def add_to_notebook(self, notebook_id: str) -> Any:
-        if not notebook_id:
-            raise InvalidInputError("Notebook ID must be provided")
-        return await self.relate("artifact", notebook_id)
+    async def add_to_project(self, project_id: str) -> Any:
+        if not project_id:
+            raise InvalidInputError("Project ID must be provided")
+        return await self.relate("project_note", project_id)
 
     def get_context(
         self, context_size: Literal["short", "long"] = "short"
@@ -683,10 +683,10 @@ class ChatSession(ObjectModel):
     model_override: Optional[str] = None
     skill_ids: Optional[List[str]] = None
 
-    async def relate_to_notebook(self, notebook_id: str) -> Any:
-        if not notebook_id:
-            raise InvalidInputError("Notebook ID must be provided")
-        return await self.relate("refers_to", notebook_id)
+    async def relate_to_project(self, project_id: str) -> Any:
+        if not project_id:
+            raise InvalidInputError("Project ID must be provided")
+        return await self.relate("refers_to", project_id)
 
     async def relate_to_source(self, source_id: str) -> Any:
         if not source_id:
@@ -746,7 +746,7 @@ async def vector_search(
     if not keyword:
         raise InvalidInputError("Search keyword cannot be empty")
     try:
-        from open_notebook.utils.embedding import generate_embedding
+        from construction_os.utils.embedding import generate_embedding
 
         # Use unified embedding function (handles chunking if query is very long)
         embed = await generate_embedding(keyword)

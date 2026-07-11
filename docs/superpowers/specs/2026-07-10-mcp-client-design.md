@@ -2,13 +2,13 @@
 
 **Date:** 2026-07-10  
 **Status:** Approved for implementation  
-**Stack:** FastAPI + SurrealDB + Next.js + LangGraph + AG-UI (Open Notebook conventions)
+**Stack:** FastAPI + SurrealDB + Next.js + LangGraph + AG-UI (Construction OS conventions)
 
 ## Goal
 
 Allow authenticated instance users to connect remote Model Context Protocol (MCP) servers over Streamable HTTP, discover tools, selectively attach tools to a chat message, and let the model execute only those authorized tools during that turn — with audit history and safe secret handling.
 
-This application acts as an **MCP client**. Building or changing an MCP server exposed by Open Notebook is out of scope.
+This application acts as an **MCP client**. Building or changing an MCP server exposed by Construction OS is out of scope.
 
 ## Decisions
 
@@ -17,10 +17,10 @@ This application acts as an **MCP client**. Building or changing an MCP server e
 | Ownership | Instance-global (password auth), same as Skills/Credentials; optional nullable `owner` reserved for future multi-tenant ACL |
 | Transport (v1) | Streamable HTTP only; transport field structured for later additions |
 | Auth types (v1) | `none` \| `bearer`; bearer token Fernet-encrypted at rest; never returned to browser |
-| Chat surfaces | Notebook chat + source chat only |
+| Chat surfaces | Project chat + source chat only |
 | Tool loop | LangGraph native `bind_tools` + bounded ToolNode loop; stream via AG-UI `TOOL_CALL_*` |
 | Action / unknown tools | Visible in picker as disabled; **not executable** until confirmation interrupt exists |
-| SSRF | Block private/loopback/link-local/metadata by default; opt-in via `OPEN_NOTEBOOK_MCP_ALLOW_PRIVATE_URLS=true` |
+| SSRF | Block private/loopback/link-local/metadata by default; opt-in via `construction_os_MCP_ALLOW_PRIVATE_URLS=true` |
 | Duplicate tool names | Runtime aliases include connection identity: `mcp__<conn_short>__<tool_name>` |
 | UI | Manage → Tools list + detail pages (`/tools`, `/tools/[id]`) |
 | Ask surface | Deferred |
@@ -45,10 +45,10 @@ This application acts as an **MCP client**. Building or changing an MCP server e
 
 | Path | v1 MCP? |
 |------|---------|
-| Notebook chat (`POST /api/chat/execute`) | Yes |
+| Project chat (`POST /api/chat/execute`) | Yes |
 | Source chat (`POST .../messages`) | Yes |
 | Ask streaming / `/ask/simple` | No (deferred) |
-| Transformations / prompt / ingestion | No |
+| Artifacts / prompt / ingestion | No |
 
 ## Architecture
 
@@ -57,7 +57,7 @@ Frontend (Tools UI, ToolPicker, tool-call cards, AG-UI handlers)
     ↓ REST / SSE
 API routers + services (mcp_*, chat/source_chat accept mcp_tool_ids)
     ↓
-open_notebook/mcp/  (server-only domain)
+construction_os/mcp/  (server-only domain)
   transport · url/ssrf · risk · allowlist · discovery · execution · audit helpers
     ↓                    ↓
 SurrealDB            Remote MCP (Streamable HTTP)
@@ -104,7 +104,7 @@ Shared domain layer is mandatory. Routers, UI, and graphs must not reimplement t
 
 Historical rows must remain readable after connection/tool removal.
 
-## Domain modules (`open_notebook/mcp/`)
+## Domain modules (`construction_os/mcp/`)
 
 | Module | Responsibility |
 |--------|----------------|
@@ -142,7 +142,7 @@ Always: http/https only; no userinfo in URL; disable redirects; request timeouts
 
 Default deny: loopback, private RFC1918, link-local, IPv6 unique-local, cloud metadata addresses.
 
-Allow private/loopback only when `OPEN_NOTEBOOK_MCP_ALLOW_PRIVATE_URLS=true`.
+Allow private/loopback only when `construction_os_MCP_ALLOW_PRIVATE_URLS=true`.
 
 ## API (high level)
 
@@ -153,7 +153,7 @@ Allow private/loopback only when `OPEN_NOTEBOOK_MCP_ALLOW_PRIVATE_URLS=true`.
 - `PUT /mcp/connections/{id}/auth` (replace bearer token; never returns old token)
 - `GET /mcp/connections/{id}/tools`
 - `GET /mcp/tools/selectable` (available tools for chat picker; safe metadata only)
-- Chat execute (notebook + source): accept `mcp_tool_ids: string[]`; store selection metadata on the user turn; run allowlist + tool loop
+- Chat execute (project + source): accept `mcp_tool_ids: string[]`; store selection metadata on the user turn; run allowlist + tool loop
 
 Public connection responses include auth_type and `has_auth_config`, never the token.
 
@@ -196,12 +196,12 @@ Structured counters (log fields or simple metrics): connect success/fail, tools 
 
 - Fake MCP server: initialize, initialized, tools/list, tools/call, JSON + SSE, success/error/delay/malformed, catalog changes
 - Unit: URL/SSRF, redirects disabled, bearer handling, redaction, parsers, session id propagation, timeouts, discovery sync (unavailable), allowlist, duplicate names across connections, schema validation, limits, duplicate-call prevention, audit survival, history rehydration
-- Integration: notebook + source chat parity for select → execute → card
+- Integration: project + source chat parity for select → execute → card
 
 ### Manual verification checklist
 
 1. Add MCP server without auth → test → sync → tools appear with risk  
-2. Select one read tool in notebook chat → model calls it → result used → card in history  
+2. Select one read tool in project chat → model calls it → result used → card in history  
 3. Unselected tool request → rejected, no remote contact  
 4. Bearer server → token absent from browser responses, logs, message metadata  
 5. Remove tool from fake catalog → sync → unavailable; gone from selectable  
@@ -217,8 +217,8 @@ Structured counters (log fields or simple metrics): connect success/fail, tools 
 - Ask / search MCP integration
 - Additional transports (stdio, legacy SSE)
 - OAuth / dynamic client registration for MCP
-- Exposing an MCP server from Open Notebook
-- Letting MCP tools write Open Notebook internal data except via the remote tool’s own behavior
+- Exposing an MCP server from Construction OS
+- Letting MCP tools write Construction OS internal data except via the remote tool’s own behavior
 
 ## Implementation order
 
@@ -228,6 +228,6 @@ Structured counters (log fields or simple metrics): connect success/fail, tools 
 4. Discovery/sync + selectable tools API  
 5. Tools list/detail UI  
 6. Chat ToolPicker + `mcp_tool_ids` plumbing  
-7. Allowlist + LangGraph tool loop (notebook + source)  
+7. Allowlist + LangGraph tool loop (project + source)  
 8. Audit + AG-UI tool-call rendering  
 9. Hardening, fake server, automated + manual verification

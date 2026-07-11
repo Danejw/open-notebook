@@ -13,17 +13,17 @@ from api.models import (
     ModelResponse,
     ProviderAvailabilityResponse,
 )
-from open_notebook.ai.connection_tester import test_individual_model
-from open_notebook.ai.key_provider import provision_provider_keys
-from open_notebook.ai.model_discovery import (
+from construction_os.ai.connection_tester import test_individual_model
+from construction_os.ai.key_provider import provision_provider_keys
+from construction_os.ai.model_discovery import (
     discover_provider_models,
     get_provider_model_count,
     sync_all_providers,
     sync_provider_models,
 )
-from open_notebook.ai.models import DefaultModels, Model
-from open_notebook.domain.credential import Credential
-from open_notebook.exceptions import InvalidInputError, NotFoundError
+from construction_os.ai.models import DefaultModels, Model
+from construction_os.domain.credential import Credential
+from construction_os.exceptions import InvalidInputError, NotFoundError
 
 router = APIRouter()
 
@@ -207,7 +207,7 @@ async def create_model(model_data: ModelCreate):
             )
 
         # Check for duplicate model name under the same provider and type (case-insensitive)
-        from open_notebook.database.repository import repo_query
+        from construction_os.database.repository import repo_query
 
         existing = await repo_query(
             "SELECT * FROM model WHERE string::lowercase(provider) = $provider AND string::lowercase(name) = $name AND string::lowercase(type) = $type LIMIT 1",
@@ -298,7 +298,7 @@ async def get_default_models():
 
         return DefaultModelsResponse(
             default_chat_model=defaults.default_chat_model,  # type: ignore[attr-defined]
-            default_transformation_model=defaults.default_transformation_model,  # type: ignore[attr-defined]
+            default_artifact_model=defaults.default_artifact_model,  # type: ignore[attr-defined]
             large_context_model=defaults.large_context_model,  # type: ignore[attr-defined]
             default_text_to_speech_model=defaults.default_text_to_speech_model,  # type: ignore[attr-defined]
             default_speech_to_text_model=defaults.default_speech_to_text_model,  # type: ignore[attr-defined]
@@ -321,9 +321,9 @@ async def update_default_models(defaults_data: DefaultModelsResponse):
         # Update only provided fields
         if defaults_data.default_chat_model is not None:
             defaults.default_chat_model = defaults_data.default_chat_model  # type: ignore[attr-defined]
-        if defaults_data.default_transformation_model is not None:
-            defaults.default_transformation_model = (
-                defaults_data.default_transformation_model
+        if defaults_data.default_artifact_model is not None:
+            defaults.default_artifact_model = (
+                defaults_data.default_artifact_model
             )  # type: ignore[attr-defined]
         if defaults_data.large_context_model is not None:
             defaults.large_context_model = defaults_data.large_context_model  # type: ignore[attr-defined]
@@ -346,7 +346,7 @@ async def update_default_models(defaults_data: DefaultModelsResponse):
 
         return DefaultModelsResponse(
             default_chat_model=defaults.default_chat_model,  # type: ignore[attr-defined]
-            default_transformation_model=defaults.default_transformation_model,  # type: ignore[attr-defined]
+            default_artifact_model=defaults.default_artifact_model,  # type: ignore[attr-defined]
             large_context_model=defaults.large_context_model,  # type: ignore[attr-defined]
             default_text_to_speech_model=defaults.default_text_to_speech_model,  # type: ignore[attr-defined]
             default_speech_to_text_model=defaults.default_speech_to_text_model,  # type: ignore[attr-defined]
@@ -615,7 +615,7 @@ async def get_models_by_provider(provider: str):
     Returns models from the database that belong to the specified provider.
     """
     try:
-        from open_notebook.database.repository import repo_query
+        from construction_os.database.repository import repo_query
 
         models = await repo_query(
             "SELECT * FROM model WHERE provider = $provider ORDER BY type, name",
@@ -701,7 +701,7 @@ async def auto_assign_defaults():
         - missing: List of slots with no available models
     """
     try:
-        from open_notebook.database.repository import repo_query
+        from construction_os.database.repository import repo_query
 
         # Get current defaults
         defaults = await DefaultModels.get_instance()
@@ -728,7 +728,7 @@ async def auto_assign_defaults():
         # Define slot configuration: (slot_name, model_type, current_value)
         slot_configs = [
             ("default_chat_model", "language", defaults.default_chat_model),  # type: ignore[attr-defined]
-            ("default_transformation_model", "language", defaults.default_transformation_model),  # type: ignore[attr-defined]
+            ("default_artifact_model", "language", defaults.default_artifact_model),  # type: ignore[attr-defined]
             ("default_tools_model", "language", defaults.default_tools_model),  # type: ignore[attr-defined]
             ("large_context_model", "language", defaults.large_context_model),  # type: ignore[attr-defined]
             ("default_embedding_model", "embedding", defaults.default_embedding_model),  # type: ignore[attr-defined]

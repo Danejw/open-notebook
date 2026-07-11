@@ -2,7 +2,7 @@ from langchain_core.messages import RemoveMessage
 from langchain_core.runnables import RunnableConfig
 from loguru import logger
 
-from open_notebook.exceptions import NotFoundError
+from construction_os.exceptions import NotFoundError
 
 
 async def get_session_message_count(graph, session_id: str) -> int:

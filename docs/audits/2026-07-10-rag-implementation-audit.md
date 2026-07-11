@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-10  
 **Scope:** Code-as-source-of-truth review of retrieval, embedding, Ask, Chat, and Search  
-**Verdict:** Open Notebook uses **classic vector RAG** (chunk → embed → cosine similarity), orchestrated by a **LangGraph multi-query workflow**. It is **not GraphRAG**.
+**Verdict:** Construction OS uses **classic vector RAG** (chunk → embed → cosine similarity), orchestrated by a **LangGraph multi-query workflow**. It is **not GraphRAG**.
 
 ---
 
@@ -12,7 +12,7 @@
 |----------|--------|
 | Is it RAG? | **Yes** — for **Ask** and for standalone **Search** (vector mode) |
 | Is it GraphRAG? | **No** — no entity extraction, no knowledge-graph traversal for retrieval, no community summaries |
-| What is “graph” in the stack? | (1) **SurrealDB** stores organizational relations (`reference`, `artifact`, `refers_to`); (2) **LangGraph** orchestrates Ask as a state machine. Neither is GraphRAG. |
+| What is “graph” in the stack? | (1) **SurrealDB** stores organizational relations (`reference`, `project_note`, `refers_to`); (2) **LangGraph** orchestrates Ask as a state machine. Neither is GraphRAG. |
 | Chat RAG? | **No** — Chat / Source Chat stuff selected full content (or summaries/insights) into the prompt |
 
 ---
@@ -33,7 +33,7 @@
 │  source_embedding: per-chunk content + embedding[]                       │
 │  source_insight.embedding, note.embedding: one vector per record         │
 │  BM25 SEARCH indexes on text fields                                      │
-│  Relations: source→notebook, note→notebook (org only, not used in RAG)   │
+│  Relations: source→project, note→project (org only, not used in RAG)   │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
           ┌─────────────────────────┼─────────────────────────┐
@@ -60,19 +60,19 @@
 3. Retrieves via graph traversal / community detection / graph summaries  
 4. Optionally combines that with vector search  
 
-**What Open Notebook actually does:**
+**What Construction OS actually does:**
 
 | GraphRAG trait | Present? | Evidence |
 |----------------|----------|----------|
 | Entity / relation extraction from content | No | No matches for GraphRAG, knowledge graph, entity extract, community detect in codebase |
 | Knowledge-graph retrieval | No | `vector_search` / `text_search` only; Ask hard-codes `vector_search` |
-| Community / hierarchical summaries for RAG | No | Insights are transformation outputs, not graph communities |
+| Community / hierarchical summaries for RAG | No | Insights are artifact outputs, not graph communities |
 | Vector chunk retrieval | **Yes** | `source_embedding` + cosine similarity |
 | Multi-hop query planning | Partial | Ask LLM plans up to ~5 search *terms*, not graph hops |
 
-**SurrealDB graph edges** (`reference`, `artifact`, `refers_to` in migration `1.surrealql`) link sources/notes to notebooks and chat sessions. They are **not** walked during Ask/Search retrieval.
+**SurrealDB graph edges** (`reference`, `project_note`, `refers_to` in migrations `1.surrealql` / `20.surrealql`) link sources/notes to projects and chat sessions. They are **not** walked during Ask/Search retrieval.
 
-**LangGraph** in `open_notebook/graphs/ask.py` is a **workflow graph** (agent → parallel provide_answer → final_answer), not a document knowledge graph.
+**LangGraph** in `construction_os/graphs/ask.py` is a **workflow graph** (agent → parallel provide_answer → final_answer), not a document knowledge graph.
 
 ---
 
@@ -107,7 +107,7 @@ Flow:
 5. `generate_embeddings(chunks)` (batched)  
 6. Bulk `INSERT` into `source_embedding` with `{source, order, content, embedding}`
 
-**Schema** (`open_notebook/database/migrations/1.surrealql`):
+**Schema** (`construction_os/database/migrations/1.surrealql`):
 
 ```surql
 DEFINE TABLE source_embedding SCHEMAFULL;
@@ -123,13 +123,13 @@ DEFINE TABLE source_embedding SCHEMAFULL;
 
 Sources do **not** auto-embed on save; callers must set `embed=True` / call `vectorize()`.
 
-### Chunking (`open_notebook/utils/chunking.py`)
+### Chunking (`construction_os/utils/chunking.py`)
 
 | Setting | Default | Env var |
 |---------|---------|---------|
-| Chunk size | **400 tokens** | `OPEN_NOTEBOOK_CHUNK_SIZE` |
-| Overlap | **15% of chunk size** | `OPEN_NOTEBOOK_CHUNK_OVERLAP` |
-| Min chunk | **5 tokens** | `OPEN_NOTEBOOK_MIN_CHUNK_SIZE` |
+| Chunk size | **400 tokens** | `CONSTRUCTION_OS_CHUNK_SIZE` |
+| Overlap | **15% of chunk size** | `CONSTRUCTION_OS_CHUNK_OVERLAP` |
+| Min chunk | **5 tokens** | `CONSTRUCTION_OS_MIN_CHUNK_SIZE` |
 
 Strategies:
 
@@ -137,10 +137,10 @@ Strategies:
 - **Markdown** → `MarkdownHeaderTextSplitter` (#–###) + secondary split  
 - **Plain** → `RecursiveCharacterTextSplitter` (token-length via tiktoken `o200k_base`)
 
-### Embedding generation (`open_notebook/utils/embedding.py`)
+### Embedding generation (`construction_os/utils/embedding.py`)
 
 - Provider via `model_manager.get_embedding_model()` (Esperanto)  
-- Batch size: `OPEN_NOTEBOOK_EMBEDDING_BATCH_SIZE` (default 50), 3 retries  
+- Batch size: `CONSTRUCTION_OS_EMBEDDING_BATCH_SIZE` (default 50), 3 retries  
 - Long single texts for notes/insights/queries: chunk → embed → **mean pool** (normalize → mean → normalize)
 
 ---
@@ -148,7 +148,7 @@ Strategies:
 ## Pipeline 2 — Standalone search (not full RAG)
 
 **API:** `POST /search` — `api/routers/search.py`  
-**Domain:** `text_search` / `vector_search` in `open_notebook/domain/notebook.py`
+**Domain:** `text_search` / `vector_search` in `construction_os/domain/project.py`
 
 ### Text search (BM25)
 
@@ -173,7 +173,7 @@ Searches three corpora (when flags allow):
 Filters: `embedding != none`, matching vector length, cosine ≥ `min_similarity`.  
 Groups by id/parent/title; returns `similarity` + flattened `matches` content.
 
-**Scope:** Global across the database — **no notebook_id filter** on Search or Ask request models.
+**Scope:** Global across the database — **no project_id filter** on Search or Ask request models.
 
 **Prerequisite:** Default embedding model must be configured (`model_manager.get_embedding_model()`).
 
@@ -182,7 +182,7 @@ Groups by id/parent/title; returns `similarity` + flattened `matches` content.
 ## Pipeline 3 — Ask (the RAG product path)
 
 **API:** `POST /search/ask` (SSE) and `POST /search/ask/simple`  
-**Graph:** `open_notebook/graphs/ask.py`  
+**Graph:** `construction_os/graphs/ask.py`  
 **Prompts:** `prompts/ask/{entry,query_process,final_answer}.jinja`
 
 ### LangGraph state machine
@@ -224,7 +224,7 @@ SSE events: `strategy` → `answer` (per sub-answer) → `final_answer` → `com
 
 Documented in `docs/2-CORE-CONCEPTS/ai-context-rag.md` and confirmed in code.
 
-### Notebook Chat (`open_notebook/graphs/chat.py`)
+### Project Chat (`construction_os/graphs/chat.py`)
 
 - Receives pre-built `context` string in state  
 - System prompt from `chat/system` + message history  
@@ -236,7 +236,7 @@ Documented in `docs/2-CORE-CONCEPTS/ai-context-rag.md` and confirmed in code.
 
 This is **context stuffing / full-document prompting**, not retrieval-augmented generation.
 
-### Source Chat (`open_notebook/graphs/source_chat.py`)
+### Source Chat (`construction_os/graphs/source_chat.py`)
 
 - `ContextBuilder` loads one source (+ insights), token-budgeted  
 - Still injects selected content into the system prompt — not similarity retrieval over the corpus  
@@ -259,18 +259,18 @@ This is **context stuffing / full-document prompting**, not retrieval-augmented 
 
 | Area | Path |
 |------|------|
-| Ask workflow | `open_notebook/graphs/ask.py` |
-| Chat workflow | `open_notebook/graphs/chat.py` |
-| Source chat | `open_notebook/graphs/source_chat.py` |
+| Ask workflow | `construction_os/graphs/ask.py` |
+| Chat workflow | `construction_os/graphs/chat.py` |
+| Source chat | `construction_os/graphs/source_chat.py` |
 | Search + Ask API | `api/routers/search.py` |
 | Context API | `api/routers/context.py` |
-| Domain search + Source.vectorize | `open_notebook/domain/notebook.py` |
+| Domain search + Source.vectorize | `construction_os/domain/project.py` |
 | Embed jobs | `commands/embedding_commands.py` |
-| Chunking | `open_notebook/utils/chunking.py` |
-| Embeddings | `open_notebook/utils/embedding.py` |
-| Context builder | `open_notebook/utils/context_builder.py` |
-| Vector/text SQL fns | `open_notebook/database/migrations/9.surrealql` (`fn::vector_search`), `4.surrealql` (`fn::text_search`) |
-| Schema | `open_notebook/database/migrations/1.surrealql` |
+| Chunking | `construction_os/utils/chunking.py` |
+| Embeddings | `construction_os/utils/embedding.py` |
+| Context builder | `construction_os/utils/context_builder.py` |
+| Vector/text SQL fns | `construction_os/database/migrations/9.surrealql` (`fn::vector_search`), `4.surrealql` (`fn::text_search`) |
+| Schema | `construction_os/database/migrations/1.surrealql` |
 | Ask prompts | `prompts/ask/*.jinja` |
 | User-facing RAG docs | `docs/2-CORE-CONCEPTS/ai-context-rag.md` |
 
@@ -280,13 +280,13 @@ This is **context stuffing / full-document prompting**, not retrieval-augmented 
 
 1. **Not GraphRAG** — upgrading to GraphRAG would be a new subsystem (entity graph + graph-aware retrieval), not a rename of LangGraph/SurrealDB.  
 2. **Ask ignores BM25** — strategy always uses vector search; hybrid retrieval is unused in Ask despite text search existing.  
-3. **No notebook scoping** — Ask/Search query the whole DB; notebook membership is not a retrieval filter.  
+3. **No project scoping** — Ask/Search query the whole DB; project membership is not a retrieval filter.  
 4. **Brute-force vectors** — no HNSW/MTREE; cost grows with corpus size.  
 5. **Asymmetric embedding storage** — sources = many chunk vectors; notes/insights = one (possibly mean-pooled) vector → retrieval granularity differs.  
-6. **Chat is not RAG** — large notebooks rely on user selection and context window limits; docs note community interest in adding RAG to Chat.  
+6. **Chat is not RAG** — large projects rely on user selection and context window limits; docs note community interest in adding RAG to Chat.  
 7. **Docs vs code on chunk size** — user guide historically said “~500 words”; code default is **400 tokens** (configurable). Prefer code/env vars.  
 8. **Embedding model required** — vector Search and Ask fail closed without a configured embedding model.  
-9. **SurrealDB “graph” confusion** — relational edges organize notebooks; they do not power multi-hop document reasoning.
+9. **SurrealDB “graph” confusion** — relational edges organize projects; they do not power multi-hop document reasoning.
 
 ---
 
@@ -295,7 +295,7 @@ This is **context stuffing / full-document prompting**, not retrieval-augmented 
 | Term in this repo | Meaning |
 |-------------------|---------|
 | LangGraph / `graphs/ask.py` | Workflow orchestration for Ask |
-| SurrealDB graph relations | Notebook membership / session links |
+| SurrealDB graph relations | Project membership / session links |
 | Vector search / RAG | Dense embedding similarity over chunks & records |
 | GraphRAG | **Not implemented** |
 
@@ -303,6 +303,6 @@ This is **context stuffing / full-document prompting**, not retrieval-augmented 
 
 ## Bottom line
 
-Open Notebook’s retrieval-augmented path is a **standard dense-vector RAG stack** with a **multi-query LLM planner** on top (Ask). Storage uses SurrealDB (which happens to be a graph database) and orchestration uses LangGraph (which happens to be a graph of nodes). Neither makes the system GraphRAG.
+Construction OS’s retrieval-augmented path is a **standard dense-vector RAG stack** with a **multi-query LLM planner** on top (Ask). Storage uses SurrealDB (which happens to be a graph database) and orchestration uses LangGraph (which happens to be a graph of nodes). Neither makes the system GraphRAG.
 
 For future work, treat “add GraphRAG” and “add RAG to Chat” as separate designs from the current Ask vector pipeline.

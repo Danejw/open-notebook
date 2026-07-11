@@ -1,7 +1,36 @@
 """
-Domain models for Open Notebook.
+Domain models for Construction OS.
 
 This module exports the core domain models used throughout the application.
+Importing this package registers ObjectModel subclasses for polymorphic get().
 """
 
-__all__: list[str] = []
+from construction_os.domain.artifact import Artifact, DefaultPrompts
+from construction_os.domain.base import ObjectModel, RecordModel
+from construction_os.domain.project import (
+    Asset,
+    ChatSession,
+    Note,
+    Project,
+    Source,
+    SourceEmbedding,
+    SourceInsight,
+    text_search,
+    vector_search,
+)
+
+__all__ = [
+    "Artifact",
+    "Asset",
+    "ChatSession",
+    "DefaultPrompts",
+    "Note",
+    "ObjectModel",
+    "Project",
+    "RecordModel",
+    "Source",
+    "SourceEmbedding",
+    "SourceInsight",
+    "text_search",
+    "vector_search",
+]

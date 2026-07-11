@@ -7,13 +7,13 @@ import zipfile
 
 import pytest
 
-from open_notebook.skills.standard import (
+from construction_os.skills.standard import (
     SkillStandardError,
     normalize_relative_path,
     parse_skill_md,
 )
-from open_notebook.skills.validation import validate_skill_files
-from open_notebook.skills.zip_io import (
+from construction_os.skills.validation import validate_skill_files
+from construction_os.skills.zip_io import (
     SkillFilePayload,
     build_skill_zip,
     extract_skill_zip,
@@ -87,7 +87,7 @@ def test_extract_zip_and_round_trip():
 
 
 def test_extract_all_skills_from_multi_skill_zip():
-    from open_notebook.skills.zip_io import extract_all_skills_from_zip
+    from construction_os.skills.zip_io import extract_all_skills_from_zip
 
     skill_b = """---
 name: gas-check

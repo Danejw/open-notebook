@@ -7,7 +7,7 @@ from typing import List, Optional
 from loguru import logger
 
 from api.client import api_client
-from open_notebook.ai.models import DefaultModels, Model
+from construction_os.ai.models import DefaultModels, Model
 
 
 class ModelsService:
@@ -60,8 +60,8 @@ class ModelsService:
 
         # Set the values from API response
         defaults.default_chat_model = defaults_data.get("default_chat_model")
-        defaults.default_transformation_model = defaults_data.get(
-            "default_transformation_model"
+        defaults.default_artifact_model = defaults_data.get(
+            "default_artifact_model"
         )
         defaults.large_context_model = defaults_data.get("large_context_model")
         defaults.default_text_to_speech_model = defaults_data.get(
@@ -79,7 +79,7 @@ class ModelsService:
         """Update default model assignments."""
         updates = {
             "default_chat_model": defaults.default_chat_model,
-            "default_transformation_model": defaults.default_transformation_model,
+            "default_artifact_model": defaults.default_artifact_model,
             "large_context_model": defaults.large_context_model,
             "default_text_to_speech_model": defaults.default_text_to_speech_model,
             "default_speech_to_text_model": defaults.default_speech_to_text_model,
@@ -92,8 +92,8 @@ class ModelsService:
 
         # Update the defaults object with the response
         defaults.default_chat_model = defaults_data.get("default_chat_model")
-        defaults.default_transformation_model = defaults_data.get(
-            "default_transformation_model"
+        defaults.default_artifact_model = defaults_data.get(
+            "default_artifact_model"
         )
         defaults.large_context_model = defaults_data.get("large_context_model")
         defaults.default_text_to_speech_model = defaults_data.get(

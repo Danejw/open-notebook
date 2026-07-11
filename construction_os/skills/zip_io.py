@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 from typing import Optional
 
-from open_notebook.skills.standard import (
+from construction_os.skills.standard import (
     FORBIDDEN_BASENAMES,
     MAX_FILE_BYTES,
     MAX_FILE_COUNT,

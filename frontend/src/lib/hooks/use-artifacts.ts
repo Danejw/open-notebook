@@ -1,49 +1,43 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { transformationsApi } from '@/lib/api/transformations'
+import { artifactsApi } from '@/lib/api/artifacts'
+import { QUERY_KEYS } from '@/lib/api/query-client'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { getApiErrorMessage } from '@/lib/utils/error-handler'
 import {
-  CreateTransformationRequest,
-  UpdateTransformationRequest,
-  ExecuteTransformationRequest
-} from '@/lib/types/transformations'
+  CreateArtifactRequest,
+  UpdateArtifactRequest,
+  ExecuteArtifactRequest
+} from '@/lib/types/artifacts'
 
-// Add to QUERY_KEYS in query-client.ts
-export const TRANSFORMATION_QUERY_KEYS = {
-  transformations: ['transformations'] as const,
-  transformation: (id: string) => ['transformations', id] as const,
-  defaultPrompt: ['transformations', 'default-prompt'] as const,
-}
-
-export function useTransformations() {
+export function useArtifacts() {
   return useQuery({
-    queryKey: TRANSFORMATION_QUERY_KEYS.transformations,
-    queryFn: () => transformationsApi.list(),
+    queryKey: QUERY_KEYS.artifacts,
+    queryFn: () => artifactsApi.list(),
   })
 }
 
-export function useTransformation(id?: string, options?: { enabled?: boolean }) {
-  const transformationId = id ?? ''
+export function useArtifact(id?: string, options?: { enabled?: boolean }) {
+  const artifactId = id ?? ''
   return useQuery({
-    queryKey: TRANSFORMATION_QUERY_KEYS.transformation(transformationId),
-    queryFn: () => transformationsApi.get(transformationId),
-    enabled: !!transformationId && (options?.enabled ?? true),
+    queryKey: QUERY_KEYS.artifact(artifactId),
+    queryFn: () => artifactsApi.get(artifactId),
+    enabled: !!artifactId && (options?.enabled ?? true),
   })
 }
 
-export function useCreateTransformation() {
+export function useCreateArtifact() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { t } = useTranslation()
 
   return useMutation({
-    mutationFn: (data: CreateTransformationRequest) => transformationsApi.create(data),
+    mutationFn: (data: CreateArtifactRequest) => artifactsApi.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TRANSFORMATION_QUERY_KEYS.transformations })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.artifacts })
       toast({
         title: t('common.success'),
-        description: t('transformations.createSuccess'),
+        description: t('artifacts.createSuccess'),
       })
     },
     onError: (error: unknown) => {
@@ -56,20 +50,20 @@ export function useCreateTransformation() {
   })
 }
 
-export function useUpdateTransformation() {
+export function useUpdateArtifact() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { t } = useTranslation()
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateTransformationRequest }) =>
-      transformationsApi.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: UpdateArtifactRequest }) =>
+      artifactsApi.update(id, data),
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: TRANSFORMATION_QUERY_KEYS.transformations })
-      queryClient.invalidateQueries({ queryKey: TRANSFORMATION_QUERY_KEYS.transformation(id) })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.artifacts })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.artifact(id) })
       toast({
         title: t('common.success'),
-        description: t('transformations.updateSuccess'),
+        description: t('artifacts.updateSuccess'),
       })
     },
     onError: (error: unknown) => {
@@ -82,18 +76,18 @@ export function useUpdateTransformation() {
   })
 }
 
-export function useDeleteTransformation() {
+export function useDeleteArtifact() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { t } = useTranslation()
 
   return useMutation({
-    mutationFn: (id: string) => transformationsApi.delete(id),
+    mutationFn: (id: string) => artifactsApi.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TRANSFORMATION_QUERY_KEYS.transformations })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.artifacts })
       toast({
         title: t('common.success'),
-        description: t('transformations.deleteSuccess'),
+        description: t('artifacts.deleteSuccess'),
       })
     },
     onError: (error: unknown) => {
@@ -106,12 +100,12 @@ export function useDeleteTransformation() {
   })
 }
 
-export function useExecuteTransformation() {
+export function useExecuteArtifact() {
   const { toast } = useToast()
   const { t } = useTranslation()
 
   return useMutation({
-    mutationFn: (data: ExecuteTransformationRequest) => transformationsApi.execute(data),
+    mutationFn: (data: ExecuteArtifactRequest) => artifactsApi.execute(data),
     onError: (error: unknown) => {
       toast({
         title: t('common.error'),
@@ -124,8 +118,8 @@ export function useExecuteTransformation() {
 
 export function useDefaultPrompt() {
   return useQuery({
-    queryKey: TRANSFORMATION_QUERY_KEYS.defaultPrompt,
-    queryFn: () => transformationsApi.getDefaultPrompt(),
+    queryKey: QUERY_KEYS.artifactDefaultPrompt,
+    queryFn: () => artifactsApi.getDefaultPrompt(),
   })
 }
 
@@ -135,12 +129,12 @@ export function useUpdateDefaultPrompt() {
   const { t } = useTranslation()
 
   return useMutation({
-    mutationFn: (prompt: { transformation_instructions: string }) => transformationsApi.updateDefaultPrompt(prompt),
+    mutationFn: (prompt: { artifact_instructions: string }) => artifactsApi.updateDefaultPrompt(prompt),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TRANSFORMATION_QUERY_KEYS.defaultPrompt })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.artifactDefaultPrompt })
       toast({
         title: t('common.success'),
-        description: t('transformations.updateSuccess'),
+        description: t('artifacts.updateSuccess'),
       })
     },
     onError: (error: unknown) => {

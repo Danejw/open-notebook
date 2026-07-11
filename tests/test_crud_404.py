@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from open_notebook.exceptions import NotFoundError
+from construction_os.exceptions import NotFoundError
 
 
 @pytest.fixture
@@ -25,42 +25,42 @@ def _nf(*_args, **_kwargs):
     raise NotFoundError("not found")
 
 
-# --- notebooks --------------------------------------------------------------
+# --- projects --------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-@patch("api.routers.notebooks.Notebook.get", new_callable=AsyncMock)
-async def test_delete_notebook_missing_returns_404(mock_get, client):
+@patch("api.routers.projects.Project.get", new_callable=AsyncMock)
+async def test_delete_project_missing_returns_404(mock_get, client):
     mock_get.side_effect = _nf
-    assert client.delete("/api/notebooks/notebook:gone").status_code == 404
+    assert client.delete("/api/projects/project:gone").status_code == 404
 
 
 @pytest.mark.asyncio
-@patch("api.routers.notebooks.Notebook.get", new_callable=AsyncMock)
-async def test_update_notebook_missing_returns_404(mock_get, client):
+@patch("api.routers.projects.Project.get", new_callable=AsyncMock)
+async def test_update_project_missing_returns_404(mock_get, client):
     mock_get.side_effect = _nf
-    assert client.put("/api/notebooks/notebook:gone", json={"name": "x"}).status_code == 404
+    assert client.put("/api/projects/project:gone", json={"name": "x"}).status_code == 404
 
 
 @pytest.mark.asyncio
-@patch("api.routers.notebooks.Notebook.get", new_callable=AsyncMock)
+@patch("api.routers.projects.Project.get", new_callable=AsyncMock)
 async def test_delete_preview_missing_returns_404(mock_get, client):
     mock_get.side_effect = _nf
-    assert client.get("/api/notebooks/notebook:gone/delete-preview").status_code == 404
+    assert client.get("/api/projects/project:gone/delete-preview").status_code == 404
 
 
 @pytest.mark.asyncio
-@patch("api.routers.notebooks.Notebook.get", new_callable=AsyncMock)
-async def test_add_source_missing_notebook_returns_404(mock_get, client):
+@patch("api.routers.projects.Project.get", new_callable=AsyncMock)
+async def test_add_source_missing_project_returns_404(mock_get, client):
     mock_get.side_effect = _nf
-    assert client.post("/api/notebooks/notebook:gone/sources/source:1").status_code == 404
+    assert client.post("/api/projects/project:gone/sources/source:1").status_code == 404
 
 
 @pytest.mark.asyncio
-@patch("api.routers.notebooks.Notebook.get", new_callable=AsyncMock)
-async def test_remove_source_missing_notebook_returns_404(mock_get, client):
+@patch("api.routers.projects.Project.get", new_callable=AsyncMock)
+async def test_remove_source_missing_project_returns_404(mock_get, client):
     mock_get.side_effect = _nf
-    assert client.delete("/api/notebooks/notebook:gone/sources/source:1").status_code == 404
+    assert client.delete("/api/projects/project:gone/sources/source:1").status_code == 404
 
 
 # --- notes ------------------------------------------------------------------

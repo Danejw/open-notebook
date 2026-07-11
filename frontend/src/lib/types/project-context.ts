@@ -1,4 +1,4 @@
-/** Chat-context inclusion mode for a notebook source or note. */
+/** Chat-context inclusion mode for a project source or note. */
 export type ContextMode = 'off' | 'insights' | 'full'
 export type NoteContextMode = Exclude<ContextMode, 'insights'>
 

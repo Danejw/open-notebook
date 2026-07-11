@@ -1,10 +1,10 @@
-# Open Notebook - Root CLAUDE.md
+# Construction OS - Root CLAUDE.md
 
-This file provides architectural guidance for contributors working on Open Notebook at the project level.
+This file provides architectural guidance for contributors working on Construction OS at the project level.
 
 ## Project Overview
 
-**Open Notebook** is an open-source, privacy-focused alternative to Google's Notebook LM. It's an AI-powered research assistant enabling users to upload multi-modal content (PDFs, audio, video, web pages), generate intelligent notes, search semantically, chat with AI models, and produce professional podcasts—all with complete control over data and choice of AI providers.
+**Construction OS** is an open-source, privacy-focused alternative to Google Notebook LM. It's an AI-powered research assistant enabling users to upload multi-modal content (PDFs, audio, video, web pages), generate intelligent notes, search semantically, chat with AI models, and produce professional podcasts—all with complete control over data and choice of AI providers.
 
 **Key Values**: Privacy-first, multi-provider AI support, fully self-hosted option, open-source transparency.
 
@@ -17,7 +17,7 @@ This file provides architectural guidance for contributors working on Open Noteb
 │              Frontend (React/Next.js)                    │
 │              frontend/ @ port 3000                       │
 ├─────────────────────────────────────────────────────────┤
-│ - Notebooks, sources, notes, chat, podcasts, search UI  │
+│ - Projects, sources, notes, chat, podcasts, search UI  │
 │ - Zustand state management, TanStack Query (React Query)│
 │ - Shadcn/ui component library with Tailwind CSS         │
 └────────────────────────┬────────────────────────────────┘
@@ -26,7 +26,7 @@ This file provides architectural guidance for contributors working on Open Noteb
 │              API (FastAPI)                              │
 │              api/ @ port 5055                           │
 ├─────────────────────────────────────────────────────────┤
-│ - REST endpoints for notebooks, sources, notes, chat    │
+│ - REST endpoints for projects, sources, notes, chat    │
 │ - LangGraph workflow orchestration                      │
 │ - Job queue for async operations (podcasts)             │
 │ - Multi-provider AI provisioning via Esperanto          │
@@ -36,8 +36,8 @@ This file provides architectural guidance for contributors working on Open Noteb
 │         Database (SurrealDB)                            │
 │         Graph database @ port 8000                      │
 ├─────────────────────────────────────────────────────────┤
-│ - Records: Notebook, Source, Note, ChatSession, Credential│
-│ - Relationships: source-to-notebook, note-to-source     │
+│ - Records: Project, Source, Note, ChatSession, Credential│
+│ - Relationships: source-to-project, note-to-source     │
 │ - Vector embeddings for semantic search                 │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -59,7 +59,7 @@ User documentation is at @docs/
 - **Build Tool**: Webpack (via Next.js)
 - **i18n compatible**: All front-end changes must also consider the translation keys
 
-### API Backend (`api/` + `open_notebook/`)
+### API Backend (`api/` + `construction_os/`)
 - **Framework**: FastAPI 0.104+
 - **Language**: Python 3.11+
 - **Workflows**: LangGraph state machines
@@ -93,7 +93,7 @@ User documentation is at @docs/
 - **source.py**: Content ingestion (extract → embed → save)
 - **chat.py**: Conversational agent with message history
 - **ask.py**: Search + synthesis (retrieve relevant sources → LLM)
-- **transformation.py**: Custom transformations on sources
+- **artifact.py**: Custom artifacts on sources
 - All use `provision_langchain_model()` for smart model selection
 
 ### 3. Multi-Provider AI
@@ -150,11 +150,22 @@ See dedicated CLAUDE.md files for detailed guidance:
 
 - **[frontend/CLAUDE.md](frontend/CLAUDE.md)**: React/Next.js architecture, state management, API integration
 - **[api/CLAUDE.md](api/CLAUDE.md)**: FastAPI structure, service pattern, endpoint development
-- **[open_notebook/CLAUDE.md](open_notebook/CLAUDE.md)**: Backend core, domain models, LangGraph workflows, AI provisioning
-- **[open_notebook/domain/CLAUDE.md](open_notebook/domain/CLAUDE.md)**: Data models, repository pattern, search functions
-- **[open_notebook/ai/CLAUDE.md](open_notebook/ai/CLAUDE.md)**: ModelManager, AI provider integration, Esperanto usage
-- **[open_notebook/graphs/CLAUDE.md](open_notebook/graphs/CLAUDE.md)**: LangGraph workflow design, state machines
-- **[open_notebook/database/CLAUDE.md](open_notebook/database/CLAUDE.md)**: SurrealDB operations, migrations, async patterns
+- **[construction_os/CLAUDE.md](construction_os/CLAUDE.md)**: Backend core, domain models, LangGraph workflows, AI provisioning
+- **[construction_os/domain/CLAUDE.md](construction_os/domain/CLAUDE.md)**: Data models, repository pattern, search functions
+- **[construction_os/ai/CLAUDE.md](construction_os/ai/CLAUDE.md)**: ModelManager, AI provider integration, Esperanto usage
+- **[construction_os/graphs/CLAUDE.md](construction_os/graphs/CLAUDE.md)**: LangGraph workflow design, state machines
+- **[construction_os/database/CLAUDE.md](construction_os/database/CLAUDE.md)**: SurrealDB operations, migrations, async patterns
+
+---
+
+## Documentation URLs
+
+Use these canonical URLs in user-facing links and AI context:
+
+- **Website**: `https://www.construction-os.ai`
+- **Docs (hosted)**: `https://github.com/lfnovo/construction-os/tree/main/docs`
+
+Do not use bare `construction-os.ai` (without `www`), legacy `open-notebook.ai`, or removed paths such as `docs/getting-started/`.
 
 ---
 
@@ -188,7 +199,7 @@ See dedicated CLAUDE.md files for detailed guidance:
 5. Test via http://localhost:5055/docs
 
 ### Add a New LangGraph Workflow
-1. Create `open_notebook/graphs/workflow_name.py`
+1. Create `construction_os/graphs/workflow_name.py`
 2. Define StateDict and node functions
 3. Build graph with `.add_node()` / `.add_edge()`
 4. Invoke in service: `graph.ainvoke({"input": ...}, config={"..."})`
@@ -211,8 +222,8 @@ See dedicated CLAUDE.md files for detailed guidance:
 
 ## Support & Community
 
-- **Documentation**: https://open-notebook.ai
+- **Documentation**: https://www.construction-os.ai (docs: https://github.com/lfnovo/construction-os/tree/main/docs)
 - **Discord**: https://discord.gg/37XJPXfz2w
-- **Issues**: https://github.com/lfnovo/open-notebook/issues
+- **Issues**: https://github.com/lfnovo/construction-os/issues
 - **License**: MIT (see LICENSE)
 

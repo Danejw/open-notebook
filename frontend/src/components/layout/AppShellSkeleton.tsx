@@ -4,12 +4,12 @@ import { DashboardContentSkeleton } from '@/components/layout/DashboardContentSk
 
 interface AppShellSkeletonProps {
   className?: string
-  /** When true, show three-column notebook layout skeleton */
-  notebookDetail?: boolean
+  /** When true, show three-column project layout skeleton */
+  projectDetail?: boolean
 }
 
 /** Full-viewport shell skeleton — used before dashboard layout mounts (e.g. ConnectionGuard). */
-export function AppShellSkeleton({ className, notebookDetail = false }: AppShellSkeletonProps) {
+export function AppShellSkeleton({ className, projectDetail = false }: AppShellSkeletonProps) {
   return (
     <div className={cn('flex h-screen overflow-hidden bg-background', className)}>
       <div className="flex h-full w-52 flex-col border-r border-sidebar-border bg-sidebar">
@@ -29,7 +29,7 @@ export function AppShellSkeleton({ className, notebookDetail = false }: AppShell
         </div>
       </div>
 
-      <DashboardContentSkeleton notebookDetail={notebookDetail} />
+      <DashboardContentSkeleton projectDetail={projectDetail} />
     </div>
   )
 }

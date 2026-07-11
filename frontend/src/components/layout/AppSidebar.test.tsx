@@ -4,6 +4,10 @@ import { describe, it, expect, vi } from 'vitest'
 import { AppSidebar } from './AppSidebar'
 import { useSidebarStore } from '@/lib/stores/sidebar-store'
 
+vi.mock('@/lib/hooks/use-route-prefetch', () => ({
+  useRoutePrefetch: () => vi.fn(),
+}))
+
 // Mock Tooltip components to avoid Radix UI async issues in tests
 vi.mock('@/components/ui/tooltip', () => ({
   TooltipProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -19,7 +23,7 @@ describe('AppSidebar', () => {
     // With mocked t() returning keys, check for translation key strings
     expect(screen.getByText('common.appName')).toBeDefined()
     expect(screen.getByText('navigation.sources')).toBeDefined()
-    expect(screen.getByText('navigation.notebooks')).toBeDefined()
+    expect(screen.getByText('navigation.projects')).toBeDefined()
   })
 
   it('toggles collapse state when clicking handle', () => {

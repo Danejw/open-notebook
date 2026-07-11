@@ -1,12 +1,12 @@
 # Reverse Proxy Configuration
 
-Deploy Open Notebook behind nginx, Caddy, Traefik, or other reverse proxies with custom domains and HTTPS.
+Deploy Construction OS behind nginx, Caddy, Traefik, or other reverse proxies with custom domains and HTTPS.
 
 ---
 
 ## Simplified Setup (v1.1+)
 
-Starting with v1.1, Open Notebook uses Next.js rewrites to simplify configuration. **You only need to proxy to one port** - Next.js handles internal API routing automatically.
+Starting with v1.1, Construction OS uses Next.js rewrites to simplify configuration. **You only need to proxy to one port** - Next.js handles internal API routing automatically.
 
 ### How It Works
 
@@ -27,7 +27,7 @@ Next.js automatically forwards `/api/*` requests to the FastAPI backend, so your
 ```nginx
 server {
     listen 443 ssl http2;
-    server_name notebook.example.com;
+    server_name project.example.com;
 
     ssl_certificate /etc/nginx/ssl/fullchain.pem;
     ssl_certificate_key /etc/nginx/ssl/privkey.pem;
@@ -37,7 +37,7 @@ server {
 
     # Single location block - that's it!
     location / {
-        proxy_pass http://open-notebook:8502;
+        proxy_pass http://construction-os:8502;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -52,7 +52,7 @@ server {
 # HTTP to HTTPS redirect
 server {
     listen 80;
-    server_name notebook.example.com;
+    server_name project.example.com;
     return 301 https://$server_name$request_uri;
 }
 ```
@@ -60,8 +60,8 @@ server {
 ### Caddy
 
 ```caddy
-notebook.example.com {
-    reverse_proxy open-notebook:8502 {
+project.example.com {
+    reverse_proxy construction-os:8502 {
         transport http {
             read_timeout 600s
             write_timeout 600s
@@ -70,27 +70,27 @@ notebook.example.com {
 }
 ```
 
-Caddy handles HTTPS automatically. The timeout settings ensure long-running operations (transformations, podcast generation) don't fail.
+Caddy handles HTTPS automatically. The timeout settings ensure long-running operations (artifacts, podcast generation) don't fail.
 
 ### Traefik
 
 ```yaml
 # Add this to your docker-compose.yml alongside the surrealdb service
-# See full base setup: https://github.com/lfnovo/open-notebook/blob/main/docker-compose.yml
+# See full base setup: https://github.com/lfnovo/construction-os/blob/main/docker-compose.yml
 services:
-  open-notebook:
-    image: lfnovo/open_notebook:v1-latest
+  construction-os:
+    image: lfnovo/construction-os:v1-latest
     pull_policy: always
     environment:
-      - API_URL=https://notebook.example.com
+      - API_URL=https://project.example.com
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.notebook.rule=Host(`notebook.example.com`)"
-      - "traefik.http.routers.notebook.entrypoints=websecure"
-      - "traefik.http.routers.notebook.tls.certresolver=myresolver"
-      - "traefik.http.services.notebook.loadbalancer.server.port=8502"
-      # Timeout for long-running operations (transformations, podcasts)
-      - "traefik.http.services.notebook.loadbalancer.responseforwarding.flushinterval=100ms"
+      - "traefik.http.routers.project.rule=Host(`project.example.com`)"
+      - "traefik.http.routers.project.entrypoints=websecure"
+      - "traefik.http.routers.project.tls.certresolver=myresolver"
+      - "traefik.http.services.project.loadbalancer.server.port=8502"
+      # Timeout for long-running operations (artifacts, podcasts)
+      - "traefik.http.services.project.loadbalancer.responseforwarding.flushinterval=100ms"
     networks:
       - traefik-network
 ```
@@ -161,20 +161,20 @@ When `API_URL` is not set, the Next.js frontend:
 
 ## Complete Docker Compose Example
 
-> **Note:** This example only shows the open-notebook and nginx services. You also need a `surrealdb` service. See the [full base docker-compose.yml](https://github.com/lfnovo/open-notebook/blob/main/docker-compose.yml) for the complete setup.
+> **Note:** This example only shows the construction-os and nginx services. You also need a `surrealdb` service. See the [full base docker-compose.yml](https://github.com/lfnovo/construction-os/blob/main/docker-compose.yml) for the complete setup.
 
 ```yaml
 services:
-  open-notebook:
-    image: lfnovo/open_notebook:v1-latest
+  construction-os:
+    image: lfnovo/construction-os:v1-latest
     pull_policy: always
-    container_name: open-notebook
+    container_name: construction-os
     environment:
-      - API_URL=https://notebook.example.com
-      - OPEN_NOTEBOOK_ENCRYPTION_KEY=${OPEN_NOTEBOOK_ENCRYPTION_KEY}
-      - OPEN_NOTEBOOK_PASSWORD=${OPEN_NOTEBOOK_PASSWORD}
+      - API_URL=https://project.example.com
+      - CONSTRUCTION_OS_ENCRYPTION_KEY=${CONSTRUCTION_OS_ENCRYPTION_KEY}
+      - CONSTRUCTION_OS_PASSWORD=${CONSTRUCTION_OS_PASSWORD}
     volumes:
-      - ./notebook_data:/app/data
+      - ./construction_os_data:/app/data
     # Only expose to localhost (nginx handles public access)
     ports:
       - "127.0.0.1:8502:8502"
@@ -190,7 +190,7 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./ssl:/etc/nginx/ssl:ro
     depends_on:
-      - open-notebook
+      - construction-os
     restart: unless-stopped
 ```
 
@@ -204,21 +204,21 @@ events {
 }
 
 http {
-    upstream notebook {
-        server open-notebook:8502;
+    upstream project {
+        server construction-os:8502;
     }
 
     # HTTP redirect
     server {
         listen 80;
-        server_name notebook.example.com;
+        server_name project.example.com;
         return 301 https://$server_name$request_uri;
     }
 
     # HTTPS server
     server {
         listen 443 ssl http2;
-        server_name notebook.example.com;
+        server_name project.example.com;
 
         ssl_certificate /etc/nginx/ssl/fullchain.pem;
         ssl_certificate_key /etc/nginx/ssl/privkey.pem;
@@ -236,7 +236,7 @@ http {
 
         # Proxy settings
         location / {
-            proxy_pass http://notebook;
+            proxy_pass http://project;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
@@ -246,7 +246,7 @@ http {
             proxy_set_header Connection 'upgrade';
             proxy_cache_bypass $http_upgrade;
 
-            # Timeouts for long-running operations (transformations, podcasts, etc.)
+            # Timeouts for long-running operations (artifacts, podcasts, etc.)
             # 600s matches the frontend timeout for slow LLM operations
             proxy_read_timeout 600s;
             proxy_connect_timeout 60s;
@@ -265,7 +265,7 @@ If external scripts or integrations need direct API access, route `/api/*` direc
 ```nginx
 # Direct API access (for external integrations)
 location /api/ {
-    proxy_pass http://open-notebook:5055/api/;
+    proxy_pass http://construction-os:5055/api/;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -275,7 +275,7 @@ location /api/ {
 
 # Frontend (handles all other traffic)
 location / {
-    proxy_pass http://open-notebook:8502;
+    proxy_pass http://construction-os:8502;
     # ... same headers as above
 }
 ```
@@ -288,11 +288,11 @@ location / {
 
 ### Remote Server Access (LAN/VPS)
 
-Accessing Open Notebook from a different machine on your network:
+Accessing Construction OS from a different machine on your network:
 
 **Step 1: Get your server IP**
 ```bash
-# On the server running Open Notebook:
+# On the server running Construction OS:
 hostname -I
 # or
 ifconfig | grep "inet "
@@ -309,8 +309,8 @@ API_URL=http://192.168.1.100:5055
 ```yaml
 # Add to your docker-compose.yml (requires surrealdb service, see installation guide)
 services:
-  open-notebook:
-    image: lfnovo/open_notebook:v1-latest
+  construction-os:
+    image: lfnovo/construction-os:v1-latest
     pull_policy: always
     environment:
       - API_URL=http://192.168.1.100:5055
@@ -340,12 +340,12 @@ Host the API and frontend on different subdomains:
 ```yaml
 # Add to your docker-compose.yml (requires surrealdb service, see installation guide)
 services:
-  open-notebook:
-    image: lfnovo/open_notebook:v1-latest
+  construction-os:
+    image: lfnovo/construction-os:v1-latest
     pull_policy: always
     environment:
-      - API_URL=https://api.notebook.example.com
-      - OPEN_NOTEBOOK_ENCRYPTION_KEY=${OPEN_NOTEBOOK_ENCRYPTION_KEY}
+      - API_URL=https://api.project.example.com
+      - CONSTRUCTION_OS_ENCRYPTION_KEY=${CONSTRUCTION_OS_ENCRYPTION_KEY}
     # Don't expose ports (nginx handles routing)
 ```
 
@@ -354,13 +354,13 @@ services:
 # Frontend server
 server {
     listen 443 ssl http2;
-    server_name notebook.example.com;
+    server_name project.example.com;
 
     ssl_certificate /etc/nginx/ssl/fullchain.pem;
     ssl_certificate_key /etc/nginx/ssl/privkey.pem;
 
     location / {
-        proxy_pass http://open-notebook:8502;
+        proxy_pass http://construction-os:8502;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -375,13 +375,13 @@ server {
 # API server (separate subdomain)
 server {
     listen 443 ssl http2;
-    server_name api.notebook.example.com;
+    server_name api.project.example.com;
 
     ssl_certificate /etc/nginx/ssl/fullchain.pem;
     ssl_certificate_key /etc/nginx/ssl/privkey.pem;
 
     location / {
-        proxy_pass http://open-notebook:5055;
+        proxy_pass http://construction-os:5055;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -395,58 +395,54 @@ server {
 
 ---
 
-### Multi-Container Deployment (Advanced)
+### Nginx with External SurrealDB (Advanced)
 
-For complex deployments with separate frontend and API containers:
+For deployments where you run SurrealDB separately and proxy only the Construction OS app:
 
 **docker-compose.yml:**
 ```yaml
 services:
-  frontend:
-    image: lfnovo/open_notebook_frontend:v1-latest
+  construction-os:
+    image: lfnovo/construction-os:v1-latest
     pull_policy: always
     environment:
-      - API_URL=https://notebook.example.com
+      - API_URL=https://project.example.com
+      - CONSTRUCTION_OS_ENCRYPTION_KEY=${CONSTRUCTION_OS_ENCRYPTION_KEY}
+      - SURREAL_URL=ws://your-surrealdb-host:8000/rpc
     ports:
-      - "8502:8502"
-
-  api:
-    image: lfnovo/open_notebook_api:v1-latest
-    pull_policy: always
-    environment:
-      - OPEN_NOTEBOOK_ENCRYPTION_KEY=${OPEN_NOTEBOOK_ENCRYPTION_KEY}
-    ports:
-      - "5055:5055"
-    depends_on:
-      - surrealdb
-
-  surrealdb:
-    image: surrealdb/surrealdb:latest
-    command: start --log trace --user root --pass root file:/mydata/database.db
-    ports:
-      - "8000:8000"
+      - "127.0.0.1:8502:8502"
+      - "127.0.0.1:5055:5055"
     volumes:
-      - ./surreal_data:/mydata
+      - ./construction_os_data:/app/data
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - construction-os
+    restart: unless-stopped
 ```
 
 **nginx.conf:**
 ```nginx
 http {
-    upstream frontend {
-        server frontend:8502;
-    }
-
-    upstream api {
-        server api:5055;
+    upstream construction_os {
+        server construction-os:8502;
     }
 
     server {
         listen 443 ssl http2;
-        server_name notebook.example.com;
+        server_name project.example.com;
 
-        # API routes
+        # API routes (single-container image serves both UI and API)
         location /api/ {
-            proxy_pass http://api/api/;
+            proxy_pass http://construction-os:5055/api/;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
@@ -456,7 +452,7 @@ http {
 
         # Frontend (catch-all)
         location / {
-            proxy_pass http://frontend;
+            proxy_pass http://construction_os;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
@@ -470,7 +466,7 @@ http {
 }
 ```
 
-**Note**: Most users should use the [Docker Compose](../1-INSTALLATION/docker-compose.md) approach (`v1-latest`). Multi-container with separate nginx is only needed for custom scaling or isolation requirements.
+**Note**: Construction OS ships as a **single container** (`lfnovo/construction-os:v1-latest`) that runs both the web UI (8502) and API (5055). Separate frontend/API images are not published. Most users should use the [Docker Compose](../1-INSTALLATION/docker-compose.md) approach with the built-in reverse-proxy examples above.
 
 ---
 
@@ -483,7 +479,7 @@ http {
 sudo apt install certbot python3-certbot-nginx
 
 # Get certificate
-sudo certbot --nginx -d notebook.example.com
+sudo certbot --nginx -d project.example.com
 
 # Auto-renewal (usually configured automatically)
 sudo certbot renew --dry-run
@@ -510,7 +506,7 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 
 1. **Check API_URL is set**:
    ```bash
-   docker exec open-notebook env | grep API_URL
+   docker exec construction-os env | grep API_URL
    ```
 
 2. **Verify reverse proxy reaches container**:
@@ -528,7 +524,7 @@ Frontend using HTTPS but trying to reach HTTP API:
 
 ```bash
 # Ensure API_URL uses https://
-API_URL=https://notebook.example.com  # Not http://
+API_URL=https://project.example.com  # Not http://
 ```
 
 ### WebSocket Issues
@@ -544,7 +540,7 @@ proxy_set_header Connection 'upgrade';
 ### 502 Bad Gateway
 
 1. Check container is running: `docker ps`
-2. Check container logs: `docker logs open-notebook`
+2. Check container logs: `docker logs construction-os`
 3. Verify nginx can reach container (same network)
 
 ### Timeout Errors
@@ -554,7 +550,7 @@ proxy_set_header Connection 'upgrade';
 - `Timeout after 30000ms` errors
 - Operations fail after exactly 30 seconds
 
-**Cause:** Your reverse proxy has a default timeout (often 30s) that's shorter than Open Notebook's operations.
+**Cause:** Your reverse proxy has a default timeout (often 30s) that's shorter than Construction OS's operations.
 
 **Solutions by proxy:**
 
@@ -566,7 +562,7 @@ proxy_send_timeout 600s;
 
 **Caddy:**
 ```caddy
-reverse_proxy open-notebook:8502 {
+reverse_proxy construction-os:8502 {
     transport http {
         read_timeout 600s
         write_timeout 600s
@@ -626,7 +622,7 @@ curl https://your-domain.com/api/config
 
 **Step 3: Check Docker logs**
 ```bash
-docker logs open-notebook
+docker logs construction-os
 
 # Look for:
 # - Frontend startup: "▲ Next.js ready on http://0.0.0.0:8502"
@@ -636,7 +632,7 @@ docker logs open-notebook
 
 **Step 4: Verify environment variable**
 ```bash
-docker exec open-notebook env | grep API_URL
+docker exec construction-os env | grep API_URL
 
 # Should show:
 # API_URL=https://your-domain.com
@@ -664,7 +660,7 @@ Check browser console (F12) - should see: `✅ [Config] Runtime API URL from ser
 ```nginx
 # Only needed for versions ≤ 1.0.10
 location = /config {
-    proxy_pass http://open-notebook:8502;
+    proxy_pass http://construction-os:8502;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Proto $scheme;
@@ -685,7 +681,7 @@ Error creating source. Please try again.
 When uploading files, your reverse proxy may reject the request due to body size limits *before* it reaches the application. Since the error happens at the proxy level, CORS headers are not included in the response.
 
 **Version Requirement:**
-- **Open Notebook v1.3.2+** is required for file uploads >10MB
+- **Construction OS v1.3.2+** is required for file uploads >10MB
 - Uses Next.js 16+ which supports the `proxyClientMaxBodySize` configuration option
 - Check your version: Settings → About (bottom of settings page)
 
@@ -726,7 +722,7 @@ When uploading files, your reverse proxy may reject the request due to body size
    Apply middleware to your router:
    ```yaml
    labels:
-     - "traefik.http.routers.notebook.middlewares=large-body"
+     - "traefik.http.routers.project.middlewares=large-body"
    ```
 
 3. **Kubernetes Ingress (nginx-ingress)**:
@@ -734,7 +730,7 @@ When uploading files, your reverse proxy may reject the request due to body size
    apiVersion: networking.k8s.io/v1
    kind: Ingress
    metadata:
-     name: open-notebook
+     name: construction-os
      annotations:
        nginx.ingress.kubernetes.io/proxy-body-size: "100m"
        # Add CORS headers for error responses
@@ -744,11 +740,11 @@ When uploading files, your reverse proxy may reject the request due to body size
 
 4. **Caddy**:
    ```caddy
-   notebook.example.com {
+   project.example.com {
        request_body {
            max_size 100MB
        }
-       reverse_proxy open-notebook:8502 {
+       reverse_proxy construction-os:8502 {
            transport http {
                read_timeout 600s
                write_timeout 600s
@@ -757,7 +753,7 @@ When uploading files, your reverse proxy may reject the request due to body size
    }
    ```
 
-**Note:** Open Notebook's API includes CORS headers in error responses, but this only works for errors that reach the application. Proxy-level errors (like 413 from nginx) need to be configured at the proxy level.
+**Note:** Construction OS's API includes CORS headers in error responses, but this only works for errors that reach the application. Proxy-level errors (like 413 from nginx) need to be configured at the proxy level.
 
 ---
 
@@ -783,15 +779,15 @@ Response to preflight request doesn't pass access control check
 2. **API_URL protocol mismatch**:
    ```bash
    # Frontend is HTTPS, but API_URL is HTTP:
-   API_URL=http://notebook.example.com  # ❌ Wrong
-   API_URL=https://notebook.example.com # ✅ Correct
+   API_URL=http://project.example.com  # ❌ Wrong
+   API_URL=https://project.example.com # ✅ Correct
    ```
 
 3. **Reverse proxy not forwarding `/api/*` correctly**:
    ```nginx
    # Make sure this works:
    location /api/ {
-       proxy_pass http://open-notebook:5055/api/;  # Note the trailing slash!
+       proxy_pass http://construction-os:5055/api/;  # Note the trailing slash!
    }
    ```
 
@@ -805,7 +801,7 @@ Response to preflight request doesn't pass access control check
 ```
 
 This happens when:
-- You have set `OPEN_NOTEBOOK_PASSWORD` for authentication
+- You have set `CONSTRUCTION_OS_PASSWORD` for authentication
 - You're trying to access `/api/config` directly without logging in first
 
 **Solution:**
@@ -833,7 +829,7 @@ curl -H "Authorization: Bearer your-password-here" \
 
 1. **Use Let's Encrypt** (recommended):
    ```bash
-   sudo certbot --nginx -d notebook.example.com
+   sudo certbot --nginx -d project.example.com
    ```
 
 2. **Check certificate paths** in nginx:
@@ -870,18 +866,18 @@ curl -H "Authorization: Bearer your-password-here" \
    - Test API: `curl https://your-domain.com/api/config`
    - Verify authentication works
    - Check long-running operations (podcast generation)
-9. **Monitor logs** regularly: `docker logs open-notebook`
+9. **Monitor logs** regularly: `docker logs construction-os`
 10. **Don't include `/api` in API_URL** - the system adds this automatically
 
 ---
 
 ## Legacy Configurations (Pre-v1.1)
 
-If you're running Open Notebook **version 1.0.x or earlier**, you may need to use the legacy two-port configuration where you explicitly route `/api/*` to port 5055.
+If you're running Construction OS **version 1.0.x or earlier**, you may need to use the legacy two-port configuration where you explicitly route `/api/*` to port 5055.
 
 **Check your version:**
 ```bash
-docker exec open-notebook cat /app/package.json | grep version
+docker exec construction-os cat /app/package.json | grep version
 ```
 
 **If version < 1.1.0**, you may need:

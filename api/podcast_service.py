@@ -5,8 +5,8 @@ from loguru import logger
 from pydantic import BaseModel
 from surreal_commands import get_command_status, submit_command
 
-from open_notebook.domain.notebook import Notebook
-from open_notebook.podcasts.models import EpisodeProfile, PodcastEpisode, SpeakerProfile
+from construction_os.domain.project import Project
+from construction_os.podcasts.models import EpisodeProfile, PodcastEpisode, SpeakerProfile
 
 
 class PodcastGenerationRequest(BaseModel):
@@ -16,7 +16,7 @@ class PodcastGenerationRequest(BaseModel):
     speaker_profile: str
     episode_name: str
     content: Optional[str] = None
-    notebook_id: Optional[str] = None
+    project_id: Optional[str] = None
     briefing_suffix: Optional[str] = None
 
 
@@ -38,7 +38,7 @@ class PodcastService:
         episode_profile_name: str,
         speaker_profile_name: str,
         episode_name: str,
-        notebook_id: Optional[str] = None,
+        project_id: Optional[str] = None,
         content: Optional[str] = None,
         briefing_suffix: Optional[str] = None,
     ) -> str:
@@ -54,25 +54,24 @@ class PodcastService:
             if not speaker_profile:
                 raise ValueError(f"Speaker profile '{speaker_profile_name}' not found")
 
-            # Get content from notebook if not provided directly
-            if not content and notebook_id:
+            # Get content from Project if not provided directly
+            if not content and project_id:
                 try:
-                    notebook = await Notebook.get(notebook_id)
-                    # Get notebook context (this may need to be adjusted based on actual Notebook implementation)
+                    project = await Project.get(project_id)
                     content = (
-                        await notebook.get_context()
-                        if hasattr(notebook, "get_context")
-                        else str(notebook)
+                        await project.get_context()
+                        if hasattr(project, "get_context")
+                        else str(project)
                     )
                 except Exception as e:
                     logger.warning(
-                        f"Failed to get notebook content, using notebook_id as content: {e}"
+                        f"Failed to get Project content, using project_id as content: {e}"
                     )
-                    content = f"Notebook ID: {notebook_id}"
+                    content = f"Project ID: {project_id}"
 
             if not content:
                 raise ValueError(
-                    "Content is required - provide either content or notebook_id"
+                    "Content is required - provide either content or project_id"
                 )
 
             # Prepare command arguments
@@ -93,7 +92,7 @@ class PodcastService:
                 raise ValueError("Podcast commands not available")
 
             # Submit command to surreal-commands
-            job_id = submit_command("open_notebook", "generate_podcast", command_args)
+            job_id = submit_command("construction_os", "generate_podcast", command_args)
 
             # Convert RecordID to string if needed
             if not job_id:

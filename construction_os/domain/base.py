@@ -10,7 +10,7 @@ from pydantic import (
     model_validator,
 )
 
-from open_notebook.database.repository import (
+from construction_os.database.repository import (
     ensure_record_id,
     repo_create,
     repo_delete,
@@ -19,7 +19,7 @@ from open_notebook.database.repository import (
     repo_update,
     repo_upsert,
 )
-from open_notebook.exceptions import (
+from construction_os.exceptions import (
     DatabaseOperationError,
     InvalidInputError,
     NotFoundError,
@@ -100,6 +100,11 @@ class ObjectModel(BaseModel):
             raise DatabaseOperationError(e)
 
     @classmethod
+    def _ensure_subclasses_registered(cls) -> None:
+        """Import domain modules so polymorphic get() can resolve table prefixes."""
+        import construction_os.domain  # noqa: F401
+
+    @classmethod
     async def get(cls: Type[T], id: str) -> T:
         if not id:
             raise InvalidInputError("ID cannot be empty")
@@ -112,6 +117,7 @@ class ObjectModel(BaseModel):
                 target_class: Type[T] = cls
             else:
                 # Otherwise, find the appropriate subclass based on table_name
+                cls._ensure_subclasses_registered()
                 found_class = cls._get_class_by_table_name(table_name)
                 if not found_class:
                     raise InvalidInputError(f"No class found for table {table_name}")

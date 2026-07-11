@@ -7,7 +7,7 @@ Chat is your main tool for exploratory questions and back-and-forth dialogue. Th
 ## Quick-Start: Your First Chat
 
 ```
-1. Go to your notebook
+1. Go to your project
 2. Click "Chat"
 3. Select which sources to include (context)
 4. Type your question
@@ -57,7 +57,7 @@ Result: Faster, cheaper answers (loses precision)
 - AI sees: Nothing
 - Cost: 0 tokens
 - Best for: Confidential, irrelevant, archived content
-- Example: "Keep this in notebook but don't use now"
+- Example: "Keep this in project but don't use now"
 
 ```
 You set: Paper C → Not in Context
@@ -70,7 +70,7 @@ Result: No cost, no privacy risk for that source
 
 ```
 1. Click "Select Sources"
-   (Shows list of all sources in notebook)
+   (Shows list of all sources in project)
 
 2. For each source:
    □ Checkbox: Include or exclude
@@ -515,7 +515,7 @@ For deep analysis: Sonnet/Opus worth the cost
 - [ ] Save good responses as notes
 - [ ] Archive conversation if you're done
 - [ ] Organize notes for future reference
-- [ ] Use insights in other features (Ask, Transformations, Podcasts)
+- [ ] Use insights in other features (Ask, Artifacts, Podcasts)
 
 ---
 
@@ -541,7 +541,7 @@ For deep analysis: Sonnet/Opus worth the cost
 
 Chat is fundamentally different from asking ChatGPT directly:
 
-| Aspect | ChatGPT | Open Notebook Chat |
+| Aspect | ChatGPT | Construction OS Chat |
 |--------|---------|-------------------|
 | **Source control** | None (uses training) | You control which sources are visible |
 | **Cost control** | Per token | Per token, but context is your choice |

@@ -2,7 +2,7 @@
 
 import pytest
 
-from open_notebook.mcp.schema_validate import (
+from construction_os.mcp.schema_validate import (
     McpArgumentValidationError,
     validate_tool_arguments,
 )

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Iterable, Optional
 
-from open_notebook.skills.standard import (
+from construction_os.skills.standard import (
     REQUIRED_ENTRY,
     extract_referenced_paths,
     normalize_relative_path,
@@ -14,7 +14,7 @@ from open_notebook.skills.standard import (
     validate_skill_description,
     validate_skill_name,
 )
-from open_notebook.skills.zip_io import SkillFilePayload, build_skill_zip
+from construction_os.skills.zip_io import SkillFilePayload, build_skill_zip
 
 
 @dataclass

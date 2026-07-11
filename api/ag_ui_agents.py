@@ -11,12 +11,12 @@ from ag_ui_langgraph import LangGraphAgent
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
-from open_notebook.graphs import ask as ask_module
-from open_notebook.graphs import chat as chat_module
-from open_notebook.graphs import source_chat as source_chat_module
-from open_notebook.utils.error_classifier import classify_error
+from construction_os.graphs import ask as ask_module
+from construction_os.graphs import chat as chat_module
+from construction_os.graphs import source_chat as source_chat_module
+from construction_os.utils.error_classifier import classify_error
 
-notebook_chat_agent = LangGraphAgent(name="notebook_chat", graph=chat_module.graph)
+project_chat_agent = LangGraphAgent(name="project_chat", graph=chat_module.graph)
 source_chat_agent = LangGraphAgent(
     name="source_chat", graph=source_chat_module.source_chat_graph
 )
@@ -25,8 +25,8 @@ ask_agent = LangGraphAgent(name="ask", graph=ask_module.graph)
 
 def refresh_agents() -> None:
     """Rebind AG-UI agents after chat graphs are compiled with AsyncSqliteSaver."""
-    global notebook_chat_agent, source_chat_agent, ask_agent
-    notebook_chat_agent = LangGraphAgent(name="notebook_chat", graph=chat_module.graph)
+    global project_chat_agent, source_chat_agent, ask_agent
+    project_chat_agent = LangGraphAgent(name="project_chat", graph=chat_module.graph)
     source_chat_agent = LangGraphAgent(
         name="source_chat", graph=source_chat_module.source_chat_graph
     )

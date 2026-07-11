@@ -4,24 +4,24 @@ from fastapi import APIRouter, HTTPException, Query
 from loguru import logger
 
 from api.models import NoteCreate, NoteResponse, NoteUpdate
-from open_notebook.domain.notebook import Note
-from open_notebook.exceptions import InvalidInputError, NotFoundError
+from construction_os.domain.project import Note
+from construction_os.exceptions import InvalidInputError, NotFoundError
 
 router = APIRouter()
 
 
 @router.get("/notes", response_model=List[NoteResponse])
 async def get_notes(
-    notebook_id: Optional[str] = Query(None, description="Filter by notebook ID"),
+    project_id: Optional[str] = Query(None, description="Filter by Project ID"),
 ):
-    """Get all notes with optional notebook filtering."""
+    """Get all notes with optional Project filtering."""
     try:
-        if notebook_id:
-            # Get notes for a specific notebook
-            from open_notebook.domain.notebook import Notebook
+        if project_id:
+            # Get notes for a specific Project
+            from construction_os.domain.project import Project
 
-            notebook = await Notebook.get(notebook_id)
-            notes = await notebook.get_notes()
+            project = await Project.get(project_id)
+            notes = await project.get_notes()
         else:
             # Get all notes
             notes = await Note.get_all(order_by="updated desc")
@@ -40,7 +40,7 @@ async def get_notes(
     except HTTPException:
         raise
     except NotFoundError:
-        raise HTTPException(status_code=404, detail="Notebook not found")
+        raise HTTPException(status_code=404, detail="Project not found")
     except Exception as e:
         logger.error(f"Error fetching notes: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching notes: {str(e)}")
@@ -53,7 +53,7 @@ async def create_note(note_data: NoteCreate):
         # Auto-generate title if not provided and it's an AI note
         title = note_data.title
         if not title and note_data.note_type == "ai" and note_data.content:
-            from open_notebook.graphs.prompt import graph as prompt_graph
+            from construction_os.graphs.prompt import graph as prompt_graph
 
             prompt = "Based on the Note below, please provide a Title for this content, with max 15 words"
             result = await prompt_graph.ainvoke(
@@ -80,13 +80,13 @@ async def create_note(note_data: NoteCreate):
         )
         command_id = await new_note.save()
 
-        # Add to notebook if specified
-        if note_data.notebook_id:
-            from open_notebook.domain.notebook import Notebook
+        # Add to Project if specified
+        if note_data.project_id:
+            from construction_os.domain.project import Project
 
-            # Verify the notebook exists (raises NotFoundError -> 404)
-            await Notebook.get(note_data.notebook_id)
-            await new_note.add_to_notebook(note_data.notebook_id)
+            # Verify the Project exists (raises NotFoundError -> 404)
+            await Project.get(note_data.project_id)
+            await new_note.add_to_project(note_data.project_id)
 
         return NoteResponse(
             id=new_note.id or "",
@@ -100,7 +100,7 @@ async def create_note(note_data: NoteCreate):
     except HTTPException:
         raise
     except NotFoundError:
-        raise HTTPException(status_code=404, detail="Notebook not found")
+        raise HTTPException(status_code=404, detail="Project not found")
     except InvalidInputError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

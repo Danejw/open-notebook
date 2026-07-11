@@ -1,4 +1,4 @@
-import type { ContextMode, NoteContextMode } from '@/lib/types/notebook-context'
+import type { ContextMode, NoteContextMode } from '@/lib/types/project-context'
 
 /**
  * Bulk context actions for sources:

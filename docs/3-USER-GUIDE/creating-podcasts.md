@@ -7,7 +7,7 @@ Podcasts let you consume your research passively. This guide covers the complete
 ## Quick-Start: Your First Podcast (5 Minutes)
 
 ```
-1. Go to your notebook
+1. Go to your project
 2. Click "Generate Podcast"
 3. Select sources to include
 4. Choose a speaker profile (or use default)
@@ -23,7 +23,7 @@ That's the minimum. Let's make it better.
 
 ## Step-by-Step: The Complete Workflow
 
-### Step 1: Prepare Your Notebook
+### Step 1: Prepare Your Project
 
 ```
 Before generating, make sure:
@@ -49,7 +49,7 @@ Typical preparation: 5-10 minutes
 Click "Generate Podcast"
 
 You'll see:
-- List of all sources in notebook
+- List of all sources in project
 - List of all notes
 
 Select which to include:
@@ -74,7 +74,7 @@ An episode profile defines the structure and tone.
 **Option A: Use Preset Profile**
 
 ```
-Open Notebook provides preset profiles:
+Construction OS provides preset profiles:
 
 Academic Presentation (Monologue)
 ├─ 1 speaker
@@ -140,7 +140,7 @@ Speakers are the "voice" of your podcast.
 **Option A: Use Preset Speakers**
 
 ```
-Open Notebook provides preset profiles:
+Construction OS provides preset profiles:
 
 "Expert Alex"
 - Expertise: Deep knowledge
@@ -241,7 +241,7 @@ Options:
 Download:
 1. Click "Download as MP3"
 2. Choose quality: 128kbps / 192kbps / 320kbps
-3. Save file: podcast_[notebook]_[date].mp3
+3. Save file: podcast_[project]_[date].mp3
 4. Listen!
 ```
 
@@ -488,7 +488,7 @@ Rule: 3-5 sources per podcast
 
 ## Advanced: Multiple Podcasts from Same Research
 
-You can generate different podcasts from one notebook:
+You can generate different podcasts from one project:
 
 ```
 Podcast 1: Overview
@@ -675,4 +675,4 @@ After: Same research, multiple formats (read/listen)
 
 Podcasts aren't just for entertainment—they're a tool for making research more accessible, shareable, and consumable.
 
-That's why they're important for Open Notebook.
+That's why they're important for Construction OS.

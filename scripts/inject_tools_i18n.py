@@ -104,9 +104,9 @@ def main() -> None:
                 )
                 changed = True
         if not re.search(r"^\s+tools:\s*[\"']", text, re.M):
-            if "transformations:" in text and "navigation:" in text:
+            if "artifacts:" in text and "navigation:" in text:
                 text = re.sub(
-                    r"(transformations:\s*\"[^\"]+\",\n)",
+                    r"(artifacts:\s*\"[^\"]+\",\n)",
                     r'\1    tools: "Tools",\n',
                     text,
                     count=1,

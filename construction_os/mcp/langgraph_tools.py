@@ -9,8 +9,8 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field, create_model
 
-from open_notebook.mcp.allowlist import AllowlistedTool, RuntimeAllowlist
-from open_notebook.mcp.execution import DuplicateCallGuard, execute_allowlisted_tool
+from construction_os.mcp.allowlist import AllowlistedTool, RuntimeAllowlist
+from construction_os.mcp.execution import DuplicateCallGuard, execute_allowlisted_tool
 
 
 def build_langchain_tools(

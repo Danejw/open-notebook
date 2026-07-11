@@ -1,0 +1,4 @@
+-- Rollback migration 20 (requires backup for production)
+
+REMOVE TABLE project_note;
+REMOVE TABLE project;

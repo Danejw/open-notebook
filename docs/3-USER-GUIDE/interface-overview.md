@@ -1,6 +1,6 @@
 # Interface Overview - Finding Your Way Around
 
-Open Notebook uses a clean three-panel layout. This guide shows you where everything is.
+Construction OS uses a clean three-panel layout. This guide shows you where everything is.
 
 ---
 
@@ -8,7 +8,7 @@ Open Notebook uses a clean three-panel layout. This guide shows you where everyt
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  [Logo]  Notebooks  Search  Podcasts  Models  Settings      │
+│  [Logo]  Projects  Search  Podcasts  Models  Settings      │
 ├──────────────┬──────────────┬───────────────────────────────┤
 │              │              │                               │
 │   SOURCES    │    NOTES     │           CHAT                │
@@ -30,8 +30,8 @@ The top navigation takes you to main sections:
 
 | Icon | Page | What It Does |
 |------|------|--------------|
-| **Notebooks** | Main workspace | Your research projects |
-| **Search** | Ask & Search | Query across all notebooks |
+| **Projects** | Main workspace | Your research projects |
+| **Search** | Ask & Search | Query across all projects |
 | **Podcasts** | Audio generation | Manage podcast profiles |
 | **Models** | AI configuration | Set up providers and models |
 | **Settings** | Preferences | App configuration |
@@ -191,7 +191,7 @@ Click any source to change its context level.
 
 ## Podcasts Tab
 
-Inside a notebook, switch to Podcasts:
+Inside a project, switch to Podcasts:
 
 ```
 ┌───────────────────────────────┐
@@ -266,7 +266,7 @@ Configure AI providers:
 
 ## Search Page
 
-Query across all notebooks:
+Query across all projects:
 
 ```
 ┌───────────────────────────────────────┐
@@ -279,10 +279,10 @@ Query across all notebooks:
 ├───────────────────────────────────────┤
 │  Results (15)                         │
 │                                       │
-│  📄 Paper.pdf - Notebook: Research    │
+│  📄 Paper.pdf - Project: Research    │
 │     "...the transformer model..."     │
 │                                       │
-│  📝 My Analysis - Notebook: Research  │
+│  📝 My Analysis - Project: Research  │
 │     "...key findings include..."      │
 └───────────────────────────────────────┘
 ```
@@ -291,22 +291,22 @@ Query across all notebooks:
 
 ## Common Actions
 
-### Create a Notebook
+### Create a Project
 
 ```
-Notebooks page → [+ New Notebook] → Enter name → Create
+Projects page → [+ New Project] → Enter name → Create
 ```
 
 ### Add a Source
 
 ```
-Inside notebook → [+ Add Source] → Choose type → Upload/paste → Wait for processing
+Inside project → [+ Add Source] → Choose type → Upload/paste → Wait for processing
 ```
 
 ### Ask a Question
 
 ```
-Inside notebook → Chat panel → Type question → Enter → Read response
+Inside project → Chat panel → Type question → Enter → Read response
 ```
 
 ### Save AI Response
@@ -369,7 +369,7 @@ On smaller screens, the three-panel layout stacks vertically:
 1. **Use keyboard** - Enter sends messages, Escape closes dialogs
 2. **Context first** - Set source context before chatting
 3. **Sessions** - Create new sessions for different topics
-4. **Search globally** - Use Search page to find across all notebooks
+4. **Search globally** - Use Search page to find across all projects
 5. **Models page** - Bookmark your preferred models
 
 ---

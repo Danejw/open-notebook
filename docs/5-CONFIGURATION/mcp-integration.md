@@ -1,16 +1,16 @@
 # Model Context Protocol (MCP) Integration
 
-Open Notebook can be seamlessly integrated into your AI workflows using the **Model Context Protocol (MCP)**, enabling direct access to your notebooks, sources, and chat functionality from AI assistants like Claude Desktop and VS Code extensions.
+Construction OS can be seamlessly integrated into your AI workflows using the **Model Context Protocol (MCP)**, enabling direct access to your projects, sources, and chat functionality from AI assistants like Claude Desktop and VS Code extensions.
 
 ## What is MCP?
 
-The [Model Context Protocol](https://modelcontextprotocol.io) is an open standard that allows AI applications to securely connect to external data sources and tools. With the Open Notebook MCP server, you can:
+The [Model Context Protocol](https://modelcontextprotocol.io) is an open standard that allows AI applications to securely connect to external data sources and tools. With the Construction OS MCP server, you can:
 
-- 📚 **Access your notebooks** directly from Claude Desktop or VS Code
+- 📚 **Access your projects** directly from Claude Desktop or VS Code
 - 🔍 **Search your research content** without leaving your AI assistant
 - 💬 **Create and manage chat sessions** with your research as context
 - 📝 **Generate notes** and insights on-the-fly
-- 🤖 **Automate workflows** using the full Open Notebook API
+- 🤖 **Automate workflows** using the full Construction OS API
 
 ## Quick Setup
 
@@ -29,12 +29,12 @@ The [Model Context Protocol](https://modelcontextprotocol.io) is an open standar
    ```json
    {
      "mcpServers": {
-       "open-notebook": {
+       "construction-os": {
          "command": "uvx",
-         "args": ["open-notebook-mcp"],
+         "args": ["construction-os-mcp"],
          "env": {
-           "OPEN_NOTEBOOK_URL": "http://localhost:5055",
-           "OPEN_NOTEBOOK_PASSWORD": "your_password_here"
+           "CONSTRUCTION_OS_URL": "http://localhost:5055",
+           "CONSTRUCTION_OS_PASSWORD": "your_password_here"
          }
        }
      }
@@ -46,19 +46,19 @@ The [Model Context Protocol](https://modelcontextprotocol.io) is an open standar
    ```json
    {
      "mcpServers": {
-       "open-notebook": {
+       "construction-os": {
          "command": "uvx",
-         "args": ["open-notebook-mcp"],
+         "args": ["construction-os-mcp"],
          "env": {
-           "OPEN_NOTEBOOK_URL": "http://localhost:5055",
-           "OPEN_NOTEBOOK_PASSWORD": "your_password_here"
+           "CONSTRUCTION_OS_URL": "http://localhost:5055",
+           "CONSTRUCTION_OS_PASSWORD": "your_password_here"
          }
        }
      }
    }
    ```
 
-3. **Restart Claude Desktop** and start using your notebooks in conversations!
+3. **Restart Claude Desktop** and start using your projects in conversations!
 
 ### For VS Code (Cline and other MCP-compatible extensions)
 
@@ -67,12 +67,12 @@ Add to your VS Code settings or `.vscode/mcp.json`:
 ```json
 {
   "servers": {
-    "open-notebook": {
+    "construction-os": {
       "command": "uvx",
-      "args": ["open-notebook-mcp"],
+      "args": ["construction-os-mcp"],
       "env": {
-        "OPEN_NOTEBOOK_URL": "http://localhost:5055",
-        "OPEN_NOTEBOOK_PASSWORD": "your_password_here"
+        "CONSTRUCTION_OS_URL": "http://localhost:5055",
+        "CONSTRUCTION_OS_PASSWORD": "your_password_here"
       }
     }
   }
@@ -81,52 +81,52 @@ Add to your VS Code settings or `.vscode/mcp.json`:
 
 ## Configuration
 
-- **OPEN_NOTEBOOK_URL**: URL to your Open Notebook API (default: `http://localhost:5055`)
-- **OPEN_NOTEBOOK_PASSWORD**: Optional - only needed if you've enabled password protection
+- **CONSTRUCTION_OS_URL**: URL to your Construction OS API (default: `http://localhost:5055`)
+- **CONSTRUCTION_OS_PASSWORD**: Optional - only needed if you've enabled password protection
 
 ### For Remote Servers
 
-If your Open Notebook instance is running on a remote server, update the URL accordingly:
+If your Construction OS instance is running on a remote server, update the URL accordingly:
 
 ```json
-"OPEN_NOTEBOOK_URL": "http://192.168.1.100:5055"
+"CONSTRUCTION_OS_URL": "http://192.168.1.100:5055"
 ```
 
 Or with a domain:
 
 ```json
-"OPEN_NOTEBOOK_URL": "https://notebook.yourdomain.com/api"
+"CONSTRUCTION_OS_URL": "https://project.yourdomain.com/api"
 ```
 
 ## What You Can Do
 
 Once connected, you can ask Claude or your AI assistant to:
 
-- _"Search my research notebooks for information about [topic]"_
+- _"Search my research projects for information about [topic]"_
 - _"Create a new note summarizing the key points from our conversation"_
-- _"List all my notebooks"_
+- _"List all my projects"_
 - _"Start a chat session about [specific source or topic]"_
-- _"What sources do I have in my [notebook name] notebook?"_
-- _"Add this PDF to my research notebook"_
-- _"Show me all notes in [notebook name]"_
+- _"What sources do I have in my [project name] project?"_
+- _"Add this PDF to my research project"_
+- _"Show me all notes in [project name]"_
 
-The MCP server provides full access to Open Notebook's capabilities, allowing you to manage your research seamlessly from within your AI assistant.
+The MCP server provides full access to Construction OS's capabilities, allowing you to manage your research seamlessly from within your AI assistant.
 
 ## Available Tools
 
-The Open Notebook MCP server exposes these capabilities:
+The Construction OS MCP server exposes these capabilities:
 
-### Notebooks
+### Projects
 
-- List notebooks
-- Get notebook details
-- Create new notebooks
-- Update notebook information
-- Delete notebooks
+- List projects
+- Get project details
+- Create new projects
+- Update project information
+- Delete projects
 
 ### Sources
 
-- List sources in a notebook
+- List sources in a project
 - Get source details
 - Add new sources (links, files, text)
 - Update source metadata
@@ -134,7 +134,7 @@ The Open Notebook MCP server exposes these capabilities:
 
 ### Notes
 
-- List notes in a notebook
+- List notes in a project
 - Get note details
 - Create new notes
 - Update notes
@@ -151,7 +151,7 @@ The Open Notebook MCP server exposes these capabilities:
 
 - Vector search across content
 - Text search across content
-- Filter by notebook
+- Filter by project
 
 ### Models
 
@@ -167,32 +167,32 @@ The Open Notebook MCP server exposes these capabilities:
 
 ## MCP Server Repository
 
-The Open Notebook MCP server is developed and maintained by the Epochal team:
+The Construction OS MCP server is developed and maintained by the Epochal team:
 
-**🔗 GitHub**: [Epochal-dev/open-notebook-mcp](https://github.com/Epochal-dev/open-notebook-mcp)
+**🔗 GitHub**: [Epochal-dev/construction-os-mcp](https://github.com/Epochal-dev/construction-os-mcp)
 
 Contributions, issues, and feature requests are welcome!
 
 ## Finding the Server
 
-The Open Notebook MCP server is published to the official MCP Registry:
+The Construction OS MCP server is published to the official MCP Registry:
 
-- **Registry**: Search for "open-notebook" at [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io)
-- **PyPI**: [pypi.org/project/open-notebook-mcp](https://pypi.org/project/open-notebook-mcp)
-- **GitHub**: [Epochal-dev/open-notebook-mcp](https://github.com/Epochal-dev/open-notebook-mcp)
+- **Registry**: Search for "construction-os" at [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io)
+- **PyPI**: [pypi.org/project/construction-os-mcp](https://pypi.org/project/construction-os-mcp)
+- **GitHub**: [Epochal-dev/construction-os-mcp](https://github.com/Epochal-dev/construction-os-mcp)
 
 ## Troubleshooting
 
 ### Connection Errors
 
-1. Verify the `OPEN_NOTEBOOK_URL` is correct and accessible
-2. If using password protection, ensure `OPEN_NOTEBOOK_PASSWORD` is set correctly
+1. Verify the `CONSTRUCTION_OS_URL` is correct and accessible
+2. If using password protection, ensure `CONSTRUCTION_OS_PASSWORD` is set correctly
 3. For remote servers, make sure port 5055 is accessible from your machine
 4. Check firewall settings if connecting to a remote server
 
 ## Using with Other MCP Clients
 
-The Open Notebook MCP server follows the standard MCP protocol and can be used with any MCP-compatible client. Check your client's documentation for configuration details.
+The Construction OS MCP server follows the standard MCP protocol and can be used with any MCP-compatible client. Check your client's documentation for configuration details.
 
 ## Learn More
 

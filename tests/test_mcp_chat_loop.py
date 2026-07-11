@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
-from open_notebook.mcp.chat_loop import generate_with_mcp_tools
+from construction_os.mcp.chat_loop import generate_with_mcp_tools
 
 
 @pytest.mark.asyncio
@@ -50,13 +50,13 @@ async def test_generate_rejects_unauthorized_tool_name():
     provision = AsyncMock(return_value=mock_model)
 
     with patch(
-        "open_notebook.mcp.chat_loop.build_allowlist",
+        "construction_os.mcp.chat_loop.build_allowlist",
         new_callable=AsyncMock,
     ) as mock_allowlist, patch(
-        "open_notebook.mcp.chat_loop.build_langchain_tools",
+        "construction_os.mcp.chat_loop.build_langchain_tools",
         return_value=[],
     ), patch(
-        "open_notebook.mcp.chat_loop.reject_unauthorized",
+        "construction_os.mcp.chat_loop.reject_unauthorized",
         new_callable=AsyncMock,
     ) as mock_reject:
         mock_allowlist.return_value = MagicMock()

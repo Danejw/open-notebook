@@ -4,11 +4,11 @@ services:
     # Credentials default to root:root for a zero-config local setup. Before
     # exposing this instance to a network, set SURREAL_USER / SURREAL_PASSWORD
     # in a .env file (see .env.example) — they are applied here and to the
-    # open_notebook service below, so the two always stay in sync.
+    # construction_os service below, so the two always stay in sync.
     command: start --log info --user ${SURREAL_USER:-root} --pass ${SURREAL_PASSWORD:-root} rocksdb:/mydata/mydatabase.db
     user: root  # Required for bind mounts on Linux
     ports:
-      # Bound to localhost only: the open_notebook service reaches this over
+      # Bound to localhost only: the construction_os service reaches this over
       # the internal compose network regardless, so the host port is purely
       # for local debugging (e.g. Surrealist, `surreal sql`). Exposing this
       # on 0.0.0.0 would let anyone who can reach the host connect with the
@@ -21,15 +21,15 @@ services:
     restart: always
     pull_policy: always
 
-  open_notebook:
-    image: lfnovo/open_notebook:v1-latest
+  construction_os:
+    image: lfnovo/construction-os:v1-latest
     ports:
       - "8502:8502"  # Web UI
       - "5055:5055"  # REST API
     environment:
       # REQUIRED: Change this to your own secret string
       # This encrypts your API keys in the database
-      - OPEN_NOTEBOOK_ENCRYPTION_KEY=my-super-duper-secret-key-808
+      - CONSTRUCTION_OS_ENCRYPTION_KEY=my-super-duper-secret-key-808
 
       # Database connection. SURREAL_USER / SURREAL_PASSWORD default to root:root
       # for local use; override them in a .env file before exposing the instance
@@ -37,10 +37,10 @@ services:
       - SURREAL_URL=ws://surrealdb:8000/rpc
       - SURREAL_USER=${SURREAL_USER:-root}
       - SURREAL_PASSWORD=${SURREAL_PASSWORD:-root}
-      - SURREAL_NAMESPACE=open_notebook
-      - SURREAL_DATABASE=open_notebook
+      - SURREAL_NAMESPACE=construction_os
+      - SURREAL_DATABASE=construction_os
     volumes:
-      - ./notebook_data:/app/data
+      - ./construction_os_data:/app/data
     depends_on:
       - surrealdb
     restart: always

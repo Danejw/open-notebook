@@ -2,21 +2,21 @@ from fastapi import APIRouter, HTTPException
 from loguru import logger
 
 from api.models import ContextRequest, ContextResponse
-from open_notebook.domain.notebook import Note, Notebook, Source
-from open_notebook.exceptions import InvalidInputError
-from open_notebook.utils import token_count
+from construction_os.domain.project import Note, Project, Source
+from construction_os.exceptions import InvalidInputError
+from construction_os.utils import token_count
 
 router = APIRouter()
 
 
-@router.post("/notebooks/{notebook_id}/context", response_model=ContextResponse)
-async def get_notebook_context(notebook_id: str, context_request: ContextRequest):
-    """Get context for a notebook based on configuration."""
+@router.post("/projects/{project_id}/context", response_model=ContextResponse)
+async def get_project_context(project_id: str, context_request: ContextRequest):
+    """Get context for a Project based on configuration."""
     try:
-        # Verify notebook exists
-        notebook = await Notebook.get(notebook_id)
-        if not notebook:
-            raise HTTPException(status_code=404, detail="Notebook not found")
+        # Verify Project exists
+        project = await Project.get(project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
 
         context_data: dict[str, list[dict[str, str]]] = {"note": [], "source": []}
         total_content = ""
@@ -76,7 +76,7 @@ async def get_notebook_context(notebook_id: str, context_request: ContextRequest
                     continue
         else:
             # Default behavior - include all sources and notes with short context
-            sources = await notebook.get_sources()
+            sources = await project.get_sources()
             for source in sources:
                 try:
                     source_context = await source.get_context(context_size="short")
@@ -86,7 +86,7 @@ async def get_notebook_context(notebook_id: str, context_request: ContextRequest
                     logger.warning(f"Error processing source {source.id}: {str(e)}")
                     continue
 
-            notes = await notebook.get_notes()
+            notes = await project.get_notes()
             for note in notes:
                 try:
                     note_context = note.get_context(context_size="short")
@@ -100,7 +100,7 @@ async def get_notebook_context(notebook_id: str, context_request: ContextRequest
         estimated_tokens = token_count(total_content) if total_content else 0
 
         return ContextResponse(
-            notebook_id=notebook_id,
+            project_id=project_id,
             sources=context_data["source"],
             notes=context_data["note"],
             total_tokens=estimated_tokens,
@@ -111,5 +111,5 @@ async def get_notebook_context(notebook_id: str, context_request: ContextRequest
     except InvalidInputError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error getting context for notebook {notebook_id}: {str(e)}")
+        logger.error(f"Error getting context for Project {project_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error getting context: {str(e)}")

@@ -12,23 +12,23 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
-from open_notebook.ai.provision import provision_langchain_model
-from open_notebook.domain.notebook import Notebook
-from open_notebook.exceptions import OpenNotebookError
-from open_notebook.graphs.progress import emit_agent_progress
-from open_notebook.mcp.chat_loop import generate_with_mcp_tools
-from open_notebook.skills.loader import format_skills_context, load_one_skill_md
-from open_notebook.utils import clean_thinking_content
-from open_notebook.utils.context_builder import ContextBuilder, ContextConfig
-from open_notebook.utils.error_classifier import classify_error
-from open_notebook.utils.text_utils import extract_text_content
-from open_notebook.utils.token_utils import token_count
+from construction_os.ai.provision import provision_langchain_model
+from construction_os.domain.project import Project
+from construction_os.exceptions import ConstructionOSError
+from construction_os.graphs.progress import emit_agent_progress
+from construction_os.mcp.chat_loop import generate_with_mcp_tools
+from construction_os.skills.loader import format_skills_context, load_one_skill_md
+from construction_os.utils import clean_thinking_content
+from construction_os.utils.context_builder import ContextBuilder, ContextConfig
+from construction_os.utils.error_classifier import classify_error
+from construction_os.utils.text_utils import extract_text_content
+from construction_os.utils.token_utils import token_count
 
 
 class ThreadState(TypedDict):
     messages: Annotated[list, add_messages]
-    notebook: Optional[Notebook]
-    notebook_id: Optional[str]
+    project: Optional[Project | dict]
+    project_id: Optional[str]
     context: Optional[str | dict]
     context_config: Optional[dict]
     model_override: Optional[str]
@@ -58,8 +58,8 @@ def _run_async(coro):
         return asyncio.run(coro)
 
 
-def _format_notebook_context(context: Optional[str | dict]) -> Optional[str]:
-    """Normalize notebook context payload into prompt text."""
+def _format_project_context(context: Optional[str | dict]) -> Optional[str]:
+    """Normalize Project context payload into prompt text."""
     if context is None:
         return None
     if isinstance(context, str):
@@ -166,7 +166,7 @@ def loading_skills(state: ThreadState, config: RunnableConfig) -> dict:
             )
 
         return {"skills_context": format_skills_context(blocks) or None}
-    except OpenNotebookError:
+    except ConstructionOSError:
         raise
     except Exception as e:
         error_class, user_message = classify_error(e)
@@ -174,40 +174,40 @@ def loading_skills(state: ThreadState, config: RunnableConfig) -> dict:
 
 
 def retrieving_context(state: ThreadState, config: RunnableConfig) -> dict:
-    """Retrieve/format notebook context with count/token progress events."""
+    """Retrieve/format Project context with count/token progress events."""
     try:
         emit_agent_progress("started", "retrieving_context", {}, config)
 
         context_config = state.get("context_config")
-        notebook_id = state.get("notebook_id")
-        if not notebook_id and isinstance(state.get("notebook"), dict):
-            notebook_id = state["notebook"].get("id")  # type: ignore[index]
-        elif not notebook_id and state.get("notebook") is not None:
-            notebook_id = getattr(state.get("notebook"), "id", None)
+        project_id = state.get("project_id")
+        if not project_id and isinstance(state.get("project"), dict):
+            project_id = state["project"].get("id")  # type: ignore[index]
+        elif not project_id and state.get("project") is not None:
+            project_id = getattr(state.get("project"), "id", None)
 
         built: Optional[str | dict] = None
-        if context_config and notebook_id:
+        if context_config and project_id:
             config_obj = ContextConfig(
                 sources=(context_config.get("sources") or {}),
                 notes=(context_config.get("notes") or {}),
             )
             built = _run_async(
                 ContextBuilder(
-                    notebook_id=notebook_id,
+                    project_id=project_id,
                     context_config=config_obj,
                     include_notes=True,
                     include_insights=True,
                 ).build()
             )
-            formatted = _format_notebook_context(built)
+            formatted = _format_project_context(built)
         else:
             built = state.get("context")
-            formatted = _format_notebook_context(built)
+            formatted = _format_project_context(built)
 
         detail = _context_counts(built if isinstance(built, dict) else None, formatted)
         emit_agent_progress("completed", "retrieving_context", detail, config)
         return {"context": formatted}
-    except OpenNotebookError:
+    except ConstructionOSError:
         raise
     except Exception as e:
         error_class, user_message = classify_error(e)
@@ -218,7 +218,12 @@ def generating(state: ThreadState, config: RunnableConfig) -> dict:
     """Provision model and generate the assistant reply (with optional MCP tools)."""
     try:
         emit_agent_progress("started", "generating", {}, config)
-        system_prompt = Prompter(prompt_template="chat/system").render(data=state)  # type: ignore[arg-type]
+        prompt_data = dict(state)
+        if prompt_data.get("project") is not None and "notebook" not in prompt_data:
+            prompt_data["notebook"] = prompt_data["project"]
+        system_prompt = Prompter(prompt_template="chat/system").render(
+            data=prompt_data
+        )  # type: ignore[arg-type]
         payload = [SystemMessage(content=system_prompt)] + list(
             state.get("messages", [])
         )
@@ -250,7 +255,7 @@ def generating(state: ThreadState, config: RunnableConfig) -> dict:
 
         emit_agent_progress("completed", "generating", {}, config)
         return {"messages": cleaned_message}
-    except OpenNotebookError:
+    except ConstructionOSError:
         raise
     except Exception as e:
         error_class, user_message = classify_error(e)

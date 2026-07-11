@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 
-import { notebooksApi } from '@/lib/api/notebooks'
+import { projectsApi } from '@/lib/api/projects'
 import { podcastsApi } from '@/lib/api/podcasts'
 import { sourcesApi } from '@/lib/api/sources'
 import { QUERY_KEYS } from '@/lib/api/query-client'
@@ -14,10 +14,10 @@ export function useRoutePrefetch() {
   const prefetchRoute = useCallback(
     (href: string) => {
       switch (href) {
-        case '/notebooks':
+        case '/projects':
           void queryClient.prefetchQuery({
-            queryKey: [...QUERY_KEYS.notebooks, { archived: false }],
-            queryFn: () => notebooksApi.list({ archived: false, order_by: 'updated desc' }),
+            queryKey: [...QUERY_KEYS.projects, { archived: false }],
+            queryFn: () => projectsApi.list({ archived: false, order_by: 'updated desc' }),
           })
           break
         case '/sources':

@@ -4,25 +4,25 @@ from fastapi import APIRouter, HTTPException, Query
 from loguru import logger
 
 from api.models import (
-    NotebookCreate,
-    NotebookDeletePreview,
-    NotebookDeleteResponse,
-    NotebookResponse,
-    NotebookUpdate,
+    ProjectCreate,
+    ProjectDeletePreview,
+    ProjectDeleteResponse,
+    ProjectResponse,
+    ProjectUpdate,
 )
-from open_notebook.database.repository import ensure_record_id, repo_query
-from open_notebook.domain.notebook import Notebook, Source
-from open_notebook.exceptions import InvalidInputError, NotFoundError
+from construction_os.database.repository import ensure_record_id, repo_query
+from construction_os.domain.project import Project, Source
+from construction_os.exceptions import InvalidInputError, NotFoundError
 
 router = APIRouter()
 
 
-@router.get("/notebooks", response_model=List[NotebookResponse])
-async def get_notebooks(
+@router.get("/projects", response_model=List[ProjectResponse])
+async def get_projects(
     archived: Optional[bool] = Query(None, description="Filter by archived status"),
     order_by: str = Query("updated desc", description="Order by field and direction"),
 ):
-    """Get all notebooks with optional filtering and ordering."""
+    """Get all projects with optional filtering and ordering."""
     try:
         # Validate order_by against allowlist to prevent SurrealQL injection
         allowed_fields = {"name", "created", "updated"}
@@ -53,8 +53,8 @@ async def get_notebooks(
         query = f"""
             SELECT *,
             count(<-reference.in) as source_count,
-            count(<-artifact.in) as note_count
-            FROM notebook
+            count(<-project_note.in) as note_count
+            FROM project
             ORDER BY {validated_order_by}
         """
 
@@ -62,72 +62,72 @@ async def get_notebooks(
 
         # Filter by archived status if specified
         if archived is not None:
-            result = [nb for nb in result if nb.get("archived") == archived]
+            result = [row for row in result if row.get("archived") == archived]
 
         return [
-            NotebookResponse(
-                id=str(nb.get("id", "")),
-                name=nb.get("name", ""),
-                description=nb.get("description", ""),
-                archived=nb.get("archived", False),
-                created=str(nb.get("created", "")),
-                updated=str(nb.get("updated", "")),
-                source_count=nb.get("source_count", 0),
-                note_count=nb.get("note_count", 0),
+            ProjectResponse(
+                id=str(row.get("id", "")),
+                name=row.get("name", ""),
+                description=row.get("description", ""),
+                archived=row.get("archived", False),
+                created=str(row.get("created", "")),
+                updated=str(row.get("updated", "")),
+                source_count=row.get("source_count", 0),
+                note_count=row.get("note_count", 0),
             )
-            for nb in result
+            for row in result
         ]
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching notebooks: {str(e)}")
+        logger.error(f"Error fetching projects: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Error fetching notebooks: {str(e)}"
+            status_code=500, detail=f"Error fetching projects: {str(e)}"
         )
 
 
-@router.post("/notebooks", response_model=NotebookResponse)
-async def create_notebook(notebook: NotebookCreate):
-    """Create a new notebook."""
+@router.post("/projects", response_model=ProjectResponse)
+async def create_project(project_data: ProjectCreate):
+    """Create a new Project."""
     try:
-        new_notebook = Notebook(
-            name=notebook.name,
-            description=notebook.description,
+        new_project = Project(
+            name=project_data.name,
+            description=project_data.description,
         )
-        await new_notebook.save()
+        await new_project.save()
 
-        return NotebookResponse(
-            id=new_notebook.id or "",
-            name=new_notebook.name,
-            description=new_notebook.description,
-            archived=new_notebook.archived or False,
-            created=str(new_notebook.created),
-            updated=str(new_notebook.updated),
-            source_count=0,  # New notebook has no sources
-            note_count=0,  # New notebook has no notes
+        return ProjectResponse(
+            id=new_project.id or "",
+            name=new_project.name,
+            description=new_project.description,
+            archived=new_project.archived or False,
+            created=str(new_project.created),
+            updated=str(new_project.updated),
+            source_count=0,  # New Project has no sources
+            note_count=0,  # New Project has no notes
         )
     except InvalidInputError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error creating notebook: {str(e)}")
+        logger.error(f"Error creating Project: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Error creating notebook: {str(e)}"
+            status_code=500, detail=f"Error creating Project: {str(e)}"
         )
 
 
 @router.get(
-    "/notebooks/{notebook_id}/delete-preview", response_model=NotebookDeletePreview
+    "/projects/{project_id}/delete-preview", response_model=ProjectDeletePreview
 )
-async def get_notebook_delete_preview(notebook_id: str):
-    """Get a preview of what will be deleted when this notebook is deleted."""
+async def get_project_delete_preview(project_id: str):
+    """Get a preview of what will be deleted when this Project is deleted."""
     try:
-        notebook = await Notebook.get(notebook_id)
+        project = await Project.get(project_id)
 
-        preview = await notebook.get_delete_preview()
+        preview = await project.get_delete_preview()
 
-        return NotebookDeletePreview(
-            notebook_id=str(notebook.id),
-            notebook_name=notebook.name,
+        return ProjectDeletePreview(
+            project_id=str(project.id),
+            project_name=project.name,
             note_count=preview["note_count"],
             exclusive_source_count=preview["exclusive_source_count"],
             shared_source_count=preview["shared_source_count"],
@@ -135,126 +135,126 @@ async def get_notebook_delete_preview(notebook_id: str):
     except HTTPException:
         raise
     except NotFoundError:
-        raise HTTPException(status_code=404, detail="Notebook not found")
+        raise HTTPException(status_code=404, detail="Project not found")
     except Exception as e:
-        logger.error(f"Error getting delete preview for notebook {notebook_id}: {e}")
+        logger.error(f"Error getting delete preview for Project {project_id}: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Error fetching notebook deletion preview: {str(e)}",
+            detail=f"Error fetching Project deletion preview: {str(e)}",
         )
 
 
-@router.get("/notebooks/{notebook_id}", response_model=NotebookResponse)
-async def get_notebook(notebook_id: str):
-    """Get a specific notebook by ID."""
+@router.get("/projects/{project_id}", response_model=ProjectResponse)
+async def get_project(project_id: str):
+    """Get a specific Project by ID."""
     try:
-        # Query with counts for single notebook
+        # Query with counts for single Project
         query = """
             SELECT *,
             count(<-reference.in) as source_count,
-            count(<-artifact.in) as note_count
-            FROM $notebook_id
+            count(<-project_note.in) as note_count
+            FROM $project_id
         """
-        result = await repo_query(query, {"notebook_id": ensure_record_id(notebook_id)})
+        result = await repo_query(query, {"project_id": ensure_record_id(project_id)})
 
         if not result:
-            raise HTTPException(status_code=404, detail="Notebook not found")
+            raise HTTPException(status_code=404, detail="Project not found")
 
-        nb = result[0]
-        return NotebookResponse(
-            id=str(nb.get("id", "")),
-            name=nb.get("name", ""),
-            description=nb.get("description", ""),
-            archived=nb.get("archived", False),
-            created=str(nb.get("created", "")),
-            updated=str(nb.get("updated", "")),
-            source_count=nb.get("source_count", 0),
-            note_count=nb.get("note_count", 0),
+        row = result[0]
+        return ProjectResponse(
+            id=str(row.get("id", "")),
+            name=row.get("name", ""),
+            description=row.get("description", ""),
+            archived=row.get("archived", False),
+            created=str(row.get("created", "")),
+            updated=str(row.get("updated", "")),
+            source_count=row.get("source_count", 0),
+            note_count=row.get("note_count", 0),
         )
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching notebook {notebook_id}: {str(e)}")
+        logger.error(f"Error fetching Project {project_id}: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Error fetching notebook: {str(e)}"
+            status_code=500, detail=f"Error fetching Project: {str(e)}"
         )
 
 
-@router.put("/notebooks/{notebook_id}", response_model=NotebookResponse)
-async def update_notebook(notebook_id: str, notebook_update: NotebookUpdate):
-    """Update a notebook."""
+@router.put("/projects/{project_id}", response_model=ProjectResponse)
+async def update_project(project_id: str, project_update: ProjectUpdate):
+    """Update a Project."""
     try:
-        notebook = await Notebook.get(notebook_id)
+        project = await Project.get(project_id)
 
         # Update only provided fields
-        if notebook_update.name is not None:
-            notebook.name = notebook_update.name
-        if notebook_update.description is not None:
-            notebook.description = notebook_update.description
-        if notebook_update.archived is not None:
-            notebook.archived = notebook_update.archived
+        if project_update.name is not None:
+            project.name = project_update.name
+        if project_update.description is not None:
+            project.description = project_update.description
+        if project_update.archived is not None:
+            project.archived = project_update.archived
 
-        await notebook.save()
+        await project.save()
 
         # Query with counts after update
         query = """
             SELECT *,
             count(<-reference.in) as source_count,
-            count(<-artifact.in) as note_count
-            FROM $notebook_id
+            count(<-project_note.in) as note_count
+            FROM $project_id
         """
-        result = await repo_query(query, {"notebook_id": ensure_record_id(notebook_id)})
+        result = await repo_query(query, {"project_id": ensure_record_id(project_id)})
 
         if result:
-            nb = result[0]
-            return NotebookResponse(
-                id=str(nb.get("id", "")),
-                name=nb.get("name", ""),
-                description=nb.get("description", ""),
-                archived=nb.get("archived", False),
-                created=str(nb.get("created", "")),
-                updated=str(nb.get("updated", "")),
-                source_count=nb.get("source_count", 0),
-                note_count=nb.get("note_count", 0),
+            row = result[0]
+            return ProjectResponse(
+                id=str(row.get("id", "")),
+                name=row.get("name", ""),
+                description=row.get("description", ""),
+                archived=row.get("archived", False),
+                created=str(row.get("created", "")),
+                updated=str(row.get("updated", "")),
+                source_count=row.get("source_count", 0),
+                note_count=row.get("note_count", 0),
             )
 
         # Fallback if query fails
-        return NotebookResponse(
-            id=notebook.id or "",
-            name=notebook.name,
-            description=notebook.description,
-            archived=notebook.archived or False,
-            created=str(notebook.created),
-            updated=str(notebook.updated),
+        return ProjectResponse(
+            id=project.id or "",
+            name=project.name,
+            description=project.description,
+            archived=project.archived or False,
+            created=str(project.created),
+            updated=str(project.updated),
             source_count=0,
             note_count=0,
         )
     except HTTPException:
         raise
     except NotFoundError:
-        raise HTTPException(status_code=404, detail="Notebook not found")
+        raise HTTPException(status_code=404, detail="Project not found")
     except InvalidInputError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error updating notebook {notebook_id}: {str(e)}")
+        logger.error(f"Error updating Project {project_id}: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Error updating notebook: {str(e)}"
+            status_code=500, detail=f"Error updating Project: {str(e)}"
         )
 
 
-@router.post("/notebooks/{notebook_id}/sources/{source_id}")
-async def add_source_to_notebook(notebook_id: str, source_id: str):
-    """Add an existing source to a notebook (create the reference)."""
+@router.post("/projects/{project_id}/sources/{source_id}")
+async def add_source_to_project(project_id: str, source_id: str):
+    """Add an existing source to a Project (create the reference)."""
     try:
-        # Verify the notebook and source exist (raises NotFoundError -> 404)
-        await Notebook.get(notebook_id)
+        # Verify the Project and source exist (raises NotFoundError -> 404)
+        await Project.get(project_id)
         await Source.get(source_id)
 
         # Check if reference already exists (idempotency)
         existing_ref = await repo_query(
-            "SELECT * FROM reference WHERE out = $source_id AND in = $notebook_id",
+            "SELECT * FROM reference WHERE out = $source_id AND in = $project_id",
             {
-                "notebook_id": ensure_record_id(notebook_id),
+                "project_id": ensure_record_id(project_id),
                 "source_id": ensure_record_id(source_id),
             },
         )
@@ -262,79 +262,79 @@ async def add_source_to_notebook(notebook_id: str, source_id: str):
         # If reference doesn't exist, create it
         if not existing_ref:
             await repo_query(
-                "RELATE $source_id->reference->$notebook_id",
+                "RELATE $source_id->reference->$project_id",
                 {
-                    "notebook_id": ensure_record_id(notebook_id),
+                    "project_id": ensure_record_id(project_id),
                     "source_id": ensure_record_id(source_id),
                 },
             )
 
-        return {"message": "Source linked to notebook successfully"}
+        return {"message": "Source linked to Project successfully"}
     except HTTPException:
         raise
     except NotFoundError:
-        raise HTTPException(status_code=404, detail="Notebook or source not found")
+        raise HTTPException(status_code=404, detail="Project or source not found")
     except Exception as e:
         logger.error(
-            f"Error linking source {source_id} to notebook {notebook_id}: {str(e)}"
+            f"Error linking source {source_id} to Project {project_id}: {str(e)}"
         )
         raise HTTPException(
-            status_code=500, detail=f"Error linking source to notebook: {str(e)}"
+            status_code=500, detail=f"Error linking source to Project: {str(e)}"
         )
 
 
-@router.delete("/notebooks/{notebook_id}/sources/{source_id}")
-async def remove_source_from_notebook(notebook_id: str, source_id: str):
-    """Remove a source from a notebook (delete the reference)."""
+@router.delete("/projects/{project_id}/sources/{source_id}")
+async def remove_source_from_project(project_id: str, source_id: str):
+    """Remove a source from a Project (delete the reference)."""
     try:
-        # Verify the notebook exists (raises NotFoundError -> 404)
-        await Notebook.get(notebook_id)
+        # Verify the Project exists (raises NotFoundError -> 404)
+        await Project.get(project_id)
 
-        # Delete the reference record linking source to notebook
+        # Delete the reference record linking source to Project
         await repo_query(
-            "DELETE FROM reference WHERE out = $notebook_id AND in = $source_id",
+            "DELETE FROM reference WHERE out = $project_id AND in = $source_id",
             {
-                "notebook_id": ensure_record_id(notebook_id),
+                "project_id": ensure_record_id(project_id),
                 "source_id": ensure_record_id(source_id),
             },
         )
 
-        return {"message": "Source removed from notebook successfully"}
+        return {"message": "Source removed from Project successfully"}
     except HTTPException:
         raise
     except NotFoundError:
-        raise HTTPException(status_code=404, detail="Notebook not found")
+        raise HTTPException(status_code=404, detail="Project not found")
     except Exception as e:
         logger.error(
-            f"Error removing source {source_id} from notebook {notebook_id}: {str(e)}"
+            f"Error removing source {source_id} from Project {project_id}: {str(e)}"
         )
         raise HTTPException(
-            status_code=500, detail=f"Error removing source from notebook: {str(e)}"
+            status_code=500, detail=f"Error removing source from Project: {str(e)}"
         )
 
 
-@router.delete("/notebooks/{notebook_id}", response_model=NotebookDeleteResponse)
-async def delete_notebook(
-    notebook_id: str,
+@router.delete("/projects/{project_id}", response_model=ProjectDeleteResponse)
+async def delete_project(
+    project_id: str,
     delete_exclusive_sources: bool = Query(
         False,
-        description="Whether to delete sources that belong only to this notebook",
+        description="Whether to delete sources that belong only to this Project",
     ),
 ):
     """
-    Delete a notebook with cascade deletion.
+    Delete a Project with cascade deletion.
 
-    Always deletes all notes associated with the notebook.
+    Always deletes all notes associated with the Project.
     If delete_exclusive_sources is True, also deletes sources that belong only
-    to this notebook (not linked to any other notebooks).
+    to this Project (not linked to any other projects).
     """
     try:
-        notebook = await Notebook.get(notebook_id)
+        project = await Project.get(project_id)
 
-        result = await notebook.delete(delete_exclusive_sources=delete_exclusive_sources)
+        result = await project.delete(delete_exclusive_sources=delete_exclusive_sources)
 
-        return NotebookDeleteResponse(
-            message="Notebook deleted successfully",
+        return ProjectDeleteResponse(
+            message="Project deleted successfully",
             deleted_notes=result["deleted_notes"],
             deleted_sources=result["deleted_sources"],
             unlinked_sources=result["unlinked_sources"],
@@ -342,9 +342,9 @@ async def delete_notebook(
     except HTTPException:
         raise
     except NotFoundError:
-        raise HTTPException(status_code=404, detail="Notebook not found")
+        raise HTTPException(status_code=404, detail="Project not found")
     except Exception as e:
-        logger.error(f"Error deleting notebook {notebook_id}: {str(e)}")
+        logger.error(f"Error deleting Project {project_id}: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Error deleting notebook: {str(e)}"
+            status_code=500, detail=f"Error deleting Project: {str(e)}"
         )

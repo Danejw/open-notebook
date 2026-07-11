@@ -10,16 +10,16 @@ from loguru import logger
 
 from langchain_core.runnables import RunnableConfig
 
-from open_notebook.domain.mcp import ChatToolCall
-from open_notebook.mcp.allowlist import AllowlistedTool, RuntimeAllowlist
-from open_notebook.mcp.progress import emit_mcp_tool_call
-from open_notebook.mcp.client import McpClient
-from open_notebook.mcp.result_text import bound_error_message, mcp_result_to_text
-from open_notebook.mcp.schema_validate import (
+from construction_os.domain.mcp import ChatToolCall
+from construction_os.mcp.allowlist import AllowlistedTool, RuntimeAllowlist
+from construction_os.mcp.progress import emit_mcp_tool_call
+from construction_os.mcp.client import McpClient
+from construction_os.mcp.result_text import bound_error_message, mcp_result_to_text
+from construction_os.mcp.schema_validate import (
     McpArgumentValidationError,
     validate_tool_arguments,
 )
-from open_notebook.mcp.transport import McpTransportError
+from construction_os.mcp.transport import McpTransportError
 
 
 class DuplicateCallGuard:

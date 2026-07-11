@@ -449,6 +449,9 @@ export const jaJP = {
     sessionCreated: "チャットセッションを作成しました",
     sessionUpdated: "セッションを更新しました",
     sessionDeleted: "セッションを削除しました",
+    edit: "編集",
+    editMessage: "メッセージを編集",
+    resend: "再送信",
   },
   searchPage: {
     askAndSearch: "質問と検索",

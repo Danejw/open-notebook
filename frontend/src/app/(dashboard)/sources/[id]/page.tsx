@@ -63,6 +63,8 @@ export default function SourceDetailPage() {
                 chat.updateSession(chat.currentSessionId, { model_override: model })
               }
             }}
+            selectedSkillIds={chat.selectedSkillIds}
+            onSkillIdsChange={chat.setSelectedSkillIds}
             sessions={chat.sessions}
             currentSessionId={chat.currentSessionId}
             onCreateSession={(title) => chat.createSession({ title })}

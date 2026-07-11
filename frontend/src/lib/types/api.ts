@@ -176,6 +176,7 @@ export interface UpdateSourceChatSessionRequest {
 export interface SendMessageRequest {
   message: string
   model_override?: string
+  skill_ids?: string[]
 }
 
 export interface SourceChatStreamEvent {
@@ -221,6 +222,8 @@ export interface SendNotebookChatMessageRequest {
     notes: Array<Record<string, unknown>>
   }
   model_override?: string
+  skill_ids?: string[]
+  edit_message_id?: string
 }
 
 export interface BuildContextRequest {

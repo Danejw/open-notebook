@@ -216,7 +216,7 @@ export default function NotebookPage() {
           <NotebookHeader notebook={notebook} />
         </div>
 
-        <div className="flex-1 px-3 py-2 overflow-x-auto flex flex-col min-h-0">
+        <div className="flex-1 px-1.5 py-2 overflow-x-auto flex flex-col min-h-0">
           {/* Mobile: Tabbed interface - only render on mobile to avoid double-mounting */}
           {!isDesktop && (
             <>
@@ -315,7 +315,7 @@ export default function NotebookPage() {
               <ResizableHandle
                 withHandle
                 disabled={sourcesCollapsed}
-                className="mx-1 w-3 rounded-full bg-transparent hover:bg-border/60"
+                className="mx-0.5 w-1.5 rounded-full bg-transparent hover:bg-border/60"
               />
 
               <ResizablePanel
@@ -341,7 +341,7 @@ export default function NotebookPage() {
               <ResizableHandle
                 withHandle
                 disabled={notesCollapsed}
-                className="mx-1 w-3 rounded-full bg-transparent hover:bg-border/60"
+                className="mx-0.5 w-1.5 rounded-full bg-transparent hover:bg-border/60"
               />
 
               <ResizablePanel

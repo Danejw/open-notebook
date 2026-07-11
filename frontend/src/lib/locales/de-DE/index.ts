@@ -452,6 +452,9 @@ export const deDE = {
     sessionCreated: "Chat-Sitzung erstellt",
     sessionUpdated: "Sitzung aktualisiert",
     sessionDeleted: "Sitzung gelöscht",
+    edit: "Bearbeiten",
+    editMessage: "Nachricht bearbeiten",
+    resend: "Erneut senden",
   },
   searchPage: {
     askAndSearch: "Fragen und Suchen",

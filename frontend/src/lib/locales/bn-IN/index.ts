@@ -449,6 +449,9 @@ export const bnIN = {
     sessionCreated: "চ্যাট সেশন তৈরি হয়েছে",
     sessionUpdated: "সেশন আপডেট হয়েছে",
     sessionDeleted: "সেশন মুছে ফেলা হয়েছে",
+    edit: "সম্পাদনা",
+    editMessage: "বার্তা সম্পাদনা",
+    resend: "পুনরায় পাঠান",
   },
   searchPage: {
     askAndSearch: "জিজ্ঞাসা ও অনুসন্ধান",

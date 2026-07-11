@@ -78,6 +78,10 @@ class SendMessageRequest(BaseModel):
     model_override: Optional[str] = Field(
         None, description="Optional model override for this message"
     )
+    skill_ids: List[str] = Field(
+        default_factory=list,
+        description="Selected skill IDs to load into chat context",
+    )
 
 class SuccessResponse(BaseModel):
     success: bool = Field(True, description="Operation success status")
@@ -415,7 +419,11 @@ async def delete_source_chat_session(
 
 
 async def stream_source_chat_response(
-    session_id: str, source_id: str, message: str, model_override: Optional[str] = None
+    session_id: str,
+    source_id: str,
+    message: str,
+    model_override: Optional[str] = None,
+    skill_ids: Optional[List[str]] = None,
 ) -> AsyncGenerator[str, None]:
     """Stream the source chat response as Server-Sent Events."""
     try:
@@ -431,6 +439,14 @@ async def stream_source_chat_response(
         state_values["messages"] = state_values.get("messages", [])
         state_values["source_id"] = source_id
         state_values["model_override"] = model_override
+
+        skills_context = ""
+        if skill_ids:
+            from open_notebook.skills.loader import load_skill_md_contents
+
+            skills_context = await load_skill_md_contents(skill_ids)
+        state_values["skills_context"] = skills_context or None
+        state_values["skill_ids"] = skill_ids or []
 
         # Add user message to state
         user_message = HumanMessage(content=message)
@@ -538,6 +554,7 @@ async def send_message_to_source_chat(
                 source_id=full_source_id,
                 message=request.message,
                 model_override=model_override,
+                skill_ids=request.skill_ids or None,
             ),
             media_type="text/event-stream",
             headers={

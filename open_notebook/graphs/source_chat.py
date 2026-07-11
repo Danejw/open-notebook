@@ -28,6 +28,8 @@ class SourceChatState(TypedDict):
     context: Optional[str]
     model_override: Optional[str]
     context_indicators: Optional[Dict[str, List[str]]]
+    skills_context: Optional[str]
+    skill_ids: Optional[list]
 
 
 def call_model_with_source_context(

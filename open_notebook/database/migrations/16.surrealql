@@ -1,0 +1,36 @@
+-- Migration 16: Skills feature — skill metadata + skill_file tree
+
+DEFINE TABLE IF NOT EXISTS skill SCHEMAFULL;
+
+DEFINE FIELD IF NOT EXISTS name ON TABLE skill TYPE string;
+DEFINE FIELD IF NOT EXISTS description ON TABLE skill TYPE string;
+DEFINE FIELD IF NOT EXISTS tags ON TABLE skill TYPE option<array<string>>;
+DEFINE FIELD IF NOT EXISTS owner ON TABLE skill TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS visibility ON TABLE skill TYPE string DEFAULT "instance";
+DEFINE FIELD IF NOT EXISTS status ON TABLE skill TYPE string DEFAULT "draft";
+DEFINE FIELD IF NOT EXISTS archived ON TABLE skill TYPE bool DEFAULT false;
+DEFINE FIELD IF NOT EXISTS validation_results ON TABLE skill FLEXIBLE TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS version ON TABLE skill TYPE option<string>;
+
+DEFINE FIELD IF NOT EXISTS created ON skill DEFAULT time::now() VALUE $before OR time::now();
+DEFINE FIELD IF NOT EXISTS updated ON skill DEFAULT time::now() VALUE time::now();
+
+DEFINE TABLE IF NOT EXISTS skill_file SCHEMAFULL;
+
+DEFINE FIELD IF NOT EXISTS skill ON TABLE skill_file TYPE record<skill>;
+DEFINE FIELD IF NOT EXISTS path ON TABLE skill_file TYPE string;
+DEFINE FIELD IF NOT EXISTS filename ON TABLE skill_file TYPE string;
+DEFINE FIELD IF NOT EXISTS content ON TABLE skill_file TYPE string;
+DEFINE FIELD IF NOT EXISTS encoding ON TABLE skill_file TYPE string DEFAULT "utf-8";
+DEFINE FIELD IF NOT EXISTS mime_type ON TABLE skill_file TYPE string;
+DEFINE FIELD IF NOT EXISTS size_bytes ON TABLE skill_file TYPE int;
+DEFINE FIELD IF NOT EXISTS required ON TABLE skill_file TYPE bool DEFAULT false;
+
+DEFINE FIELD IF NOT EXISTS created ON skill_file DEFAULT time::now() VALUE $before OR time::now();
+DEFINE FIELD IF NOT EXISTS updated ON skill_file DEFAULT time::now() VALUE time::now();
+
+DEFINE INDEX IF NOT EXISTS idx_skill_file_skill_path ON TABLE skill_file COLUMNS skill, path UNIQUE;
+
+DEFINE EVENT IF NOT EXISTS skill_delete ON TABLE skill WHEN ($after == NONE) THEN {
+    DELETE skill_file WHERE skill == $before.id;
+};

@@ -27,6 +27,14 @@ When a user asks you a question, analyze both the source content and the availab
 {{ context }}
 {% endif %}
 
+{% if skills_context %}
+# SKILLS (PROGRESSIVE DISCLOSURE)
+
+{{ skills_context }}
+
+When a skill's SKILL.md references supporting files (for example under references/, scripts/, or assets/), tell the user which relative path you need. Follow each skill's instructions carefully when the user task matches its description.
+{% endif %}
+
 # CITING INSTRUCTIONS
 
 When referencing information from the source or its insights, always include citations using the document IDs. This helps users track the specific content you're referencing.

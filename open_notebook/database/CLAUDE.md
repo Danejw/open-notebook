@@ -50,7 +50,7 @@ Both leverage connection context manager for lifecycle management and automatic 
   - `run_one_down()`: Rollback latest migration
 
 - `AsyncMigrationManager`: Main orchestrator
-  - Loads 15 up migrations + 15 down migrations (hard-coded in __init__; migrations 11-12 add credential system, 13 adds model-credential link, 14 adds podcast model registry fields, 15 adds the flexible `config` object to the credential table)
+  - Loads 16 up migrations + 16 down migrations (hard-coded in __init__; migrations 11-12 add credential system, 13 adds model-credential link, 14 adds podcast model registry fields, 15 adds the flexible `config` object to the credential table, 16 adds skill + skill_file tables)
   - `get_current_version()`: Query max version from _sbl_migrations table
   - `needs_migration()`: Boolean check (current < total migrations available)
   - `run_migration_up()`: Run all pending migrations with logging

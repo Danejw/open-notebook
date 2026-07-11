@@ -216,3 +216,115 @@
   width: 0;
   height: 0;
 }
+
+/* Markdown renderer — syntax highlighting (highlight.js) */
+.markdown-body .hljs {
+  color: var(--foreground);
+  background: transparent;
+}
+
+.markdown-body .hljs-comment,
+.markdown-body .hljs-quote {
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+.markdown-body .hljs-keyword,
+.markdown-body .hljs-selector-tag,
+.markdown-body .hljs-built_in,
+.markdown-body .hljs-name {
+  color: oklch(0.55 0.2 280);
+}
+
+.markdown-body .hljs-string,
+.markdown-body .hljs-attr,
+.markdown-body .hljs-symbol,
+.markdown-body .hljs-bullet {
+  color: oklch(0.5 0.15 145);
+}
+
+.markdown-body .hljs-number,
+.markdown-body .hljs-literal {
+  color: oklch(0.55 0.18 45);
+}
+
+.markdown-body .hljs-title,
+.markdown-body .hljs-section,
+.markdown-body .hljs-type,
+.markdown-body .hljs-class .hljs-title {
+  color: oklch(0.5 0.2 250);
+  font-weight: 600;
+}
+
+.markdown-body .hljs-variable,
+.markdown-body .hljs-template-variable,
+.markdown-body .hljs-attribute {
+  color: oklch(0.55 0.16 25);
+}
+
+.markdown-body .hljs-regexp,
+.markdown-body .hljs-link {
+  color: oklch(0.5 0.18 200);
+}
+
+.markdown-body .hljs-meta,
+.markdown-body .hljs-deletion {
+  color: var(--muted-foreground);
+}
+
+.markdown-body .hljs-addition {
+  color: oklch(0.5 0.15 145);
+}
+
+.markdown-body .hljs-emphasis {
+  font-style: italic;
+}
+
+.markdown-body .hljs-strong {
+  font-weight: 700;
+}
+
+.dark .markdown-body .hljs-keyword,
+.dark .markdown-body .hljs-selector-tag,
+.dark .markdown-body .hljs-built_in,
+.dark .markdown-body .hljs-name {
+  color: oklch(0.78 0.16 280);
+}
+
+.dark .markdown-body .hljs-string,
+.dark .markdown-body .hljs-attr,
+.dark .markdown-body .hljs-symbol,
+.dark .markdown-body .hljs-bullet,
+.dark .markdown-body .hljs-addition {
+  color: oklch(0.78 0.14 145);
+}
+
+.dark .markdown-body .hljs-number,
+.dark .markdown-body .hljs-literal {
+  color: oklch(0.8 0.14 85);
+}
+
+.dark .markdown-body .hljs-title,
+.dark .markdown-body .hljs-section,
+.dark .markdown-body .hljs-type,
+.dark .markdown-body .hljs-class .hljs-title {
+  color: oklch(0.78 0.14 250);
+}
+
+.dark .markdown-body .hljs-variable,
+.dark .markdown-body .hljs-template-variable,
+.dark .markdown-body .hljs-attribute {
+  color: oklch(0.78 0.12 35);
+}
+
+.dark .markdown-body .hljs-regexp,
+.dark .markdown-body .hljs-link {
+  color: oklch(0.75 0.12 200);
+}
+
+/* KaTeX block spacing inside markdown */
+.markdown-body .katex-display {
+  margin: 0.75rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}

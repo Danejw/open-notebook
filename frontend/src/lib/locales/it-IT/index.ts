@@ -449,6 +449,9 @@ export const itIT = {
     sessionCreated: "Sessione chat creata",
     sessionUpdated: "Sessione aggiornata",
     sessionDeleted: "Sessione eliminata",
+    edit: "Modifica",
+    editMessage: "Modifica messaggio",
+    resend: "Reinvia",
   },
   searchPage: {
     askAndSearch: "Chiedi e cerca",

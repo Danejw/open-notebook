@@ -449,6 +449,9 @@ export const esES = {
     sessionCreated: "Sesión de chat creada",
     sessionUpdated: "Sesión actualizada",
     sessionDeleted: "Sesión eliminada",
+    edit: "Editar",
+    editMessage: "Editar mensaje",
+    resend: "Reenviar",
   },
   searchPage: {
     askAndSearch: "Preguntar y buscar",

@@ -23,6 +23,14 @@ The user has selected this context to help you with your response:
 {{context}}
 {% endif %}
 
+{% if skills_context %}
+# SKILLS (PROGRESSIVE DISCLOSURE)
+
+{{skills_context}}
+
+When a skill's SKILL.md references supporting files (for example under references/, scripts/, or assets/), tell the user which relative path you need, or use the skill file contents already provided. Follow each skill's instructions carefully when the user task matches its description.
+{% endif %}
+
 # CITING INSTRUCTIONS
 
 If your answer is based off of any item in the context, it's very important that your response contains references to the searched documents so the user can follow-up and read more about the topic. The way you do that is by adding the id of the specific document in between brackets like this: [document_id].

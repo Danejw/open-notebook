@@ -33,6 +33,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
   const [charCount, setCharCount] = useState<number>(0)
   // Pending model override for when user changes model before a session exists
   const [pendingModelOverride, setPendingModelOverride] = useState<string | null>(null)
+  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([])
 
   // Fetch sessions for this notebook
   const {
@@ -173,7 +174,11 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
   }, [notebookId, sources, notes, contextSelections])
 
   // Send message (synchronous, no streaming)
-  const sendMessage = useCallback(async (message: string, modelOverride?: string) => {
+  const sendMessage = useCallback(async (
+    message: string,
+    modelOverride?: string,
+    editMessageId?: string,
+  ) => {
     let sessionId = currentSessionId
 
     // Auto-create session if none exists
@@ -209,7 +214,17 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
       content: message,
       timestamp: new Date().toISOString()
     }
-    setMessages(prev => [...prev, userMessage])
+
+    if (editMessageId) {
+      const editIndex = messages.findIndex((msg) => msg.id === editMessageId)
+      if (editIndex >= 0) {
+        setMessages([...messages.slice(0, editIndex), userMessage])
+      } else {
+        setMessages((prev) => [...prev, userMessage])
+      }
+    } else {
+      setMessages(prev => [...prev, userMessage])
+    }
     setIsSending(true)
 
     try {
@@ -219,7 +234,9 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
         session_id: sessionId,
         message,
         context,
-        model_override: modelOverride ?? (currentSession?.model_override ?? undefined)
+        model_override: modelOverride ?? (currentSession?.model_override ?? undefined),
+        skill_ids: selectedSkillIds.length > 0 ? selectedSkillIds : undefined,
+        edit_message_id: editMessageId,
       })
 
       // Update messages with API response
@@ -231,8 +248,12 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
       const error = err as { response?: { data?: { detail?: string } }, message?: string };
       console.error('Error sending message:', error)
       toast.error(getApiErrorMessage(error.response?.data?.detail || error.message, (key) => t(key), 'apiErrors.failedToSendMessage'))
-      // Remove optimistic message on error
-      setMessages(prev => prev.filter(msg => !msg.id.startsWith('temp-')))
+      if (editMessageId) {
+        await refetchCurrentSession()
+      } else {
+        // Remove optimistic message on error
+        setMessages(prev => prev.filter(msg => !msg.id.startsWith('temp-')))
+      }
     } finally {
       setIsSending(false)
     }
@@ -241,11 +262,20 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     currentSessionId,
     currentSession,
     pendingModelOverride,
+    selectedSkillIds,
+    messages,
     buildContext,
     refetchCurrentSession,
     queryClient,
     t
   ])
+
+  const editAndResend = useCallback(async (messageId: string, content: string, modelOverride?: string) => {
+    if (!content.trim()) {
+      return
+    }
+    await sendMessage(content.trim(), modelOverride, messageId)
+  }, [sendMessage])
 
   // Switch session
   const switchSession = useCallback((sessionId: string) => {
@@ -310,6 +340,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     tokenCount,
     charCount,
     pendingModelOverride,
+    selectedSkillIds,
 
     // Actions
     createSession,
@@ -317,7 +348,9 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     deleteSession,
     switchSession,
     sendMessage,
+    editAndResend,
     setModelOverride,
+    setSelectedSkillIds,
     refetchSessions
   }
 }

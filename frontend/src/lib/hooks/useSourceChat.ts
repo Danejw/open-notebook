@@ -21,6 +21,7 @@ export function useSourceChat(sourceId: string) {
   const [messages, setMessages] = useState<SourceChatMessage[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [contextIndicators, setContextIndicators] = useState<SourceChatContextIndicator | null>(null)
+  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([])
   const abortControllerRef = useRef<AbortController | null>(null)
 
   // Fetch sessions
@@ -134,7 +135,8 @@ export function useSourceChat(sourceId: string) {
     try {
       const response = await sourceChatApi.sendMessage(sourceId, sessionId, {
         message,
-        model_override: modelOverride
+        model_override: modelOverride,
+        skill_ids: selectedSkillIds.length > 0 ? selectedSkillIds : undefined,
       })
 
       if (!response) {
@@ -202,7 +204,7 @@ export function useSourceChat(sourceId: string) {
       // Refetch session to get persisted messages
       refetchCurrentSession()
     }
-  }, [sourceId, currentSessionId, refetchCurrentSession, queryClient, t])
+  }, [sourceId, currentSessionId, selectedSkillIds, refetchCurrentSession, queryClient, t])
 
   // Cancel streaming
   const cancelStreaming = useCallback(() => {
@@ -242,6 +244,7 @@ export function useSourceChat(sourceId: string) {
     isStreaming,
     contextIndicators,
     loadingSessions,
+    selectedSkillIds,
     
     // Actions
     createSession,
@@ -250,6 +253,7 @@ export function useSourceChat(sourceId: string) {
     switchSession,
     sendMessage,
     cancelStreaming,
-    refetchSessions
+    refetchSessions,
+    setSelectedSkillIds,
   }
 }

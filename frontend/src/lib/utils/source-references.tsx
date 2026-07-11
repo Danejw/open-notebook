@@ -161,7 +161,7 @@ export function convertSourceReferences(
 
 /**
  * Convert references in text to markdown links
- * Use this BEFORE passing text to ReactMarkdown
+ * Use this BEFORE passing text to MarkdownRenderer
  *
  * Handles complex patterns including:
  * - Plain references: source:abc → [source:abc](#ref-source-abc)
@@ -267,7 +267,7 @@ export function convertReferencesToMarkdownLinks(text: string): string {
 }
 
 /**
- * Create a custom link component for ReactMarkdown that handles reference links
+ * Create a custom link component for MarkdownRenderer that handles reference links
  *
  * @param onReferenceClick - Callback for when a reference link is clicked
  * @returns React component for rendering links
@@ -421,7 +421,7 @@ export function convertReferencesToCompactMarkdown(text: string, referencesLabel
 }
 
 /**
- * Create a custom link component for ReactMarkdown that handles compact reference links
+ * Create a custom link component for MarkdownRenderer that handles compact reference links
  *
  * This component handles two types of reference links:
  * 1. Numbered citations in text: [1](#ref-source-abc123)
@@ -435,7 +435,7 @@ export function convertReferencesToCompactMarkdown(text: string, referencesLabel
  *
  * @example
  * const LinkComponent = createCompactReferenceLinkComponent((type, id) => openModal(type, id))
- * <ReactMarkdown components={{ a: LinkComponent }}>...</ReactMarkdown>
+ * <MarkdownRenderer components={{ a: LinkComponent }}>...</MarkdownRenderer>
  */
 export function createCompactReferenceLinkComponent(
   onReferenceClick: (type: ReferenceType, id: string) => void

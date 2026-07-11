@@ -6,18 +6,16 @@ import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { Send, Loader2, FileText, Lightbulb, StickyNote, Clock } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import remarkMath from 'remark-math'
-import rehypeKatex from 'rehype-katex'
+import { Send, Loader2, FileText, Lightbulb, StickyNote, Clock, Pencil } from 'lucide-react'
 import {
   SourceChatMessage,
   SourceChatContextIndicator,
   BaseChatSession
 } from '@/lib/types/api'
 import { ModelSelector } from './ModelSelector'
+import { SkillPicker } from '@/components/skills/SkillPicker'
 import { ContextIndicator } from '@/components/common/ContextIndicator'
+import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
 import { SessionManager } from '@/components/source/SessionManager'
 import { MessageActions } from '@/components/source/MessageActions'
 import { convertReferencesToCompactMarkdown, createCompactReferenceLinkComponent } from '@/lib/utils/source-references'
@@ -46,6 +44,7 @@ interface ChatPanelProps {
   isStreaming: boolean
   contextIndicators: SourceChatContextIndicator | null
   onSendMessage: (message: string, modelOverride?: string) => void
+  onEditMessage?: (messageId: string, content: string, modelOverride?: string) => void
   modelOverride?: string
   onModelChange?: (model?: string) => void
   // Session management props
@@ -63,6 +62,9 @@ interface ChatPanelProps {
   notebookContextStats?: NotebookContextStats
   // Notebook ID for saving notes
   notebookId?: string
+  // Skills selection for notebook chat
+  selectedSkillIds?: string[]
+  onSkillIdsChange?: (ids: string[]) => void
 }
 
 export function ChatPanel({
@@ -70,6 +72,7 @@ export function ChatPanel({
   isStreaming,
   contextIndicators,
   onSendMessage,
+  onEditMessage,
   modelOverride,
   onModelChange,
   sessions = [],
@@ -82,12 +85,16 @@ export function ChatPanel({
   title,
   contextType = 'source',
   notebookContextStats,
-  notebookId
+  notebookId,
+  selectedSkillIds,
+  onSkillIdsChange,
 }: ChatPanelProps) {
   const { t } = useTranslation()
   const chatInputId = useId()
   const [input, setInput] = useState('')
   const [sessionManagerOpen, setSessionManagerOpen] = useState(false)
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState('')
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { openModal } = useModalManager()
@@ -120,6 +127,43 @@ export function ChatPanel({
     if (e.key === 'Enter' && isModifierPressed) {
       e.preventDefault()
       handleSend()
+    }
+  }
+
+  const startEditingMessage = (messageId: string, content: string) => {
+    if (isStreaming || !onEditMessage) {
+      return
+    }
+    setEditingMessageId(messageId)
+    setEditDraft(content)
+  }
+
+  const cancelEditingMessage = () => {
+    setEditingMessageId(null)
+    setEditDraft('')
+  }
+
+  const submitEditedMessage = () => {
+    if (!editingMessageId || !editDraft.trim() || isStreaming || !onEditMessage) {
+      return
+    }
+    onEditMessage(editingMessageId, editDraft.trim(), modelOverride)
+    setEditingMessageId(null)
+    setEditDraft('')
+  }
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    const isMac = typeof navigator !== 'undefined' && navigator.userAgent.toUpperCase().indexOf('MAC') >= 0
+    const isModifierPressed = isMac ? e.metaKey : e.ctrlKey
+
+    if (e.key === 'Enter' && isModifierPressed) {
+      e.preventDefault()
+      submitEditedMessage()
+    }
+
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      cancelEditingMessage()
     }
   }
 
@@ -196,30 +240,82 @@ export function ChatPanel({
                         message.type === 'human' ? 'items-end' : 'items-start'
                       )}
                     >
-                      <div
-                        className={cn(
-                          'rounded-lg px-3 py-1.5',
-                          message.type === 'human'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted'
-                        )}
-                      >
-                        {message.type === 'ai' ? (
-                          <AIMessageContent
-                            content={message.content}
-                            onReferenceClick={handleReferenceClick}
+                      {message.type === 'human' && editingMessageId === message.id ? (
+                        <div className="w-full min-w-[220px] rounded-lg border bg-background p-2 shadow-sm">
+                          <Textarea
+                            value={editDraft}
+                            onChange={(e) => setEditDraft(e.target.value)}
+                            onKeyDown={handleEditKeyDown}
+                            disabled={isStreaming}
+                            className="min-h-[72px] resize-none border-0 bg-transparent px-0 py-0 text-sm shadow-none focus-visible:ring-0"
+                            autoFocus
                           />
-                        ) : (
-                          <p className="text-sm break-words whitespace-pre-wrap">{message.content}</p>
-                        )}
-                      </div>
-                      {message.type === 'ai' && (
-                        <div className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                          <MessageActions
-                            content={message.content}
-                            notebookId={notebookId}
-                          />
+                          <div className="mt-2 flex justify-end gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={cancelEditingMessage}
+                              disabled={isStreaming}
+                            >
+                              {t('common.cancel')}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={submitEditedMessage}
+                              disabled={!editDraft.trim() || isStreaming}
+                            >
+                              {t('chat.resend')}
+                            </Button>
+                          </div>
                         </div>
+                      ) : (
+                        <>
+                          <div
+                            className={cn(
+                              'rounded-lg px-3 py-1.5',
+                              message.type === 'human'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted'
+                            )}
+                          >
+                            {message.type === 'ai' ? (
+                              <AIMessageContent
+                                content={message.content}
+                                onReferenceClick={handleReferenceClick}
+                              />
+                            ) : (
+                              <p className="text-sm break-words whitespace-pre-wrap">{message.content}</p>
+                            )}
+                          </div>
+                          {message.type === 'human' && onEditMessage && (
+                            <div className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-1.5 text-[11px] text-muted-foreground"
+                                onClick={() => startEditingMessage(message.id, message.content)}
+                                disabled={isStreaming || editingMessageId !== null}
+                                aria-label={t('chat.editMessage')}
+                              >
+                                <Pencil className="mr-1 h-3 w-3" />
+                                {t('chat.edit')}
+                              </Button>
+                            </div>
+                          )}
+                          {message.type === 'ai' && (
+                            <div className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                              <MessageActions
+                                content={message.content}
+                                notebookId={notebookId}
+                              />
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -281,6 +377,13 @@ export function ChatPanel({
                   disabled={isStreaming}
                 />
               )}
+              {onSkillIdsChange && (
+                <SkillPicker
+                  selectedSkillIds={selectedSkillIds ?? []}
+                  onChange={onSkillIdsChange}
+                  disabled={isStreaming}
+                />
+              )}
               <Textarea
                 id={chatInputId}
                 name="chat-message"
@@ -325,36 +428,11 @@ function AIMessageContent({
   const LinkComponent = createCompactReferenceLinkComponent(onReferenceClick)
 
   return (
-    <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none break-words prose-headings:font-semibold prose-a:text-blue-600 prose-a:break-all prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-p:mb-2 prose-p:leading-relaxed prose-li:mb-0.5">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeKatex]}
-        components={{
-          a: LinkComponent,
-          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-          h1: ({ children }) => <h1 className="mb-2 mt-3 first:mt-0">{children}</h1>,
-          h2: ({ children }) => <h2 className="mb-2 mt-3 first:mt-0">{children}</h2>,
-          h3: ({ children }) => <h3 className="mb-1.5 mt-2.5 first:mt-0">{children}</h3>,
-          h4: ({ children }) => <h4 className="mb-1.5 mt-2 first:mt-0">{children}</h4>,
-          h5: ({ children }) => <h5 className="mb-1 mt-2 first:mt-0">{children}</h5>,
-          h6: ({ children }) => <h6 className="mb-1 mt-2 first:mt-0">{children}</h6>,
-          li: ({ children }) => <li className="mb-0.5">{children}</li>,
-          ul: ({ children }) => <ul className="mb-2 space-y-0.5 last:mb-0">{children}</ul>,
-          ol: ({ children }) => <ol className="mb-2 space-y-0.5 last:mb-0">{children}</ol>,
-          table: ({ children }) => (
-            <div className="my-2 overflow-x-auto">
-              <table className="min-w-full border-collapse border border-border">{children}</table>
-            </div>
-          ),
-          thead: ({ children }) => <thead className="bg-muted">{children}</thead>,
-          tbody: ({ children }) => <tbody>{children}</tbody>,
-          tr: ({ children }) => <tr className="border-b border-border">{children}</tr>,
-          th: ({ children }) => <th className="border border-border px-2 py-1 text-left font-semibold">{children}</th>,
-          td: ({ children }) => <td className="border border-border px-2 py-1">{children}</td>,
-        }}
-      >
-        {markdownWithCompactRefs}
-      </ReactMarkdown>
-    </div>
+    <MarkdownRenderer
+      size="sm"
+      components={{ a: LinkComponent }}
+    >
+      {markdownWithCompactRefs}
+    </MarkdownRenderer>
   )
 }

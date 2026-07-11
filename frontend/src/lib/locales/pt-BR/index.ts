@@ -449,6 +449,9 @@ export const ptBR = {
     sessionCreated: "Sessão de chat criada",
     sessionUpdated: "Sessão atualizada",
     sessionDeleted: "Sessão excluída",
+    edit: "Editar",
+    editMessage: "Editar mensagem",
+    resend: "Reenviar",
   },
   searchPage: {
     askAndSearch: "Perguntar e Buscar",

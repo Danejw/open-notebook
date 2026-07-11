@@ -1,0 +1,6 @@
+-- Rollback migration 16: Skills
+
+REMOVE EVENT IF EXISTS skill_delete ON TABLE skill;
+REMOVE INDEX IF EXISTS idx_skill_file_skill_path ON TABLE skill_file;
+REMOVE TABLE IF EXISTS skill_file;
+REMOVE TABLE IF EXISTS skill;

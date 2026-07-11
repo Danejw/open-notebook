@@ -25,6 +25,8 @@ class ThreadState(TypedDict):
     context: Optional[str]
     context_config: Optional[dict]
     model_override: Optional[str]
+    skills_context: Optional[str]
+    skill_ids: Optional[list]
 
 
 def call_model_with_messages(state: ThreadState, config: RunnableConfig) -> dict:

@@ -449,6 +449,9 @@ export const zhTW = {
     sessionCreated: "聊天會話已建立",
     sessionUpdated: "會話已更新",
     sessionDeleted: "會話已刪除",
+    edit: "編輯",
+    editMessage: "編輯訊息",
+    resend: "重新傳送",
   },
   searchPage: {
     askAndSearch: "提問與搜尋",

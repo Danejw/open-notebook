@@ -449,6 +449,9 @@ export const plPL = {
     sessionCreated: "Utworzono sesję czatu",
     sessionUpdated: "Zaktualizowano sesję",
     sessionDeleted: "Usunięto sesję",
+    edit: "Edytuj",
+    editMessage: "Edytuj wiadomość",
+    resend: "Wyślij ponownie",
   },
   searchPage: {
     askAndSearch: "Pytaj i szukaj",

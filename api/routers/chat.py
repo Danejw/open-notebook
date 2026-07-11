@@ -13,7 +13,10 @@ from open_notebook.exceptions import (
     NotFoundError,
 )
 from open_notebook.graphs.chat import graph as chat_graph
-from open_notebook.utils.graph_utils import get_session_message_count
+from open_notebook.utils.graph_utils import (
+    get_session_message_count,
+    truncate_messages_from_id,
+)
 
 router = APIRouter()
 
@@ -69,6 +72,14 @@ class ExecuteChatRequest(BaseModel):
     )
     model_override: Optional[str] = Field(
         None, description="Optional model override for this message"
+    )
+    skill_ids: List[str] = Field(
+        default_factory=list,
+        description="Selected skill IDs to load into chat context",
+    )
+    edit_message_id: Optional[str] = Field(
+        None,
+        description="When set, truncate the session from this human message and resend",
     )
 
 
@@ -372,11 +383,42 @@ async def execute_chat(request: ExecuteChatRequest):
         state_values["notebook"] = notebook
         state_values["model_override"] = model_override
 
+        # Progressive disclosure: inject selected SKILL.md bodies
+        skills_context = ""
+        if request.skill_ids:
+            from open_notebook.skills.loader import load_skill_md_contents
+
+            skills_context = await load_skill_md_contents(request.skill_ids)
+        state_values["skills_context"] = skills_context or None
+        state_values["skill_ids"] = request.skill_ids or []
+
         # Add user message to state
         from langchain_core.messages import HumanMessage
 
         user_message = HumanMessage(content=request.message)
-        state_values["messages"].append(user_message)
+
+        if request.edit_message_id:
+            try:
+                await truncate_messages_from_id(
+                    chat_graph,
+                    full_session_id,
+                    request.edit_message_id,
+                )
+            except NotFoundError as e:
+                raise HTTPException(status_code=404, detail=str(e)) from e
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e)) from e
+
+            state_values = {
+                "messages": [user_message],
+                "context": request.context,
+                "notebook": notebook,
+                "model_override": model_override,
+                "skills_context": skills_context or None,
+                "skill_ids": request.skill_ids or [],
+            }
+        else:
+            state_values["messages"].append(user_message)
 
         # Execute chat graph
         result = chat_graph.invoke(

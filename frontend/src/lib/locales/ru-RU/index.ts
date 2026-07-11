@@ -449,6 +449,9 @@ export const ruRU = {
     sessionCreated: "Сессия чата создана",
     sessionUpdated: "Сессия обновлена",
     sessionDeleted: "Сессия удалена",
+    edit: "Редактировать",
+    editMessage: "Редактировать сообщение",
+    resend: "Отправить снова",
   },
   searchPage: {
     askAndSearch: "Запрос и поиск",

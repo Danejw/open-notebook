@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "description": "CI budgets for user-facing frontend loading metrics. Build-time and total on-disk bytes are informational.",
+  "maximum": {
+    "jsChunks.top10Bytes": 2600000,
+    "jsChunks.largestBytes": 1000000,
+    "localeBundle.eagerLocaleCount": 1
+  },
+  "minimum": {
+    "loadingTsxCount": 14
+  }
+}

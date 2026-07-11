@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "referenceId": "pre-optimization-17ffe87",
+  "latestId": "phase10-rsc-shell-1933667",
+  "snapshots": {
+    "pre-optimization-17ffe87": {
+      "file": "pre-optimization-17ffe87.json",
+      "label": "pre-optimization",
+      "gitCommit": "17ffe87",
+      "capturedAt": "2026-07-11T02:35:09.088Z",
+      "description": "Clean capture at git 17ffe87 before local perf optimization changes",
+      "source": "measure:perf"
+    },
+    "phase4-optimized-17ffe87": {
+      "file": "phase4-optimized-17ffe87.json",
+      "label": "phase4-optimized",
+      "gitCommit": "17ffe87",
+      "capturedAt": "2026-07-11T02:20:41.256Z",
+      "description": null,
+      "source": "measure:perf"
+    },
+    "phase5-snappy-17ffe87": {
+      "file": "phase5-snappy-17ffe87.json",
+      "label": "phase5-snappy",
+      "gitCommit": "17ffe87",
+      "capturedAt": "2026-07-11T02:24:24.751Z",
+      "description": null,
+      "source": "measure:perf"
+    },
+    "phase6-measurement-v2-17ffe87": {
+      "file": "phase6-measurement-v2-17ffe87.json",
+      "label": "phase6-measurement-v2",
+      "gitCommit": "17ffe87",
+      "capturedAt": "2026-07-11T02:30:00.474Z",
+      "description": null,
+      "source": "measure:perf"
+    },
+    "current-17ffe87": {
+      "file": "current-17ffe87.json",
+      "label": "current",
+      "gitCommit": "17ffe87",
+      "capturedAt": "2026-07-11T02:36:54.499Z",
+      "description": null,
+      "source": "measure:perf"
+    },
+    "phase7-snappy-ui-17ffe87": {
+      "file": "phase7-snappy-ui-17ffe87.json",
+      "label": "phase7-snappy-ui",
+      "gitCommit": "17ffe87",
+      "capturedAt": "2026-07-11T02:38:26.034Z",
+      "description": null,
+      "source": "measure:perf"
+    },
+    "phase7-benchmark-17ffe87": {
+      "file": "phase7-benchmark-17ffe87.json",
+      "label": "phase7-benchmark",
+      "gitCommit": "17ffe87",
+      "capturedAt": "2026-07-11T02:41:17.608Z",
+      "description": null,
+      "source": "measure:perf"
+    },
+    "phase8-interaction-17ffe87": {
+      "file": "phase8-interaction-17ffe87.json",
+      "label": "phase8-interaction",
+      "gitCommit": "17ffe87",
+      "capturedAt": "2026-07-11T02:48:13.209Z",
+      "description": null,
+      "source": "measure:perf"
+    },
+    "phase9-ci-runtime-1933667": {
+      "file": "phase9-ci-runtime-1933667.json",
+      "label": "phase9-ci-runtime",
+      "gitCommit": "1933667",
+      "capturedAt": "2026-07-11T02:53:07.521Z",
+      "description": null,
+      "source": "measure:perf"
+    },
+    "phase10-rsc-shell-1933667": {
+      "file": "phase10-rsc-shell-1933667.json",
+      "label": "phase10-rsc-shell",
+      "gitCommit": "1933667",
+      "capturedAt": "2026-07-11T02:57:02.365Z",
+      "description": null,
+      "source": "measure:perf"
+    }
+  }
+}

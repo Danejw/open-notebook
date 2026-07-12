@@ -34,7 +34,7 @@ export function MessageActions({
 
     createNote.mutate({
       content,
-      note_type: 'ai',
+      note_type: saveAsArtifact ? 'artifact' : 'ai',
       project_id: projectId,
       title: noteTitle,
     })

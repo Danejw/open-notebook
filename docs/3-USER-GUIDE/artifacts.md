@@ -1,10 +1,42 @@
-# Artifacts - Batch Processing Your Sources
+# Artifacts - Project Templates via Chat
 
-Artifacts apply the same analysis to multiple sources at once. Instead of asking the same question repeatedly, define a template and run it across your content.
+Artifacts are reusable prompt templates for construction workflows (bid scope, takeoffs, schedule extraction, and more). **The primary way to run an artifact is through project chat**, where the full project knowledge base is available.
 
 ---
 
-## When to Use Artifacts
+## Primary workflow: Run an artifact in project chat
+
+```
+1. Open the sidebar Projects section
+2. Expand a project and click an artifact template
+3. Project chat opens with the template active
+4. Select sources/notes for context (or use defaults)
+5. Send the prefilled message (edit if needed)
+6. Review the grounded response with citations
+7. Save the response as a project note
+```
+
+Artifact templates are managed under **Manage → Artifacts** (`/artifacts`). The standalone artifact executor and source-level insight generation remain available for single-source batch workflows.
+
+---
+
+## When to Use Artifacts vs Chat
+
+| Use artifact template in chat when | Use freeform chat when |
+|-------------------------------------|------------------------|
+| Structured output from a known template | Exploratory conversation |
+| Cross-document project analysis | Quick one-off questions |
+| Saving repeatable deliverables as notes | Iterating without a fixed format |
+
+---
+
+## Legacy: Batch processing on sources
+
+Artifacts can still apply the same analysis to individual sources (generating source insights). Instead of asking the same question repeatedly, define a template and run it per source.
+
+---
+
+## When to Use Artifacts (source-level)
 
 | Use Artifacts When | Use Chat Instead When |
 |-------------------------|----------------------|
@@ -17,16 +49,26 @@ Artifacts apply the same analysis to multiple sources at once. Instead of asking
 
 ---
 
-## Quick Start: Your First Artifact
+## Quick Start: Your First Artifact (project chat)
+
+```
+1. Open a project from the sidebar (expand to see artifact templates)
+2. Click a template (e.g., "Bid Scope Summary")
+3. In project chat, confirm context selections include relevant sources
+4. Send the message
+5. Click Save on the AI response to create a project note
+```
+
+---
+
+## Quick Start: Source-level artifact (legacy)
 
 ```
 1. Go to your project
-2. Click "Artifacts" in navigation
-3. Select a built-in template (e.g., "Summary")
-4. Select sources to transform
-5. Click "Apply"
-6. Wait for processing
-7. New notes appear automatically
+2. Open Manage → Artifacts to review templates
+3. Open a source and run an artifact from source detail
+4. Wait for processing
+5. Insight appears on the source
 ```
 
 ---

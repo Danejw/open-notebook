@@ -222,6 +222,10 @@ export const itIT = {
     language: "Cambia lingua",
     theme: "Tema",
     ask: "Chiedi",
+    viewAllProjects: "View all projects",
+    toggleProjectArtifacts: "Toggle project artifacts",
+    artifactTemplates: "Artifact templates",
+    runArtifact: "Run artifact in project",
   },
   projects: {
     title: "Quaderni",
@@ -454,6 +458,11 @@ export const itIT = {
     edit: "Modifica",
     editMessage: "Modifica messaggio",
     resend: "Reinvia",
+    showArtifactPrompt: "Show template",
+    hideArtifactPrompt: "Hide template",
+    clearArtifact: "Clear artifact",
+    artifactSendPlaceholder: "Send to generate this artifact from project context...",
+    saveArtifactToNotes: "Save artifact to notes",
   },
   searchPage: {
     askAndSearch: "Chiedi e cerca",

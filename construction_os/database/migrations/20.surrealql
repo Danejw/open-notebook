@@ -9,6 +9,19 @@ DEFINE FIELD IF NOT EXISTS archived ON TABLE project TYPE option<bool> DEFAULT F
 DEFINE FIELD IF NOT EXISTS created ON project DEFAULT time::now() VALUE $before OR time::now();
 DEFINE FIELD IF NOT EXISTS updated ON project DEFAULT time::now() VALUE time::now();
 
+-- Retarget source→project links (migration 1 defined source→notebook)
+DEFINE TABLE OVERWRITE reference
+TYPE RELATION
+FROM source TO project;
+
+-- Retarget chat context links (migration 8 allowed notebook|source)
+DEFINE TABLE OVERWRITE refers_to
+TYPE RELATION
+FROM chat_session TO project|source;
+
+-- Free the artifact name for the artifact table (migration 21)
+REMOVE TABLE IF EXISTS artifact;
+
 DEFINE TABLE IF NOT EXISTS project_note
 TYPE RELATION
 FROM note TO project;

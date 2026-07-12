@@ -122,7 +122,7 @@ async def run_upgrade_db_migration_test() -> dict:
     result["migrated_project_found"] = bool(migrated_project)
     result["migrated_artifact_found"] = bool(migrated_artifact)
     result["upgrade_ok"] = (
-        result["migration_version"] >= 22
+        result["migration_version"] >= 23
         and result["migrated_project_found"]
         and result["migrated_artifact_found"]
     )
@@ -141,7 +141,7 @@ async def main() -> int:
         for key, value in empty.items():
             print(f"  {key}: {value}")
         empty_ok = (
-            empty["migration_version"] >= 22
+            empty["migration_version"] >= 23
             and empty["table_project"]
             and empty["table_artifact"]
             and empty["has_bid_scope_seed"]

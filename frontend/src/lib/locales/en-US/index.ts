@@ -251,6 +251,10 @@ export const enUS = {
     language: "Toggle language",
     theme: "Theme",
     ask: "Ask",
+    viewAllProjects: "View all projects",
+    toggleProjectArtifacts: "Toggle project artifacts",
+    artifactTemplates: "Artifact templates",
+    runArtifact: "Run artifact in project",
   },
   projects: {
     title: "Projects",
@@ -483,6 +487,11 @@ export const enUS = {
     edit: "Edit",
     editMessage: "Edit message",
     resend: "Resend",
+    showArtifactPrompt: "Show template",
+    hideArtifactPrompt: "Hide template",
+    clearArtifact: "Clear artifact",
+    artifactSendPlaceholder: "Send to generate this artifact from project context...",
+    saveArtifactToNotes: "Save artifact to notes",
   },
   searchPage: {
     askAndSearch: "Ask and Search",

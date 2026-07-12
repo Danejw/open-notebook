@@ -22,6 +22,8 @@ export interface ChatMessageRowProps {
   editDraft: string
   isStreaming: boolean
   projectId?: string
+  noteSaveTitle?: string
+  saveAsArtifact?: boolean
   toolCalls?: ChatToolCall[]
   canEdit: boolean
   editLocked: boolean
@@ -40,6 +42,8 @@ function ChatMessageRowImpl({
   editDraft,
   isStreaming,
   projectId,
+  noteSaveTitle,
+  saveAsArtifact,
   toolCalls = EMPTY_TOOL_CALLS,
   canEdit,
   editLocked,
@@ -131,7 +135,12 @@ function ChatMessageRowImpl({
             )}
             {message.type === 'ai' && (
               <div className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                <MessageActions content={message.content} projectId={projectId} />
+                <MessageActions
+                  content={message.content}
+                  projectId={projectId}
+                  noteTitle={noteSaveTitle}
+                  saveAsArtifact={saveAsArtifact}
+                />
               </div>
             )}
             {message.type === 'ai' && toolCalls.length > 0 && (

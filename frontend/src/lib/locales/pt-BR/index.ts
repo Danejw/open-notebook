@@ -222,6 +222,10 @@ export const ptBR = {
     language: "Alternar idioma",
     theme: "Tema",
     ask: "Perguntar",
+    viewAllProjects: "View all projects",
+    toggleProjectArtifacts: "Toggle project artifacts",
+    artifactTemplates: "Artifact templates",
+    runArtifact: "Run artifact in project",
   },
   projects: {
     title: "Projetos",
@@ -454,6 +458,11 @@ export const ptBR = {
     edit: "Editar",
     editMessage: "Editar mensagem",
     resend: "Reenviar",
+    showArtifactPrompt: "Show template",
+    hideArtifactPrompt: "Hide template",
+    clearArtifact: "Clear artifact",
+    artifactSendPlaceholder: "Send to generate this artifact from project context...",
+    saveArtifactToNotes: "Save artifact to notes",
   },
   searchPage: {
     askAndSearch: "Perguntar e Buscar",

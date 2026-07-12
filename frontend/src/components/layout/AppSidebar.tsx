@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/hooks/use-auth'
 import { useSidebarStore } from '@/lib/stores/sidebar-store'
 import { useCreateDialogs } from '@/lib/hooks/use-create-dialogs'
+import { ProjectArtifactsNav } from '@/components/layout/ProjectArtifactsNav'
 import {
   Tooltip,
   TooltipContent,
@@ -57,10 +58,8 @@ type NavSection = {
 const getNavigation = (t: TFunction): NavSection[] => [
   {
     items: [
-      { name: t('navigation.projects'), href: '/projects', icon: Book },
       { name: t('navigation.skills'), href: '/skills', icon: Sparkles },
       { name: t('navigation.tools'), href: '/tools', icon: Plug2 },
-      { name: t('navigation.artifacts'), href: '/artifacts', icon: Shuffle },
     ],
   },
   {
@@ -74,6 +73,7 @@ const getNavigation = (t: TFunction): NavSection[] => [
     title: t('navigation.manage'),
     items: [
       { name: t('navigation.sources'), href: '/sources', icon: FileText },
+      { name: t('navigation.artifacts'), href: '/artifacts', icon: Shuffle },
       { name: t('navigation.models'), href: '/settings/api-keys', icon: Bot },
       { name: t('navigation.advanced'), href: '/advanced', icon: Wrench },
       { name: t('navigation.settings'), href: '/settings', icon: Settings },
@@ -271,6 +271,12 @@ export function AppSidebar() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          </div>
+
+          <div className="mb-2">
+            <Suspense fallback={null}>
+              <ProjectArtifactsNav isCollapsed={isCollapsed} />
+            </Suspense>
           </div>
 
           {navigation.map((section, index) => (

@@ -36,9 +36,10 @@ interface UseProjectChatParams {
   sources: SourceListResponse[]
   notes: NoteResponse[]
   contextSelections: ContextSelections
+  activeArtifactId?: string | null
 }
 
-export function useProjectChat({ projectId, sources, notes, contextSelections }: UseProjectChatParams) {
+export function useProjectChat({ projectId, sources, notes, contextSelections, activeArtifactId }: UseProjectChatParams) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
@@ -320,6 +321,7 @@ export function useProjectChat({ projectId, sources, notes, contextSelections }:
         skill_ids: selectedSkillIds,
         mcp_tool_ids: selectedMcpToolIds,
         edit_message_id: editMessageId,
+        artifact_id: activeArtifactId ?? undefined,
       })
 
       let aiMessageId: string | null = null
@@ -452,6 +454,7 @@ export function useProjectChat({ projectId, sources, notes, contextSelections }:
     pendingModelOverride,
     selectedSkillIds,
     selectedMcpToolIds,
+    activeArtifactId,
     messages,
     buildContext,
     buildContextConfig,

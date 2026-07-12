@@ -222,6 +222,10 @@ export const zhTW = {
     language: "切換語言",
     theme: "主題",
     ask: "提問",
+    viewAllProjects: "View all projects",
+    toggleProjectArtifacts: "Toggle project artifacts",
+    artifactTemplates: "Artifact templates",
+    runArtifact: "Run artifact in project",
   },
   projects: {
     title: "專案",
@@ -454,6 +458,11 @@ export const zhTW = {
     edit: "編輯",
     editMessage: "編輯訊息",
     resend: "重新傳送",
+    showArtifactPrompt: "Show template",
+    hideArtifactPrompt: "Hide template",
+    clearArtifact: "Clear artifact",
+    artifactSendPlaceholder: "Send to generate this artifact from project context...",
+    saveArtifactToNotes: "Save artifact to notes",
   },
   searchPage: {
     askAndSearch: "提問與搜尋",

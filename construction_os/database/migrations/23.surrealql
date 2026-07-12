@@ -1,0 +1,11 @@
+-- Migration 23: Ensure reference/refers_to target project on installs that ran migration 20 before relation retarget was added
+
+DEFINE TABLE OVERWRITE reference
+TYPE RELATION
+FROM source TO project;
+
+DEFINE TABLE OVERWRITE refers_to
+TYPE RELATION
+FROM chat_session TO project|source;
+
+RETURN true;

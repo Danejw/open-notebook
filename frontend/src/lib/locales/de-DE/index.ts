@@ -225,6 +225,10 @@ export const deDE = {
     language: "Sprache wechseln",
     theme: "Design",
     ask: "Fragen",
+    viewAllProjects: "View all projects",
+    toggleProjectArtifacts: "Toggle project artifacts",
+    artifactTemplates: "Artifact templates",
+    runArtifact: "Run artifact in project",
   },
   projects: {
     title: "Projects",
@@ -457,6 +461,11 @@ export const deDE = {
     edit: "Bearbeiten",
     editMessage: "Nachricht bearbeiten",
     resend: "Erneut senden",
+    showArtifactPrompt: "Show template",
+    hideArtifactPrompt: "Hide template",
+    clearArtifact: "Clear artifact",
+    artifactSendPlaceholder: "Send to generate this artifact from project context...",
+    saveArtifactToNotes: "Save artifact to notes",
   },
   searchPage: {
     askAndSearch: "Fragen und Suchen",

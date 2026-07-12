@@ -95,59 +95,31 @@ You: [Get back one comprehensive answer]
 
 ### 3. ARTIFACTS - Template-Based Processing
 
-**What it is:** Apply a reusable template to a source and get structured output.
+**What it is:** Reusable prompt templates. **Run them from the sidebar under each project** to open project chat with the template injected. Chat retrieves project context, skills, and tools—then you save the result as a note.
 
-**The flow:**
+**The flow (project chat — recommended):**
+```
+1. Expand a project in the sidebar
+2. Click an artifact template
+3. Chat opens with the template active (system instructions + composer hint)
+4. You send a message with selected project context
+5. AI generates a grounded, structured response
+6. You save the response as a project note
+```
+
+**Legacy flow (single source):**
 ```
 1. You define an artifact (or choose a preset)
-   "Extract: main argument, methodology, limitations"
-
 2. You apply it to ONE source at a time
-   (You can repeat for other sources)
-
-3. For the source:
-   - Source content + artifact prompt → AI
-   - Result stored as new insight/note
-
-4. You get back
-   - Structured output (main argument, methodology, limitations)
-   - Saved as a note in your project
+3. Result stored as a source insight
 ```
 
-**Context management:** Works on one source at a time.
-
-**Reusable:** Apply the same template to different sources (one by one).
-
-**Note**: Currently processes one source at a time. Batch processing (multiple sources at once) is planned for a future release.
-
-**Example:**
-```
-You: Define artifact
-     "For each academic paper, extract:
-      - Main research question
-      - Methodology used
-      - Key findings
-      - Limitations and gaps
-      - Recommended next research"
-
-You: Apply to paper 1
-
-System:
-  - Runs the artifact on paper 1
-  - Result stored as new note
-
-You: Apply same artifact to paper 2, 3, etc.
-
-After 10 papers:
-  - You have 10 structured notes with consistent format
-  - Perfect for writing a literature review or comparison
-```
+**Context management:** Project chat uses your selected sources/notes. Single-source artifacts only see that source's text.
 
 **Best for:**
-- Extracting the same information from each source (run repeatedly)
-- Creating structured summaries with consistent format
-- Building a knowledge base of categorized insights
-- When you want reusable templates you can apply to each source
+- Structured deliverables grounded in the full project (chat path)
+- Repeatable per-source extraction (legacy insight path)
+- Construction templates: bid scope, takeoffs, schedule, compliance
 
 ---
 

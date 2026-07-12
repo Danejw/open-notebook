@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from api import ag_ui_agents
 from construction_os.database.repository import ensure_record_id, repo_query
+from construction_os.domain.artifact import Artifact
 from construction_os.domain.project import ChatSession, Note, Project, Source
 from construction_os.exceptions import (
     NotFoundError,
@@ -99,6 +100,10 @@ class ExecuteChatRequest(BaseModel):
     edit_message_id: Optional[str] = Field(
         None,
         description="When set, truncate the session from this human message and resend",
+    )
+    artifact_id: Optional[str] = Field(
+        None,
+        description="Optional artifact template ID; injects artifact instructions into the chat system prompt",
     )
 
 
@@ -426,6 +431,18 @@ async def execute_chat(request: ExecuteChatRequest):
         # Update session timestamp (and skill_ids if changed) before streaming
         await session.save()
 
+        artifact_meta = None
+        if request.artifact_id:
+            artifact = await Artifact.get(request.artifact_id)
+            if artifact:
+                artifact_meta = {
+                    "id": artifact.id,
+                    "name": artifact.name,
+                    "title": artifact.title,
+                    "description": artifact.description,
+                    "prompt": artifact.prompt,
+                }
+
         run_input = ag_ui_agents.build_run_input(
             thread_id=full_session_id,
             message=request.message,
@@ -439,6 +456,8 @@ async def execute_chat(request: ExecuteChatRequest):
                 "skill_ids": skill_ids,
                 "mcp_tool_ids": list(request.mcp_tool_ids or []),
                 "session_id": full_session_id,
+                "artifact_id": request.artifact_id if artifact_meta else None,
+                "artifact": artifact_meta,
             },
         )
 

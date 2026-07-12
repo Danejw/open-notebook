@@ -13,6 +13,7 @@ from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
 from construction_os.ai.provision import provision_langchain_model
+from construction_os.domain.artifact import DefaultPrompts
 from construction_os.domain.project import Project
 from construction_os.exceptions import ConstructionOSError
 from construction_os.graphs.progress import emit_agent_progress
@@ -36,6 +37,9 @@ class ThreadState(TypedDict):
     skill_ids: Optional[list]
     mcp_tool_ids: Optional[list]
     session_id: Optional[str]
+    artifact_id: Optional[str]
+    artifact: Optional[dict]
+    artifact_instructions: Optional[str]
 
 
 def _run_async(coro):
@@ -221,6 +225,10 @@ def generating(state: ThreadState, config: RunnableConfig) -> dict:
         prompt_data = dict(state)
         if prompt_data.get("project") is not None and "notebook" not in prompt_data:
             prompt_data["notebook"] = prompt_data["project"]
+        if prompt_data.get("artifact") and not prompt_data.get("artifact_instructions"):
+            default_prompts: DefaultPrompts = _run_async(DefaultPrompts.get_instance())  # type: ignore[assignment]
+            if default_prompts.artifact_instructions:
+                prompt_data["artifact_instructions"] = default_prompts.artifact_instructions
         system_prompt = Prompter(prompt_template="chat/system").render(
             data=prompt_data
         )  # type: ignore[arg-type]

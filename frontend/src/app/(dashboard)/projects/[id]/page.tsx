@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { Suspense, useState, useEffect, useMemo, useCallback } from 'react'
+import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 import { ProjectHeader } from '../components/ProjectHeader'
 import { SourcesColumn } from '../components/SourcesColumn'
@@ -10,6 +10,7 @@ import { ChatColumn } from '../components/ChatColumn'
 import { useProject } from '@/lib/hooks/use-projects'
 import { useProjectSources } from '@/lib/hooks/use-sources'
 import { useNotes } from '@/lib/hooks/use-notes'
+import { useArtifacts } from '@/lib/hooks/use-artifacts'
 import { useProjectColumnsStore } from '@/lib/stores/project-columns-store'
 import { useIsDesktop } from '@/lib/hooks/use-media-query'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -41,12 +42,24 @@ const PROJECT_LAYOUT_STORAGE =
     : localStorage
 
 export default function ProjectPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProjectPageContent />
+    </Suspense>
+  )
+}
+
+function ProjectPageContent() {
   const { t } = useTranslation()
   const params = useParams()
+  const searchParams = useSearchParams()
+  const router = useRouter()
 
   const projectId = params?.id ? decodeURIComponent(params.id as string) : ''
+  const artifactParam = searchParams.get('artifact')
 
   const { data: project, isLoading: projectLoading } = useProject(projectId)
+  const { data: artifacts = [] } = useArtifacts()
   const {
     sources,
     isLoading: sourcesLoading,
@@ -113,6 +126,21 @@ export default function ProjectPage() {
 
   // Mobile tab state (Sources, Notes, or Chat)
   const [mobileActiveTab, setMobileActiveTab] = useState<'sources' | 'notes' | 'chat'>('chat')
+
+  const activeArtifact = useMemo(() => {
+    if (!artifactParam) return undefined
+    return artifacts.find((artifact) => artifact.id === artifactParam)
+  }, [artifactParam, artifacts])
+
+  const handleClearArtifact = useCallback(() => {
+    router.replace(`/projects/${encodeURIComponent(projectId)}`)
+  }, [router, projectId])
+
+  useEffect(() => {
+    if (artifactParam && activeArtifact) {
+      setMobileActiveTab('chat')
+    }
+  }, [artifactParam, activeArtifact])
 
   // Context selection state
   const [contextSelections, setContextSelections] = useState<ContextSelections>({
@@ -211,6 +239,17 @@ export default function ProjectPage() {
     )
   }
 
+  const chatColumnProps = {
+    projectId,
+    contextSelections,
+    sources,
+    sourcesLoading,
+    notes: notes ?? [],
+    notesLoading,
+    activeArtifact,
+    onClearArtifact: activeArtifact ? handleClearArtifact : undefined,
+  }
+
   return (
           <div className="flex flex-col flex-1 min-h-0">
         <div className="flex-shrink-0 px-3 pt-3 pb-0">
@@ -268,14 +307,7 @@ export default function ProjectPage() {
                   />
                 )}
                 {mobileActiveTab === 'chat' && (
-                  <ChatColumn
-                    projectId={projectId}
-                    contextSelections={contextSelections}
-                    sources={sources}
-                    sourcesLoading={sourcesLoading}
-                    notes={notes ?? []}
-                    notesLoading={notesLoading}
-                  />
+                  <ChatColumn {...chatColumnProps} />
                 )}
               </div>
             </>
@@ -353,14 +385,7 @@ export default function ProjectPage() {
                 minSize="24%"
                 className="min-h-0 min-w-0"
               >
-                <ChatColumn
-                  projectId={projectId}
-                  contextSelections={contextSelections}
-                  sources={sources}
-                  sourcesLoading={sourcesLoading}
-                  notes={notes ?? []}
-                  notesLoading={notesLoading}
-                />
+                <ChatColumn {...chatColumnProps} />
               </ResizablePanel>
             </ResizablePanelGroup>
           )}

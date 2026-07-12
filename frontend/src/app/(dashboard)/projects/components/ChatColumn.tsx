@@ -9,6 +9,7 @@ import { AlertCircle } from 'lucide-react'
 import type { ContextSelections } from '@/lib/types/project-context'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { NoteResponse, SourceListResponse } from '@/lib/types/api'
+import type { Artifact } from '@/lib/types/artifacts'
 
 interface ChatColumnProps {
   projectId: string
@@ -17,6 +18,8 @@ interface ChatColumnProps {
   sourcesLoading: boolean
   notes: NoteResponse[]
   notesLoading: boolean
+  activeArtifact?: Artifact
+  onClearArtifact?: () => void
 }
 
 export function ChatColumn({
@@ -26,6 +29,8 @@ export function ChatColumn({
   sourcesLoading,
   notes,
   notesLoading,
+  activeArtifact,
+  onClearArtifact,
 }: ChatColumnProps) {
   const { t } = useTranslation()
 
@@ -34,6 +39,7 @@ export function ChatColumn({
     sources,
     notes,
     contextSelections,
+    activeArtifactId: activeArtifact?.id ?? null,
   })
 
   const contextStats = useMemo(() => {
@@ -94,9 +100,13 @@ export function ChatColumn({
     )
   }
 
+  const chatTitle = activeArtifact
+    ? `${t('chat.chatWithProject')} · ${activeArtifact.title}`
+    : t('chat.chatWithProject')
+
   return (
     <ChatPanel
-      title={t('chat.chatWithProject')}
+      title={chatTitle}
       contextType="project"
       messages={chat.messages}
       isStreaming={chat.isSending}
@@ -123,6 +133,9 @@ export function ChatColumn({
       selectedMcpToolIds={chat.selectedMcpToolIds}
       onMcpToolIdsChange={chat.setSelectedMcpToolIds}
       liveMcpToolCalls={chat.liveMcpToolCalls}
+      activeArtifact={activeArtifact}
+      onClearArtifact={onClearArtifact}
+      noteSaveTitle={activeArtifact?.title}
     />
   )
 }

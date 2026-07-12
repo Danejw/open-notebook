@@ -1,0 +1,11 @@
+-- Rollback migration 23
+
+DEFINE TABLE OVERWRITE reference
+TYPE RELATION
+FROM source TO notebook;
+
+DEFINE TABLE OVERWRITE refers_to
+TYPE RELATION
+FROM chat_session TO notebook|source;
+
+RETURN true;

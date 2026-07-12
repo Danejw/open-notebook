@@ -222,6 +222,10 @@ export const zhCN = {
     language: "切换语言",
     theme: "主题",
     ask: "提问",
+    viewAllProjects: "View all projects",
+    toggleProjectArtifacts: "Toggle project artifacts",
+    artifactTemplates: "Artifact templates",
+    runArtifact: "Run artifact in project",
   },
   projects: {
     title: "项目",
@@ -454,6 +458,11 @@ export const zhCN = {
     edit: "编辑",
     editMessage: "编辑消息",
     resend: "重新发送",
+    showArtifactPrompt: "Show template",
+    hideArtifactPrompt: "Hide template",
+    clearArtifact: "Clear artifact",
+    artifactSendPlaceholder: "Send to generate this artifact from project context...",
+    saveArtifactToNotes: "Save artifact to notes",
   },
   searchPage: {
     askAndSearch: "提问与搜索",

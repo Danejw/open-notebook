@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo, useId } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCreateDialogs } from '@/lib/hooks/use-create-dialogs'
 import { useProjects } from '@/lib/hooks/use-projects'
+import { useArtifacts } from '@/lib/hooks/use-artifacts'
 import { useTheme } from '@/lib/stores/theme-store'
 import {
   CommandDialog,
@@ -33,12 +34,12 @@ import { useTranslation } from '@/lib/hooks/use-translation'
 import type { TFunction } from 'i18next'
 
 const getNavigationItems = (t: TFunction) => [
-  { name: t('navigation.sources'), href: '/sources', icon: FileText, keywords: ['files', 'documents', 'upload'] },
   { name: t('navigation.projects'), href: '/projects', icon: Book, keywords: ['notes', 'research', 'projects'] },
+  { name: t('navigation.sources'), href: '/sources', icon: FileText, keywords: ['files', 'documents', 'upload'] },
   { name: t('navigation.askAndSearch'), href: '/search', icon: Search, keywords: ['find', 'query'] },
   { name: t('navigation.podcasts'), href: '/podcasts', icon: Mic, keywords: ['audio', 'episodes', 'generate'] },
+  { name: t('navigation.artifacts'), href: '/artifacts', icon: Shuffle, keywords: ['prompts', 'templates', 'actions', 'manage'] },
   { name: t('navigation.models'), href: '/settings/api-keys', icon: Bot, keywords: ['ai', 'llm', 'providers', 'openai', 'anthropic'] },
-  { name: t('navigation.artifacts'), href: '/artifacts', icon: Shuffle, keywords: ['prompts', 'templates', 'actions'] },
   { name: t('navigation.settings'), href: '/settings', icon: Settings, keywords: ['preferences', 'config', 'options'] },
   { name: t('navigation.advanced'), href: '/advanced', icon: Wrench, keywords: ['debug', 'system', 'tools'] },
 ]
@@ -68,6 +69,23 @@ export function CommandPalette() {
   const { openSourceDialog, openProjectDialog, openPodcastDialog } = useCreateDialogs()
   const { setTheme } = useTheme()
   const { data: projects, isLoading: projectsLoading } = useProjects(false, { enabled: open })
+  const { data: artifacts = [] } = useArtifacts()
+
+  const artifactRunItems = useMemo(() => {
+    if (!projects?.length || !artifacts.length) return []
+    const items: Array<{ id: string; label: string; href: string; keywords: string }> = []
+    for (const project of projects.slice(0, 5)) {
+      for (const artifact of artifacts) {
+        items.push({
+          id: `${project.id}-${artifact.id}`,
+          label: `${artifact.title} · ${project.name}`,
+          href: `/projects/${project.id}?artifact=${encodeURIComponent(artifact.id)}`,
+          keywords: `${artifact.title} ${artifact.name} ${project.name} artifact run`,
+        })
+      }
+    }
+    return items
+  }, [projects, artifacts])
 
   // Global keyboard listener for ⌘K / Ctrl+K
   useEffect(() => {
@@ -153,9 +171,13 @@ export function CommandPalette() {
       (projects?.some(project =>
         project.name.toLowerCase().includes(queryLower) ||
         (project.description && project.description.toLowerCase().includes(queryLower))
-      ) ?? false)
+      ) ?? false) ||
+      artifactRunItems.some((item) =>
+        item.label.toLowerCase().includes(queryLower) ||
+        item.keywords.toLowerCase().includes(queryLower)
+      )
     )
-  }, [queryLower, projects, navigationItems, createItems, themeItems])
+  }, [queryLower, projects, navigationItems, createItems, themeItems, artifactRunItems])
 
   // Determine if we should show the Search/Ask section at the top
   const showSearchFirst = query.trim() && !hasCommandMatch
@@ -234,6 +256,21 @@ export function CommandPalette() {
             ))
           ) : null}
         </CommandGroup>
+
+        {artifactRunItems.length > 0 ? (
+          <CommandGroup heading={t('navigation.runArtifact')}>
+            {artifactRunItems.map((item) => (
+              <CommandItem
+                key={item.id}
+                value={`run artifact ${item.keywords}`}
+                onSelect={() => handleNavigate(item.href)}
+              >
+                <Shuffle className="h-4 w-4" />
+                <span>{item.label}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        ) : null}
 
         {/* Create */}
         <CommandGroup heading={t('navigation.create')}>

@@ -9,8 +9,14 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, patch
+
+# Ensure project root is importable when run as `python scripts/verify_phase17_e2e.py`
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 os.environ.setdefault("SURREAL_URL", "ws://localhost:8000/rpc")
 os.environ.setdefault("SURREAL_USER", "root")
@@ -18,8 +24,8 @@ os.environ.setdefault("SURREAL_PASSWORD", "root")
 os.environ.setdefault("CONSTRUCTION_OS_ENCRYPTION_KEY", "phase17-test-encryption-key")
 os.environ.setdefault("CONSTRUCTION_OS_PASSWORD", "")
 
-TEST_NS = "construction_os_phase17_e2e"
-TEST_DB = "construction_os_phase17_e2e"
+TEST_NS = "construction_os_phase17_e2e_v2"
+TEST_DB = "construction_os_phase17_e2e_v2"
 
 CONSTRUCTION_ARTIFACT_NAMES = (
     "Bid Scope Summary",
@@ -113,7 +119,11 @@ async def test_save_insight_as_note_with_project_note(insight_id: str, project_i
 
     async with db_connection():
         insight = await SourceInsight.get(insight_id)
-        note = await insight.save_as_note(project_id)
+        with patch(
+            "construction_os.domain.project.submit_command",
+            return_value=None,
+        ):
+            note = await insight.save_as_note(project_id)
         note_id = str(note.id)
 
         edges = await repo_query(
@@ -295,7 +305,7 @@ async def main() -> int:
         return 1
 
     flow = await test_project_source_artifact_insight_flow()
-    print("17.3 Project → Source → Artifact insight:")
+    print("17.3 Project -> Source -> Artifact insight:")
     for k, v in flow.items():
         print(f"  {k}: {v}")
     results["17.3"] = flow["ok"]

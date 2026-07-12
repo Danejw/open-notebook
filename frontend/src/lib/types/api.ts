@@ -236,6 +236,7 @@ export interface SendProjectChatMessageRequest {
   skill_ids?: string[]
   mcp_tool_ids?: string[]
   edit_message_id?: string
+  artifact_id?: string
 }
 
 export interface BuildContextRequest {

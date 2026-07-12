@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useId, useMemo, useCallback } from 'react'
+import { useState, useId, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
@@ -37,6 +37,11 @@ import {
   columnHeaderGhostButtonClassName,
   columnHeaderIconClassName,
 } from '@/components/projects/ColumnHeader'
+import type { Artifact } from '@/lib/types/artifacts'
+import {
+  ActiveArtifactBar,
+  buildArtifactTriggerMessage,
+} from '@/components/projects/ActiveArtifactBar'
 
 interface ProjectContextStats {
   sourcesInsights: number
@@ -75,6 +80,9 @@ interface ChatPanelProps {
   selectedMcpToolIds?: string[]
   onMcpToolIdsChange?: (ids: string[]) => void
   liveMcpToolCalls?: ChatToolCall[]
+  activeArtifact?: Artifact
+  onClearArtifact?: () => void
+  noteSaveTitle?: string
 }
 
 export function ChatPanel({
@@ -103,6 +111,9 @@ export function ChatPanel({
   selectedMcpToolIds,
   onMcpToolIdsChange,
   liveMcpToolCalls = [],
+  activeArtifact,
+  onClearArtifact,
+  noteSaveTitle,
 }: ChatPanelProps) {
   const { t } = useTranslation()
   const chatInputId = useId()
@@ -125,10 +136,22 @@ export function ChatPanel({
     )
   }, [mergedToolCalls, messages])
   const [input, setInput] = useState('')
+  const prefilledArtifactRef = useRef<string | null>(null)
   const [sessionManagerOpen, setSessionManagerOpen] = useState(false)
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState('')
   const { openModal } = useModalManager()
+
+  useEffect(() => {
+    if (!activeArtifact) {
+      prefilledArtifactRef.current = null
+      return
+    }
+    if (prefilledArtifactRef.current !== activeArtifact.id) {
+      setInput(buildArtifactTriggerMessage(activeArtifact.title))
+      prefilledArtifactRef.current = activeArtifact.id
+    }
+  }, [activeArtifact])
 
   const handleReferenceClick = useCallback(
     (type: string, id: string) => {
@@ -259,6 +282,8 @@ export function ChatPanel({
             editingMessageId={editingMessageId}
             editDraft={editDraft}
             projectId={projectId}
+            noteSaveTitle={noteSaveTitle}
+            saveAsArtifact={Boolean(activeArtifact)}
             toolCallsByMessageId={toolCallsByMessageId}
             canEdit={Boolean(onEditMessage)}
             editLocked={editingMessageId !== null}
@@ -328,6 +353,10 @@ export function ChatPanel({
             />
           )}
 
+          {activeArtifact && onClearArtifact ? (
+            <ActiveArtifactBar artifact={activeArtifact} onClear={onClearArtifact} />
+          ) : null}
+
           {/* Input: model + composer on one compact strip */}
           <div className={columnFooterClassName}>
             <div className="flex items-end gap-1 min-w-0">
@@ -359,7 +388,11 @@ export function ChatPanel({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={`${t('chat.sendPlaceholder')} (${keyHint})`}
+                placeholder={
+                  activeArtifact
+                    ? `${t('chat.artifactSendPlaceholder')} (${keyHint})`
+                    : `${t('chat.sendPlaceholder')} (${keyHint})`
+                }
                 disabled={isStreaming}
                 className="min-h-[32px] max-h-[88px] flex-1 resize-none px-2 py-1 text-sm min-w-0"
                 rows={1}

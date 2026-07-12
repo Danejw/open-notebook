@@ -222,6 +222,10 @@ export const jaJP = {
     language: "言語を切り替え",
     theme: "テーマ",
     ask: "質問",
+    viewAllProjects: "View all projects",
+    toggleProjectArtifacts: "Toggle project artifacts",
+    artifactTemplates: "Artifact templates",
+    runArtifact: "Run artifact in project",
   },
   projects: {
     title: "プロジェクト",
@@ -454,6 +458,11 @@ export const jaJP = {
     edit: "編集",
     editMessage: "メッセージを編集",
     resend: "再送信",
+    showArtifactPrompt: "Show template",
+    hideArtifactPrompt: "Hide template",
+    clearArtifact: "Clear artifact",
+    artifactSendPlaceholder: "Send to generate this artifact from project context...",
+    saveArtifactToNotes: "Save artifact to notes",
   },
   searchPage: {
     askAndSearch: "質問と検索",

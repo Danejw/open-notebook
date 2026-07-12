@@ -1,4 +1,16 @@
 -- Rollback migration 20 (requires backup for production)
 
+DEFINE TABLE OVERWRITE reference
+TYPE RELATION
+FROM source TO notebook;
+
+DEFINE TABLE OVERWRITE refers_to
+TYPE RELATION
+FROM chat_session TO notebook|source;
+
+DEFINE TABLE IF NOT EXISTS artifact
+TYPE RELATION
+FROM note TO notebook;
+
 REMOVE TABLE project_note;
 REMOVE TABLE project;

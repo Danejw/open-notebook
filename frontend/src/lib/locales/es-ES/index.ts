@@ -222,6 +222,10 @@ export const esES = {
     language: "Cambiar idioma",
     theme: "Tema",
     ask: "Preguntar",
+    viewAllProjects: "View all projects",
+    toggleProjectArtifacts: "Toggle project artifacts",
+    artifactTemplates: "Artifact templates",
+    runArtifact: "Run artifact in project",
   },
   projects: {
     title: "Proyectos",
@@ -454,6 +458,11 @@ export const esES = {
     edit: "Editar",
     editMessage: "Editar mensaje",
     resend: "Reenviar",
+    showArtifactPrompt: "Show template",
+    hideArtifactPrompt: "Hide template",
+    clearArtifact: "Clear artifact",
+    artifactSendPlaceholder: "Send to generate this artifact from project context...",
+    saveArtifactToNotes: "Save artifact to notes",
   },
   searchPage: {
     askAndSearch: "Preguntar y buscar",

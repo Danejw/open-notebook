@@ -222,6 +222,10 @@ export const caES = {
     language: "Canvia l'idioma",
     theme: "Tema",
     ask: "Pregunta",
+    viewAllProjects: "View all projects",
+    toggleProjectArtifacts: "Toggle project artifacts",
+    artifactTemplates: "Artifact templates",
+    runArtifact: "Run artifact in project",
   },
   projects: {
     title: "Projectes",
@@ -454,6 +458,11 @@ export const caES = {
     edit: "Edita",
     editMessage: "Edita el missatge",
     resend: "Reenvia",
+    showArtifactPrompt: "Show template",
+    hideArtifactPrompt: "Hide template",
+    clearArtifact: "Clear artifact",
+    artifactSendPlaceholder: "Send to generate this artifact from project context...",
+    saveArtifactToNotes: "Save artifact to notes",
   },
   searchPage: {
     askAndSearch: "Pregunta i cerca",

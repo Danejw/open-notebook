@@ -58,6 +58,19 @@ class TestRebrandMigrationFiles:
         )
         assert stripped.strip()
 
+    def test_migration_23_files_exist(self):
+        up, down = self._migration_paths(23)
+        assert up.is_file()
+        assert down.is_file()
+        up_sql = up.read_text(encoding="utf-8")
+        assert "reference" in up_sql.lower()
+        assert "project" in up_sql.lower()
+
+    def test_migration_20_retarges_reference_to_project(self):
+        up = self._migration_paths(20)[0]
+        up_sql = up.read_text(encoding="utf-8")
+        assert "FROM source TO project" in up_sql
+
 
 class TestConstructionArtifactSeeds:
     def test_seed_construction_artifacts_defines_eight_templates(self):

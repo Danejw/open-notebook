@@ -83,6 +83,7 @@ interface ChatPanelProps {
   activeArtifact?: Artifact
   onClearArtifact?: () => void
   noteSaveTitle?: string
+  autoSendArtifactKey?: number
 }
 
 export function ChatPanel({
@@ -114,6 +115,7 @@ export function ChatPanel({
   activeArtifact,
   onClearArtifact,
   noteSaveTitle,
+  autoSendArtifactKey = 0,
 }: ChatPanelProps) {
   const { t } = useTranslation()
   const chatInputId = useId()
@@ -137,6 +139,7 @@ export function ChatPanel({
   }, [mergedToolCalls, messages])
   const [input, setInput] = useState('')
   const prefilledArtifactRef = useRef<string | null>(null)
+  const autoSentArtifactRef = useRef<number>(0)
   const [sessionManagerOpen, setSessionManagerOpen] = useState(false)
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState('')
@@ -147,11 +150,18 @@ export function ChatPanel({
       prefilledArtifactRef.current = null
       return
     }
+    if (autoSendArtifactKey > 0 && autoSentArtifactRef.current !== autoSendArtifactKey && !isStreaming) {
+      autoSentArtifactRef.current = autoSendArtifactKey
+      onSendMessage(buildArtifactTriggerMessage(activeArtifact.title), modelOverride)
+      setInput('')
+      prefilledArtifactRef.current = activeArtifact.id
+      return
+    }
     if (prefilledArtifactRef.current !== activeArtifact.id) {
       setInput(buildArtifactTriggerMessage(activeArtifact.title))
       prefilledArtifactRef.current = activeArtifact.id
     }
-  }, [activeArtifact])
+  }, [activeArtifact, autoSendArtifactKey, isStreaming, modelOverride, onSendMessage])
 
   const handleReferenceClick = useCallback(
     (type: string, id: string) => {

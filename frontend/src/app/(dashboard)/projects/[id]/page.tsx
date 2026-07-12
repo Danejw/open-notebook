@@ -5,7 +5,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 import { ProjectHeader } from '../components/ProjectHeader'
 import { SourcesColumn } from '../components/SourcesColumn'
-import { NotesColumn } from '../components/NotesColumn'
+import { ArtifactsColumn } from '../components/ArtifactsColumn'
 import { ChatColumn } from '../components/ChatColumn'
 import { useProject } from '@/lib/hooks/use-projects'
 import { useProjectSources } from '@/lib/hooks/use-sources'
@@ -20,7 +20,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from '@/components/ui/resizable'
-import { FileText, StickyNote, MessageSquare } from 'lucide-react'
+import { FileText, MessageSquare, Boxes } from 'lucide-react'
 import {
   applyBulkSourceContext,
   applyBulkNoteContext,
@@ -126,6 +126,7 @@ function ProjectPageContent() {
 
   // Mobile tab state (Sources, Notes, or Chat)
   const [mobileActiveTab, setMobileActiveTab] = useState<'sources' | 'notes' | 'chat'>('chat')
+  const [artifactRunKey, setArtifactRunKey] = useState(0)
 
   const activeArtifact = useMemo(() => {
     if (!artifactParam) return undefined
@@ -134,6 +135,12 @@ function ProjectPageContent() {
 
   const handleClearArtifact = useCallback(() => {
     router.replace(`/projects/${encodeURIComponent(projectId)}`)
+  }, [router, projectId])
+
+  const handleTemplateClick = useCallback((artifactId: string) => {
+    router.replace(`/projects/${encodeURIComponent(projectId)}?artifact=${encodeURIComponent(artifactId)}`)
+    setArtifactRunKey((key) => key + 1)
+    setMobileActiveTab('chat')
   }, [router, projectId])
 
   useEffect(() => {
@@ -248,6 +255,7 @@ function ProjectPageContent() {
     notesLoading,
     activeArtifact,
     onClearArtifact: activeArtifact ? handleClearArtifact : undefined,
+    artifactRunKey,
   }
 
   return (
@@ -268,8 +276,8 @@ function ProjectPageContent() {
                       {t('navigation.sources')}
                     </TabsTrigger>
                     <TabsTrigger value="notes" className="gap-2">
-                      <StickyNote className="h-4 w-4" />
-                      {t('common.notes')}
+                      <Boxes className="h-4 w-4" />
+                      {t('common.artifacts')}
                     </TabsTrigger>
                     <TabsTrigger value="chat" className="gap-2">
                       <MessageSquare className="h-4 w-4" />
@@ -297,13 +305,15 @@ function ProjectPageContent() {
                   />
                 )}
                 {mobileActiveTab === 'notes' && (
-                  <NotesColumn
+                  <ArtifactsColumn
                     notes={notes}
                     isLoading={notesLoading}
                     projectId={projectId}
                     contextSelections={contextSelections.notes}
                     onContextModeChange={handleNoteContextModeChange}
                     onBulkContextModeChange={handleBulkNoteContext}
+                    templates={artifacts}
+                    onTemplateClick={(artifact) => handleTemplateClick(artifact.id)}
                   />
                 )}
                 {mobileActiveTab === 'chat' && (
@@ -363,13 +373,15 @@ function ProjectPageContent() {
                 className="min-h-0"
                 onResize={handleNotesPanelResize}
               >
-                <NotesColumn
+                <ArtifactsColumn
                   notes={notes}
                   isLoading={notesLoading}
                   projectId={projectId}
                   contextSelections={contextSelections.notes}
                   onContextModeChange={handleNoteContextModeChange}
                   onBulkContextModeChange={handleBulkNoteContext}
+                  templates={artifacts}
+                  onTemplateClick={(artifact) => handleTemplateClick(artifact.id)}
                 />
               </ResizablePanel>
 

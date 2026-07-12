@@ -20,6 +20,7 @@ interface ChatColumnProps {
   notesLoading: boolean
   activeArtifact?: Artifact
   onClearArtifact?: () => void
+  artifactRunKey?: number
 }
 
 export function ChatColumn({
@@ -31,6 +32,7 @@ export function ChatColumn({
   notesLoading,
   activeArtifact,
   onClearArtifact,
+  artifactRunKey = 0,
 }: ChatColumnProps) {
   const { t } = useTranslation()
 
@@ -136,6 +138,7 @@ export function ChatColumn({
       activeArtifact={activeArtifact}
       onClearArtifact={onClearArtifact}
       noteSaveTitle={activeArtifact?.title}
+      autoSendArtifactKey={artifactRunKey}
     />
   )
 }

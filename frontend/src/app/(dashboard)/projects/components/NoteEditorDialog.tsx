@@ -103,7 +103,7 @@ export function NoteEditorDialog({ open, onOpenChange, projectId, note }: NoteEd
       await createNote.mutateAsync({
         title: data.title || undefined,
         content: data.content,
-        note_type: 'human',
+        note_type: 'note',
         project_id: projectId,
       })
     }

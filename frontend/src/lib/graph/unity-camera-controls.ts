@@ -1,151 +1,73 @@
 /**
- * Unity Scene View–style camera math for Sigma.js (2D + perspective tilt).
+ * 3D orbit-camera helpers for the knowledge graph (Unity/Maya-style focus).
  *
- * RMB orbit axes (screen space):
- * - Horizontal drag → Z rotation (Sigma camera `angle`, spin in the graph plane)
- * - Vertical drag → X rotation (CSS perspective pitch for a 3D tumble feel)
- *
- * Pivot policy:
- * - If a node is selected and present in the graph → orbit around that node.
- * - Otherwise → orbit around the viewport center (camera x/y; angle-only).
+ * Camera always orbits a focus point. Clicking a node re-aims lookAt at that
+ * node and pulls the camera to a comfortable distance so subsequent orbit
+ * gestures pivot around the selection.
  */
 
-export type UnityDragMode = 'none' | 'orbit' | 'pan' | 'dolly'
-
-export interface GraphPoint {
+export interface Vec3 {
   x: number
   y: number
+  z: number
 }
 
-export interface CameraXYAngle {
-  x: number
-  y: number
-  angle: number
+export interface FocusCameraPose {
+  /** New camera world position. */
+  position: Vec3
+  /** Point the camera (and orbit controls) should look at / orbit around. */
+  lookAt: Vec3
 }
 
-/** Dual-axis orbit deltas from a single RMB drag sample. */
-export interface OrbitDragDeltas {
-  /** Radians — applied to Sigma camera angle (Z). */
-  yawZ: number
-  /** Degrees — applied to CSS rotateX pitch (X). */
-  pitchX: number
-}
+const DEFAULT_FOCUS_DISTANCE = 80
 
-/** Soft clamp so foreshortening stays readable and clicks stay usable. */
-export const ORBIT_PITCH_MIN_DEG = -58
-export const ORBIT_PITCH_MAX_DEG = 58
+/**
+ * Place the camera along the ray from origin→node (or current view if at
+ * origin) at `distance` from the node, looking at the node.
+ */
+export function focusCameraOnPoint(
+  target: Vec3,
+  distance: number = DEFAULT_FOCUS_DISTANCE,
+  from?: Vec3 | null
+): FocusCameraPose {
+  const lookAt = { x: target.x, y: target.y, z: target.z }
+  const origin = from ?? { x: 0, y: 0, z: 0 }
+  const dx = target.x - origin.x
+  const dy = target.y - origin.y
+  const dz = target.z - origin.z
+  const len = Math.hypot(dx, dy, dz)
 
-/** Rotate `point` around `pivot` by `deltaAngle` radians. */
-export function rotatePointAround(
-  point: GraphPoint,
-  pivot: GraphPoint,
-  deltaAngle: number
-): GraphPoint {
-  const cos = Math.cos(deltaAngle)
-  const sin = Math.sin(deltaAngle)
-  const dx = point.x - pivot.x
-  const dy = point.y - pivot.y
+  if (len < 1e-6) {
+    // Target at (or too near) origin — pull back along +Z.
+    return {
+      position: { x: lookAt.x, y: lookAt.y, z: lookAt.z + distance },
+      lookAt,
+    }
+  }
+
+  // Prefer viewing from outside the node along the vector from world origin
+  // through the node (classic 3d-force-graph click-to-focus).
+  const hypot = Math.hypot(target.x, target.y, target.z)
+  if (hypot < 1e-6) {
+    return {
+      position: { x: 0, y: 0, z: distance },
+      lookAt,
+    }
+  }
+
+  const distRatio = 1 + distance / hypot
   return {
-    x: pivot.x + dx * cos - dy * sin,
-    y: pivot.y + dx * sin + dy * cos,
+    position: {
+      x: target.x * distRatio,
+      y: target.y * distRatio,
+      z: target.z * distRatio,
+    },
+    lookAt,
   }
 }
 
-/**
- * Orbit the camera around `pivot` by `deltaAngle` (Z-axis / in-plane spin).
- * Keeps the pivot fixed on screen while updating camera angle.
- */
-export function applyOrbit(
-  camera: CameraXYAngle,
-  pivot: GraphPoint,
-  deltaAngle: number
-): CameraXYAngle {
-  const nextCenter = rotatePointAround(
-    { x: camera.x, y: camera.y },
-    pivot,
-    deltaAngle
-  )
-  return {
-    x: nextCenter.x,
-    y: nextCenter.y,
-    angle: camera.angle + deltaAngle,
-  }
-}
-
-/**
- * Map horizontal drag to Z-orbit angle (full canvas width ≈ 180°).
- * @deprecated Prefer `orbitDeltasFromDrag` for dual-axis RMB orbit.
- */
-export function orbitDeltaFromDrag(
-  dx: number,
-  viewportWidth: number
-): number {
-  const w = Math.max(viewportWidth, 1)
-  return (dx / w) * Math.PI
-}
-
-/**
- * Map RMB drag to Z yaw (radians) + X pitch (degrees).
- * Full width ≈ 180° Z; full height ≈ 120° X pitch.
- */
-export function orbitDeltasFromDrag(
-  dx: number,
-  dy: number,
-  viewportWidth: number,
-  viewportHeight: number
-): OrbitDragDeltas {
-  const w = Math.max(viewportWidth, 1)
-  const h = Math.max(viewportHeight, 1)
-  return {
-    yawZ: (dx / w) * Math.PI,
-    pitchX: (dy / h) * 120,
-  }
-}
-
-/** Clamp pitch so the graph stays readable under perspective tilt. */
-export function clampOrbitPitch(pitchDeg: number): number {
-  return Math.min(
-    ORBIT_PITCH_MAX_DEG,
-    Math.max(ORBIT_PITCH_MIN_DEG, pitchDeg)
-  )
-}
-
-/**
- * CSS transform for X-axis pitch (perspective tumble).
- * Z spin stays on Sigma's camera angle so hit-testing remains correct in-plane.
- */
-export function orbitPitchTransform(pitchDeg: number): string {
-  if (pitchDeg === 0) return ''
-  return `perspective(1200px) rotateX(${pitchDeg}deg)`
-}
-
-/**
- * Alt+RMB vertical dolly. Positive dy (drag down) zooms out (larger ratio).
- * Exponential so feel stays consistent across ratio scales.
- */
-export function applyDollyRatio(
-  ratio: number,
-  dy: number,
-  viewportHeight: number,
-  minRatio: number,
-  maxRatio: number
-): number {
-  const h = Math.max(viewportHeight, 1)
-  const next = ratio * Math.exp((dy / h) * 2.2)
-  return Math.min(maxRatio, Math.max(minRatio, next))
-}
-
-/**
- * Resolve orbit pivot: selected node in graph space, else viewport center.
- */
-export function resolveOrbitPivot(
-  selectedNodeId: string | null,
-  hasNode: (id: string) => boolean,
-  getNodePosition: (id: string) => GraphPoint,
-  viewportCenter: GraphPoint
-): GraphPoint {
-  if (selectedNodeId && hasNode(selectedNodeId)) {
-    return getNodePosition(selectedNodeId)
-  }
-  return viewportCenter
+/** Distance scale for focusing based on node visual size. */
+export function focusDistanceForNodeSize(size: number): number {
+  const s = Number.isFinite(size) && size > 0 ? size : 8
+  return Math.max(40, Math.min(160, s * 8))
 }

@@ -56,7 +56,7 @@ export function useSaveGraphLayout(projectId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (data: {
-      positions: Record<string, { x: number; y: number }>
+      positions: Record<string, { x: number; y: number; z?: number }>
       algorithm?: string
       graph_version?: number
     }) => knowledgeGraphApi.saveLayout(projectId, data),

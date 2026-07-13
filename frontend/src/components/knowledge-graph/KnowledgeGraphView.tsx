@@ -288,6 +288,7 @@ export function KnowledgeGraphView({
       }
       setSelectedNodeId(nodeId)
       setSelectedEdgeId(null)
+      setFocusNodeId(nodeId)
     },
     [
       pathPick,
@@ -364,7 +365,7 @@ export function KnowledgeGraphView({
     const version = Number(activeSlice?.graph_version || 0)
     saveLayout.mutate({
       positions,
-      algorithm: 'forceatlas2',
+      algorithm: 'd3-force-3d',
       graph_version: version,
     })
   }, [activeSlice?.graph_version, saveLayout])

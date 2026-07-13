@@ -22,6 +22,16 @@ interface ControlRow {
 
 const ROWS: ControlRow[] = [
   {
+    icon: <RotateCw className="size-3.5 shrink-0 text-muted-foreground" />,
+    gestureKey: 'knowledge.graphControlRotateGesture',
+    actionKey: 'knowledge.graphControlRotate',
+  },
+  {
+    icon: <ZoomIn className="size-3.5 shrink-0 text-muted-foreground" />,
+    gestureKey: 'knowledge.graphControlZoomGesture',
+    actionKey: 'knowledge.graphControlZoom',
+  },
+  {
     icon: (
       <MousePointerClick className="size-3.5 shrink-0 text-muted-foreground" />
     ),
@@ -32,16 +42,6 @@ const ROWS: ControlRow[] = [
     icon: <Move className="size-3.5 shrink-0 text-muted-foreground" />,
     gestureKey: 'knowledge.graphControlPanGesture',
     actionKey: 'knowledge.graphControlPan',
-  },
-  {
-    icon: <RotateCw className="size-3.5 shrink-0 text-muted-foreground" />,
-    gestureKey: 'knowledge.graphControlRotateGesture',
-    actionKey: 'knowledge.graphControlRotate',
-  },
-  {
-    icon: <ZoomIn className="size-3.5 shrink-0 text-muted-foreground" />,
-    gestureKey: 'knowledge.graphControlZoomGesture',
-    actionKey: 'knowledge.graphControlZoom',
   },
   {
     icon: <Maximize2 className="size-3.5 shrink-0 text-muted-foreground" />,

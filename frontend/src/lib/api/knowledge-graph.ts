@@ -169,7 +169,7 @@ export const knowledgeGraphApi = {
         id: string
         project_id: string
         graph_version: number
-        positions: Record<string, { x: number; y: number }>
+        positions: Record<string, { x: number; y: number; z?: number }>
         algorithm?: string
       } | null
       graph_version?: number
@@ -182,7 +182,7 @@ export const knowledgeGraphApi = {
   saveLayout: async (
     projectId: string,
     data: {
-      positions: Record<string, { x: number; y: number }>
+      positions: Record<string, { x: number; y: number; z?: number }>
       algorithm?: string
       graph_version?: number
     }

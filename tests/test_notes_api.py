@@ -64,6 +64,42 @@ class TestNoteCreation:
         data = response.json()
         assert data["command_id"] is None
 
+    @patch("api.routers.notes._generate_note_title", new_callable=AsyncMock)
+    @patch("api.routers.notes.Note")
+    def test_create_artifact_note_auto_generates_title(
+        self, mock_note_cls, mock_generate_title, client
+    ):
+        """Artifact notes without a title get an LLM-generated title from content."""
+        mock_generate_title.return_value = "Bid Scope Summary for Kona BBQ"
+
+        mock_note = AsyncMock()
+        mock_note.id = "note:artifact123"
+        mock_note.title = "Bid Scope Summary for Kona BBQ"
+        mock_note.content = "Detailed scope breakdown for the kitchen renovation."
+        mock_note.note_type = "artifact"
+        mock_note.created = "2026-01-01T00:00:00Z"
+        mock_note.updated = "2026-01-01T00:00:00Z"
+        mock_note.save.return_value = None
+        mock_note.add_to_project = AsyncMock()
+        mock_note_cls.return_value = mock_note
+
+        response = client.post(
+            "/api/notes",
+            json={
+                "content": "Detailed scope breakdown for the kitchen renovation.",
+                "note_type": "artifact",
+            },
+        )
+
+        assert response.status_code == 200
+        mock_generate_title.assert_awaited_once_with(
+            "Detailed scope breakdown for the kitchen renovation.",
+            "artifact",
+        )
+        data = response.json()
+        assert data["title"] == "Bid Scope Summary for Kona BBQ"
+        assert mock_note_cls.call_args.kwargs["title"] == "Bid Scope Summary for Kona BBQ"
+
 
 class TestNoteUpdate:
     """Test suite for Note update endpoint."""

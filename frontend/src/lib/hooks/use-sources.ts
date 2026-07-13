@@ -20,7 +20,9 @@ import {
   UpdateSourceRequest,
   SourceResponse,
   SourceStatusResponse,
-  SourceListResponse
+  SourceListResponse,
+  IngestTextSourceRequest,
+  PromoteToSourceRequest,
 } from '@/lib/types/api'
 
 const PROJECT_SOURCES_PAGE_SIZE = 30
@@ -466,6 +468,58 @@ export function useRemoveSourceFromProject() {
     onSettled: (_data, _error, { projectId }) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sources(projectId) })
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sourcesInfinite(projectId) })
+    },
+  })
+}
+
+type IngestAsSourceInput =
+  | { kind: 'text'; data: IngestTextSourceRequest; projectId?: string }
+  | { kind: 'note'; noteId: string; projectId?: string; options?: PromoteToSourceRequest }
+  | { kind: 'insight'; insightId: string; projectId?: string; options?: PromoteToSourceRequest }
+
+export function useIngestAsSource() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: async (input: IngestAsSourceInput) => {
+      if (input.kind === 'text') {
+        return sourcesApi.ingestText(input.data)
+      }
+      if (input.kind === 'note') {
+        return sourcesApi.ingestNoteAsSource(input.noteId, {
+          project_id: input.projectId ?? input.options?.project_id,
+          embed: input.options?.embed,
+          artifacts: input.options?.artifacts,
+        })
+      }
+      return sourcesApi.ingestInsightAsSource(input.insightId, {
+        project_id: input.projectId ?? input.options?.project_id,
+        embed: input.options?.embed,
+        artifacts: input.options?.artifacts,
+      })
+    },
+    onSuccess: (_result, input) => {
+      queryClient.invalidateQueries({ queryKey: ['sources'] })
+      const projectId =
+        input.kind === 'text'
+          ? input.data.project_ids[0]
+          : input.projectId ?? input.options?.project_id
+      if (projectId) {
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sources(projectId) })
+      }
+      toast({
+        title: t('common.success'),
+        description: t('sources.ingestSuccess'),
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('common.error'),
+        description: getApiErrorMessage(error, (key) => t(key), t('sources.ingestFailed')),
+        variant: 'destructive',
+      })
     },
   })
 }

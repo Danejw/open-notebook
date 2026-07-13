@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { NoteResponse } from '@/lib/types/api'
 import type { Artifact } from '@/lib/types/artifacts'
 import { Button } from '@/components/ui/button'
@@ -11,10 +11,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Plus, Bot, User, MoreVertical, Trash2, ListChecks, FileText, Sparkles } from 'lucide-react'
-import { ColumnCardsSkeleton } from '@/components/common/LoadingSkeletons'
+import { Plus, Bot, User, MoreVertical, Trash2, ListChecks, FileText, Sparkles, Database } from 'lucide-react'
+import { CompactListRowSkeleton } from '@/components/common/LoadingSkeletons'
 import { EmptyState } from '@/components/common/EmptyState'
-import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
 import { NoteEditorDialog } from './NoteEditorDialog'
@@ -23,7 +22,8 @@ import { formatDistanceToNow } from 'date-fns'
 import { ContextToggle } from '@/components/common/ContextToggle'
 import type { NoteContextMode } from '@/lib/types/project-context'
 import type { NoteContextDefault } from '@/lib/utils/source-context'
-import { useDeleteNote } from '@/lib/hooks/use-notes'
+import { useDeleteNote, useNote } from '@/lib/hooks/use-notes'
+import { useIngestAsSource } from '@/lib/hooks/use-sources'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { CollapsibleColumn, createCollapseButton } from '@/components/projects/CollapsibleColumn'
 import {
@@ -36,6 +36,9 @@ import {
 } from '@/components/projects/ColumnHeader'
 import { useProjectColumnsStore } from '@/lib/stores/project-columns-store'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { cn } from '@/lib/utils'
+import { setArtifactDragData, clearArtifactDragData } from '@/lib/utils/artifact-drag'
+import type { TFunction } from 'i18next'
 
 interface ArtifactsColumnProps {
   notes?: NoteResponse[]
@@ -46,6 +49,19 @@ interface ArtifactsColumnProps {
   onBulkContextModeChange?: (action: NoteContextDefault) => void
   templates?: Artifact[]
   onTemplateClick?: (artifact: Artifact) => void
+}
+
+function getNoteTypeInfo(noteType: string | null, t: TFunction) {
+  if (noteType === 'ai') {
+    return { icon: Bot, label: t('common.aiGenerated') }
+  }
+  if (noteType === 'artifact') {
+    return { icon: Bot, label: t('navigation.artifact') }
+  }
+  if (noteType === 'note') {
+    return { icon: FileText, label: t('common.note') }
+  }
+  return { icon: User, label: t('common.human') }
 }
 
 export function ArtifactsColumn({
@@ -64,8 +80,24 @@ export function ArtifactsColumn({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null)
   const [viewingArtifact, setViewingArtifact] = useState<NoteResponse | null>(null)
+  const [draggingTemplateId, setDraggingTemplateId] = useState<string | null>(null)
+  const [draggingNoteId, setDraggingNoteId] = useState<string | null>(null)
+  const suppressClickRef = useRef(false)
 
   const deleteNote = useDeleteNote()
+  const ingestAsSource = useIngestAsSource()
+
+  const viewingNoteId = viewingArtifact?.id
+    ? viewingArtifact.id.includes(':')
+      ? viewingArtifact.id
+      : `note:${viewingArtifact.id}`
+    : ''
+
+  const { data: fetchedViewingNote, isLoading: viewingNoteLoading } = useNote(viewingNoteId, {
+    enabled: Boolean(viewingArtifact),
+  })
+
+  const displayViewingNote = fetchedViewingNote ?? viewingArtifact
 
   // Collapsible column state
   const { notesCollapsed, toggleNotes } = useProjectColumnsStore()
@@ -90,6 +122,15 @@ export function ArtifactsColumn({
     } catch (error) {
       console.error('Failed to delete note:', error)
     }
+  }
+
+  const handleIngestNote = async (note: NoteResponse) => {
+    if (note.note_type !== 'artifact') return
+    await ingestAsSource.mutateAsync({
+      kind: 'note',
+      noteId: note.id,
+      projectId,
+    })
   }
 
   return (
@@ -145,94 +186,190 @@ export function ArtifactsColumn({
 
           <CardContent className={columnBodyClassName}>
             {templates.length > 0 && (
-              <div className="mb-4 space-y-2">
-                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  {t('projects.artifactTemplates') || 'Artifact templates'}
+              <div className="mb-3 py-1.5 @container/artifact-templates">
+                <div className="mb-1 flex items-center gap-1.5 px-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  <Sparkles className="h-3 w-3" />
+                  {t('projects.artifactTemplates')}
                 </div>
-                <div className="grid gap-2">
+                <div className="grid grid-cols-1 gap-px overflow-hidden rounded-md border border-border/50 bg-border/50 @min-[360px]/artifact-templates:grid-cols-2">
                   {templates.map((template) => (
                     <button
                       key={template.id}
                       type="button"
-                      className="rounded-lg border p-3 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
-                      onClick={() => onTemplateClick?.(template)}
+                      draggable
+                      aria-grabbed={draggingTemplateId === template.id}
+                      className={cn(
+                        'flex items-center gap-2 bg-card px-2 py-1.5 text-left transition-colors hover:bg-primary/5',
+                        'cursor-grab active:cursor-grabbing'
+                      )}
+                      onClick={() => {
+                        if (suppressClickRef.current) return
+                        onTemplateClick?.(template)
+                      }}
+                      onDragStart={(event) => {
+                        suppressClickRef.current = false
+                        setDraggingTemplateId(template.id)
+                        setArtifactDragData(event.dataTransfer, {
+                          kind: 'template',
+                          id: template.id,
+                          title: template.title,
+                        })
+                      }}
+                      onDrag={(event) => {
+                        if (event.clientX !== 0 || event.clientY !== 0) {
+                          suppressClickRef.current = true
+                        }
+                      }}
+                      onDragEnd={() => {
+                        setDraggingTemplateId(null)
+                        clearArtifactDragData()
+                        window.setTimeout(() => {
+                          suppressClickRef.current = false
+                        }, 0)
+                      }}
                     >
-                      <div className="text-sm font-medium">{template.title}</div>
-                      {template.description ? (
-                        <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                          {template.description}
-                        </div>
-                      ) : null}
+                      <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                        {template.title}
+                      </span>
                     </button>
                   ))}
                 </div>
               </div>
             )}
 
-            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {t('common.artifacts')}
-            </div>
             {isLoading ? (
-              <ColumnCardsSkeleton count={3} />
+              <div className="flex flex-col divide-y divide-border/50">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <CompactListRowSkeleton key={i} />
+                ))}
+              </div>
             ) : !notes || notes.length === 0 ? (
               <EmptyState
                 icon={FileText}
-                title={t('projects.noArtifactsYet') || 'No artifacts yet'}
-                description={t('projects.createFirstArtifact') || 'Run a template or write a note to create the first project artifact.'}
+                title={t('projects.noArtifactsYet')}
+                description={t('projects.createFirstArtifact')}
               />
             ) : (
-              <div className="space-y-3">
-                {notes.map((note) => (
-                  <div
-                    key={note.id}
-                    className="p-3 border rounded-lg card-hover group relative cursor-pointer"
-                    onClick={() => setViewingArtifact(note)}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        {note.note_type === 'ai' || note.note_type === 'artifact' ? (
-                          <Bot className="h-4 w-4 text-primary" />
-                        ) : (
-                          <User className="h-4 w-4 text-muted-foreground" />
+              <div className="flex flex-col divide-y divide-border/50">
+                {notes.map((note) => {
+                  const { icon: NoteTypeIcon, label: noteTypeLabel } = getNoteTypeInfo(
+                    note.note_type,
+                    t
+                  )
+                  const title = note.title || t('sources.untitledNote')
+
+                  const isIngestibleArtifact = note.note_type === 'artifact'
+                  const isDraggingNote = draggingNoteId === note.id
+
+                  return (
+                    <div
+                      key={note.id}
+                      role="button"
+                      tabIndex={0}
+                      draggable={isIngestibleArtifact}
+                      aria-grabbed={isDraggingNote}
+                      className={cn(
+                        'group relative flex min-w-0 items-center gap-2 rounded-md px-2 py-1',
+                        'cursor-pointer transition-colors',
+                        'hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                        isIngestibleArtifact && 'cursor-grab active:cursor-grabbing'
+                      )}
+                      onClick={() => {
+                        if (suppressClickRef.current) return
+                        setViewingArtifact(note)
+                      }}
+                      onDragStart={
+                        isIngestibleArtifact
+                          ? (event) => {
+                              suppressClickRef.current = false
+                              setDraggingNoteId(note.id)
+                              setArtifactDragData(event.dataTransfer, {
+                                kind: 'note',
+                                id: note.id,
+                                title,
+                              })
+                            }
+                          : undefined
+                      }
+                      onDrag={
+                        isIngestibleArtifact
+                          ? (event) => {
+                              if (event.clientX !== 0 || event.clientY !== 0) {
+                                suppressClickRef.current = true
+                              }
+                            }
+                          : undefined
+                      }
+                      onDragEnd={
+                        isIngestibleArtifact
+                          ? () => {
+                              setDraggingNoteId(null)
+                              clearArtifactDragData()
+                              window.setTimeout(() => {
+                                suppressClickRef.current = false
+                              }, 0)
+                            }
+                          : undefined
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          setViewingArtifact(note)
+                        }
+                      }}
+                    >
+                      <NoteTypeIcon
+                        className={cn(
+                          'h-3.5 w-3.5 shrink-0',
+                          note.note_type === 'ai' || note.note_type === 'artifact'
+                            ? 'text-primary'
+                            : 'text-muted-foreground'
                         )}
-                        <Badge variant="secondary" className="text-xs">
-                          {note.note_type === 'note' ? 'Note' : note.note_type === 'artifact' ? t('common.artifact') : note.note_type === 'ai' ? t('common.aiGenerated') : t('common.human')}
-                        </Badge>
-                      </div>
+                        aria-label={noteTypeLabel}
+                      />
 
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(note.updated), { 
-                            addSuffix: true,
-                            locale: getDateLocale(language)
-                          })}
-                        </span>
+                      <h4 className="min-w-0 flex-1 truncate text-sm font-medium leading-snug" title={title}>
+                        {title}
+                      </h4>
 
-                        {/* Context toggle - only show if handler provided */}
+                      <div className="flex shrink-0 items-center gap-0.5">
                         {onContextModeChange && contextSelections?.[note.id] && (
                           <div onClick={(event) => event.stopPropagation()}>
                             <ContextToggle
                               mode={contextSelections[note.id]}
                               hasInsights={false}
                               onChange={(mode) => onContextModeChange(note.id, mode)}
+                              className="h-7 w-7"
                             />
                           </div>
                         )}
 
-                        {/* Ellipsis menu for delete action */}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="h-7 w-7 p-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
                               onClick={(e) => e.stopPropagation()}
+                              aria-label={t('common.actions')}
                             >
-                              <MoreVertical className="h-4 w-4" />
+                              <MoreVertical className="h-3.5 w-3.5" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
+                            {note.note_type === 'artifact' && (
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  void handleIngestNote(note)
+                                }}
+                                disabled={ingestAsSource.isPending}
+                              >
+                                <Database className="h-4 w-4 mr-2" />
+                                {t('sources.ingestAsSource')}
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.stopPropagation()
@@ -247,18 +384,8 @@ export function ArtifactsColumn({
                         </DropdownMenu>
                       </div>
                     </div>
-
-                    {note.title && (
-                      <h4 className="text-sm font-medium mb-2 break-all">{note.title}</h4>
-                    )}
-
-                    {note.content && (
-                      <p className="text-sm text-muted-foreground line-clamp-3 break-all">
-                        {note.content}
-                      </p>
-                    )}
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </CardContent>
@@ -284,11 +411,11 @@ export function ArtifactsColumn({
         <DialogContent className="flex h-[92vh] max-h-[92vh] max-w-5xl flex-col overflow-hidden p-0">
           <div className="border-b px-6 py-4">
             <DialogTitle className="text-xl">
-              {viewingArtifact?.title || 'Untitled artifact'}
+              {displayViewingNote?.title || t('sources.untitledNote')}
             </DialogTitle>
             <p className="mt-1 text-xs text-muted-foreground">
-              {viewingArtifact?.updated
-                ? formatDistanceToNow(new Date(viewingArtifact.updated), {
+              {displayViewingNote?.updated
+                ? formatDistanceToNow(new Date(displayViewingNote.updated), {
                     addSuffix: true,
                     locale: getDateLocale(language),
                   })
@@ -296,15 +423,34 @@ export function ArtifactsColumn({
             </p>
           </div>
           <div className="flex-1 overflow-y-auto px-6 py-5">
-            <MarkdownRenderer>{viewingArtifact?.content || ''}</MarkdownRenderer>
+            {viewingNoteLoading ? (
+              <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+            ) : (
+              <MarkdownRenderer>{displayViewingNote?.content || ''}</MarkdownRenderer>
+            )}
           </div>
           <div className="flex justify-end gap-2 border-t px-6 py-3">
-            {viewingArtifact ? (
+            {displayViewingNote?.note_type === 'artifact' ? (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  if (displayViewingNote) {
+                    void handleIngestNote(displayViewingNote)
+                  }
+                }}
+                disabled={ingestAsSource.isPending}
+              >
+                <Database className="mr-2 h-4 w-4" />
+                {t('sources.ingestAsSource')}
+              </Button>
+            ) : null}
+            {displayViewingNote ? (
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => {
-                  setEditingNote(viewingArtifact)
+                  setEditingNote(displayViewingNote)
                   setViewingArtifact(null)
                 }}
               >

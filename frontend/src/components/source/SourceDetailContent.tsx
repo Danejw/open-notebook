@@ -793,6 +793,7 @@ export function SourceDetailContent({
           }
         }}
         insight={selectedInsight ?? undefined}
+        projectId={source.projects?.[0]}
         onDelete={async (insightId) => {
           try {
             await insightsApi.delete(insightId)

@@ -1,4 +1,5 @@
 import apiClient from './client'
+import { PromoteToSourceRequest, SourceResponse } from '@/lib/types/api'
 
 export interface SourceInsightResponse {
   id: string
@@ -49,6 +50,14 @@ export const insightsApi = {
 
   delete: async (insightId: string) => {
     await apiClient.delete(`/insights/${insightId}`)
+  },
+
+  ingestAsSource: async (insightId: string, data: PromoteToSourceRequest = {}) => {
+    const response = await apiClient.post<SourceResponse>(
+      `/insights/${insightId}/ingest-as-source`,
+      data
+    )
+    return response.data
   },
 
   getCommandStatus: async (commandId: string) => {

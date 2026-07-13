@@ -7,6 +7,7 @@ Welcome to the Construction OS development documentation! Whether you're contrib
 ### 👨‍💻 I Want to Contribute Code
 
 Start with **[Contributing Guide](contributing.md)** for the workflow, then check:
+- **[Run Locally on Windows](run-locally-windows.md)** - Step-by-step PowerShell guide (no `make` required)
 - **[Quick Start](quick-start.md)** - Clone, install, verify in 5 minutes
 - **[Development Setup](development-setup.md)** - Complete local environment guide
 - **[Code Standards](code-standards.md)** - How to write code that fits our style
@@ -52,6 +53,7 @@ For deeper dives, check `/construction_os/` CLAUDE.md for component-specific gui
 | Document | For | Purpose |
 |---|---|---|
 | [Quick Start](quick-start.md) | New developers | Clone, install, and verify setup (5 min) |
+| [Run Locally on Windows](run-locally-windows.md) | Windows developers | Manual 4-terminal PowerShell setup |
 | [Development Setup](development-setup.md) | Local development | Complete environment setup guide |
 | [Contributing](contributing.md) | Code contributors | Workflow: issue → code → PR |
 | [Code Standards](code-standards.md) | Writing code | Style guides for Python, FastAPI, DB |

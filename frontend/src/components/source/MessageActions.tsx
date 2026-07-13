@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Save, Copy, Check } from 'lucide-react'
+import { Save, Copy, Check, Sparkles } from 'lucide-react'
 import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
 import { useCreateNote } from '@/lib/hooks/use-notes'
 import { toast } from 'sonner'
@@ -13,20 +13,18 @@ interface MessageActionsProps {
   content: string
   projectId?: string
   noteTitle?: string
-  saveAsArtifact?: boolean
 }
 
 export function MessageActions({
   content,
   projectId,
   noteTitle,
-  saveAsArtifact = false,
 }: MessageActionsProps) {
   const { t } = useTranslation()
   const [copySuccess, setCopySuccess] = useState(false)
   const createNote = useCreateNote()
 
-  const handleSaveToNote = () => {
+  const handleSave = (asArtifact: boolean) => {
     if (!projectId) {
       toast.error(t('sources.cannotSaveNoteNoProject'))
       return
@@ -34,9 +32,9 @@ export function MessageActions({
 
     createNote.mutate({
       content,
-      note_type: saveAsArtifact ? 'artifact' : 'ai',
+      note_type: asArtifact ? 'artifact' : 'ai',
       project_id: projectId,
-      title: noteTitle,
+      title: asArtifact ? noteTitle : undefined,
     })
   }
 
@@ -74,32 +72,52 @@ export function MessageActions({
     }
   }
 
-  const saveLabel = saveAsArtifact ? t('chat.saveArtifactToNotes') : t('common.saveToNote')
-
   return (
     <TooltipProvider>
       <div className="flex gap-0.5">
         {projectId && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={handleSaveToNote}
-                disabled={createNote.isPending}
-              >
-                {createNote.isPending ? (
-                  <InlineSkeleton className="h-3 w-3" />
-                ) : (
-                  <Save className="h-3 w-3" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{saveLabel}</p>
-            </TooltipContent>
-          </Tooltip>
+          <>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => handleSave(false)}
+                  disabled={createNote.isPending}
+                >
+                  {createNote.isPending ? (
+                    <InlineSkeleton className="h-3 w-3" />
+                  ) : (
+                    <Save className="h-3 w-3" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{t('common.saveToNote')}</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => handleSave(true)}
+                  disabled={createNote.isPending}
+                >
+                  {createNote.isPending ? (
+                    <InlineSkeleton className="h-3 w-3" />
+                  ) : (
+                    <Sparkles className="h-3 w-3" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{t('chat.saveAsArtifact')}</p>
+              </TooltipContent>
+            </Tooltip>
+          </>
         )}
         <Tooltip>
           <TooltipTrigger asChild>

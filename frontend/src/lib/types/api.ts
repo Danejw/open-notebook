@@ -45,6 +45,20 @@ export interface SourceDetailResponse extends SourceListResponse {
 
 export type SourceResponse = SourceDetailResponse
 
+export interface IngestTextSourceRequest {
+  content: string
+  title: string
+  project_ids: string[]
+  embed?: boolean
+  artifacts?: string[]
+}
+
+export interface PromoteToSourceRequest {
+  project_id?: string
+  embed?: boolean
+  artifacts?: string[]
+}
+
 export interface SourceStatusResponse {
   status?: string
   message: string

@@ -1,10 +1,11 @@
 'use client'
 
 import { useRouter, useParams } from 'next/navigation'
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import { useSourceChat } from '@/lib/hooks/useSourceChat'
+import { useSource } from '@/lib/hooks/use-sources'
 import { ChatPanel } from '@/components/source/ChatPanel'
 import { useNavigation } from '@/lib/hooks/use-navigation'
 import { SourceDetailContent } from '@/components/source/SourceDetailContent'
@@ -14,8 +15,14 @@ export default function SourceDetailPage() {
   const params = useParams()
   const sourceId = params?.id ? decodeURIComponent(params.id as string) : ''
   const navigation = useNavigation()
+  const { data: source } = useSource(sourceId)
 
-  // Initialize source chat
+  const projectId = useMemo(() => {
+    const linked = source?.projects ?? []
+    if (linked.length === 0) return undefined
+    return linked[0]
+  }, [source?.projects])
+
   const chat = useSourceChat(sourceId)
 
   const handleBack = useCallback(() => {
@@ -26,7 +33,6 @@ export default function SourceDetailPage() {
 
   return (
     <div className="flex flex-col h-screen">
-      {/* Back button */}
       <div className="p-6 pb-4">
         <Button
           variant="ghost"
@@ -38,9 +44,7 @@ export default function SourceDetailPage() {
         </Button>
       </div>
 
-      {/* Main content: Source detail + Chat */}
       <div className="flex-1 grid gap-6 lg:grid-cols-[2fr_1fr] overflow-hidden px-6">
-        {/* Left column - Source detail */}
         <div className="overflow-y-auto px-4 pb-6">
           <SourceDetailContent
             sourceId={sourceId}
@@ -49,7 +53,6 @@ export default function SourceDetailPage() {
           />
         </div>
 
-        {/* Right column - Chat */}
         <div className="overflow-y-auto px-4 pb-6">
           <ChatPanel
             messages={chat.messages}
@@ -76,6 +79,7 @@ export default function SourceDetailPage() {
             onUpdateSession={(sessionId, title) => chat.updateSession(sessionId, { title })}
             onDeleteSession={chat.deleteSession}
             loadingSessions={chat.loadingSessions}
+            projectId={projectId}
           />
         </div>
       </div>

@@ -29,6 +29,8 @@ Choose your installation route based on your setup and use case.
 - ⚠️ Requires Python 3.11+, Node.js
 - ⏱️ 10 minutes to running
 
+**On Windows with PowerShell?** Use **[Run Locally on Windows](../7-DEVELOPMENT/run-locally-windows.md)** for the exact 4-terminal setup (no `make` required).
+
 ---
 
 ### 🪟 I'm on Windows and can't use Docker/WSL

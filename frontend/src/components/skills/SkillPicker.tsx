@@ -7,7 +7,6 @@ import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -78,14 +77,11 @@ export function SkillPicker({ selectedSkillIds, onChange, disabled = false }: Sk
           <Sparkles className={cn('h-4 w-4', selectedCount > 0 && 'text-primary')} />
         </Button>
       </DialogTrigger>
-      <DialogContent className="gap-0 overflow-hidden p-0">
+      <DialogContent className="h-auto max-h-[70vh] w-full max-w-md gap-0 overflow-hidden p-0 sm:max-w-md">
         <DialogHeader className="space-y-0.5 border-b px-3 py-2">
           <DialogTitle className="text-sm font-semibold leading-none">
             {t('skills.pickerTitle')}
           </DialogTitle>
-          <DialogDescription className="text-[11px] leading-snug">
-            {t('skills.pickerDesc')}
-          </DialogDescription>
         </DialogHeader>
 
         <div className="max-h-64 overflow-y-auto hide-scrollbar">

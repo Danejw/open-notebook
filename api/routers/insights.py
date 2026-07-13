@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from loguru import logger
 
-from api.models import NoteResponse, SaveAsNoteRequest, SourceInsightResponse
+from api.models import NoteResponse, PromoteToSourceRequest, SaveAsNoteRequest, SourceInsightResponse, SourceResponse
 from construction_os.domain.project import SourceInsight
 from construction_os.exceptions import InvalidInputError
 
@@ -79,4 +79,27 @@ async def save_insight_as_note(insight_id: str, request: SaveAsNoteRequest):
         logger.error(f"Error saving insight {insight_id} as note: {str(e)}")
         raise HTTPException(
             status_code=500, detail="Error saving insight as note"
+        )
+
+
+@router.post("/insights/{insight_id}/ingest-as-source", response_model=SourceResponse)
+async def ingest_insight_as_source(insight_id: str, request: PromoteToSourceRequest):
+    """Promote a source insight into a fully ingested text source."""
+    from api.promotion_service import promote_insight_to_source
+
+    try:
+        return await promote_insight_to_source(
+            insight_id,
+            project_id=request.project_id,
+            embed=request.embed,
+            artifact_ids=request.artifacts or [],
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except InvalidInputError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error ingesting insight {insight_id} as source: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error ingesting insight as source: {e}"
         )

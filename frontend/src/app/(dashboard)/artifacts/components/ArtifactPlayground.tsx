@@ -1,14 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Play } from 'lucide-react'
+import { Database, Play } from 'lucide-react'
 import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
 import { Artifact } from '@/lib/types/artifacts'
 import { useExecuteArtifact } from '@/lib/hooks/use-artifacts'
+import { useProjects } from '@/lib/hooks/use-projects'
+import { useIngestAsSource } from '@/lib/hooks/use-sources'
 import { ModelSelector } from '@/components/common/ModelSelector'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
@@ -24,14 +26,28 @@ export function ArtifactPlayground({ artifacts, selectedArtifact }: ArtifactPlay
   const [inputText, setInputText] = useState('')
   const [modelId, setModelId] = useState('')
   const [output, setOutput] = useState('')
+  const [projectId, setProjectId] = useState('')
 
   const executeArtifact = useExecuteArtifact()
+  const ingestAsSource = useIngestAsSource()
+  const { data: projects } = useProjects(false)
+
+  const selectedArtifactRecord = useMemo(
+    () => artifacts?.find((artifact) => artifact.id === selectedId),
+    [artifacts, selectedId]
+  )
 
   useEffect(() => {
     if (selectedArtifact?.id) {
       setSelectedId(selectedArtifact.id)
     }
   }, [selectedArtifact?.id])
+
+  useEffect(() => {
+    if (!projectId && projects && projects.length > 0) {
+      setProjectId(projects[0].id)
+    }
+  }, [projectId, projects])
 
   const handleExecute = async () => {
     if (!selectedId || !modelId || !inputText.trim()) {
@@ -47,7 +63,23 @@ export function ArtifactPlayground({ artifacts, selectedArtifact }: ArtifactPlay
     setOutput(result.output)
   }
 
+  const handleIngestOutput = async () => {
+    if (!output.trim() || !projectId) return
+
+    await ingestAsSource.mutateAsync({
+      kind: 'text',
+      projectId,
+      data: {
+        content: output,
+        title: selectedArtifactRecord?.title ?? t('artifacts.outputLabel'),
+        project_ids: [projectId],
+        embed: true,
+      },
+    })
+  }
+
   const canExecute = selectedId && modelId && inputText.trim() && !executeArtifact.isPending
+  const canIngest = Boolean(output.trim() && projectId && !ingestAsSource.isPending)
 
   return (
     <div className="overflow-hidden rounded-md border">
@@ -120,7 +152,39 @@ export function ArtifactPlayground({ artifacts, selectedArtifact }: ArtifactPlay
 
         {output ? (
           <div className="space-y-1.5 border-t pt-3">
-            <p className="text-xs font-medium leading-none">{t('artifacts.outputLabel')}</p>
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <p className="text-xs font-medium leading-none">{t('artifacts.outputLabel')}</p>
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="ingest-project" className="text-[11px] text-muted-foreground">
+                    {t('sources.selectProjectToIngest')}
+                  </Label>
+                  <Select value={projectId} onValueChange={setProjectId}>
+                    <SelectTrigger id="ingest-project" className="h-7 w-[180px] text-xs">
+                      <SelectValue placeholder={t('sources.selectProjectToIngest')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects?.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="h-7 text-xs"
+                  disabled={!canIngest}
+                  onClick={() => void handleIngestOutput()}
+                >
+                  <Database className="mr-1.5 h-3.5 w-3.5" />
+                  {t('sources.ingestAsSource')}
+                </Button>
+              </div>
+            </div>
             <div className="rounded-md border bg-muted/30 p-2">
               <MarkdownRenderer size="sm">{output}</MarkdownRenderer>
             </div>

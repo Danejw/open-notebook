@@ -20,6 +20,7 @@ from api.command_service import CommandService
 from api.models import (
     AssetModel,
     CreateSourceInsightRequest,
+    IngestTextSourceRequest,
     InsightCreationResponse,
     SourceCreate,
     SourceInsightResponse,
@@ -583,6 +584,28 @@ async def create_source_json(source_data: SourceCreate):
     # Convert to form data format and call main endpoint
     form_data = (source_data, None)
     return await create_source(form_data)
+
+
+@router.post("/sources/ingest-text", response_model=SourceResponse)
+async def ingest_text_source(request: IngestTextSourceRequest):
+    """Ingest pre-extracted text as a searchable source (promotion fast path)."""
+    from api.promotion_service import promote_text_to_source
+
+    try:
+        return await promote_text_to_source(
+            content=request.content,
+            title=request.title,
+            project_ids=request.project_ids,
+            embed=request.embed,
+            artifact_ids=request.artifacts or [],
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except InvalidInputError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error ingesting text source: {e}")
+        raise HTTPException(status_code=500, detail=f"Error ingesting text source: {e}")
 
 
 async def _resolve_source_file(source_id: str) -> tuple[str, str]:

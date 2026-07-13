@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { FileText } from 'lucide-react'
+import { FileText, Database } from 'lucide-react'
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
 import { useInsight } from '@/lib/hooks/use-insights'
+import { useIngestAsSource } from '@/lib/hooks/use-sources'
 import { useModalManager } from '@/lib/hooks/use-modal-manager'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
@@ -20,32 +21,45 @@ interface SourceInsightDialogProps {
     created?: string
     source_id?: string
   }
+  projectId?: string
   onDelete?: (insightId: string) => Promise<void>
 }
 
-export function SourceInsightDialog({ open, onOpenChange, insight, onDelete }: SourceInsightDialogProps) {
+export function SourceInsightDialog({
+  open,
+  onOpenChange,
+  insight,
+  projectId,
+  onDelete,
+}: SourceInsightDialogProps) {
   const { t } = useTranslation()
   const { openModal } = useModalManager()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const ingestAsSource = useIngestAsSource()
 
-  // Ensure insight ID has 'source_insight:' prefix for API calls
   const insightIdWithPrefix = insight?.id
     ? (insight.id.includes(':') ? insight.id : `source_insight:${insight.id}`)
     : ''
 
   const { data: fetchedInsight, isLoading } = useInsight(insightIdWithPrefix, { enabled: open && !!insight?.id })
 
-  // Use fetched data if available, otherwise fall back to passed-in insight
   const displayInsight = fetchedInsight ?? insight
-
-  // Get source_id from fetched data (preferred) or passed-in insight
   const sourceId = fetchedInsight?.source_id ?? insight?.source_id
 
   const handleViewSource = () => {
     if (sourceId) {
       openModal('source', sourceId)
     }
+  }
+
+  const handleIngest = async () => {
+    if (!insightIdWithPrefix) return
+    await ingestAsSource.mutateAsync({
+      kind: 'insight',
+      insightId: insightIdWithPrefix,
+      projectId,
+    })
   }
 
   const handleDelete = async () => {
@@ -60,7 +74,6 @@ export function SourceInsightDialog({ open, onOpenChange, insight, onDelete }: S
     }
   }
 
-  // Reset delete confirmation when dialog closes
   useEffect(() => {
     if (!open) {
       setShowDeleteConfirm(false)
@@ -90,6 +103,16 @@ export function SourceInsightDialog({ open, onOpenChange, insight, onDelete }: S
                   {t('sources.viewSource')}
                 </Button>
               )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void handleIngest()}
+                disabled={ingestAsSource.isPending || isLoading}
+                className="gap-1"
+              >
+                <Database className="h-3 w-3" />
+                {t('sources.ingestAsSource')}
+              </Button>
             </div>
           </DialogTitle>
         </DialogHeader>

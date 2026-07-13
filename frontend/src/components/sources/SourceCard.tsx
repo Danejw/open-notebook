@@ -27,6 +27,7 @@ import { useSourceStatus } from '@/lib/hooks/use-sources'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import type { TFunction } from 'i18next'
 import { cn } from '@/lib/utils'
+import { getArtifactDragData, getActiveArtifactDragPayload, isArtifactDragEvent, clearArtifactDragData } from '@/lib/utils/artifact-drag'
 import { ContextToggle } from '@/components/common/ContextToggle'
 import { ContextMode } from '@/app/(dashboard)/projects/[id]/page'
 
@@ -42,6 +43,7 @@ interface SourceCardProps {
   showRemoveFromProject?: boolean
   contextMode?: ContextMode
   onContextModeChange?: (mode: ContextMode) => void
+  onArtifactDrop?: (artifactId: string) => void
 }
 
 const SOURCE_TYPE_ICONS = {
@@ -107,10 +109,13 @@ function SourceCardImpl({
   className,
   showRemoveFromProject = false,
   contextMode,
-  onContextModeChange
+  onContextModeChange,
+  onArtifactDrop,
 }: SourceCardProps) {
   const { t } = useTranslation()
   const statusConfigMap = getStatusConfig(t)
+
+  const [isArtifactDragOver, setIsArtifactDragOver] = useState(false)
 
   const sourceWithStatus = source as SourceListResponse & { command_id?: string; status?: string }
 
@@ -206,6 +211,42 @@ function SourceCardImpl({
       ? Math.round(statusData.processing_info.progress as number)
       : null
 
+  const handleArtifactDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!onArtifactDrop || !isArtifactDragEvent(event)) return
+    if (getActiveArtifactDragPayload()?.kind !== 'template') return
+    event.preventDefault()
+    event.stopPropagation()
+    event.dataTransfer.dropEffect = 'copy'
+    setIsArtifactDragOver(true)
+  }
+
+  const handleArtifactDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!onArtifactDrop || !isArtifactDragEvent(event)) return
+    if (getActiveArtifactDragPayload()?.kind !== 'template') return
+    event.stopPropagation()
+    setIsArtifactDragOver(true)
+  }
+
+  const handleArtifactDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!onArtifactDrop || !isArtifactDragEvent(event)) return
+    if (getActiveArtifactDragPayload()?.kind !== 'template') return
+    event.stopPropagation()
+    setIsArtifactDragOver(false)
+  }
+
+  const handleArtifactDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!onArtifactDrop || !isArtifactDragEvent(event)) return
+    event.preventDefault()
+    event.stopPropagation()
+    setIsArtifactDragOver(false)
+
+    const payload = getArtifactDragData(event.dataTransfer)
+    clearArtifactDragData()
+    if (payload?.kind === 'template') {
+      onArtifactDrop(payload.id)
+    }
+  }
+
   return (
     <div
       role="button"
@@ -216,9 +257,15 @@ function SourceCardImpl({
         'hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
         isFailed && 'bg-destructive/5 hover:bg-destructive/10',
         isProcessing && 'bg-primary/5',
+        isArtifactDragOver && 'ring-2 ring-primary bg-primary/10',
         className
       )}
       onClick={handleCardClick}
+      onDragEnter={handleArtifactDragEnter}
+      onDragOver={handleArtifactDragOver}
+      onDragLeave={handleArtifactDragLeave}
+      onDrop={handleArtifactDrop}
+      title={isArtifactDragOver ? t('sources.dropArtifactOnSource') : title}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()

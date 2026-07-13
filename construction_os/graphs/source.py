@@ -161,24 +161,48 @@ def trigger_artifacts(state: SourceState, config: RunnableConfig) -> List[Send]:
 
 async def transform_content(state: ApplyArtifactState) -> Optional[dict]:
     source = state["source"]
-    content = source.full_text
-    if not content:
-        return None
     artifact = state["artifact"]
+    applied = await apply_artifact_to_source(source, artifact)
+    if applied is None:
+        return None
+    output, artifact_name = applied
+    return {
+        "artifacts": [
+            {
+                "output": output,
+                "artifact_name": artifact_name,
+            }
+        ]
+    }
+
+
+async def apply_artifact_to_source(
+    source: Source,
+    artifact: Artifact,
+) -> Optional[tuple[str, str]]:
+    """Run one artifact against source.full_text and queue a source insight."""
+    content = source.full_text
+    if not content or not content.strip():
+        return None
 
     logger.debug(f"Applying artifact {artifact.name}")
     result = await artifact_graph.ainvoke(
         dict(input_text=content, artifact=artifact)  # type: ignore[arg-type]
     )
     await source.add_insight(artifact.title, result["output"])
-    return {
-        "artifacts": [
-            {
-                "output": result["output"],
-                "artifact_name": artifact.name,
-            }
-        ]
-    }
+    return result["output"], artifact.name
+
+
+async def apply_artifacts_to_source(
+    source: Source,
+    artifacts: List[Artifact],
+) -> int:
+    """Run artifact templates against source content. Returns count applied."""
+    applied = 0
+    for artifact in artifacts:
+        if await apply_artifact_to_source(source, artifact) is not None:
+            applied += 1
+    return applied
 
 
 # Create and compile the workflow

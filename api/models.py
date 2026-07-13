@@ -414,6 +414,29 @@ class SaveAsNoteRequest(BaseModel):
     project_id: Optional[str] = Field(None, description="Project ID to add note to")
 
 
+class IngestTextSourceRequest(BaseModel):
+    content: str = Field(..., description="Text content to ingest")
+    title: str = Field(..., description="Source title")
+    project_ids: List[str] = Field(
+        ..., description="Project IDs to link the new source to"
+    )
+    embed: bool = Field(True, description="Whether to embed content for vector search")
+    artifacts: Optional[List[str]] = Field(
+        default_factory=list, description="Artifact IDs to apply after ingestion"
+    )
+
+
+class PromoteToSourceRequest(BaseModel):
+    project_id: Optional[str] = Field(
+        None,
+        description="Project ID to link the source to (optional if already linked)",
+    )
+    embed: bool = Field(True, description="Whether to embed content for vector search")
+    artifacts: Optional[List[str]] = Field(
+        default_factory=list, description="Artifact IDs to apply after ingestion"
+    )
+
+
 class CreateSourceInsightRequest(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 

@@ -3,11 +3,42 @@ from typing import List, Literal, Optional
 from fastapi import APIRouter, HTTPException, Query
 from loguru import logger
 
-from api.models import NoteCreate, NoteResponse, NoteUpdate
+from api.models import (
+    NoteCreate,
+    NoteResponse,
+    NoteUpdate,
+    PromoteToSourceRequest,
+    SourceResponse,
+)
 from construction_os.domain.project import Note
 from construction_os.exceptions import InvalidInputError, NotFoundError
 
 router = APIRouter()
+
+_AUTO_TITLE_NOTE_TYPES = ("ai", "artifact")
+
+
+async def _generate_note_title(content: str, note_type: str) -> str:
+    from construction_os.graphs.prompt import graph as prompt_graph
+
+    if note_type == "artifact":
+        prompt = (
+            "Based on the artifact content below, provide a concise descriptive title "
+            "(max 15 words) for a construction project artifact."
+        )
+    else:
+        prompt = (
+            "Based on the Note below, please provide a Title for this content, "
+            "with max 15 words"
+        )
+
+    result = await prompt_graph.ainvoke(
+        {  # type: ignore[arg-type]
+            "input_text": content,
+            "prompt": prompt,
+        }
+    )
+    return result.get("output", "Untitled Note")
 
 
 @router.get("/notes", response_model=List[NoteResponse])
@@ -50,19 +81,13 @@ async def get_notes(
 async def create_note(note_data: NoteCreate):
     """Create a new note."""
     try:
-        # Auto-generate title if not provided and it's an AI note
         title = note_data.title
-        if not title and note_data.note_type == "ai" and note_data.content:
-            from construction_os.graphs.prompt import graph as prompt_graph
-
-            prompt = "Based on the Note below, please provide a Title for this content, with max 15 words"
-            result = await prompt_graph.ainvoke(
-                {  # type: ignore[arg-type]
-                    "input_text": note_data.content,
-                    "prompt": prompt,
-                }
-            )
-            title = result.get("output", "Untitled Note")
+        if (
+            not title
+            and note_data.note_type in _AUTO_TITLE_NOTE_TYPES
+            and note_data.content
+        ):
+            title = await _generate_note_title(note_data.content, note_data.note_type)
 
         # Validate note_type
         note_type: Optional[Literal["human", "ai", "note", "artifact"]] = None
@@ -170,6 +195,29 @@ async def update_note(note_id: str, note_update: NoteUpdate):
     except Exception as e:
         logger.error(f"Error updating note {note_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error updating note: {str(e)}")
+
+
+@router.post("/notes/{note_id}/ingest-as-source", response_model=SourceResponse)
+async def ingest_note_as_source(note_id: str, request: PromoteToSourceRequest):
+    """Promote a note (artifact or AI) into a fully ingested text source."""
+    from api.promotion_service import promote_note_to_source
+
+    try:
+        return await promote_note_to_source(
+            note_id,
+            project_id=request.project_id,
+            embed=request.embed,
+            artifact_ids=request.artifacts or [],
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except InvalidInputError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error ingesting note {note_id} as source: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error ingesting note as source: {e}"
+        )
 
 
 @router.delete("/notes/{note_id}")

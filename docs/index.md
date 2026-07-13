@@ -60,6 +60,7 @@ Welcome to Construction OS - a privacy-focused AI research assistant. This docum
 ### I want to contribute/develop
 → Read this: **[7-DEVELOPMENT](7-DEVELOPMENT/index.md)**
 - Architecture and tech stack
+- **[Run locally on Windows](7-DEVELOPMENT/run-locally-windows.md)** — step-by-step PowerShell guide
 - Contributing guidelines
 - API reference
 - Testing

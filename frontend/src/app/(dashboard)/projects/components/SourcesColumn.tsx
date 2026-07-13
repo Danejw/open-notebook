@@ -16,7 +16,7 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { AddSourceDialog } from '@/components/sources/AddSourceDialog'
 import { AddExistingSourceDialog } from '@/components/sources/AddExistingSourceDialog'
 import { SourceCard } from '@/components/sources/SourceCard'
-import { useDeleteSource, useRetrySource, useRemoveSourceFromProject } from '@/lib/hooks/use-sources'
+import { useDeleteSource, useRetrySource, useRemoveSourceFromProject, useIngestAsSource } from '@/lib/hooks/use-sources'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { useModalManager } from '@/lib/hooks/use-modal-manager'
 import type { ContextMode } from '@/lib/types/project-context'
@@ -32,6 +32,15 @@ import {
 } from '@/components/projects/ColumnHeader'
 import { useProjectColumnsStore } from '@/lib/stores/project-columns-store'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { useRunArtifactInsight } from '@/lib/hooks/use-run-artifact-insight'
+import {
+  clearArtifactDragData,
+  getActiveArtifactDragPayload,
+  getArtifactDragData,
+  isArtifactDragEvent,
+  type ArtifactDragKind,
+} from '@/lib/utils/artifact-drag'
+import { cn } from '@/lib/utils'
 
 interface SourcesColumnProps {
   sources?: SourceListResponse[]
@@ -46,6 +55,8 @@ interface SourcesColumnProps {
   hasNextPage?: boolean
   isFetchingNextPage?: boolean
   fetchNextPage?: () => void
+  hasArtifactTemplates?: boolean
+  hasIngestibleArtifacts?: boolean
 }
 
 export function SourcesColumn({
@@ -59,10 +70,15 @@ export function SourcesColumn({
   hasNextPage,
   isFetchingNextPage,
   fetchNextPage,
+  hasArtifactTemplates = false,
+  hasIngestibleArtifacts = false,
 }: SourcesColumnProps) {
   const { t } = useTranslation()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [addDialogOpen, setAddDialogOpen] = useState(false)
+  const [droppedArtifactIds, setDroppedArtifactIds] = useState<string[]>([])
+  const [isArtifactDragOver, setIsArtifactDragOver] = useState(false)
+  const [dragOverKind, setDragOverKind] = useState<ArtifactDragKind | null>(null)
   const [addExistingDialogOpen, setAddExistingDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [sourceToDelete, setSourceToDelete] = useState<string | null>(null)
@@ -73,6 +89,10 @@ export function SourcesColumn({
   const deleteSource = useDeleteSource()
   const retrySource = useRetrySource()
   const removeFromProject = useRemoveSourceFromProject()
+  const { runArtifactOnSource } = useRunArtifactInsight()
+  const ingestAsSource = useIngestAsSource()
+
+  const enableArtifactDrop = hasArtifactTemplates || hasIngestibleArtifacts
 
   // Collapsible column state
   const { sourcesCollapsed, toggleSources } = useProjectColumnsStore()
@@ -83,6 +103,77 @@ export function SourcesColumn({
 
   // Scroll container ref for infinite scroll
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const artifactDragCounterRef = useRef(0)
+
+  const handleArtifactDragEnter = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    if (!enableArtifactDrop || !isArtifactDragEvent(event)) return
+    event.preventDefault()
+    artifactDragCounterRef.current += 1
+    setIsArtifactDragOver(true)
+    setDragOverKind(getActiveArtifactDragPayload()?.kind ?? null)
+  }, [enableArtifactDrop])
+
+  const handleArtifactDragLeave = useCallback(() => {
+    artifactDragCounterRef.current = Math.max(0, artifactDragCounterRef.current - 1)
+    if (artifactDragCounterRef.current === 0) {
+      setIsArtifactDragOver(false)
+      setDragOverKind(null)
+    }
+  }, [])
+
+  const handleArtifactDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    if (!enableArtifactDrop || !isArtifactDragEvent(event)) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'copy'
+    setDragOverKind(getActiveArtifactDragPayload()?.kind ?? null)
+  }, [enableArtifactDrop])
+
+  const handleColumnArtifactDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    if (!enableArtifactDrop) return
+    event.preventDefault()
+    artifactDragCounterRef.current = 0
+    setIsArtifactDragOver(false)
+    setDragOverKind(null)
+
+    const payload = getArtifactDragData(event.dataTransfer)
+    clearArtifactDragData()
+    if (!payload) return
+
+    if (payload.kind === 'note') {
+      void ingestAsSource.mutateAsync({
+        kind: 'note',
+        noteId: payload.id,
+        projectId,
+      })
+      return
+    }
+
+    setDroppedArtifactIds([payload.id])
+    setAddDialogOpen(true)
+  }, [enableArtifactDrop, ingestAsSource, projectId])
+
+  const handleArtifactDropOnSource = useCallback(
+    (sourceId: string, artifactId: string) => {
+      void runArtifactOnSource({ sourceId, artifactId })
+    },
+    [runArtifactOnSource]
+  )
+
+  const handleAddDialogOpenChange = useCallback((open: boolean) => {
+    setAddDialogOpen(open)
+    if (!open) {
+      setDroppedArtifactIds([])
+    }
+  }, [])
+
+  const emptyStateDescription = hasArtifactTemplates || hasIngestibleArtifacts
+    ? `${t('sources.createFirstSource')} ${t('sources.dragTemplateToSource')}`
+    : t('sources.createFirstSource')
+
+  const dropOverlayHint =
+    dragOverKind === 'note'
+      ? t('sources.dropArtifactNoteHint')
+      : t('sources.dropArtifactHint')
 
   // Handle scroll for infinite loading
   const handleScroll = useCallback(() => {
@@ -218,14 +309,31 @@ export function SourcesColumn({
             }
           />
 
-          <CardContent ref={scrollContainerRef} className={columnBodyClassName}>
+          <CardContent
+            ref={scrollContainerRef}
+            className={cn(columnBodyClassName, 'relative')}
+            onDragEnter={enableArtifactDrop ? handleArtifactDragEnter : undefined}
+            onDragLeave={enableArtifactDrop ? handleArtifactDragLeave : undefined}
+            onDragOver={enableArtifactDrop ? handleArtifactDragOver : undefined}
+            onDrop={enableArtifactDrop ? handleColumnArtifactDrop : undefined}
+          >
+            {isArtifactDragOver && (
+              <div
+                className="pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-md border-2 border-dashed border-primary bg-primary/5"
+                aria-hidden
+              >
+                <p className="px-4 text-center text-sm font-medium text-primary">
+                  {dropOverlayHint}
+                </p>
+              </div>
+            )}
             {isLoading ? (
               <ColumnCardsSkeleton count={3} />
             ) : !sources || sources.length === 0 ? (
               <EmptyState
                 icon={FileText}
                 title={t('sources.noSourcesYet')}
-                description={t('sources.createFirstSource')}
+                description={emptyStateDescription}
               />
             ) : (
               <div className="flex flex-col divide-y divide-border/50">
@@ -245,6 +353,11 @@ export function SourcesColumn({
                       ? (mode) => onContextModeChange(source.id, mode)
                       : undefined
                     }
+                    onArtifactDrop={
+                      hasArtifactTemplates
+                        ? (artifactId) => handleArtifactDropOnSource(source.id, artifactId)
+                        : undefined
+                    }
                   />
                 ))}
                 {/* Loading indicator for infinite scroll */}
@@ -257,8 +370,9 @@ export function SourcesColumn({
 
       <AddSourceDialog
         open={addDialogOpen}
-        onOpenChange={setAddDialogOpen}
+        onOpenChange={handleAddDialogOpenChange}
         defaultprojectId={projectId}
+        initialArtifactIds={droppedArtifactIds}
       />
 
       <AddExistingSourceDialog

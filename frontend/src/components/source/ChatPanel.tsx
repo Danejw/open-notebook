@@ -293,7 +293,6 @@ export function ChatPanel({
             editDraft={editDraft}
             projectId={projectId}
             noteSaveTitle={noteSaveTitle}
-            saveAsArtifact={Boolean(activeArtifact)}
             toolCallsByMessageId={toolCallsByMessageId}
             canEdit={Boolean(onEditMessage)}
             editLocked={editingMessageId !== null}

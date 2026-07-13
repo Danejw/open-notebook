@@ -267,3 +267,110 @@ async def run_artifact_command(
             f"on source {input_data.source_id}: {e}"
         )
         raise
+
+
+# =============================================================================
+# INGEST TEXT SOURCE COMMAND (promotion fast path — skip content extraction)
+# =============================================================================
+
+
+class IngestTextSourceInput(CommandInput):
+    """Input for ingesting pre-extracted text into an existing source record."""
+
+    source_id: str
+    content: str
+    title: str
+    project_ids: List[str]
+    artifacts: List[str]
+    embed: bool
+
+
+class IngestTextSourceOutput(CommandOutput):
+    success: bool
+    source_id: str
+    insights_created: int = 0
+    processing_time: float
+    error_message: Optional[str] = None
+
+
+@command(
+    "ingest_text_source",
+    app="construction_os",
+    retry={
+        "max_attempts": 5,
+        "wait_strategy": "exponential_jitter",
+        "wait_min": 1,
+        "wait_max": 60,
+        "stop_on": [ValueError, ConfigurationError],
+        "retry_log_level": "debug",
+    },
+)
+async def ingest_text_source_command(
+    input_data: IngestTextSourceInput,
+) -> IngestTextSourceOutput:
+    """
+    Set full_text on an existing source, embed, and optionally apply artifacts.
+
+    Skips content-core extraction for promoted notes, insights, and playground output.
+    """
+    from construction_os.graphs.source import apply_artifacts_to_source
+
+    start_time = time.time()
+
+    try:
+        content = (input_data.content or "").strip()
+        if not content:
+            raise ValueError("Content is required for text ingestion")
+
+        source = await Source.get(input_data.source_id)
+        if not source:
+            raise ValueError(f"Source '{input_data.source_id}' not found")
+
+        source.command = (
+            ensure_record_id(input_data.execution_context.command_id)
+            if input_data.execution_context
+            else None
+        )
+        source.full_text = content
+        if input_data.title:
+            source.title = input_data.title
+        await source.save()
+
+        for project_id in input_data.project_ids:
+            await source.add_to_project(project_id)
+
+        if input_data.embed:
+            await source.vectorize()
+
+        artifacts: List[Artifact] = []
+        for artifact_id in input_data.artifacts:
+            artifact = await Artifact.get(artifact_id)
+            if not artifact:
+                raise ValueError(f"Artifact '{artifact_id}' not found")
+            artifacts.append(artifact)
+
+        insights_created = 0
+        if artifacts:
+            insights_created = await apply_artifacts_to_source(source, artifacts)
+
+        processing_time = time.time() - start_time
+        logger.info(
+            f"Ingested text source {source.id} in {processing_time:.2f}s "
+            f"(insights={insights_created}, embed={input_data.embed})"
+        )
+
+        return IngestTextSourceOutput(
+            success=True,
+            source_id=str(source.id),
+            insights_created=insights_created,
+            processing_time=processing_time,
+        )
+
+    except ValueError as e:
+        logger.error(f"Text source ingestion failed (permanent): {e}")
+        raise
+    except Exception as e:
+        logger.debug(
+            f"Transient error ingesting text source {input_data.source_id}: {e}"
+        )
+        raise

@@ -7,7 +7,9 @@ import {
   SourceResponse,
   SourceStatusResponse,
   CreateSourceRequest, 
-  UpdateSourceRequest 
+  UpdateSourceRequest,
+  IngestTextSourceRequest,
+  PromoteToSourceRequest,
 } from '@/lib/types/api'
 
 export const sourcesApi = {
@@ -104,5 +106,26 @@ export const sourcesApi = {
     return apiClient.get(`/sources/${id}/download`, {
       responseType: 'blob',
     })
+  },
+
+  ingestText: async (data: IngestTextSourceRequest) => {
+    const response = await apiClient.post<SourceResponse>('/sources/ingest-text', data)
+    return response.data
+  },
+
+  ingestNoteAsSource: async (noteId: string, data: PromoteToSourceRequest = {}) => {
+    const response = await apiClient.post<SourceResponse>(
+      `/notes/${noteId}/ingest-as-source`,
+      data
+    )
+    return response.data
+  },
+
+  ingestInsightAsSource: async (insightId: string, data: PromoteToSourceRequest = {}) => {
+    const response = await apiClient.post<SourceResponse>(
+      `/insights/${insightId}/ingest-as-source`,
+      data
+    )
+    return response.data
   },
 }

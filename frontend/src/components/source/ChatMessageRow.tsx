@@ -23,7 +23,6 @@ export interface ChatMessageRowProps {
   isStreaming: boolean
   projectId?: string
   noteSaveTitle?: string
-  saveAsArtifact?: boolean
   toolCalls?: ChatToolCall[]
   canEdit: boolean
   editLocked: boolean
@@ -43,7 +42,6 @@ function ChatMessageRowImpl({
   isStreaming,
   projectId,
   noteSaveTitle,
-  saveAsArtifact,
   toolCalls = EMPTY_TOOL_CALLS,
   canEdit,
   editLocked,
@@ -139,7 +137,6 @@ function ChatMessageRowImpl({
                   content={message.content}
                   projectId={projectId}
                   noteTitle={noteSaveTitle}
-                  saveAsArtifact={saveAsArtifact}
                 />
               </div>
             )}

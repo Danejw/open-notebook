@@ -37,6 +37,8 @@ make start-all
 
 **Best for:** Daily development, hot reload, debugging
 
+> **Windows (PowerShell):** See [docs/7-DEVELOPMENT/run-locally-windows.md](docs/7-DEVELOPMENT/run-locally-windows.md) for the manual 4-terminal setup. `make` is not available on Windows by default.
+
 ### Setup
 
 ```bash

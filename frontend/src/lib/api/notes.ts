@@ -1,5 +1,5 @@
 import apiClient from './client'
-import { NoteResponse, CreateNoteRequest, UpdateNoteRequest } from '@/lib/types/api'
+import { NoteResponse, CreateNoteRequest, UpdateNoteRequest, PromoteToSourceRequest, SourceResponse } from '@/lib/types/api'
 
 export const notesApi = {
   list: async (params?: { project_id?: string }) => {
@@ -24,5 +24,10 @@ export const notesApi = {
 
   delete: async (id: string) => {
     await apiClient.delete(`/notes/${id}`)
-  }
+  },
+
+  ingestAsSource: async (id: string, data: PromoteToSourceRequest = {}) => {
+    const response = await apiClient.post<SourceResponse>(`/notes/${id}/ingest-as-source`, data)
+    return response.data
+  },
 }

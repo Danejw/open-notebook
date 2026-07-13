@@ -133,6 +133,11 @@ function ProjectPageContent() {
     return artifacts.find((artifact) => artifact.id === artifactParam)
   }, [artifactParam, artifacts])
 
+  const hasIngestibleArtifacts = useMemo(
+    () => (notes ?? []).some((note) => note.note_type === 'artifact'),
+    [notes]
+  )
+
   const handleClearArtifact = useCallback(() => {
     router.replace(`/projects/${encodeURIComponent(projectId)}`)
   }, [router, projectId])
@@ -270,7 +275,7 @@ function ProjectPageContent() {
             <>
               <div className="lg:hidden mb-4">
                 <Tabs value={mobileActiveTab} onValueChange={(value) => setMobileActiveTab(value as 'sources' | 'notes' | 'chat')}>
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className="grid w-full grid-cols-3 gap-0.5 p-0.5">
                     <TabsTrigger value="sources" className="gap-2">
                       <FileText className="h-4 w-4" />
                       {t('navigation.sources')}
@@ -302,6 +307,8 @@ function ProjectPageContent() {
                     hasNextPage={hasNextPage}
                     isFetchingNextPage={isFetchingNextPage}
                     fetchNextPage={fetchNextPage}
+                    hasArtifactTemplates={artifacts.length > 0}
+                    hasIngestibleArtifacts={hasIngestibleArtifacts}
                   />
                 )}
                 {mobileActiveTab === 'notes' && (
@@ -354,6 +361,8 @@ function ProjectPageContent() {
                   hasNextPage={hasNextPage}
                   isFetchingNextPage={isFetchingNextPage}
                   fetchNextPage={fetchNextPage}
+                  hasArtifactTemplates={artifacts.length > 0}
+                  hasIngestibleArtifacts={hasIngestibleArtifacts}
                 />
               </ResizablePanel>
 

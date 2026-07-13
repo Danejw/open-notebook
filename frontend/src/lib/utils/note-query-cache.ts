@@ -45,6 +45,20 @@ export function restoreNoteListQueries(
   }
 }
 
+function deriveTitleFromContent(content: string): string | null {
+  const headingMatch = content.match(/^#\s+(.+)$/m)
+  if (headingMatch?.[1]) {
+    return headingMatch[1].trim().slice(0, 80)
+  }
+
+  const firstLine = content
+    .split('\n')
+    .map((line) => line.trim())
+    .find((line) => line.length > 0)
+
+  return firstLine ? firstLine.slice(0, 80) : null
+}
+
 export function buildOptimisticNote(
   variables: {
     title?: string
@@ -57,7 +71,7 @@ export function buildOptimisticNote(
   const now = new Date().toISOString()
   return {
     id,
-    title: variables.title ?? null,
+    title: variables.title ?? deriveTitleFromContent(variables.content) ?? null,
     content: variables.content,
     note_type: variables.note_type ?? null,
     created: now,

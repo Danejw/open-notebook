@@ -71,6 +71,7 @@ interface AddSourceDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   defaultprojectId?: string
+  initialArtifactIds?: string[]
 }
 
 interface ProcessingState {
@@ -88,7 +89,8 @@ interface BatchProgress {
 export function AddSourceDialog({ 
   open, 
   onOpenChange, 
-  defaultprojectId 
+  defaultprojectId,
+  initialArtifactIds = [],
 }: AddSourceDialogProps) {
   const { t } = useTranslation()
 
@@ -142,13 +144,6 @@ export function AddSourceDialog({
   // Initialize form values when settings and artifacts are loaded
   useEffect(() => {
     if (settings && artifacts.length > 0) {
-      const defaultArtifacts = artifacts
-        .filter(a => a.apply_default)
-        .map(a => a.id)
-
-      setSelectedArtifactIds(defaultArtifacts)
-
-      // Reset form with proper embed value based on settings
       const embedValue = settings.default_embedding_option === 'always' ||
                          (settings.default_embedding_option === 'ask')
 
@@ -160,6 +155,18 @@ export function AddSourceDialog({
       })
     }
   }, [settings, artifacts, defaultprojectId, reset])
+
+  // Apply default and dropped artifact selections when the dialog opens
+  useEffect(() => {
+    if (!open || !artifacts.length) return
+
+    const defaultArtifacts = artifacts
+      .filter(a => a.apply_default)
+      .map(a => a.id)
+
+    const merged = [...new Set([...defaultArtifacts, ...initialArtifactIds])]
+    setSelectedArtifactIds(merged)
+  }, [open, artifacts, initialArtifactIds])
 
   // Cleanup effect
   useEffect(() => {

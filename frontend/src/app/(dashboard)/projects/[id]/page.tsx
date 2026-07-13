@@ -20,7 +20,14 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from '@/components/ui/resizable'
-import { FileText, MessageSquare, Boxes } from 'lucide-react'
+import { FileText, MessageSquare, Boxes, Network } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import {
+  projectPageInsetClassName,
+  projectPageStackGapClassName,
+} from '@/components/projects/ColumnHeader'
+import { ProjectKnowledgePanel } from '@/components/projects/ProjectKnowledgePanel'
+import { Button } from '@/components/ui/button'
 import {
   applyBulkSourceContext,
   applyBulkNoteContext,
@@ -57,6 +64,8 @@ function ProjectPageContent() {
 
   const projectId = params?.id ? decodeURIComponent(params.id as string) : ''
   const artifactParam = searchParams.get('artifact')
+  const viewParam = searchParams.get('view')
+  const showKnowledge = viewParam === 'knowledge'
 
   const { data: project, isLoading: projectLoading } = useProject(projectId)
   const { data: artifacts = [] } = useArtifacts()
@@ -230,10 +239,16 @@ function ProjectPageContent() {
   if (projectLoading && !project) {
     return (
               <div className="flex flex-col flex-1 min-h-0">
-          <div className="flex-shrink-0 px-3 pt-3 pb-0">
+          <div className="flex-shrink-0 px-2 pt-px pb-0">
             <div className="h-10 w-64 animate-pulse rounded-md bg-muted" />
           </div>
-          <div className="flex-1 px-1.5 py-2 flex gap-1">
+          <div
+            className={cn(
+              'flex min-h-0 flex-1 flex-col',
+              projectPageInsetClassName,
+              projectPageStackGapClassName
+            )}
+          >
             <div className="flex-[28] animate-pulse rounded-lg bg-muted min-h-[200px]" />
             <div className="flex-[28] animate-pulse rounded-lg bg-muted min-h-[200px]" />
             <div className="flex-[44] animate-pulse rounded-lg bg-muted min-h-[200px]" />
@@ -265,27 +280,69 @@ function ProjectPageContent() {
 
   return (
           <div className="flex flex-col flex-1 min-h-0">
-        <div className="flex-shrink-0 px-3 pt-3 pb-0">
-          <ProjectHeader project={project} />
+        <div className="flex-shrink-0 px-2 pt-px pb-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <ProjectHeader project={project} />
+            </div>
+            <Button
+              variant={showKnowledge ? 'default' : 'outline'}
+              size="sm"
+              className="mt-1 shrink-0"
+              onClick={() => {
+                const next = new URLSearchParams(searchParams.toString())
+                if (showKnowledge) {
+                  next.delete('view')
+                } else {
+                  next.set('view', 'knowledge')
+                }
+                const qs = next.toString()
+                router.push(qs ? `?${qs}` : window.location.pathname)
+              }}
+            >
+              <Network className="mr-2 h-4 w-4" />
+              {t('knowledge.tab')}
+            </Button>
+          </div>
         </div>
 
-        <div className="flex-1 px-1.5 py-2 overflow-x-auto flex flex-col min-h-0">
+        {showKnowledge ? (
+          <div
+            className={cn(
+              'flex min-h-0 flex-1 flex-col overflow-hidden',
+              projectPageInsetClassName
+            )}
+          >
+            <ProjectKnowledgePanel projectId={projectId} />
+          </div>
+        ) : (
+        <div
+          className={cn(
+            'flex min-h-0 flex-1 flex-col overflow-x-auto',
+            projectPageInsetClassName,
+            projectPageStackGapClassName
+          )}
+        >
           {/* Mobile: Tabbed interface - only render on mobile to avoid double-mounting */}
           {!isDesktop && (
             <>
-              <div className="lg:hidden mb-4">
-                <Tabs value={mobileActiveTab} onValueChange={(value) => setMobileActiveTab(value as 'sources' | 'notes' | 'chat')}>
-                  <TabsList className="grid w-full grid-cols-3 gap-0.5 p-0.5">
-                    <TabsTrigger value="sources" className="gap-2">
-                      <FileText className="h-4 w-4" />
+              <div className="shrink-0 lg:hidden">
+                <Tabs
+                  className="gap-0"
+                  value={mobileActiveTab}
+                  onValueChange={(value) => setMobileActiveTab(value as 'sources' | 'notes' | 'chat')}
+                >
+                  <TabsList className="grid h-auto w-full grid-cols-3 gap-0 p-0.5">
+                    <TabsTrigger value="sources" className="h-7 gap-1 px-2 text-xs">
+                      <FileText className="h-3.5 w-3.5" />
                       {t('navigation.sources')}
                     </TabsTrigger>
-                    <TabsTrigger value="notes" className="gap-2">
-                      <Boxes className="h-4 w-4" />
+                    <TabsTrigger value="notes" className="h-7 gap-1 px-2 text-xs">
+                      <Boxes className="h-3.5 w-3.5" />
                       {t('common.artifacts')}
                     </TabsTrigger>
-                    <TabsTrigger value="chat" className="gap-2">
-                      <MessageSquare className="h-4 w-4" />
+                    <TabsTrigger value="chat" className="h-7 gap-1 px-2 text-xs">
+                      <MessageSquare className="h-3.5 w-3.5" />
                       {t('common.chat')}
                     </TabsTrigger>
                   </TabsList>
@@ -319,8 +376,7 @@ function ProjectPageContent() {
                     contextSelections={contextSelections.notes}
                     onContextModeChange={handleNoteContextModeChange}
                     onBulkContextModeChange={handleBulkNoteContext}
-                    templates={artifacts}
-                    onTemplateClick={(artifact) => handleTemplateClick(artifact.id)}
+                    onTemplateClick={handleTemplateClick}
                   />
                 )}
                 {mobileActiveTab === 'chat' && (
@@ -369,7 +425,7 @@ function ProjectPageContent() {
               <ResizableHandle
                 withHandle
                 disabled={sourcesCollapsed}
-                className="mx-0.5 w-1.5 rounded-full bg-transparent hover:bg-border/60"
+                className="mx-0 w-1 rounded-full bg-transparent hover:bg-border/60"
               />
 
               <ResizablePanel
@@ -389,15 +445,14 @@ function ProjectPageContent() {
                   contextSelections={contextSelections.notes}
                   onContextModeChange={handleNoteContextModeChange}
                   onBulkContextModeChange={handleBulkNoteContext}
-                  templates={artifacts}
-                  onTemplateClick={(artifact) => handleTemplateClick(artifact.id)}
+                  onTemplateClick={handleTemplateClick}
                 />
               </ResizablePanel>
 
               <ResizableHandle
                 withHandle
                 disabled={notesCollapsed}
-                className="mx-0.5 w-1.5 rounded-full bg-transparent hover:bg-border/60"
+                className="mx-0 w-1 rounded-full bg-transparent hover:bg-border/60"
               />
 
               <ResizablePanel
@@ -411,6 +466,7 @@ function ProjectPageContent() {
             </ResizablePanelGroup>
           )}
         </div>
+        )}
       </div>
   )
 }

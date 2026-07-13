@@ -68,7 +68,11 @@ export function useAsk() {
     error: null
   })
 
-  const sendAsk = useCallback(async (question: string, models: AskModels) => {
+  const sendAsk = useCallback(async (
+    question: string,
+    models: AskModels,
+    options?: { project_id?: string; retrieval_mode?: 'auto' | 'vector' | 'hybrid' | 'graph' }
+  ) => {
     if (!question.trim()) {
       toast.error(t('apiErrors.pleaseEnterQuestion'))
       return
@@ -94,7 +98,9 @@ export function useAsk() {
         question,
         strategy_model: models.strategy,
         answer_model: models.answer,
-        final_answer_model: models.finalAnswer
+        final_answer_model: models.finalAnswer,
+        project_id: options?.project_id,
+        retrieval_mode: options?.retrieval_mode ?? 'auto',
       })
 
       if (!response) {

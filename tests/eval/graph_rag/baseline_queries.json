@@ -1,0 +1,212 @@
+[
+  {
+    "id": "sem-001",
+    "question": "What is the project warranty period for roofing?",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:warranty-doc"],
+    "query_class": "semantic"
+  },
+  {
+    "id": "sem-002",
+    "question": "Summarize the design intent for the mechanical system",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:design-intent"],
+    "query_class": "semantic"
+  },
+  {
+    "id": "sem-003",
+    "question": "What safety requirements apply during mobilization?",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:safety-plan"],
+    "query_class": "semantic"
+  },
+  {
+    "id": "sem-004",
+    "question": "Describe the vapor barrier approach for the envelope",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:envelope-notes"],
+    "query_class": "semantic"
+  },
+  {
+    "id": "sem-005",
+    "question": "What are the insurance and bonding obligations?",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:insurance-summary"],
+    "query_class": "semantic"
+  },
+  {
+    "id": "sem-006",
+    "question": "How is temporary power provided during construction?",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:temp-utilities"],
+    "query_class": "semantic"
+  },
+  {
+    "id": "sem-007",
+    "question": "What closeout documents are required?",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:closeout-checklist"],
+    "query_class": "semantic"
+  },
+  {
+    "id": "sem-008",
+    "question": "Explain the owner allowances in the base bid",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:allowance-matrix"],
+    "query_class": "semantic"
+  },
+  {
+    "id": "sem-009",
+    "question": "What labor market risks affect this bid?",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:market-brief"],
+    "query_class": "semantic"
+  },
+  {
+    "id": "sem-010",
+    "question": "Summarize access and logistics constraints for the site",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:site-logistics"],
+    "query_class": "semantic"
+  },
+  {
+    "id": "id-001",
+    "question": "Where is detail 3/A-501 called out?",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:arch-plans", "source:arch-details"],
+    "query_class": "identifier"
+  },
+  {
+    "id": "id-002",
+    "question": "What specs govern AHU-2?",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:mech-schedule", "source:spec-23"],
+    "query_class": "identifier"
+  },
+  {
+    "id": "id-003",
+    "question": "Find CSI section 09 30 00 requirements",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:spec-09"],
+    "query_class": "identifier"
+  },
+  {
+    "id": "id-004",
+    "question": "Status of RFI-12 about underground utilities",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:rfi-log"],
+    "query_class": "identifier"
+  },
+  {
+    "id": "id-005",
+    "question": "Sheet A-501 revision date",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:drawing-index"],
+    "query_class": "identifier"
+  },
+  {
+    "id": "id-006",
+    "question": "SEE 5/S-301 structural detail references",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:struct-plans"],
+    "query_class": "identifier"
+  },
+  {
+    "id": "id-007",
+    "question": "Submittal for Division 07 waterproofing",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:submittal-log", "source:spec-07"],
+    "query_class": "identifier"
+  },
+  {
+    "id": "id-008",
+    "question": "Panel LP-2 feeder schedule",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:elec-schedule"],
+    "query_class": "identifier"
+  },
+  {
+    "id": "id-009",
+    "question": "Room 201 mechanical equipment list",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:mech-plans", "source:room-schedule"],
+    "query_class": "identifier"
+  },
+  {
+    "id": "id-010",
+    "question": "Addendum 3 changes to AHU-2",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:addendum-3", "source:mech-schedule"],
+    "query_class": "identifier"
+  },
+  {
+    "id": "agg-001",
+    "question": "Which open RFIs block underground utilities?",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:rfi-log", "source:site-utilities"],
+    "query_class": "aggregation"
+  },
+  {
+    "id": "agg-002",
+    "question": "List long-lead items across mechanical and electrical packages",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:mech-schedule", "source:elec-schedule", "source:procurement"],
+    "query_class": "aggregation"
+  },
+  {
+    "id": "agg-003",
+    "question": "What drawings and specs relate to Level 2 waterproofing?",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:spec-07", "source:arch-plans"],
+    "query_class": "aggregation"
+  },
+  {
+    "id": "agg-004",
+    "question": "Conflicts between finish schedule and interior elevations for Room 201",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:finish-schedule", "source:interior-elevations"],
+    "query_class": "aggregation"
+  },
+  {
+    "id": "agg-005",
+    "question": "Current mechanical schedule for AHU-2 after addenda",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:mech-schedule", "source:addendum-3"],
+    "query_class": "aggregation"
+  },
+  {
+    "id": "agg-006",
+    "question": "Which trades own electrical package E for the east wing?",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:scope-by-package", "source:elec-plans"],
+    "query_class": "aggregation"
+  },
+  {
+    "id": "agg-007",
+    "question": "Submittals that satisfy Division 09 flooring requirements",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:submittal-log", "source:spec-09"],
+    "query_class": "aggregation"
+  },
+  {
+    "id": "agg-008",
+    "question": "All references to fire damper FD-4 across drawings and specs",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:mech-plans", "source:spec-23"],
+    "query_class": "aggregation"
+  },
+  {
+    "id": "agg-009",
+    "question": "Impact of AHU-2 change on drawings, RFIs, and long-lead items",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:addendum-3", "source:rfi-log", "source:procurement"],
+    "query_class": "aggregation"
+  },
+  {
+    "id": "agg-010",
+    "question": "Missing sheets referenced but absent from the drawing set index",
+    "project_id": "project:eval-sample",
+    "expected_source_ids": ["source:drawing-index"],
+    "query_class": "aggregation"
+  }
+]

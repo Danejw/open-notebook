@@ -130,6 +130,28 @@ async def process_source_command(
             f"Created {insights_created} insights, embedding {embed_status}"
         )
 
+        # Fire-and-forget generic knowledge graph build (corpus-agnostic)
+        try:
+            from surreal_commands import submit_command
+
+            submit_command(
+                "construction_os",
+                "build_knowledge_graph",
+                {
+                    "source_id": str(processed_source.id),
+                    "project_ids": input_data.project_ids or [],
+                    "extractor": "generic",
+                    "force": False,
+                },
+            )
+            logger.info(
+                f"Submitted build_knowledge_graph for source {processed_source.id}"
+            )
+        except Exception as kg_err:
+            logger.warning(
+                f"Failed to submit knowledge graph build for {processed_source.id}: {kg_err}"
+            )
+
         return SourceProcessingOutput(
             success=True,
             source_id=str(processed_source.id),

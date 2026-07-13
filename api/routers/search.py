@@ -9,15 +9,32 @@ from construction_os.ai.models import Model, model_manager
 from construction_os.domain.project import text_search, vector_search
 from construction_os.exceptions import DatabaseOperationError, InvalidInputError
 from construction_os.graphs.ask import graph as ask_graph
+from construction_os.retrieval import retrieve
 
 router = APIRouter()
 
 
 @router.post("/search", response_model=SearchResponse)
 async def search_knowledge_base(search_request: SearchRequest):
-    """Search the knowledge base using text or vector search."""
+    """Search the knowledge base using text, vector, or hybrid search."""
     try:
-        if search_request.type == "vector":
+        if search_request.type == "hybrid":
+            if not await model_manager.get_embedding_model():
+                raise HTTPException(
+                    status_code=400,
+                    detail="Hybrid search requires an embedding model. Please configure one in the Models section.",
+                )
+            bundle = await retrieve(
+                search_request.query,
+                project_id=search_request.project_id,
+                mode="hybrid",
+                limit=search_request.limit,
+                search_sources=search_request.search_sources,
+                search_notes=search_request.search_notes,
+                minimum_score=search_request.minimum_score,
+            )
+            results = bundle.to_search_results()
+        elif search_request.type == "vector":
             # Check if embedding model is available for vector search
             if not await model_manager.get_embedding_model():
                 raise HTTPException(
@@ -31,6 +48,7 @@ async def search_knowledge_base(search_request: SearchRequest):
                 source=search_request.search_sources,
                 note=search_request.search_notes,
                 minimum_score=search_request.minimum_score,
+                project_id=search_request.project_id,
             )
         else:
             # Text search
@@ -39,6 +57,7 @@ async def search_knowledge_base(search_request: SearchRequest):
                 results=search_request.limit,
                 source=search_request.search_sources,
                 note=search_request.search_notes,
+                project_id=search_request.project_id,
             )
 
         return SearchResponse(
@@ -55,6 +74,16 @@ async def search_knowledge_base(search_request: SearchRequest):
     except Exception as e:
         logger.error(f"Unexpected error during search: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+
+def _ask_configurable(ask_request: AskRequest, strategy_model, answer_model, final_answer_model):
+    return {
+        "strategy_model": strategy_model.id,
+        "answer_model": answer_model.id,
+        "final_answer_model": final_answer_model.id,
+        "project_id": ask_request.project_id,
+        "retrieval_mode": ask_request.retrieval_mode,
+    }
 
 
 @router.post("/search/ask")
@@ -97,11 +126,9 @@ async def ask_knowledge_base(ask_request: AskRequest):
                 forwarded_props={"question": ask_request.question},
                 messages=[],
             ),
-            configurable={
-                "strategy_model": strategy_model.id,
-                "answer_model": answer_model.id,
-                "final_answer_model": final_answer_model.id,
-            },
+            configurable=_ask_configurable(
+                ask_request, strategy_model, answer_model, final_answer_model
+            ),
         )
 
     except HTTPException:
@@ -148,12 +175,10 @@ async def ask_knowledge_base_simple(ask_request: AskRequest):
         async for chunk in ask_graph.astream(
             input=dict(question=ask_request.question),  # type: ignore[arg-type]
             config=dict(
-                configurable=dict(
-                    thread_id=str(uuid.uuid4()),
-                    strategy_model=strategy_model.id,
-                    answer_model=answer_model.id,
-                    final_answer_model=final_answer_model.id,
+                configurable=_ask_configurable(
+                    ask_request, strategy_model, answer_model, final_answer_model
                 )
+                | {"thread_id": str(uuid.uuid4())}
             ),
             stream_mode="updates",
         ):

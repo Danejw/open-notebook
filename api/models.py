@@ -31,12 +31,18 @@ class ProjectResponse(BaseModel):
 # Search models
 class SearchRequest(BaseModel):
     query: str = Field(..., description="Search query")
-    type: Literal["text", "vector"] = Field("text", description="Search type")
+    type: Literal["text", "vector", "hybrid"] = Field(
+        "text", description="Search type"
+    )
     limit: int = Field(100, description="Maximum number of results", ge=1, le=1000)
     search_sources: bool = Field(True, description="Include sources in search")
     search_notes: bool = Field(True, description="Include notes in search")
     minimum_score: float = Field(
         0.2, description="Minimum score for vector search", ge=0, le=1
+    )
+    project_id: Optional[str] = Field(
+        None,
+        description="Optional project scope; when set, only project members are searched",
     )
 
 
@@ -51,6 +57,14 @@ class AskRequest(BaseModel):
     strategy_model: str = Field(..., description="Model ID for query strategy")
     answer_model: str = Field(..., description="Model ID for individual answers")
     final_answer_model: str = Field(..., description="Model ID for final answer")
+    project_id: Optional[str] = Field(
+        None,
+        description="Optional project scope; when set, retrieval is limited to that project",
+    )
+    retrieval_mode: Literal["auto", "vector", "hybrid", "graph"] = Field(
+        "auto",
+        description="Retrieval mode for Ask evidence gathering",
+    )
 
 
 class AskResponse(BaseModel):
@@ -112,6 +126,10 @@ class ArtifactCreate(BaseModel):
     apply_default: bool = Field(
         False, description="Whether to apply this Artifact by default"
     )
+    lifecycle_phase: Optional[str] = Field(
+        None,
+        description="Project lifecycle phase for default construction templates",
+    )
 
 
 class ArtifactUpdate(BaseModel):
@@ -126,6 +144,10 @@ class ArtifactUpdate(BaseModel):
     apply_default: Optional[bool] = Field(
         None, description="Whether to apply this Artifact by default"
     )
+    lifecycle_phase: Optional[str] = Field(
+        None,
+        description="Project lifecycle phase for default construction templates",
+    )
 
 
 class ArtifactResponse(BaseModel):
@@ -135,6 +157,7 @@ class ArtifactResponse(BaseModel):
     description: str
     prompt: str
     apply_default: bool
+    lifecycle_phase: Optional[str] = None
     created: str
     updated: str
 

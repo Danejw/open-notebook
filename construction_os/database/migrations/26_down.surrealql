@@ -1,0 +1,11 @@
+-- Rollback migration 26
+
+REMOVE EVENT IF EXISTS source_delete_cleanup_kg ON TABLE source;
+
+REMOVE TABLE IF EXISTS kg_extraction_run;
+REMOVE TABLE IF EXISTS kg_relation;
+REMOVE TABLE IF EXISTS kg_claim;
+REMOVE TABLE IF EXISTS kg_mention;
+REMOVE TABLE IF EXISTS kg_entity;
+
+RETURN true;

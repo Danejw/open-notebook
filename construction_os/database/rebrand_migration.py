@@ -432,13 +432,11 @@ async def migrate_singleton_records() -> None:
 
 
 async def seed_construction_artifacts() -> None:
-    """Insert default construction-industry artifacts if not present."""
-    existing = await repo_query(
-        "SELECT id FROM artifact WHERE name = 'Bid Scope Summary' LIMIT 1"
+    """Insert or backfill construction-industry artifact templates."""
+    from construction_os.database.construction_artifact_templates import (
+        CONSTRUCTION_ARTIFACT_TEMPLATES,
     )
-    if existing:
-        logger.debug("Construction default artifacts already seeded")
-        return
+    from construction_os.database.repository import repo_create, repo_query, repo_update
 
     await repo_query(
         """
@@ -448,69 +446,73 @@ async def seed_construction_artifacts() -> None:
         """
     )
 
-    templates = [
-        {
-            "name": "Bid Scope Summary",
-            "title": "Bid Scope Summary",
-            "description": "Summarizes bid scope, trades, and key deliverables from RFP/bid documents",
-            "prompt": "Extract a structured bid scope summary: project type, location, owner/GC, bid date, scope by trade, inclusions/exclusions, and bond/insurance requirements.",
-            "apply_default": False,
-        },
-        {
-            "name": "Quantity Takeoff Extract",
-            "title": "Quantity Takeoff Extract",
-            "description": "Extracts measurable quantities and units for estimation",
-            "prompt": "List quantifiable items with units (LF, SF, CY, EA, etc.), locations/areas, and source references. Note items needing field verification.",
-            "apply_default": False,
-        },
-        {
-            "name": "Cost & Pricing Risks",
-            "title": "Cost & Pricing Risks",
-            "description": "Identifies cost, escalation, and pricing risk factors",
-            "prompt": "Identify cost risks: material escalation, labor constraints, long-lead items, allowances, ambiguous specs, and suggested contingency considerations.",
-            "apply_default": False,
-        },
-        {
-            "name": "Schedule & Milestones",
-            "title": "Schedule & Milestones",
-            "description": "Extracts schedule dates, milestones, and critical path items",
-            "prompt": "Extract key dates, milestones, phased work, weather windows, owner milestones, and schedule risks or float concerns.",
-            "apply_default": False,
-        },
-        {
-            "name": "RFQ / RFP Requirements Extract",
-            "title": "RFQ / RFP Requirements Extract",
-            "description": "Extracts mandatory submission and compliance requirements",
-            "prompt": "List mandatory requirements: forms, certifications, insurance limits, bonding, pre-bid meetings, questions deadline, and disqualification risks.",
-            "apply_default": False,
-        },
-        {
-            "name": "Submittal / Spec Compliance",
-            "title": "Submittal / Spec Compliance",
-            "description": "Maps submittal and specification compliance obligations",
-            "prompt": "Extract submittal requirements, approved equals, testing, warranties, mock-ups, and spec sections referenced.",
-            "apply_default": False,
-        },
-        {
-            "name": "Change-Order Impact",
-            "title": "Change-Order Impact",
-            "description": "Analyzes scope changes for cost, schedule, and contract impact",
-            "prompt": "Summarize the change: scope delta, affected trades, cost drivers, schedule impact, and recommended pricing/negotiation notes.",
-            "apply_default": False,
-        },
-        {
-            "name": "Safety & Code Checklist",
-            "title": "Safety & Code Checklist",
-            "description": "Extracts safety, OSHA, and code compliance obligations",
-            "prompt": "List safety/code obligations: PPE, permits, inspections, hazardous work, environmental controls, and site-specific safety requirements.",
-            "apply_default": False,
-        },
-    ]
+    created = 0
+    backfilled = 0
+    for template in CONSTRUCTION_ARTIFACT_TEMPLATES:
+        existing = await repo_query(
+            "SELECT id FROM artifact WHERE name = $name LIMIT 1",
+            {"name": template["name"]},
+        )
+        if not existing:
+            payload = {
+                "name": template["name"],
+                "title": template["title"],
+                "description": template["description"],
+                "prompt": template["prompt"],
+                "apply_default": template["apply_default"],
+            }
+            created_record = await repo_create("artifact", payload)
+            created += 1
+            record_id = None
+            if isinstance(created_record, list) and created_record:
+                record_id = created_record[0].get("id")
+            elif isinstance(created_record, dict):
+                record_id = created_record.get("id")
+            if record_id and template.get("lifecycle_phase"):
+                try:
+                    await repo_update(
+                        "artifact",
+                        record_id,
+                        {"lifecycle_phase": template["lifecycle_phase"]},
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        f"Could not set lifecycle_phase for {template['name']}: {exc}"
+                    )
+            continue
 
-    for template in templates:
-        await repo_create("artifact", template)
+        record = existing[0]
+        if not template.get("lifecycle_phase"):
+            continue
 
-    logger.info(f"Seeded {len(templates)} construction default artifacts")
+        try:
+            phase_rows = await repo_query(
+                "SELECT lifecycle_phase FROM artifact WHERE id = $id LIMIT 1",
+                {"id": record["id"]},
+            )
+            current_phase = phase_rows[0].get("lifecycle_phase") if phase_rows else None
+        except Exception:
+            current_phase = None
+
+        if current_phase != template["lifecycle_phase"]:
+            try:
+                await repo_update(
+                    "artifact",
+                    record["id"],
+                    {"lifecycle_phase": template["lifecycle_phase"]},
+                )
+                backfilled += 1
+            except Exception as exc:
+                logger.warning(
+                    f"Could not backfill lifecycle_phase for {template['name']}: {exc}"
+                )
+
+    if created or backfilled:
+        logger.info(
+            f"Construction artifacts: {created} created, {backfilled} lifecycle phases backfilled"
+        )
+    else:
+        logger.debug("Construction artifact templates already up to date")
 
 
 async def run_construction_os_rebrand() -> None:

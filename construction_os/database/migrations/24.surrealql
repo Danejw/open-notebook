@@ -1,0 +1,5 @@
+-- Migration 24: lifecycle phase for construction artifact templates
+
+DEFINE FIELD IF NOT EXISTS lifecycle_phase ON TABLE artifact TYPE option<string>;
+
+RETURN true;

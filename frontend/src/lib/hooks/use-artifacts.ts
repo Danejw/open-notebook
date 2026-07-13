@@ -14,6 +14,8 @@ export function useArtifacts() {
   return useQuery({
     queryKey: QUERY_KEYS.artifacts,
     queryFn: () => artifactsApi.list(),
+    staleTime: 0,
+    refetchOnMount: true,
   })
 }
 

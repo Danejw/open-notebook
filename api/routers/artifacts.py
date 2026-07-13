@@ -34,6 +34,7 @@ async def get_artifacts():
                 description=artifact.description,
                 prompt=artifact.prompt,
                 apply_default=artifact.apply_default,
+                lifecycle_phase=artifact.lifecycle_phase,
                 created=str(artifact.created),
                 updated=str(artifact.updated),
             )
@@ -56,6 +57,7 @@ async def create_artifact(artifact_data: ArtifactCreate):
             description=artifact_data.description,
             prompt=artifact_data.prompt,
             apply_default=artifact_data.apply_default,
+            lifecycle_phase=artifact_data.lifecycle_phase,
         )
         await new_artifact.save()
 
@@ -66,6 +68,7 @@ async def create_artifact(artifact_data: ArtifactCreate):
             description=new_artifact.description,
             prompt=new_artifact.prompt,
             apply_default=new_artifact.apply_default,
+            lifecycle_phase=new_artifact.lifecycle_phase,
             created=str(new_artifact.created),
             updated=str(new_artifact.updated),
         )
@@ -165,6 +168,7 @@ async def get_artifact(artifact_id: str):
             description=artifact.description,
             prompt=artifact.prompt,
             apply_default=artifact.apply_default,
+            lifecycle_phase=artifact.lifecycle_phase,
             created=str(artifact.created),
             updated=str(artifact.updated),
         )
@@ -195,6 +199,8 @@ async def update_artifact(artifact_id: str, artifact_update: ArtifactUpdate):
             artifact.prompt = artifact_update.prompt
         if artifact_update.apply_default is not None:
             artifact.apply_default = artifact_update.apply_default
+        if artifact_update.lifecycle_phase is not None:
+            artifact.lifecycle_phase = artifact_update.lifecycle_phase
 
         await artifact.save()
 
@@ -205,6 +211,7 @@ async def update_artifact(artifact_id: str, artifact_update: ArtifactUpdate):
             description=artifact.description,
             prompt=artifact.prompt,
             apply_default=artifact.apply_default,
+            lifecycle_phase=artifact.lifecycle_phase,
             created=str(artifact.created),
             updated=str(artifact.updated),
         )

@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useEffect } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
@@ -41,7 +41,6 @@ import {
   FileText,
   Plus,
   Wrench,
-  Command,
   Sparkles,
   Plug2,
 } from 'lucide-react'
@@ -55,7 +54,7 @@ type NavSection = {
   }>
 }
 
-const getNavigation = (t: TFunction): NavSection[] => [
+const getMainNavigation = (t: TFunction): NavSection[] => [
   {
     items: [
       { name: t('navigation.skills'), href: '/skills', icon: Sparkles },
@@ -69,23 +68,31 @@ const getNavigation = (t: TFunction): NavSection[] => [
       { name: t('navigation.podcasts'), href: '/podcasts', icon: Mic },
     ],
   },
-  {
-    title: t('navigation.manage'),
-    items: [
-      { name: t('navigation.sources'), href: '/sources', icon: FileText },
-      { name: t('navigation.artifacts'), href: '/artifacts', icon: Shuffle },
-      { name: t('navigation.models'), href: '/settings/api-keys', icon: Bot },
-      { name: t('navigation.advanced'), href: '/advanced', icon: Wrench },
-      { name: t('navigation.settings'), href: '/settings', icon: Settings },
-    ],
-  },
 ]
+
+const getManageNavigation = (t: TFunction): NavSection => ({
+  title: t('navigation.manage'),
+  items: [
+    { name: t('navigation.sources'), href: '/sources', icon: FileText },
+    { name: t('navigation.artifacts'), href: '/artifacts', icon: Shuffle },
+    { name: t('navigation.models'), href: '/settings/api-keys', icon: Bot },
+    { name: t('navigation.advanced'), href: '/advanced', icon: Wrench },
+    { name: t('navigation.settings'), href: '/settings', icon: Settings },
+  ],
+})
 
 type CreateTarget = 'source' | 'project' | 'podcast'
 
+/** Collapsed rail: 40px wide with 2px side inset and 28px icon targets */
+const collapsedSidebarWidthClassName = 'w-10'
+const collapsedSidebarInsetClassName = 'px-[2px]'
+const collapsedSidebarButtonClassName =
+  'mx-auto h-7 w-7 shrink-0 justify-center gap-0 px-0'
+
 export function AppSidebar() {
   const { t } = useTranslation()
-  const navigation = getNavigation(t)
+  const mainNavigation = getMainNavigation(t)
+  const manageNavigation = getManageNavigation(t)
   const pathname = usePathname()
   const { logout } = useAuth()
   const { isCollapsed, toggleCollapse } = useSidebarStore()
@@ -93,11 +100,6 @@ export function AppSidebar() {
   const prefetchRoute = useRoutePrefetch()
 
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
-  const [isMac, setIsMac] = useState(true)
-
-  useEffect(() => {
-    setIsMac(navigator.platform.toLowerCase().includes('mac'))
-  }, [])
 
   const handleCreateSelection = (target: CreateTarget) => {
     setCreateMenuOpen(false)
@@ -111,21 +113,25 @@ export function AppSidebar() {
     }
   }
 
-  const renderNavItem = (item: (typeof navigation)[number]['items'][number]) => {
+  type NavItem = NavSection['items'][number]
+
+  const renderNavItem = (item: NavItem) => {
     const isActive = pathname?.startsWith(item.href) || false
     const handlePrefetch = () => prefetchRoute(item.href)
     const button = (
       <Button
         variant={isActive ? 'secondary' : 'ghost'}
-        size="sm"
+        size={isCollapsed ? 'icon' : 'sm'}
         className={cn(
-          'h-8 w-full gap-2 text-sidebar-foreground sidebar-menu-item',
+          'text-sidebar-foreground sidebar-menu-item',
           isActive && 'bg-sidebar-accent text-sidebar-accent-foreground',
-          isCollapsed ? 'justify-center px-0' : 'justify-start px-2'
+          isCollapsed
+            ? collapsedSidebarButtonClassName
+            : 'h-7 w-full justify-start gap-1.5 px-1.5'
         )}
       >
         <item.icon className="h-3.5 w-3.5 shrink-0" />
-        {!isCollapsed && <span className="truncate text-sm">{item.name}</span>}
+        {!isCollapsed && <span className="truncate text-[13px] leading-none">{item.name}</span>}
       </Button>
     )
 
@@ -133,7 +139,14 @@ export function AppSidebar() {
       return (
         <Tooltip key={item.name}>
           <TooltipTrigger asChild>
-            <Link href={item.href} prefetch={false} onMouseEnter={handlePrefetch}>{button}</Link>
+            <Link
+              href={item.href}
+              prefetch={false}
+              onMouseEnter={handlePrefetch}
+              className="flex justify-center"
+            >
+              {button}
+            </Link>
           </TooltipTrigger>
           <TooltipContent side="right">{item.name}</TooltipContent>
         </Tooltip>
@@ -147,43 +160,60 @@ export function AppSidebar() {
     )
   }
 
+  const renderNavSection = (section: NavSection, index: number) => (
+    <div
+      key={section.title ?? `section-${index}`}
+      className={cn(index > 0 && 'mt-1', isCollapsed && 'flex w-full flex-col items-center')}
+    >
+      {!isCollapsed && section.title && (
+        <h3 className="mb-0 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-sidebar-foreground/55">
+          {section.title}
+        </h3>
+      )}
+
+      <div className={cn('flex flex-col', isCollapsed && 'items-center')}>
+        {section.items.map((item) => renderNavItem(item))}
+      </div>
+    </div>
+  )
+
   return (
     <TooltipProvider delayDuration={0}>
       <div
         className={cn(
-          'app-sidebar flex h-full flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300',
-          isCollapsed ? 'w-14' : 'w-52'
+          'app-sidebar flex h-full flex-col bg-sidebar transition-all duration-300',
+          isCollapsed ? collapsedSidebarWidthClassName : 'w-52'
         )}
       >
         <div
           className={cn(
-            'flex h-11 shrink-0 items-center border-b border-sidebar-border',
-            isCollapsed ? 'justify-center px-1.5' : 'justify-between px-2'
+            'flex h-9 shrink-0 items-center border-b border-sidebar-border',
+            isCollapsed ? cn('justify-center', collapsedSidebarInsetClassName) : 'justify-between px-1.5'
           )}
         >
           {isCollapsed ? (
-            <div className="group relative flex w-full items-center justify-center">
+            <div className="group relative flex items-center justify-center">
               <Image
                 src="/logo.svg"
                 alt={t('common.appName')}
-                width={24}
-                height={24}
+                width={18}
+                height={18}
                 className="transition-opacity group-hover:opacity-0"
               />
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={toggleCollapse}
-                className="absolute h-7 w-7 text-sidebar-foreground opacity-0 transition-opacity hover:bg-sidebar-accent group-hover:opacity-100"
+                className={cn(collapsedSidebarButtonClassName, 'absolute opacity-0 transition-opacity hover:bg-sidebar-accent group-hover:opacity-100')}
               >
                 <Menu className="h-3.5 w-3.5" />
               </Button>
             </div>
           ) : (
             <>
-              <div className="flex min-w-0 items-center gap-1.5">
-                <Image src="/logo.svg" alt={t('common.appName')} width={24} height={24} />
-                <span className="truncate text-sm font-semibold text-sidebar-foreground">
+              <div className="flex min-w-0 items-center gap-1">
+                <Image src="/logo.svg" alt={t('common.appName')} width={20} height={20} />
+                <span className="truncate text-[13px] font-semibold leading-none text-sidebar-foreground">
                   {t('common.appName')}
                 </span>
               </div>
@@ -200,8 +230,13 @@ export function AppSidebar() {
           )}
         </div>
 
-        <nav className={cn('flex-1 overflow-y-auto hide-scrollbar py-2', isCollapsed ? 'px-1.5' : 'px-2')}>
-          <div className={cn('mb-2', isCollapsed ? 'px-0' : 'px-0.5')}>
+        <nav
+          className={cn(
+            'min-h-0 flex-1 overflow-y-auto hide-scrollbar py-1',
+            isCollapsed ? cn(collapsedSidebarInsetClassName, 'flex flex-col items-center') : 'px-1.5'
+          )}
+        >
+          <div className={cn('mb-1', isCollapsed && 'flex w-full justify-center')}>
             <DropdownMenu open={createMenuOpen} onOpenChange={setCreateMenuOpen}>
               {isCollapsed ? (
                 <Tooltip>
@@ -211,7 +246,7 @@ export function AppSidebar() {
                         onClick={() => setCreateMenuOpen(true)}
                         variant="default"
                         size="icon"
-                        className="h-8 w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                        className={cn(collapsedSidebarButtonClassName, 'bg-primary text-primary-foreground hover:bg-primary/90')}
                         aria-label={t('common.create')}
                       >
                         <Plus className="h-3.5 w-3.5" />
@@ -226,9 +261,9 @@ export function AppSidebar() {
                     onClick={() => setCreateMenuOpen(true)}
                     variant="default"
                     size="sm"
-                    className="h-8 w-full justify-start bg-primary text-sm text-primary-foreground hover:bg-primary/90"
+                    className="h-7 w-full justify-start bg-primary px-1.5 text-[13px] text-primary-foreground hover:bg-primary/90"
                   >
-                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+                    <Plus className="mr-1 h-3.5 w-3.5" />
                     {t('common.create')}
                   </Button>
                 </DropdownMenuTrigger>
@@ -273,54 +308,39 @@ export function AppSidebar() {
             </DropdownMenu>
           </div>
 
-          <div className="mb-2">
+          <div className={cn('mb-1', isCollapsed && 'flex w-full justify-center')}>
             <Suspense fallback={null}>
               <ProjectArtifactsNav isCollapsed={isCollapsed} />
             </Suspense>
           </div>
 
-          {navigation.map((section, index) => (
-            <div key={section.title ?? `section-${index}`} className={cn(index > 0 && 'mt-2')}>
-              {!isCollapsed && section.title && (
-                <h3 className="mb-0.5 px-2 text-[10px] font-semibold uppercase tracking-wide text-sidebar-foreground/55">
-                  {section.title}
-                </h3>
-              )}
-
-              <div className="space-y-0.5">
-                {section.items.map((item) => renderNavItem(item))}
-              </div>
-            </div>
-          ))}
+          {mainNavigation.map((section, index) => renderNavSection(section, index))}
         </nav>
 
         <div
           className={cn(
-            'shrink-0 space-y-1.5 border-t border-sidebar-border p-2',
-            isCollapsed && 'px-1.5'
+            'shrink-0 border-t border-sidebar-border py-1',
+            isCollapsed ? cn(collapsedSidebarInsetClassName, 'flex flex-col items-center') : 'px-1.5'
           )}
         >
-          {!isCollapsed && (
-            <div className="flex items-center justify-between px-1.5 py-0.5 text-[10px] text-sidebar-foreground/60">
-              <span className="flex items-center gap-1">
-                <Command className="h-3 w-3" />
-                {t('common.quickActions')}
-              </span>
-              <kbd className="pointer-events-none inline-flex h-4 select-none items-center rounded border bg-muted px-1 font-mono text-[9px] font-medium text-muted-foreground">
-                {isMac ? <span className="text-[10px]">⌘</span> : <span>Ctrl+</span>}K
-              </kbd>
-            </div>
-          )}
+          {renderNavSection(manageNavigation, 0)}
+        </div>
 
+        <div
+          className={cn(
+            'shrink-0 space-y-1 border-t border-sidebar-border',
+            isCollapsed ? cn(collapsedSidebarInsetClassName, 'flex flex-col items-center py-1') : 'p-1.5'
+          )}
+        >
           <div
             className={cn(
               'flex gap-1',
-              isCollapsed ? 'flex-col items-center [&_button]:h-7 [&_button]:w-8' : 'items-center [&_button]:h-7 [&_button]:flex-1'
+              isCollapsed ? 'flex-col items-center' : 'items-center [&_button]:h-7 [&_button]:flex-1'
             )}
           >
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className={isCollapsed ? 'w-full' : 'flex-1'}>
+                <div className={isCollapsed ? 'flex justify-center' : 'flex-1'}>
                   <ThemeToggle iconOnly />
                 </div>
               </TooltipTrigger>
@@ -328,7 +348,7 @@ export function AppSidebar() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className={isCollapsed ? 'w-full' : 'flex-1'}>
+                <div className={isCollapsed ? 'flex justify-center' : 'flex-1'}>
                   <LanguageToggle iconOnly />
                 </div>
               </TooltipTrigger>
@@ -342,7 +362,7 @@ export function AppSidebar() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-full sidebar-menu-item"
+                  className={cn(collapsedSidebarButtonClassName, 'sidebar-menu-item')}
                   onClick={logout}
                   aria-label={t('common.signOut')}
                 >
@@ -355,12 +375,12 @@ export function AppSidebar() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-full justify-start gap-2 px-2 sidebar-menu-item"
+              className="h-7 w-full justify-start gap-1.5 px-1.5 sidebar-menu-item"
               onClick={logout}
               aria-label={t('common.signOut')}
             >
               <LogOut className="h-3.5 w-3.5" />
-              <span className="text-sm">{t('common.signOut')}</span>
+              <span className="text-[13px] leading-none">{t('common.signOut')}</span>
             </Button>
           )}
         </div>

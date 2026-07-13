@@ -1,0 +1,6 @@
+-- Rollback migration 25
+
+REMOVE INDEX IF EXISTS idx_source_content_hash ON TABLE source;
+REMOVE FIELD IF EXISTS content_hash ON TABLE source;
+
+RETURN true;

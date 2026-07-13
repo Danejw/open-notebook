@@ -355,10 +355,19 @@ class Source(ObjectModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     table_name: ClassVar[str] = "source"
+    nullable_fields: ClassVar[set[str]] = {
+        "asset",
+        "title",
+        "topics",
+        "full_text",
+        "content_hash",
+        "command",
+    }
     asset: Optional[Asset] = None
     title: Optional[str] = None
     topics: Optional[List[str]] = Field(default_factory=list)
     full_text: Optional[str] = None
+    content_hash: Optional[str] = None
     command: Optional[Union[str, RecordID]] = Field(
         default=None, description="Link to surreal-commands processing job"
     )
@@ -694,19 +703,77 @@ class ChatSession(ObjectModel):
         return await self.relate("refers_to", source_id)
 
 
+async def get_project_scope_ids(
+    project_id: str,
+) -> Tuple[set[str], set[str]]:
+    """Return (source_ids, note_ids) linked to a project via graph edges."""
+    project_rid = ensure_record_id(project_id)
+    sources = await repo_query(
+        "SELECT VALUE in FROM reference WHERE out = $project_id",
+        {"project_id": project_rid},
+    )
+    notes = await repo_query(
+        "SELECT VALUE in FROM project_note WHERE out = $project_id",
+        {"project_id": project_rid},
+    )
+    source_ids = {str(s) for s in (sources or []) if s is not None}
+    note_ids = {str(n) for n in (notes or []) if n is not None}
+    return source_ids, note_ids
+
+
+def filter_search_results_by_project(
+    results: Optional[List[Dict[str, Any]]],
+    source_ids: set[str],
+    note_ids: set[str],
+) -> List[Dict[str, Any]]:
+    """Keep search hits that belong to the given project membership sets."""
+    filtered: List[Dict[str, Any]] = []
+    for result in results or []:
+        rid = str(result.get("id") or "")
+        parent = str(result.get("parent_id") or "")
+        if rid.startswith("note:") or parent.startswith("note:"):
+            if rid in note_ids or parent in note_ids:
+                filtered.append(result)
+            continue
+        if rid in source_ids or parent in source_ids:
+            filtered.append(result)
+    return filtered
+
+
 async def text_search(
-    keyword: str, results: int, source: bool = True, note: bool = True
+    keyword: str,
+    results: int,
+    source: bool = True,
+    note: bool = True,
+    project_id: Optional[str] = None,
 ):
     if not keyword:
         raise InvalidInputError("Search keyword cannot be empty")
     try:
+        fetch_limit = results
+        source_ids: set[str] = set()
+        note_ids: set[str] = set()
+        if project_id:
+            source_ids, note_ids = await get_project_scope_ids(project_id)
+            # Over-fetch so project filtering still returns enough hits.
+            fetch_limit = max(results * 5, 50)
+
         search_results = await repo_query(
             """
             select *
             from fn::text_search($keyword, $results, $source, $note)
             """,
-            {"keyword": keyword, "results": results, "source": source, "note": note},
+            {
+                "keyword": keyword,
+                "results": fetch_limit,
+                "source": source,
+                "note": note,
+            },
         )
+        if project_id:
+            search_results = filter_search_results_by_project(
+                search_results, source_ids, note_ids
+            )[:results]
         return search_results
     except RuntimeError as e:
         # SurrealDB's search::highlight can compute a byte position that exceeds the
@@ -718,7 +785,9 @@ async def text_search(
                 f"Highlight position overflow, falling back to vector search: {str(e)}"
             )
             try:
-                return await vector_search(keyword, results, source, note)
+                return await vector_search(
+                    keyword, results, source, note, project_id=project_id
+                )
             except Exception as ve:
                 # Both search paths failed (e.g. no embedding model configured).
                 # Surface the failure instead of returning [] — an empty list would
@@ -742,11 +811,19 @@ async def vector_search(
     source: bool = True,
     note: bool = True,
     minimum_score=0.2,
+    project_id: Optional[str] = None,
 ):
     if not keyword:
         raise InvalidInputError("Search keyword cannot be empty")
     try:
         from construction_os.utils.embedding import generate_embedding
+
+        fetch_limit = results
+        source_ids: set[str] = set()
+        note_ids: set[str] = set()
+        if project_id:
+            source_ids, note_ids = await get_project_scope_ids(project_id)
+            fetch_limit = max(results * 5, 50)
 
         # Use unified embedding function (handles chunking if query is very long)
         embed = await generate_embedding(keyword)
@@ -756,12 +833,16 @@ async def vector_search(
             """,
             {
                 "embed": embed,
-                "results": results,
+                "results": fetch_limit,
                 "source": source,
                 "note": note,
                 "minimum_score": minimum_score,
             },
         )
+        if project_id:
+            search_results = filter_search_results_by_project(
+                search_results, source_ids, note_ids
+            )[:results]
         return search_results
     except Exception as e:
         logger.error(f"Error performing vector search: {str(e)}")

@@ -5,6 +5,7 @@ export interface Artifact {
   description: string
   prompt: string
   apply_default: boolean
+  lifecycle_phase?: string | null
   created: string
   updated: string
 }
@@ -15,6 +16,7 @@ export interface CreateArtifactRequest {
   description: string
   prompt: string
   apply_default?: boolean
+  lifecycle_phase?: string | null
 }
 
 export interface UpdateArtifactRequest {
@@ -23,6 +25,7 @@ export interface UpdateArtifactRequest {
   description?: string
   prompt?: string
   apply_default?: boolean
+  lifecycle_phase?: string | null
 }
 
 export interface ExecuteArtifactRequest {

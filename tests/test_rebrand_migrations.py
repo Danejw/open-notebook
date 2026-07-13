@@ -4,18 +4,12 @@ import inspect
 from pathlib import Path
 
 from construction_os.database import rebrand_migration
-from construction_os.database.rebrand_migration import _rewrite_notebook_ids
-
-CONSTRUCTION_ARTIFACT_NAMES = (
-    "Bid Scope Summary",
-    "Quantity Takeoff Extract",
-    "Cost & Pricing Risks",
-    "Schedule & Milestones",
-    "RFQ / RFP Requirements Extract",
-    "Submittal / Spec Compliance",
-    "Change-Order Impact",
-    "Safety & Code Checklist",
+from construction_os.database.construction_artifact_templates import (
+    CONSTRUCTION_ARTIFACT_NAMES,
+    CONSTRUCTION_ARTIFACT_TEMPLATES,
+    LIFECYCLE_PHASES,
 )
+from construction_os.database.rebrand_migration import _rewrite_notebook_ids
 
 MIGRATIONS_DIR = (
     Path(__file__).resolve().parent.parent
@@ -66,6 +60,13 @@ class TestRebrandMigrationFiles:
         assert "reference" in up_sql.lower()
         assert "project" in up_sql.lower()
 
+    def test_migration_24_files_exist(self):
+        up, down = self._migration_paths(24)
+        assert up.is_file()
+        assert down.is_file()
+        up_sql = up.read_text(encoding="utf-8")
+        assert "lifecycle_phase" in up_sql
+
     def test_migration_20_retarges_reference_to_project(self):
         up = self._migration_paths(20)[0]
         up_sql = up.read_text(encoding="utf-8")
@@ -73,11 +74,17 @@ class TestRebrandMigrationFiles:
 
 
 class TestConstructionArtifactSeeds:
-    def test_seed_construction_artifacts_defines_eight_templates(self):
+    def test_construction_artifact_templates_cover_lifecycle(self):
+        assert len(CONSTRUCTION_ARTIFACT_TEMPLATES) == 57
+        assert len(CONSTRUCTION_ARTIFACT_NAMES) == 57
+        assert len(set(CONSTRUCTION_ARTIFACT_NAMES)) == 57
+        assert len(LIFECYCLE_PHASES) == 6
+
+    def test_seed_construction_artifacts_uses_shared_templates(self):
         source = inspect.getsource(rebrand_migration.seed_construction_artifacts)
-        for name in CONSTRUCTION_ARTIFACT_NAMES:
+        for name in CONSTRUCTION_ARTIFACT_NAMES[:8]:
             assert name in source
-        assert source.count('"name":') >= 8
+        assert "CONSTRUCTION_ARTIFACT_TEMPLATES" in source
 
 
 class TestRewriteNotebookIds:

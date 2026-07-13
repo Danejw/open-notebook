@@ -319,7 +319,7 @@ export function SourcesColumn({
           >
             {isArtifactDragOver && (
               <div
-                className="pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-md border-2 border-dashed border-primary bg-primary/5"
+                className="pointer-events-none absolute inset-1 z-10 flex items-center justify-center rounded-md border-2 border-dashed border-primary bg-primary/5"
                 aria-hidden
               >
                 <p className="px-4 text-center text-sm font-medium text-primary">

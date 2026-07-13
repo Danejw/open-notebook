@@ -1,5 +1,5 @@
 import operator
-from typing import Annotated, List
+from typing import Annotated, List, Optional
 
 from ai_prompter import Prompter
 from langchain_core.output_parsers.pydantic import PydanticOutputParser
@@ -11,9 +11,10 @@ from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
 from construction_os.ai.provision import provision_langchain_model
-from construction_os.domain.project import vector_search
 from construction_os.exceptions import ConstructionOSError
 from construction_os.graphs.progress import aemit_agent_progress
+from construction_os.retrieval import retrieve
+from construction_os.retrieval.types import RetrievalMode
 from construction_os.utils import clean_thinking_content
 from construction_os.utils.error_classifier import classify_error
 from construction_os.utils.text_utils import extract_text_content
@@ -26,6 +27,7 @@ class SubGraphState(TypedDict):
     results: dict
     answer: str
     ids: list  # Added for provide_answer function
+    evidence_paths: list
 
 
 class Search(BaseModel):
@@ -48,6 +50,18 @@ class ThreadState(TypedDict):
     strategy: Strategy
     answers: Annotated[list, operator.add]
     final_answer: str
+    evidence_paths: Annotated[list, operator.add]
+
+
+def _config_project_id(config: RunnableConfig) -> Optional[str]:
+    return config.get("configurable", {}).get("project_id")
+
+
+def _config_retrieval_mode(config: RunnableConfig) -> RetrievalMode:
+    mode = config.get("configurable", {}).get("retrieval_mode") or "auto"
+    if mode not in ("auto", "vector", "hybrid", "graph"):
+        return "auto"
+    return mode  # type: ignore[return-value]
 
 
 async def call_model_with_messages(state: ThreadState, config: RunnableConfig) -> dict:
@@ -97,7 +111,6 @@ async def trigger_queries(state: ThreadState, config: RunnableConfig):
                 "question": state["question"],
                 "instructions": s.instructions,
                 "term": s.term,
-                # "type": s.type,
             },
         )
         for s in state["strategy"].searches
@@ -113,11 +126,19 @@ async def provide_answer(state: SubGraphState, config: RunnableConfig) -> dict:
             {"searchTerm": term},
             config,
         )
-        payload = state
-        # if state["type"] == "text":
-        #     results = text_search(state["term"], 10, True, True)
-        # else:
-        results = await vector_search(state["term"], 10, True, True)
+        payload = dict(state)
+        bundle = await retrieve(
+            term,
+            project_id=_config_project_id(config),
+            mode=_config_retrieval_mode(config),
+            limit=10,
+            search_sources=True,
+            search_notes=True,
+        )
+        results = bundle.to_search_results()
+        path_descriptions = [
+            p.description or " → ".join(p.nodes) for p in bundle.paths if p.nodes or p.description
+        ]
         if len(results) == 0:
             await aemit_agent_progress(
                 "completed",
@@ -125,10 +146,11 @@ async def provide_answer(state: SubGraphState, config: RunnableConfig) -> dict:
                 {"searchTerm": term, "resultCount": 0, "answerCount": 0},
                 config,
             )
-            return {"answers": []}
+            return {"answers": [], "evidence_paths": path_descriptions}
         payload["results"] = results
         ids = [r["id"] for r in results]
         payload["ids"] = ids
+        payload["evidence_paths"] = path_descriptions
         system_prompt = Prompter(prompt_template="ask/query_process").render(data=payload)  # type: ignore[arg-type]
         model = await provision_langchain_model(
             system_prompt,
@@ -145,10 +167,15 @@ async def provide_answer(state: SubGraphState, config: RunnableConfig) -> dict:
                 "searchTerm": term,
                 "resultCount": len(results),
                 "answerCount": 1,
+                "retrievalMode": bundle.retrieval_mode_used,
+                "evidencePathCount": len(path_descriptions),
             },
             config,
         )
-        return {"answers": [clean_thinking_content(ai_content)]}
+        return {
+            "answers": [clean_thinking_content(ai_content)],
+            "evidence_paths": path_descriptions,
+        }
     except ConstructionOSError:
         raise
     except Exception as e:
@@ -162,7 +189,10 @@ async def write_final_answer(state: ThreadState, config: RunnableConfig) -> dict
         await aemit_agent_progress(
             "started",
             "write_final_answer",
-            {"answerCount": answer_count},
+            {
+                "answerCount": answer_count,
+                "evidencePathCount": len(state.get("evidence_paths") or []),
+            },
             config,
         )
         system_prompt = Prompter(prompt_template="ask/final_answer").render(data=state)  # type: ignore[arg-type]

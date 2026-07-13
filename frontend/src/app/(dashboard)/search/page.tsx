@@ -18,6 +18,7 @@ import { Search, ChevronDown, AlertCircle, Settings, Save, MessageCircleQuestion
 import { useSearch } from '@/lib/hooks/use-search'
 import { useAsk } from '@/lib/hooks/use-ask'
 import { useModelDefaults, useModels } from '@/lib/hooks/use-models'
+import { useProjects } from '@/lib/hooks/use-projects'
 import { useModalManager } from '@/lib/hooks/use-modal-manager'
 import { InlineSkeleton, PickerDialogSkeleton, SearchButtonSkeleton } from '@/components/common/LoadingSkeletons'
 import { StreamingResponse } from '@/components/search/StreamingResponse'
@@ -41,9 +42,10 @@ export default function SearchPage() {
 
   // Search state
   const [searchQuery, setSearchQuery] = useState(urlMode === 'search' ? urlQuery : '')
-  const [searchType, setSearchType] = useState<'text' | 'vector'>('text')
+  const [searchType, setSearchType] = useState<'text' | 'vector' | 'hybrid'>('text')
   const [searchSources, setSearchSources] = useState(true)
   const [searchNotes, setSearchNotes] = useState(true)
+  const [projectId, setProjectId] = useState<string>('all')
 
   // Ask state
   const [askQuestion, setAskQuestion] = useState(urlMode === 'ask' ? urlQuery : '')
@@ -64,11 +66,12 @@ export default function SearchPage() {
     activeTab === 'ask' ||
     urlMode === 'ask' ||
     showAdvancedModels ||
-    (activeTab === 'search' && searchType === 'vector')
+    (activeTab === 'search' && (searchType === 'vector' || searchType === 'hybrid'))
 
   // Hooks
   const searchMutation = useSearch()
   const ask = useAsk()
+  const { data: projects } = useProjects(false)
   const { data: modelDefaults, isLoading: modelsLoading } = useModelDefaults({
     enabled: needsModelDefaults,
   })
@@ -105,9 +108,10 @@ export default function SearchPage() {
       limit: SEARCH_PAGE_SIZE,
       search_sources: searchSources,
       search_notes: searchNotes,
-      minimum_score: 0.2
+      minimum_score: 0.2,
+      project_id: projectId !== 'all' ? projectId : undefined,
     })
-  }, [searchQuery, searchType, searchSources, searchNotes, searchMutation])
+  }, [searchQuery, searchType, searchSources, searchNotes, projectId, searchMutation])
 
   const handleLoadMoreResults = useCallback(() => {
     if (!searchQuery.trim() || !searchMutation.data) return
@@ -125,9 +129,10 @@ export default function SearchPage() {
       limit: nextLimit,
       search_sources: searchSources,
       search_notes: searchNotes,
-      minimum_score: 0.2
+      minimum_score: 0.2,
+      project_id: projectId !== 'all' ? projectId : undefined,
     })
-  }, [searchQuery, searchType, searchSources, searchNotes, searchLimit, searchMutation])
+  }, [searchQuery, searchType, searchSources, searchNotes, searchLimit, projectId, searchMutation])
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -144,8 +149,11 @@ export default function SearchPage() {
       finalAnswer: modelDefaults.default_chat_model
     }
 
-    ask.sendAsk(askQuestion, models)
-  }, [askQuestion, modelDefaults, customModels, ask])
+    ask.sendAsk(askQuestion, models, {
+      project_id: projectId !== 'all' ? projectId : undefined,
+      retrieval_mode: 'auto',
+    })
+  }, [askQuestion, modelDefaults, customModels, ask, projectId])
 
   // Auto-trigger search/ask when arriving with URL params
   useEffect(() => {
@@ -239,6 +247,24 @@ export default function SearchPage() {
                     aria-label={t('common.accessibility.enterQuestion')}
                   />
                   <p className="text-xs text-muted-foreground">{t('searchPage.pressToSubmit')}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ask-project">{t('searchPage.projectScope')}</Label>
+                  <select
+                    id="ask-project"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={projectId}
+                    onChange={(e) => setProjectId(e.target.value)}
+                    disabled={ask.isStreaming}
+                  >
+                    <option value="all">{t('searchPage.allProjects')}</option>
+                    {(projects ?? []).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Models Display */}
@@ -401,7 +427,7 @@ export default function SearchPage() {
                     <RadioGroup
                       name="search-type"
                       value={searchType}
-                      onValueChange={(value: 'text' | 'vector') => setSearchType(value)}
+                      onValueChange={(value: 'text' | 'vector' | 'hybrid') => setSearchType(value)}
                       disabled={modelsLoading || searchMutation.isPending}
                     >
                       <div className="flex items-center space-x-2">
@@ -423,7 +449,38 @@ export default function SearchPage() {
                           {t('searchPage.vectorSearch')}
                         </Label>
                       </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem
+                          value="hybrid"
+                          id="hybrid"
+                          disabled={!hasEmbeddingModel || searchMutation.isPending}
+                        />
+                        <Label
+                          htmlFor="hybrid"
+                          className={`font-normal ${!hasEmbeddingModel ? 'text-muted-foreground cursor-not-allowed' : 'cursor-pointer'}`}
+                        >
+                          {t('searchPage.hybridSearch')}
+                        </Label>
+                      </div>
                     </RadioGroup>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="search-project">{t('searchPage.projectScope')}</Label>
+                    <select
+                      id="search-project"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      value={projectId}
+                      onChange={(e) => setProjectId(e.target.value)}
+                      disabled={searchMutation.isPending}
+                    >
+                      <option value="all">{t('searchPage.allProjects')}</option>
+                      {(projects ?? []).map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Search Locations */}

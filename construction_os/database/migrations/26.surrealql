@@ -1,0 +1,103 @@
+-- Migration 26: corpus-agnostic knowledge graph projection tables
+
+DEFINE TABLE IF NOT EXISTS kg_entity SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS type ON TABLE kg_entity TYPE string;
+DEFINE FIELD IF NOT EXISTS label ON TABLE kg_entity TYPE string;
+DEFINE FIELD IF NOT EXISTS normalized_key ON TABLE kg_entity TYPE string;
+DEFINE FIELD IF NOT EXISTS project_id ON TABLE kg_entity TYPE record;
+DEFINE FIELD IF NOT EXISTS source_id ON TABLE kg_entity TYPE option<record>;
+DEFINE FIELD IF NOT EXISTS metadata ON TABLE kg_entity TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS extractor ON TABLE kg_entity TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS extractor_version ON TABLE kg_entity TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created ON TABLE kg_entity TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS updated ON TABLE kg_entity TYPE option<datetime>;
+DEFINE INDEX IF NOT EXISTS idx_kg_entity_project ON TABLE kg_entity COLUMNS project_id;
+DEFINE INDEX IF NOT EXISTS idx_kg_entity_key ON TABLE kg_entity COLUMNS project_id, type, normalized_key;
+DEFINE INDEX IF NOT EXISTS idx_kg_entity_source ON TABLE kg_entity COLUMNS source_id;
+
+DEFINE TABLE IF NOT EXISTS kg_mention SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS text ON TABLE kg_mention TYPE string;
+DEFINE FIELD IF NOT EXISTS entity_type_hint ON TABLE kg_mention TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS entity_id ON TABLE kg_mention TYPE option<record>;
+DEFINE FIELD IF NOT EXISTS project_id ON TABLE kg_mention TYPE record;
+DEFINE FIELD IF NOT EXISTS source_id ON TABLE kg_mention TYPE record;
+DEFINE FIELD IF NOT EXISTS chunk_id ON TABLE kg_mention TYPE option<record>;
+DEFINE FIELD IF NOT EXISTS char_start ON TABLE kg_mention TYPE option<int>;
+DEFINE FIELD IF NOT EXISTS char_end ON TABLE kg_mention TYPE option<int>;
+DEFINE FIELD IF NOT EXISTS confidence ON TABLE kg_mention TYPE option<float>;
+DEFINE FIELD IF NOT EXISTS extractor ON TABLE kg_mention TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS extractor_version ON TABLE kg_mention TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created ON TABLE kg_mention TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS updated ON TABLE kg_mention TYPE option<datetime>;
+DEFINE INDEX IF NOT EXISTS idx_kg_mention_project ON TABLE kg_mention COLUMNS project_id;
+DEFINE INDEX IF NOT EXISTS idx_kg_mention_source ON TABLE kg_mention COLUMNS source_id;
+DEFINE INDEX IF NOT EXISTS idx_kg_mention_chunk ON TABLE kg_mention COLUMNS chunk_id;
+
+DEFINE TABLE IF NOT EXISTS kg_claim SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS subject_id ON TABLE kg_claim TYPE option<record>;
+DEFINE FIELD IF NOT EXISTS predicate ON TABLE kg_claim TYPE string;
+DEFINE FIELD IF NOT EXISTS object_id ON TABLE kg_claim TYPE option<record>;
+DEFINE FIELD IF NOT EXISTS object_literal ON TABLE kg_claim TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS status ON TABLE kg_claim TYPE string DEFAULT "active";
+DEFINE FIELD IF NOT EXISTS confidence ON TABLE kg_claim TYPE option<float>;
+DEFINE FIELD IF NOT EXISTS project_id ON TABLE kg_claim TYPE record;
+DEFINE FIELD IF NOT EXISTS source_id ON TABLE kg_claim TYPE record;
+DEFINE FIELD IF NOT EXISTS chunk_id ON TABLE kg_claim TYPE option<record>;
+DEFINE FIELD IF NOT EXISTS extractor ON TABLE kg_claim TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS extractor_version ON TABLE kg_claim TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS valid_from ON TABLE kg_claim TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS valid_to ON TABLE kg_claim TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS metadata ON TABLE kg_claim TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS created ON TABLE kg_claim TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS updated ON TABLE kg_claim TYPE option<datetime>;
+DEFINE INDEX IF NOT EXISTS idx_kg_claim_project ON TABLE kg_claim COLUMNS project_id;
+DEFINE INDEX IF NOT EXISTS idx_kg_claim_source ON TABLE kg_claim COLUMNS source_id;
+DEFINE INDEX IF NOT EXISTS idx_kg_claim_predicate ON TABLE kg_claim COLUMNS predicate;
+DEFINE INDEX IF NOT EXISTS idx_kg_claim_status ON TABLE kg_claim COLUMNS status;
+
+DEFINE TABLE IF NOT EXISTS kg_relation SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS type ON TABLE kg_relation TYPE string;
+DEFINE FIELD IF NOT EXISTS from_id ON TABLE kg_relation TYPE record;
+DEFINE FIELD IF NOT EXISTS to_id ON TABLE kg_relation TYPE record;
+DEFINE FIELD IF NOT EXISTS project_id ON TABLE kg_relation TYPE record;
+DEFINE FIELD IF NOT EXISTS source_id ON TABLE kg_relation TYPE option<record>;
+DEFINE FIELD IF NOT EXISTS chunk_id ON TABLE kg_relation TYPE option<record>;
+DEFINE FIELD IF NOT EXISTS confidence ON TABLE kg_relation TYPE option<float>;
+DEFINE FIELD IF NOT EXISTS status ON TABLE kg_relation TYPE string DEFAULT "active";
+DEFINE FIELD IF NOT EXISTS extractor ON TABLE kg_relation TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS extractor_version ON TABLE kg_relation TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS metadata ON TABLE kg_relation TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS created ON TABLE kg_relation TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS updated ON TABLE kg_relation TYPE option<datetime>;
+DEFINE INDEX IF NOT EXISTS idx_kg_relation_project ON TABLE kg_relation COLUMNS project_id;
+DEFINE INDEX IF NOT EXISTS idx_kg_relation_from ON TABLE kg_relation COLUMNS from_id;
+DEFINE INDEX IF NOT EXISTS idx_kg_relation_to ON TABLE kg_relation COLUMNS to_id;
+DEFINE INDEX IF NOT EXISTS idx_kg_relation_type ON TABLE kg_relation COLUMNS type;
+
+DEFINE TABLE IF NOT EXISTS kg_extraction_run SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS source_id ON TABLE kg_extraction_run TYPE record;
+DEFINE FIELD IF NOT EXISTS project_id ON TABLE kg_extraction_run TYPE option<record>;
+DEFINE FIELD IF NOT EXISTS extractor ON TABLE kg_extraction_run TYPE string;
+DEFINE FIELD IF NOT EXISTS extractor_version ON TABLE kg_extraction_run TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS status ON TABLE kg_extraction_run TYPE string;
+DEFINE FIELD IF NOT EXISTS content_hash ON TABLE kg_extraction_run TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS stats ON TABLE kg_extraction_run TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS error_message ON TABLE kg_extraction_run TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS command_id ON TABLE kg_extraction_run TYPE option<record>;
+DEFINE FIELD IF NOT EXISTS started_at ON TABLE kg_extraction_run TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS finished_at ON TABLE kg_extraction_run TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS created ON TABLE kg_extraction_run TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS updated ON TABLE kg_extraction_run TYPE option<datetime>;
+DEFINE INDEX IF NOT EXISTS idx_kg_run_source ON TABLE kg_extraction_run COLUMNS source_id;
+DEFINE INDEX IF NOT EXISTS idx_kg_run_project ON TABLE kg_extraction_run COLUMNS project_id;
+
+-- Cascade KG rows when a source is deleted (extend existing source delete event)
+DEFINE EVENT IF NOT EXISTS source_delete_cleanup_kg ON TABLE source WHEN ($after == NONE) THEN {
+    DELETE kg_mention WHERE source_id = $before.id;
+    DELETE kg_claim WHERE source_id = $before.id;
+    DELETE kg_relation WHERE source_id = $before.id;
+    DELETE kg_entity WHERE source_id = $before.id;
+    DELETE kg_extraction_run WHERE source_id = $before.id;
+};
+
+RETURN true;

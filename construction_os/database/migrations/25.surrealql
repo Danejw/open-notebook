@@ -1,0 +1,8 @@
+-- Migration 25: content_hash for idempotent knowledge graph extraction
+-- Project-scoped search is implemented in Python (domain.project filter helpers).
+
+DEFINE FIELD IF NOT EXISTS content_hash ON TABLE source TYPE option<string>;
+
+DEFINE INDEX IF NOT EXISTS idx_source_content_hash ON TABLE source COLUMNS content_hash;
+
+RETURN true;

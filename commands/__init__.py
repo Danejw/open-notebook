@@ -8,6 +8,7 @@ from .embedding_commands import (
     rebuild_embeddings_command,
 )
 from .example_commands import analyze_data_command, process_text_command
+from .knowledge_graph_commands import build_knowledge_graph_command
 from .podcast_commands import generate_podcast_command
 from .source_commands import (
     ingest_text_source_command,
@@ -22,6 +23,8 @@ __all__ = [
     "embed_source_command",
     "create_insight_command",
     "rebuild_embeddings_command",
+    # Knowledge graph
+    "build_knowledge_graph_command",
     # Other commands
     "generate_podcast_command",
     "process_source_command",

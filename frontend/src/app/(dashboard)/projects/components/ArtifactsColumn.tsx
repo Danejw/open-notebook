@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useRef } from 'react'
 import { NoteResponse } from '@/lib/types/api'
-import type { Artifact } from '@/lib/types/artifacts'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -11,18 +10,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Plus, Bot, User, MoreVertical, Trash2, ListChecks, FileText, Sparkles, Database } from 'lucide-react'
+import { Plus, Bot, User, MoreVertical, Trash2, ListChecks, FileText, Database, Pencil } from 'lucide-react'
 import { CompactListRowSkeleton } from '@/components/common/LoadingSkeletons'
 import { EmptyState } from '@/components/common/EmptyState'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
 import { NoteEditorDialog } from './NoteEditorDialog'
+import { ArtifactTemplatePhases } from './ArtifactTemplatePhases'
 import { getDateLocale } from '@/lib/utils/date-locale'
 import { formatDistanceToNow } from 'date-fns'
 import { ContextToggle } from '@/components/common/ContextToggle'
 import type { NoteContextMode } from '@/lib/types/project-context'
 import type { NoteContextDefault } from '@/lib/utils/source-context'
-import { useDeleteNote, useNote } from '@/lib/hooks/use-notes'
+import { useDeleteNote, useNote, useUpdateNote } from '@/lib/hooks/use-notes'
+import { useArtifacts } from '@/lib/hooks/use-artifacts'
 import { useIngestAsSource } from '@/lib/hooks/use-sources'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { CollapsibleColumn, createCollapseButton } from '@/components/projects/CollapsibleColumn'
@@ -47,8 +50,7 @@ interface ArtifactsColumnProps {
   contextSelections?: Record<string, NoteContextMode>
   onContextModeChange?: (noteId: string, mode: NoteContextMode) => void
   onBulkContextModeChange?: (action: NoteContextDefault) => void
-  templates?: Artifact[]
-  onTemplateClick?: (artifact: Artifact) => void
+  onTemplateClick?: (artifactId: string) => void
 }
 
 function getNoteTypeInfo(noteType: string | null, t: TFunction) {
@@ -71,20 +73,22 @@ export function ArtifactsColumn({
   contextSelections,
   onContextModeChange,
   onBulkContextModeChange,
-  templates = [],
   onTemplateClick,
 }: ArtifactsColumnProps) {
   const { t, language } = useTranslation()
+  const { data: templates = [], isLoading: templatesLoading } = useArtifacts()
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [editingNote, setEditingNote] = useState<NoteResponse | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null)
   const [viewingArtifact, setViewingArtifact] = useState<NoteResponse | null>(null)
-  const [draggingTemplateId, setDraggingTemplateId] = useState<string | null>(null)
+  const [renamingNote, setRenamingNote] = useState<NoteResponse | null>(null)
+  const [renameTitle, setRenameTitle] = useState('')
   const [draggingNoteId, setDraggingNoteId] = useState<string | null>(null)
   const suppressClickRef = useRef(false)
 
   const deleteNote = useDeleteNote()
+  const updateNote = useUpdateNote()
   const ingestAsSource = useIngestAsSource()
 
   const viewingNoteId = viewingArtifact?.id
@@ -131,6 +135,36 @@ export function ArtifactsColumn({
       noteId: note.id,
       projectId,
     })
+  }
+
+  const handleRenameOpen = (note: NoteResponse) => {
+    setRenamingNote(note)
+    setRenameTitle(note.title || '')
+  }
+
+  const handleRenameConfirm = async () => {
+    if (!renamingNote) return
+
+    const trimmed = renameTitle.trim()
+    if (!trimmed) return
+
+    const noteId = renamingNote.id.includes(':') ? renamingNote.id : `note:${renamingNote.id}`
+
+    try {
+      const updated = await updateNote.mutateAsync({
+        id: noteId,
+        data: { title: trimmed },
+      })
+
+      if (viewingArtifact?.id === renamingNote.id) {
+        setViewingArtifact(updated)
+      }
+
+      setRenamingNote(null)
+      setRenameTitle('')
+    } catch (error) {
+      console.error('Failed to rename artifact:', error)
+    }
   }
 
   return (
@@ -185,58 +219,18 @@ export function ArtifactsColumn({
           />
 
           <CardContent className={columnBodyClassName}>
-            {templates.length > 0 && (
-              <div className="mb-3 py-1.5 @container/artifact-templates">
-                <div className="mb-1 flex items-center gap-1.5 px-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  <Sparkles className="h-3 w-3" />
-                  {t('projects.artifactTemplates')}
-                </div>
-                <div className="grid grid-cols-1 gap-px overflow-hidden rounded-md border border-border/50 bg-border/50 @min-[360px]/artifact-templates:grid-cols-2">
-                  {templates.map((template) => (
-                    <button
-                      key={template.id}
-                      type="button"
-                      draggable
-                      aria-grabbed={draggingTemplateId === template.id}
-                      className={cn(
-                        'flex items-center gap-2 bg-card px-2 py-1.5 text-left transition-colors hover:bg-primary/5',
-                        'cursor-grab active:cursor-grabbing'
-                      )}
-                      onClick={() => {
-                        if (suppressClickRef.current) return
-                        onTemplateClick?.(template)
-                      }}
-                      onDragStart={(event) => {
-                        suppressClickRef.current = false
-                        setDraggingTemplateId(template.id)
-                        setArtifactDragData(event.dataTransfer, {
-                          kind: 'template',
-                          id: template.id,
-                          title: template.title,
-                        })
-                      }}
-                      onDrag={(event) => {
-                        if (event.clientX !== 0 || event.clientY !== 0) {
-                          suppressClickRef.current = true
-                        }
-                      }}
-                      onDragEnd={() => {
-                        setDraggingTemplateId(null)
-                        clearArtifactDragData()
-                        window.setTimeout(() => {
-                          suppressClickRef.current = false
-                        }, 0)
-                      }}
-                    >
-                      <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
-                      <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                        {template.title}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+            {templatesLoading ? (
+              <div className="mb-2 flex flex-col divide-y divide-border/50">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <CompactListRowSkeleton key={i} />
+                ))}
               </div>
-            )}
+            ) : templates.length > 0 ? (
+              <ArtifactTemplatePhases
+                templates={templates}
+                onTemplateClick={(artifact) => onTemplateClick?.(artifact.id)}
+              />
+            ) : null}
 
             {isLoading ? (
               <div className="flex flex-col divide-y divide-border/50">
@@ -270,7 +264,7 @@ export function ArtifactsColumn({
                       draggable={isIngestibleArtifact}
                       aria-grabbed={isDraggingNote}
                       className={cn(
-                        'group relative flex min-w-0 items-center gap-2 rounded-md px-2 py-1',
+                        'group relative flex min-w-0 items-center gap-2 rounded-md px-1 py-0.5',
                         'cursor-pointer transition-colors',
                         'hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
                         isIngestibleArtifact && 'cursor-grab active:cursor-grabbing'
@@ -373,6 +367,15 @@ export function ArtifactsColumn({
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.stopPropagation()
+                                handleRenameOpen(note)
+                              }}
+                            >
+                              <Pencil className="h-4 w-4 mr-2" />
+                              {t('projects.renameArtifact')}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation()
                                 handleDeleteClick(note.id)
                               }}
                               className="text-red-600 focus:text-red-600"
@@ -461,6 +464,53 @@ export function ArtifactsColumn({
               {t('common.close')}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(renamingNote)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRenamingNote(null)
+            setRenameTitle('')
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogTitle>{t('projects.renameArtifact')}</DialogTitle>
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void handleRenameConfirm()
+            }}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="artifact-rename-title">{t('common.title')}</Label>
+              <Input
+                id="artifact-rename-title"
+                value={renameTitle}
+                onChange={(event) => setRenameTitle(event.target.value)}
+                placeholder={t('sources.addTitle')}
+                autoFocus
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setRenamingNote(null)
+                  setRenameTitle('')
+                }}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button type="submit" disabled={!renameTitle.trim() || updateNote.isPending}>
+                {updateNote.isPending ? `${t('common.saving')}...` : t('common.save')}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
 

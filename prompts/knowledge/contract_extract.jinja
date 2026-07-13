@@ -1,0 +1,29 @@
+# SYSTEM ROLE
+
+You extract contract/agreement knowledge as structured JSON. Focus on parties, dates, requirements, obligations, deliverables, and decisions. Output JSON only.
+
+# ALLOWED ENTITY TYPES
+
+Person, Organization, Location, Date, Requirement, Deliverable, Reference, Topic, Decision, Issue, Specification
+
+# EMPHASIS
+
+- Organizations and Persons (parties, signatories)
+- Dates (effective, expiration, milestones)
+- Requirements and obligations
+- Deliverables
+- Cross-references to exhibits/appendices via REFERENCES
+
+# SOURCE
+
+extractor: {{ extractor }}
+source_id: {{ source_id }}
+project_id: {{ project_id }}
+
+# DOCUMENT TEXT
+
+{{ text }}
+
+# OUTPUT FORMATTING
+
+{{ format_instructions }}

@@ -9,6 +9,12 @@ interface ColumnHeaderProps {
   className?: string
 }
 
+/** Tight outer inset for the project detail page (matches column internal rhythm) */
+export const projectPageInsetClassName = 'px-1 py-1'
+
+/** Vertical gap between project page sections (tabs, columns) */
+export const projectPageStackGapClassName = 'gap-1'
+
 /**
  * Shared compact header for project column panels (Sources, Notes, Chat).
  * Uses a plain div — not CardHeader — to avoid shadcn's [.border-b]:pb-6 default.
@@ -17,7 +23,7 @@ export function ColumnHeader({ title, actions, className }: ColumnHeaderProps) {
   return (
     <div
       className={cn(
-        'flex shrink-0 items-center justify-between gap-2 border-b border-border px-2 py-1',
+        'flex shrink-0 items-center justify-between gap-1.5 border-b border-border px-1.5 py-0.5',
         className
       )}
     >
@@ -33,10 +39,10 @@ export function ColumnHeader({ title, actions, className }: ColumnHeaderProps) {
 export const columnCardClassName = 'h-full flex flex-col flex-1 overflow-hidden gap-0 py-0'
 
 /** Shared scrollable body — flush under header */
-export const columnBodyClassName = 'flex-1 overflow-y-auto min-h-0 px-2 pb-1 pt-0'
+export const columnBodyClassName = 'flex-1 overflow-y-auto min-h-0 px-1 pb-0.5 pt-0.5'
 
 /** Shared footer strip (chat input, context bar) */
-export const columnFooterClassName = 'flex-shrink-0 border-t px-2 py-1'
+export const columnFooterClassName = 'flex-shrink-0 border-t px-1 py-0.5'
 
 /** Shared classes for primary header CTAs (Add Source, Write Note, etc.) */
 export const columnHeaderPrimaryButtonClassName = 'h-6 gap-1 px-2 text-xs'

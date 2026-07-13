@@ -1,0 +1,5 @@
+-- Rollback migration 24
+
+REMOVE FIELD IF EXISTS lifecycle_phase ON TABLE artifact;
+
+RETURN true;

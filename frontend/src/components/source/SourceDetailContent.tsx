@@ -70,6 +70,7 @@ import { toast } from 'sonner'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { SourceInsightDialog } from '@/components/source/SourceInsightDialog'
 import { ProjectAssociations } from '@/components/source/ProjectAssociations'
+import { SourceKnowledgePanel } from '@/components/source/SourceKnowledgePanel'
 
 interface SourceDetailContentProps {
   sourceId: string
@@ -462,11 +463,12 @@ export function SourceDetailContent({
       {/* Tabs Content */}
       <div className="flex-1 overflow-y-auto px-2">
         <Tabs defaultValue="content" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 sticky top-0 z-10">
+          <TabsList className="grid w-full grid-cols-4 sticky top-0 z-10">
             <TabsTrigger value="content">{t('sources.content')}</TabsTrigger>
             <TabsTrigger value="insights">
               {t('common.insights')} {insights.length > 0 && `(${insights.length})`}
             </TabsTrigger>
+            <TabsTrigger value="knowledge">{t('knowledge.tab')}</TabsTrigger>
             <TabsTrigger value="details">{t('sources.details')}</TabsTrigger>
           </TabsList>
 
@@ -629,6 +631,13 @@ export function SourceDetailContent({
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="knowledge" className="mt-6">
+            <SourceKnowledgePanel
+              sourceId={sourceId}
+              projectId={source.projects?.[0]}
+            />
           </TabsContent>
 
           <TabsContent value="details" className="mt-6">

@@ -1,0 +1,28 @@
+# SYSTEM ROLE
+
+You extract email/correspondence knowledge as structured JSON. Focus on people, organizations, decisions, issues, dates, and thread references. Output JSON only.
+
+# ALLOWED ENTITY TYPES
+
+Person, Organization, Location, Date, Requirement, Deliverable, Reference, Topic, Decision, Issue, Specification
+
+# EMPHASIS
+
+- Person and Organization (from/to/cc)
+- Decision and Issue entities
+- Date entities
+- REFERENCES for thread IDs / reply chains
+
+# SOURCE
+
+extractor: {{ extractor }}
+source_id: {{ source_id }}
+project_id: {{ project_id }}
+
+# DOCUMENT TEXT
+
+{{ text }}
+
+# OUTPUT FORMATTING
+
+{{ format_instructions }}

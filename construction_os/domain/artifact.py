@@ -7,11 +7,13 @@ from construction_os.domain.base import ObjectModel, RecordModel
 
 class Artifact(ObjectModel):
     table_name: ClassVar[str] = "artifact"
+    nullable_fields: ClassVar[set[str]] = {"lifecycle_phase"}
     name: str
     title: str
     description: str
     prompt: str
     apply_default: bool
+    lifecycle_phase: Optional[str] = None
 
 
 class DefaultPrompts(RecordModel):

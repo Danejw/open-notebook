@@ -252,7 +252,7 @@ function SourceCardImpl({
       role="button"
       tabIndex={0}
       className={cn(
-        'group relative flex flex-col gap-0.5 rounded-md px-2 py-1',
+        'group relative flex flex-col gap-0.5 rounded-md px-1 py-0.5',
         'cursor-pointer transition-colors',
         'hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
         isFailed && 'bg-destructive/5 hover:bg-destructive/10',

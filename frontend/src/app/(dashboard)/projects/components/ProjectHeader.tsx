@@ -7,8 +7,6 @@ import { Badge } from '@/components/ui/badge'
 import { Archive, ArchiveRestore, Trash2 } from 'lucide-react'
 import { useUpdateProject } from '@/lib/hooks/use-projects'
 import { ProjectDeleteDialog } from './ProjectDeleteDialog'
-import { formatDistanceToNow } from 'date-fns'
-import { getDateLocale } from '@/lib/utils/date-locale'
 import { InlineEdit } from '@/components/common/InlineEdit'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
@@ -17,11 +15,11 @@ interface ProjectHeaderProps {
 }
 
 export function ProjectHeader({ project }: ProjectHeaderProps) {
-  const { t, language } = useTranslation()
-  const dfLocale = getDateLocale(language)
+  const { t } = useTranslation()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   const updateProject = useUpdateProject()
+  const hasDescription = Boolean(project.description?.trim())
 
   const handleUpdateName = async (name: string) => {
     if (!name || name === project.name) return
@@ -48,18 +46,9 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
     })
   }
 
-  const createdLabel = t('common.created').replace(
-    '{time}',
-    formatDistanceToNow(new Date(project.created), { addSuffix: true, locale: dfLocale }),
-  )
-  const updatedLabel = t('common.updated').replace(
-    '{time}',
-    formatDistanceToNow(new Date(project.updated), { addSuffix: true, locale: dfLocale }),
-  )
-
   return (
     <>
-      <div className="border-b border-border py-2">
+      <div className="py-1">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
             <InlineEdit
@@ -76,9 +65,6 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
                 {t('projects.archived')}
               </Badge>
             ) : null}
-            <span className="hidden text-[11px] text-muted-foreground md:inline truncate">
-              {createdLabel} · {updatedLabel}
-            </span>
           </div>
 
           <div className="flex shrink-0 gap-1">
@@ -107,21 +93,18 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
           </div>
         </div>
 
-        <InlineEdit
-          id="project-description"
-          name="project-description"
-          value={project.description || ''}
-          onSave={handleUpdateDescription}
-          className="mt-0.5 text-xs text-muted-foreground"
-          inputClassName="text-xs text-muted-foreground"
-          placeholder={t('projects.addDescription')}
-          multiline
-          emptyText={t('projects.addDescription')}
-        />
-
-        <div className="mt-0.5 text-[11px] text-muted-foreground md:hidden">
-          {createdLabel} · {updatedLabel}
-        </div>
+        {hasDescription ? (
+          <InlineEdit
+            id="project-description"
+            name="project-description"
+            value={project.description ?? ''}
+            onSave={handleUpdateDescription}
+            className="mt-0.5 text-xs text-muted-foreground"
+            inputClassName="text-xs text-muted-foreground"
+            placeholder={t('projects.addDescription')}
+            multiline
+          />
+        ) : null}
       </div>
 
       <ProjectDeleteDialog

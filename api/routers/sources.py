@@ -35,6 +35,12 @@ from construction_os.database.repository import ensure_record_id, repo_query
 from construction_os.domain.project import Asset, Project, Source
 from construction_os.domain.artifact import Artifact
 from construction_os.exceptions import InvalidInputError, NotFoundError
+from construction_os.knowledge.pipeline import (
+    ACTIVE_PIPELINE_STAGES,
+    PIPELINE_EXTRACTING,
+    pipeline_processing_info,
+    resolve_pipeline_status,
+)
 
 router = APIRouter()
 
@@ -195,7 +201,7 @@ async def get_sources(
 
             # Query sources for specific Project - include command field with FETCH
             query = f"""
-                SELECT id, asset, created, title, updated, topics, command,
+                SELECT id, asset, created, title, updated, topics, command, pipeline_stage,
                 (SELECT VALUE count() FROM source_insight WHERE source = $parent.id GROUP ALL)[0].count OR 0 AS insights_count,
                 (SELECT VALUE id FROM source_embedding WHERE source = $parent.id LIMIT 1) != [] AS embedded
                 FROM (select value in from reference where out=$project_id)
@@ -214,7 +220,7 @@ async def get_sources(
         else:
             # Query all sources - include command field with FETCH
             query = f"""
-                SELECT id, asset, created, title, updated, topics, command,
+                SELECT id, asset, created, title, updated, topics, command, pipeline_stage,
                 (SELECT VALUE count() FROM source_insight WHERE source = $parent.id GROUP ALL)[0].count OR 0 AS insights_count,
                 (SELECT VALUE id FROM source_embedding WHERE source = $parent.id LIMIT 1) != [] AS embedded
                 FROM source
@@ -254,6 +260,13 @@ async def get_sources(
                 command_id = str(command)
                 status = "unknown"
 
+            pipeline_stage = row.get("pipeline_stage")
+            status, stage, _message = resolve_pipeline_status(
+                extract_status=status,
+                pipeline_stage=pipeline_stage,
+            )
+            processing_info = pipeline_processing_info(processing_info, stage)
+
             response_list.append(
                 SourceListResponse(
                     id=row["id"],
@@ -272,10 +285,12 @@ async def get_sources(
                     insights_count=row.get("insights_count", 0),
                     created=str(row["created"]),
                     updated=str(row["updated"]),
-                    # Status fields from fetched command
+                    # Status fields from fetched command + pipeline stage
                     command_id=command_id,
                     status=status,
                     processing_info=processing_info,
+                    pipeline_stage=pipeline_stage,
+                    stage=stage,
                 )
             )
 
@@ -384,6 +399,7 @@ async def create_source(
                 title=source_data.title or "Processing...",
                 topics=[],
                 asset=source_asset,
+                pipeline_stage=PIPELINE_EXTRACTING,
             )
             await source.save()
 
@@ -396,13 +412,13 @@ async def create_source(
                 # Import command modules to ensure they're registered
                 import commands.source_commands  # noqa: F401
 
-                # Submit command for background processing
+                # Always embed so vector search + knowledge graph run after upload
                 command_input = SourceProcessingInput(
                     source_id=str(source.id),
                     content_state=content_state,
                     project_ids=source_data.projects,
                     artifacts=artifact_ids,
-                    embed=source_data.embed,
+                    embed=True,
                 )
 
                 command_id = await CommandService.submit_command_job(
@@ -463,6 +479,7 @@ async def create_source(
                 source = Source(
                     title=source_data.title or "Processing...",
                     topics=[],
+                    pipeline_stage=PIPELINE_EXTRACTING,
                 )
                 await source.save()
 
@@ -477,7 +494,7 @@ async def create_source(
                     content_state=content_state,
                     project_ids=source_data.projects,
                     artifacts=artifact_ids,
-                    embed=source_data.embed,
+                    embed=True,
                 )
 
                 # Run in thread pool to avoid blocking the event loop
@@ -750,37 +767,43 @@ async def get_source_status(source_id: str):
 
         # Check if this is a legacy source (no command)
         if not source.command:
+            stage = getattr(source, "pipeline_stage", None)
+            if stage in ACTIVE_PIPELINE_STAGES:
+                status, stage, message = resolve_pipeline_status(
+                    extract_status="completed",
+                    pipeline_stage=stage,
+                )
+                return SourceStatusResponse(
+                    status=status,
+                    message=message,
+                    processing_info=pipeline_processing_info(None, stage),
+                    command_id=None,
+                    stage=stage,
+                )
             return SourceStatusResponse(
                 status=None,
                 message="Legacy source (completed before async processing)",
                 processing_info=None,
                 command_id=None,
+                stage=stage or "completed",
             )
 
         # Get command status and processing info
         try:
-            status = await source.get_status()
+            extract_status = await source.get_status()
             processing_info = await source.get_processing_progress()
-
-            # Generate descriptive message based on status
-            if status == "completed":
-                message = "Source processing completed successfully"
-            elif status == "failed":
-                message = "Source processing failed"
-            elif status == "running":
-                message = "Source processing in progress"
-            elif status == "queued":
-                message = "Source processing queued"
-            elif status == "unknown":
-                message = "Source processing status unknown"
-            else:
-                message = f"Source processing status: {status}"
+            pipeline_stage = getattr(source, "pipeline_stage", None)
+            status, stage, message = resolve_pipeline_status(
+                extract_status=extract_status,
+                pipeline_stage=pipeline_stage,
+            )
 
             return SourceStatusResponse(
                 status=status,
                 message=message,
-                processing_info=processing_info,
+                processing_info=pipeline_processing_info(processing_info, stage),
                 command_id=str(source.command) if source.command else None,
+                stage=stage,
             )
 
         except Exception as e:
@@ -790,6 +813,7 @@ async def get_source_status(source_id: str):
                 message="Failed to retrieve processing status",
                 processing_info=None,
                 command_id=str(source.command) if source.command else None,
+                stage=getattr(source, "pipeline_stage", None),
             )
 
     except HTTPException:

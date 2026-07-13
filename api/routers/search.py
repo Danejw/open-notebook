@@ -172,6 +172,7 @@ async def ask_knowledge_base_simple(ask_request: AskRequest):
 
         # Run the ask graph and get final result
         final_answer = None
+        query_run_id = None
         async for chunk in ask_graph.astream(
             input=dict(question=ask_request.question),  # type: ignore[arg-type]
             config=dict(
@@ -184,11 +185,16 @@ async def ask_knowledge_base_simple(ask_request: AskRequest):
         ):
             if "write_final_answer" in chunk:
                 final_answer = chunk["write_final_answer"]["final_answer"]
+                query_run_id = chunk["write_final_answer"].get("query_run_id")
 
         if not final_answer:
             raise HTTPException(status_code=500, detail="No answer generated")
 
-        return AskResponse(answer=final_answer, question=ask_request.question)
+        return AskResponse(
+            answer=final_answer,
+            question=ask_request.question,
+            query_run_id=query_run_id,
+        )
 
     except HTTPException:
         raise

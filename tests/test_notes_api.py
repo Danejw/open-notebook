@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from construction_os.exceptions import NotFoundError
 from fastapi.testclient import TestClient
 
 
@@ -149,3 +150,57 @@ class TestNoteUpdate:
         assert response.status_code == 200
         data = response.json()
         assert data["command_id"] is None
+
+
+class TestNotePdfExport:
+    """Test suite for artifact PDF export endpoint."""
+
+    @patch("api.routers.notes.render_note_pdf")
+    @patch("api.routers.notes.Note")
+    def test_export_artifact_pdf_success(self, mock_note_cls, mock_render_pdf, client):
+        """Artifact notes export as application/pdf with non-empty body."""
+        mock_note = AsyncMock()
+        mock_note.title = "Bid Scope Summary"
+        mock_note.content = "# Scope\n\nDetailed breakdown."
+        mock_note.note_type = "artifact"
+        mock_note.updated = "2026-01-15T12:00:00Z"
+        mock_note_cls.get = AsyncMock(return_value=mock_note)
+        mock_render_pdf.return_value = b"%PDF-1.4 test content"
+
+        response = client.get("/api/notes/note:artifact123/export/pdf")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/pdf"
+        assert response.content.startswith(b"%PDF")
+        assert 'filename="bid-scope-summary.pdf"' in response.headers.get(
+            "content-disposition", ""
+        )
+        mock_render_pdf.assert_called_once_with(
+            title="Bid Scope Summary",
+            content="# Scope\n\nDetailed breakdown.",
+            updated="2026-01-15T12:00:00Z",
+        )
+
+    @patch("api.routers.notes.Note")
+    def test_export_pdf_note_not_found(self, mock_note_cls, client):
+        """Missing notes return 404."""
+        mock_note_cls.get = AsyncMock(side_effect=NotFoundError("Note not found"))
+
+        response = client.get("/api/notes/note:missing/export/pdf")
+
+        assert response.status_code == 404
+
+    @patch("api.routers.notes.Note")
+    def test_export_pdf_rejects_non_artifact(self, mock_note_cls, client):
+        """Non-artifact notes cannot be exported as PDF."""
+        mock_note = AsyncMock()
+        mock_note.title = "Human Note"
+        mock_note.content = "Some content"
+        mock_note.note_type = "human"
+        mock_note.updated = "2026-01-15T12:00:00Z"
+        mock_note_cls.get = AsyncMock(return_value=mock_note)
+
+        response = client.get("/api/notes/note:abc123/export/pdf")
+
+        assert response.status_code == 400
+        assert "artifact" in response.json()["detail"].lower()

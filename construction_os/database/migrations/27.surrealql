@@ -1,0 +1,39 @@
+-- Migration 27: graph visualization support (version, communities, layout, query runs)
+
+DEFINE FIELD IF NOT EXISTS graph_version ON TABLE project TYPE option<int> DEFAULT 0;
+
+DEFINE FIELD IF NOT EXISTS community_id ON TABLE kg_entity TYPE option<record>;
+DEFINE INDEX IF NOT EXISTS idx_kg_entity_community ON TABLE kg_entity COLUMNS community_id;
+
+DEFINE TABLE IF NOT EXISTS kg_community SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS project_id ON TABLE kg_community TYPE record;
+DEFINE FIELD IF NOT EXISTS label ON TABLE kg_community TYPE string;
+DEFINE FIELD IF NOT EXISTS member_count ON TABLE kg_community TYPE int DEFAULT 0;
+DEFINE FIELD IF NOT EXISTS metadata ON TABLE kg_community TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS created ON TABLE kg_community TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS updated ON TABLE kg_community TYPE option<datetime>;
+DEFINE INDEX IF NOT EXISTS idx_kg_community_project ON TABLE kg_community COLUMNS project_id;
+
+DEFINE TABLE IF NOT EXISTS kg_graph_layout SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS project_id ON TABLE kg_graph_layout TYPE record;
+DEFINE FIELD IF NOT EXISTS graph_version ON TABLE kg_graph_layout TYPE int;
+DEFINE FIELD IF NOT EXISTS positions ON TABLE kg_graph_layout TYPE object;
+DEFINE FIELD IF NOT EXISTS algorithm ON TABLE kg_graph_layout TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS updated ON TABLE kg_graph_layout TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS created ON TABLE kg_graph_layout TYPE option<datetime>;
+DEFINE INDEX IF NOT EXISTS idx_kg_layout_project_version ON TABLE kg_graph_layout COLUMNS project_id, graph_version;
+
+DEFINE TABLE IF NOT EXISTS kg_query_run SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS project_id ON TABLE kg_query_run TYPE record;
+DEFINE FIELD IF NOT EXISTS query ON TABLE kg_query_run TYPE string;
+DEFINE FIELD IF NOT EXISTS retrieval_mode ON TABLE kg_query_run TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS seeds ON TABLE kg_query_run TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS paths ON TABLE kg_query_run TYPE option<array>;
+DEFINE FIELD IF NOT EXISTS cited_ids ON TABLE kg_query_run TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS status ON TABLE kg_query_run TYPE string DEFAULT "completed";
+DEFINE FIELD IF NOT EXISTS metadata ON TABLE kg_query_run TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS created ON TABLE kg_query_run TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS updated ON TABLE kg_query_run TYPE option<datetime>;
+DEFINE INDEX IF NOT EXISTS idx_kg_query_run_project ON TABLE kg_query_run COLUMNS project_id;
+
+RETURN true;

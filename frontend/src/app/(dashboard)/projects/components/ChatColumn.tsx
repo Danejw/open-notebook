@@ -1,15 +1,17 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
+import { AlertCircle, MessageSquare } from 'lucide-react'
 import { useProjectChat } from '@/lib/hooks/useProjectChat'
 import { ChatPanel } from '@/components/source/ChatPanel'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
-import { AlertCircle } from 'lucide-react'
 import type { ContextSelections } from '@/lib/types/project-context'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { NoteResponse, SourceListResponse } from '@/lib/types/api'
 import type { Artifact } from '@/lib/types/artifacts'
+import { CollapsibleColumn, createCollapseButton } from '@/components/projects/CollapsibleColumn'
+import { useProjectColumnsStore } from '@/lib/stores/project-columns-store'
 
 interface ChatColumnProps {
   projectId: string
@@ -35,6 +37,12 @@ export function ChatColumn({
   artifactRunKey = 0,
 }: ChatColumnProps) {
   const { t } = useTranslation()
+  const { chatCollapsed, toggleChat } = useProjectColumnsStore()
+  const chatLabel = t('common.chat')
+  const collapseButton = useMemo(
+    () => createCollapseButton(toggleChat, chatLabel),
+    [toggleChat, chatLabel]
+  )
 
   const chat = useProjectChat({
     projectId,
@@ -76,8 +84,14 @@ export function ChatColumn({
 
   const showChatSkeleton = sourcesLoading && sources.length === 0
 
+  const chatTitle = activeArtifact
+    ? `${t('chat.chatWithProject')} · ${activeArtifact.title}`
+    : t('chat.chatWithProject')
+
+  let content: ReactNode
+
   if (showChatSkeleton) {
-    return (
+    content = (
       <Card className="flex h-full flex-col">
         <CardContent className="flex flex-1 flex-col gap-3 p-3">
           <Skeleton className="h-8 w-40" />
@@ -86,10 +100,8 @@ export function ChatColumn({
         </CardContent>
       </Card>
     )
-  }
-
-  if (!sources && !notes) {
-    return (
+  } else if (!sources && !notes) {
+    content = (
       <Card className="flex h-full flex-col">
         <CardContent className="flex flex-1 items-center justify-center">
           <div className="text-center text-muted-foreground">
@@ -100,45 +112,53 @@ export function ChatColumn({
         </CardContent>
       </Card>
     )
+  } else {
+    content = (
+      <ChatPanel
+        title={chatTitle}
+        contextType="project"
+        messages={chat.messages}
+        isStreaming={chat.isSending}
+        streamStatus={chat.streamStatus}
+        activityLog={chat.activityLog}
+        contextIndicators={null}
+        onSendMessage={(message, modelOverride) => chat.sendMessage(message, modelOverride)}
+        onEditMessage={(messageId, content, modelOverride) =>
+          chat.editAndResend(messageId, content, modelOverride)
+        }
+        modelOverride={chat.currentSession?.model_override ?? chat.pendingModelOverride ?? undefined}
+        onModelChange={(model) => chat.setModelOverride(model ?? null)}
+        sessions={chat.sessions}
+        currentSessionId={chat.currentSessionId}
+        onCreateSession={(title) => chat.createSession(title)}
+        onSelectSession={chat.switchSession}
+        onUpdateSession={(sessionId, title) => chat.updateSession(sessionId, { title })}
+        onDeleteSession={chat.deleteSession}
+        loadingSessions={chat.loadingSessions || notesLoading}
+        projectContextStats={contextStats}
+        projectId={projectId}
+        selectedSkillIds={chat.selectedSkillIds}
+        onSkillIdsChange={chat.setSelectedSkillIds}
+        selectedMcpToolIds={chat.selectedMcpToolIds}
+        onMcpToolIdsChange={chat.setSelectedMcpToolIds}
+        liveMcpToolCalls={chat.liveMcpToolCalls}
+        activeArtifact={activeArtifact}
+        onClearArtifact={onClearArtifact}
+        noteSaveTitle={activeArtifact?.title}
+        autoSendArtifactKey={artifactRunKey}
+        headerActions={collapseButton}
+      />
+    )
   }
 
-  const chatTitle = activeArtifact
-    ? `${t('chat.chatWithProject')} · ${activeArtifact.title}`
-    : t('chat.chatWithProject')
-
   return (
-    <ChatPanel
-      title={chatTitle}
-      contextType="project"
-      messages={chat.messages}
-      isStreaming={chat.isSending}
-      streamStatus={chat.streamStatus}
-      activityLog={chat.activityLog}
-      contextIndicators={null}
-      onSendMessage={(message, modelOverride) => chat.sendMessage(message, modelOverride)}
-      onEditMessage={(messageId, content, modelOverride) =>
-        chat.editAndResend(messageId, content, modelOverride)
-      }
-      modelOverride={chat.currentSession?.model_override ?? chat.pendingModelOverride ?? undefined}
-      onModelChange={(model) => chat.setModelOverride(model ?? null)}
-      sessions={chat.sessions}
-      currentSessionId={chat.currentSessionId}
-      onCreateSession={(title) => chat.createSession(title)}
-      onSelectSession={chat.switchSession}
-      onUpdateSession={(sessionId, title) => chat.updateSession(sessionId, { title })}
-      onDeleteSession={chat.deleteSession}
-      loadingSessions={chat.loadingSessions || notesLoading}
-      projectContextStats={contextStats}
-      projectId={projectId}
-      selectedSkillIds={chat.selectedSkillIds}
-      onSkillIdsChange={chat.setSelectedSkillIds}
-      selectedMcpToolIds={chat.selectedMcpToolIds}
-      onMcpToolIdsChange={chat.setSelectedMcpToolIds}
-      liveMcpToolCalls={chat.liveMcpToolCalls}
-      activeArtifact={activeArtifact}
-      onClearArtifact={onClearArtifact}
-      noteSaveTitle={activeArtifact?.title}
-      autoSendArtifactKey={artifactRunKey}
-    />
+    <CollapsibleColumn
+      isCollapsed={chatCollapsed}
+      onToggle={toggleChat}
+      collapsedIcon={MessageSquare}
+      collapsedLabel={chatLabel}
+    >
+      {content}
+    </CollapsibleColumn>
   )
 }

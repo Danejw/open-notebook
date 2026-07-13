@@ -10,6 +10,11 @@ interface FormSectionProps {
   children: ReactNode
   className?: string
   htmlFor?: string
+  /**
+   * Compact rhythm is the default. Pass `dense={false}` only when a surface
+   * explicitly needs looser spacing.
+   */
+  dense?: boolean
 }
 
 export function FormSection({
@@ -17,27 +22,28 @@ export function FormSection({
   description,
   children,
   className,
-  htmlFor
+  htmlFor,
+  dense = true,
 }: FormSectionProps) {
   return (
-    <div className={cn("mb-6 last:mb-0", className)}>
-      <div className="mb-4">
+    <div className={cn(dense ? "mb-0.5 last:mb-0" : "mb-6 last:mb-0", className)}>
+      <div className={cn(dense ? "mb-0.5" : "mb-4")}>
         {htmlFor ? (
-          <Label htmlFor={htmlFor} className="text-base font-medium block mb-1">
+          <Label htmlFor={htmlFor} className={cn("font-medium block", dense ? "text-sm mb-0.5" : "text-base mb-1")}>
             {title}
           </Label>
         ) : (
-          <h3 className="text-base font-medium block mb-1">
+          <h3 className={cn("font-medium block", dense ? "text-sm mb-0.5" : "text-base mb-1")}>
             {title}
           </h3>
         )}
         {description && (
-          <p className="text-sm text-muted-foreground">
+          <p className={cn("text-muted-foreground", dense ? "text-[11px]" : "text-sm")}>
             {description}
           </p>
         )}
       </div>
-      <div className="space-y-3">
+      <div className={cn(dense ? "space-y-0.5" : "space-y-3")}>
         {children}
       </div>
     </div>

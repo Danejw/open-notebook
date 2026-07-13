@@ -26,7 +26,7 @@ export function ProjectsStep({
   }))
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[2px]">
       <FormSection
         title={`${t('projects.title')} (${t('common.optional')})`}
         description={t('sources.addExistingDesc')}

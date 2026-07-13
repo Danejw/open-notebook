@@ -12,6 +12,7 @@ from api.command_service import CommandService
 from construction_os.domain.knowledge_graph import KnowledgeGraphRepository
 from construction_os.domain.project import Project, Source
 from construction_os.knowledge.extractors.registry import list_extractors
+from construction_os.knowledge.project_linker import link_project_references
 
 router = APIRouter()
 
@@ -88,6 +89,8 @@ async def extract_source_knowledge(source_id: str, request: KnowledgeExtractRequ
                 "project_ids": project_ids,
                 "extractor": request.extractor,
                 "force": request.force,
+                # Specialized extractors keep their id; generic may auto-upgrade.
+                "auto_select": request.extractor == "generic",
             },
         )
         return KnowledgeExtractResponse(
@@ -132,7 +135,9 @@ async def get_project_entity(project_id: str, entity_id: str):
     project = await Project.get(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    detail = await KnowledgeGraphRepository.entity_detail(entity_id)
+    detail = await KnowledgeGraphRepository.entity_detail(
+        entity_id, project_id=project_id
+    )
     if not detail:
         raise HTTPException(status_code=404, detail="Entity not found")
     entity = detail.get("entity") or {}
@@ -166,6 +171,7 @@ async def rebuild_project_knowledge(
                     "project_ids": [project_id],
                     "extractor": request.extractor,
                     "force": request.force,
+                    "auto_select": request.extractor == "generic",
                 },
             )
             command_ids.append(str(command_id))
@@ -178,3 +184,17 @@ async def rebuild_project_knowledge(
         "command_ids": command_ids,
         "extractor": request.extractor,
     }
+
+
+@router.post("/projects/{project_id}/knowledge/link")
+async def link_project_knowledge(project_id: str):
+    """Run cross-source REFERENCES linking for a project (idempotent)."""
+    project = await Project.get(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    try:
+        stats = await link_project_references(project_id)
+        return {"project_id": project_id, "stats": stats}
+    except Exception as e:
+        logger.error(f"Project knowledge link failed for {project_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

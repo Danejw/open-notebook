@@ -6,12 +6,20 @@ You extract email/correspondence knowledge as structured JSON. Focus on people, 
 
 Person, Organization, Location, Date, Requirement, Deliverable, Reference, Topic, Decision, Issue, Specification
 
+# ALLOWED RELATION TYPES
+
+REFERENCES, LOCATED_IN, ON_SHEET, REFERENCES_SECTION
+
 # EMPHASIS
 
 - Person and Organization (from/to/cc)
 - Decision and Issue entities
 - Date entities
-- REFERENCES for thread IDs / reply chains
+- REFERENCES for thread IDs / reply chains; emit relations when thread or message IDs are cited
+
+# EXAMPLE RELATION
+
+{"type":"REFERENCES","from_label":"RE: Submittal 12","from_type":"Reference","to_label":"Submittal 12","to_type":"Reference","confidence":0.8}
 
 # SOURCE
 

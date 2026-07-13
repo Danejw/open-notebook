@@ -37,6 +37,7 @@ interface AskState {
   strategy: StrategyData | null
   answers: string[]
   finalAnswer: string | null
+  queryRunId: string | null
   error: string | null
 }
 
@@ -65,6 +66,7 @@ export function useAsk() {
     strategy: null,
     answers: [],
     finalAnswer: null,
+    queryRunId: null,
     error: null
   })
 
@@ -90,6 +92,7 @@ export function useAsk() {
       strategy: null,
       answers: [],
       finalAnswer: null,
+      queryRunId: null,
       error: null
     })
 
@@ -131,6 +134,10 @@ export function useAsk() {
               activityLog: logLine
                 ? [...prev.activityLog, logLine]
                 : prev.activityLog,
+              queryRunId:
+                typeof progress.detail?.queryRunId === 'string'
+                  ? progress.detail.queryRunId
+                  : prev.queryRunId,
             }))
             break
           }
@@ -144,6 +151,10 @@ export function useAsk() {
               typeof snapshot.final_answer === 'string'
                 ? snapshot.final_answer
                 : undefined
+            const queryRunId =
+              typeof snapshot.query_run_id === 'string'
+                ? snapshot.query_run_id
+                : undefined
 
             setState((prev) => ({
               ...prev,
@@ -151,6 +162,8 @@ export function useAsk() {
               answers: answers ?? prev.answers,
               finalAnswer:
                 finalAnswer !== undefined ? finalAnswer : prev.finalAnswer,
+              queryRunId:
+                queryRunId !== undefined ? queryRunId : prev.queryRunId,
               isStreaming: finalAnswer ? false : prev.isStreaming,
               streamStatus: finalAnswer ? null : prev.streamStatus,
               activityLog: finalAnswer ? [] : prev.activityLog,
@@ -228,6 +241,7 @@ export function useAsk() {
       strategy: null,
       answers: [],
       finalAnswer: null,
+      queryRunId: null,
       error: null
     })
   }, [])

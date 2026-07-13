@@ -1,6 +1,7 @@
 from typing import List, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import Response
 from loguru import logger
 
 from api.models import (
@@ -12,6 +13,7 @@ from api.models import (
 )
 from construction_os.domain.project import Note
 from construction_os.exceptions import InvalidInputError, NotFoundError
+from construction_os.utils.note_pdf_export import export_pdf_filename, render_note_pdf
 
 router = APIRouter()
 
@@ -217,6 +219,38 @@ async def ingest_note_as_source(note_id: str, request: PromoteToSourceRequest):
         logger.error(f"Error ingesting note {note_id} as source: {e}")
         raise HTTPException(
             status_code=500, detail=f"Error ingesting note as source: {e}"
+        )
+
+
+@router.get("/notes/{note_id}/export/pdf")
+async def export_note_pdf(note_id: str):
+    """Export an artifact note as a formatted PDF."""
+    try:
+        note = await Note.get(note_id)
+        if note.note_type != "artifact":
+            raise InvalidInputError("Only artifact notes can be exported as PDF")
+
+        pdf_bytes = render_note_pdf(
+            title=note.title or "Artifact",
+            content=note.content or "",
+            updated=str(note.updated) if note.updated else None,
+        )
+        filename = export_pdf_filename(note.title)
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except HTTPException:
+        raise
+    except NotFoundError:
+        raise HTTPException(status_code=404, detail="Note not found")
+    except InvalidInputError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error exporting note {note_id} as PDF: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error exporting note as PDF: {str(e)}"
         )
 
 

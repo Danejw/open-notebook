@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 interface WizardStep {
   number: number
   title: string
-  description: string
+  description?: string
 }
 
 interface WizardContainerProps {
@@ -14,6 +14,8 @@ interface WizardContainerProps {
   currentStep: number
   steps: readonly WizardStep[]
   onStepClick?: (step: number) => void
+  /** When false, hides the step indicator chrome (footer nav can still change steps). */
+  showSteps?: boolean
   className?: string
 }
 
@@ -23,21 +25,21 @@ function StepIndicator({ currentStep, steps, onStepClick }: {
   onStepClick?: (step: number) => void
 }) {
   return (
-    <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted">
+    <div className="flex items-center justify-between px-0.5 py-0.5 border-b border-border bg-muted">
       {steps.map((step, index) => {
         const isCompleted = currentStep > step.number
         const isCurrent = currentStep === step.number
         const isClickable = step.number <= currentStep && onStepClick
         
         return (
-          <div key={step.number} className="flex items-center flex-1">
+          <div key={step.number} className="flex items-center flex-1 min-w-0">
             <div 
-              className={cn('flex items-center', isClickable && 'cursor-pointer')}
+              className={cn('flex items-center min-w-0', isClickable && 'cursor-pointer')}
               onClick={isClickable ? () => onStepClick(step.number) : undefined}
             >
               <div
                 className={cn(
-                  'flex items-center justify-center w-8 h-8 rounded-full border-2 text-sm font-medium transition-colors',
+                  'flex items-center justify-center size-7 shrink-0 rounded-full border text-[11px] font-medium transition-colors',
                   isCompleted 
                     ? 'bg-primary border-primary text-primary-foreground' 
                     : isCurrent 
@@ -47,25 +49,27 @@ function StepIndicator({ currentStep, steps, onStepClick }: {
               >
                 {isCompleted ? "✓" : step.number}
               </div>
-              <div className="ml-3 min-w-0">
+              <div className="ml-0.5 min-w-0">
                 <p className={cn(
-                  'text-sm font-medium',
+                  'text-[11px] font-medium truncate',
                   isCurrent ? 'text-foreground' : 'text-muted-foreground'
                 )}>
                   {step.title}
                 </p>
-                <p className={cn(
-                  'text-xs',
-                  isCurrent ? 'text-muted-foreground' : 'text-muted-foreground/80'
-                )}>
-                  {step.description}
-                </p>
+                {step.description ? (
+                  <p className={cn(
+                    'text-[11px] truncate',
+                    isCurrent ? 'text-muted-foreground' : 'text-muted-foreground/80'
+                  )}>
+                    {step.description}
+                  </p>
+                ) : null}
               </div>
             </div>
             {index < steps.length - 1 && (
               <div 
                 className={cn(
-                  'flex-1 border-t-2 mx-4 transition-colors',
+                  'flex-1 border-t mx-0.5 transition-colors',
                   isCompleted ? 'border-primary' : 'border-border/60'
                 )} 
               />
@@ -82,20 +86,38 @@ export function WizardContainer({
   currentStep,
   steps,
   onStepClick,
+  showSteps = true,
   className
 }: WizardContainerProps) {
   return (
-    <div className={cn('flex flex-col h-[500px] min-w-0 overflow-hidden bg-card rounded-lg border border-border', className)}>
-      <StepIndicator
-        currentStep={currentStep}
-        steps={steps}
-        onStepClick={onStepClick}
-      />
+    <div
+      className={cn(
+        'flex flex-col min-w-0 overflow-hidden bg-card rounded-lg border border-border',
+        showSteps ? 'h-[500px]' : 'max-h-[min(420px,70vh)]',
+        className
+      )}
+    >
+      {showSteps ? (
+        <StepIndicator
+          currentStep={currentStep}
+          steps={steps}
+          onStepClick={onStepClick}
+        />
+      ) : null}
 
-      <div className="flex-1 min-w-0 overflow-hidden">
-        <div className="h-full min-w-0 overflow-y-auto px-6 py-4">
-          {children}
-        </div>
+      <div
+        className={cn(
+          'min-w-0 overflow-y-auto',
+          showSteps ? 'flex-1 overflow-hidden p-0.5' : 'p-0.5'
+        )}
+      >
+        {showSteps ? (
+          <div className="h-full min-w-0 overflow-y-auto">
+            {children}
+          </div>
+        ) : (
+          children
+        )}
       </div>
     </div>
   )

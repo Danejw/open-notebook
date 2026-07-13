@@ -1,5 +1,31 @@
 import apiClient from './client'
 import { NoteResponse, CreateNoteRequest, UpdateNoteRequest, PromoteToSourceRequest, SourceResponse } from '@/lib/types/api'
+import { normalizeNoteId, sanitizeExportFilename } from '@/lib/utils/export-note'
+
+function parseFilenameFromDisposition(header?: string): string | null {
+  if (!header) return null
+  const utf8Match = /filename\*=UTF-8''([^;]+)/i.exec(header)
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1])
+    } catch {
+      return utf8Match[1]
+    }
+  }
+  const plainMatch = /filename="?([^";]+)"?/i.exec(header)
+  return plainMatch?.[1] ?? null
+}
+
+function triggerBlobDownload(blob: Blob, filename: string) {
+  const blobUrl = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = blobUrl
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(blobUrl)
+}
 
 export const notesApi = {
   list: async (params?: { project_id?: string }) => {
@@ -29,5 +55,18 @@ export const notesApi = {
   ingestAsSource: async (id: string, data: PromoteToSourceRequest = {}) => {
     const response = await apiClient.post<SourceResponse>(`/notes/${id}/ingest-as-source`, data)
     return response.data
+  },
+
+  exportPdf: async (id: string) => {
+    const normalizedId = normalizeNoteId(id)
+    const response = await apiClient.get<Blob>(`/notes/${normalizedId}/export/pdf`, {
+      responseType: 'blob',
+    })
+    const filename =
+      parseFilenameFromDisposition(response.headers?.['content-disposition'] as string | undefined) ||
+      `${sanitizeExportFilename('artifact')}.pdf`
+
+    triggerBlobDownload(response.data, filename)
+    return { filename }
   },
 }

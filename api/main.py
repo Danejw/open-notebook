@@ -24,6 +24,7 @@ from api.routers import (
     episode_profiles,
     insights,
     knowledge_graph,
+    knowledge_graph_viz,
     languages,
     mcp,
     models,
@@ -351,6 +352,9 @@ app.include_router(context.router, prefix="/api", tags=["context"])
 app.include_router(sources.router, prefix="/api", tags=["sources"])
 app.include_router(insights.router, prefix="/api", tags=["insights"])
 app.include_router(knowledge_graph.router, prefix="/api", tags=["knowledge-graph"])
+app.include_router(
+    knowledge_graph_viz.router, prefix="/api", tags=["knowledge-graph-viz"]
+)
 app.include_router(commands_router.router, prefix="/api", tags=["commands"])
 app.include_router(podcasts.router, prefix="/api", tags=["podcasts"])
 app.include_router(episode_profiles.router, prefix="/api", tags=["episode-profiles"])

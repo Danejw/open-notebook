@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useId, useMemo, useCallback, useEffect, useRef } from 'react'
+import { useState, useId, useMemo, useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
@@ -84,6 +84,8 @@ interface ChatPanelProps {
   onClearArtifact?: () => void
   noteSaveTitle?: string
   autoSendArtifactKey?: number
+  /** Optional trailing header actions (e.g. column collapse control) */
+  headerActions?: ReactNode
 }
 
 export function ChatPanel({
@@ -116,6 +118,7 @@ export function ChatPanel({
   onClearArtifact,
   noteSaveTitle,
   autoSendArtifactKey = 0,
+  headerActions,
 }: ChatPanelProps) {
   const { t } = useTranslation()
   const chatInputId = useId()
@@ -199,11 +202,7 @@ export function ChatPanel({
 
   const handleEditKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      const isMac =
-        typeof navigator !== 'undefined' && navigator.userAgent.toUpperCase().indexOf('MAC') >= 0
-      const isModifierPressed = isMac ? e.metaKey : e.ctrlKey
-
-      if (e.key === 'Enter' && isModifierPressed) {
+      if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
         submitEditedMessage()
       }
@@ -229,17 +228,13 @@ export function ChatPanel({
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    const isMac = typeof navigator !== 'undefined' && navigator.userAgent.toUpperCase().indexOf('MAC') >= 0
-    const isModifierPressed = isMac ? e.metaKey : e.ctrlKey
-
-    if (e.key === 'Enter' && isModifierPressed) {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
     }
   }
 
-  const isMac = typeof navigator !== 'undefined' && navigator.userAgent.toUpperCase().indexOf('MAC') >= 0
-  const keyHint = isMac ? '⌘+Enter' : 'Ctrl+Enter'
+  const keyHint = 'Enter'
   const resolvedTitle =
     title ||
     (contextType === 'source'
@@ -252,34 +247,39 @@ export function ChatPanel({
         <ColumnHeader
           title={resolvedTitle}
           actions={
-            onSelectSession && onCreateSession && onDeleteSession ? (
-              <Dialog open={sessionManagerOpen} onOpenChange={setSessionManagerOpen}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={columnHeaderGhostButtonClassName}
-                  onClick={() => setSessionManagerOpen(true)}
-                  disabled={loadingSessions}
-                >
-                  <Clock className={columnHeaderIconClassName} />
-                  {t('chat.sessions')}
-                </Button>
-                <DialogContent className="p-0 overflow-hidden">
-                  <DialogTitle className="sr-only">{t('chat.sessionsTitle')}</DialogTitle>
-                  <SessionManager
-                    sessions={sessions}
-                    currentSessionId={currentSessionId ?? null}
-                    onCreateSession={(sessionTitle) => onCreateSession?.(sessionTitle)}
-                    onSelectSession={(sessionId) => {
-                      onSelectSession(sessionId)
-                      setSessionManagerOpen(false)
-                    }}
-                    onUpdateSession={(sessionId, sessionTitle) => onUpdateSession?.(sessionId, sessionTitle)}
-                    onDeleteSession={(sessionId) => onDeleteSession?.(sessionId)}
-                    loadingSessions={loadingSessions}
-                  />
-                </DialogContent>
-              </Dialog>
+            (onSelectSession && onCreateSession && onDeleteSession) || headerActions ? (
+              <>
+                {onSelectSession && onCreateSession && onDeleteSession ? (
+                  <Dialog open={sessionManagerOpen} onOpenChange={setSessionManagerOpen}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={columnHeaderGhostButtonClassName}
+                      onClick={() => setSessionManagerOpen(true)}
+                      disabled={loadingSessions}
+                    >
+                      <Clock className={columnHeaderIconClassName} />
+                      {t('chat.sessions')}
+                    </Button>
+                    <DialogContent className="p-0 overflow-hidden [&>button]:z-10">
+                      <DialogTitle className="sr-only">{t('chat.sessionsTitle')}</DialogTitle>
+                      <SessionManager
+                        sessions={sessions}
+                        currentSessionId={currentSessionId ?? null}
+                        onCreateSession={(sessionTitle) => onCreateSession?.(sessionTitle)}
+                        onSelectSession={(sessionId) => {
+                          onSelectSession(sessionId)
+                          setSessionManagerOpen(false)
+                        }}
+                        onUpdateSession={(sessionId, sessionTitle) => onUpdateSession?.(sessionId, sessionTitle)}
+                        onDeleteSession={(sessionId) => onDeleteSession?.(sessionId)}
+                        loadingSessions={loadingSessions}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                ) : null}
+                {headerActions}
+              </>
             ) : undefined
           }
         />

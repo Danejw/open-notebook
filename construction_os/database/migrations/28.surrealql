@@ -1,0 +1,8 @@
+-- Migration 28: pipeline_stage for multi-step source ingestion progress
+-- Tracks extracting → embedding → knowledge_graph → completed|failed
+
+DEFINE FIELD IF NOT EXISTS pipeline_stage ON TABLE source TYPE option<string>;
+
+DEFINE INDEX IF NOT EXISTS idx_source_pipeline_stage ON TABLE source COLUMNS pipeline_stage;
+
+RETURN true;

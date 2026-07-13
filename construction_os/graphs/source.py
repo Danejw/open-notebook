@@ -14,6 +14,12 @@ from construction_os.domain.content_settings import ContentSettings
 from construction_os.domain.project import Asset, Source
 from construction_os.domain.artifact import Artifact
 from construction_os.graphs.artifact import graph as artifact_graph
+from construction_os.knowledge.pipeline import (
+    PIPELINE_EMBEDDING,
+    PIPELINE_KNOWLEDGE_GRAPH,
+    set_pipeline_stage,
+    submit_auto_knowledge_graph,
+)
 
 
 class SourceState(TypedDict):
@@ -131,11 +137,17 @@ async def save_source(state: SourceState) -> dict:
     if state["embed"]:
         if source.full_text and source.full_text.strip():
             logger.debug("Embedding content for vector search")
+            await set_pipeline_stage(str(source.id), PIPELINE_EMBEDDING)
             await source.vectorize()
         else:
             logger.warning(
                 f"Source {source.id} has no text content to embed, skipping vectorization"
             )
+            await set_pipeline_stage(str(source.id), PIPELINE_KNOWLEDGE_GRAPH)
+            submit_auto_knowledge_graph(str(source.id), state.get("project_ids") or [])
+    else:
+        await set_pipeline_stage(str(source.id), PIPELINE_KNOWLEDGE_GRAPH)
+        submit_auto_knowledge_graph(str(source.id), state.get("project_ids") or [])
 
     return {"source": source}
 

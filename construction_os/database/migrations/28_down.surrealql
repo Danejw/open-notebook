@@ -1,0 +1,6 @@
+-- Rollback Migration 28: remove pipeline_stage from source
+
+REMOVE INDEX IF EXISTS idx_source_pipeline_stage ON TABLE source;
+REMOVE FIELD IF EXISTS pipeline_stage ON TABLE source;
+
+RETURN true;

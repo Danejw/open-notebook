@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, memo } from 'react'
+import React, { useState, useEffect, useRef, memo } from 'react'
 import { SourceListResponse } from '@/lib/types/api'
 import { Button } from '@/components/ui/button'
 import {
@@ -8,7 +8,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator
+  DropdownMenuSeparator,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu'
 import {
   FileText,
@@ -21,18 +24,25 @@ import {
   CheckCircle,
   AlertTriangle,
   Unlink,
-  Lightbulb
+  EyeOff,
+  Lightbulb,
+  Network,
 } from 'lucide-react'
 import { useSourceStatus } from '@/lib/hooks/use-sources'
+import { useExtractKnowledge, useSourceExtractors } from '@/lib/hooks/use-knowledge'
+import { useGraphLiveStore } from '@/lib/stores/graph-live-store'
+import { useKnowledgeExtractStore } from '@/lib/stores/knowledge-extract-store'
+import { useLongPress } from '@/lib/hooks/use-long-press'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import type { TFunction } from 'i18next'
 import { cn } from '@/lib/utils'
+import { Checkbox } from '@/components/ui/checkbox'
 import { getArtifactDragData, getActiveArtifactDragPayload, isArtifactDragEvent, clearArtifactDragData } from '@/lib/utils/artifact-drag'
-import { ContextToggle } from '@/components/common/ContextToggle'
 import { ContextMode } from '@/app/(dashboard)/projects/[id]/page'
 
 interface SourceCardProps {
   source: SourceListResponse
+  projectId?: string
   onDelete?: (sourceId: string) => void
   onRetry?: (sourceId: string) => void
   onRefreshContent?: (sourceId: string) => void
@@ -44,6 +54,10 @@ interface SourceCardProps {
   contextMode?: ContextMode
   onContextModeChange?: (mode: ContextMode) => void
   onArtifactDrop?: (artifactId: string) => void
+  selectionMode?: boolean
+  selected?: boolean
+  onToggleSelect?: (sourceId: string) => void
+  onEnterSelection?: (sourceId: string) => void
 }
 
 const SOURCE_TYPE_ICONS = {
@@ -67,6 +81,16 @@ const getStatusConfig = (t: TFunction) => ({
     icon: Clock,
     color: 'text-blue-600',
     label: t('sources.statusProcessing'),
+  },
+  embedding: {
+    icon: Clock,
+    color: 'text-blue-600',
+    label: t('sources.statusEmbedding'),
+  },
+  knowledge_graph: {
+    icon: Network,
+    color: 'text-blue-600',
+    label: t('sources.statusKnowledgeGraph'),
   },
   completed: {
     icon: CheckCircle,
@@ -100,6 +124,7 @@ function getSourceTypeLabel(sourceType: 'link' | 'upload' | 'text', t: TFunction
 
 function SourceCardImpl({
   source,
+  projectId,
   onClick,
   onDelete,
   onRetry,
@@ -111,16 +136,26 @@ function SourceCardImpl({
   contextMode,
   onContextModeChange,
   onArtifactDrop,
+  selectionMode = false,
+  selected = false,
+  onToggleSelect,
+  onEnterSelection,
 }: SourceCardProps) {
   const { t } = useTranslation()
-  const statusConfigMap = getStatusConfig(t)
 
   const [isArtifactDragOver, setIsArtifactDragOver] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
 
-  const sourceWithStatus = source as SourceListResponse & { command_id?: string; status?: string }
+  const sourceWithStatus = source as SourceListResponse & {
+    command_id?: string
+    status?: string
+    stage?: string
+    pipeline_stage?: string
+  }
 
   // Track processing state to continue polling until we detect completion
   const [wasProcessing, setWasProcessing] = useState(false)
+  const wasKnowledgeGraphRef = useRef(false)
 
   // Only poll status while the source is actually being processed (or just finished
   // and we still need one more poll to catch completion). The list endpoint already
@@ -131,10 +166,15 @@ function SourceCardImpl({
   // A source with a `command_id` but no resolved `status` yet is still ambiguous
   // (it renders as a synthetic "new"), so keep polling those until a real status
   // arrives — otherwise such a card would be stuck "processing" forever.
+  // Also keep polling while pipeline stages (embed / knowledge graph) are active.
+  const listStage = sourceWithStatus.stage || sourceWithStatus.pipeline_stage
   const shouldFetchStatus =
     sourceWithStatus.status === 'new' ||
     sourceWithStatus.status === 'queued' ||
     sourceWithStatus.status === 'running' ||
+    listStage === 'extracting' ||
+    listStage === 'embedding' ||
+    listStage === 'knowledge_graph' ||
     (!!sourceWithStatus.command_id && !sourceWithStatus.status) ||
     wasProcessing
 
@@ -143,6 +183,13 @@ function SourceCardImpl({
     shouldFetchStatus
   )
 
+  const pipelineStage =
+    statusData?.stage ||
+    (typeof statusData?.processing_info?.stage === 'string'
+      ? statusData.processing_info.stage
+      : undefined) ||
+    listStage
+
   const rawStatus = statusData?.status || sourceWithStatus.status
   const currentStatus: SourceStatus = isSourceStatus(rawStatus)
     ? rawStatus
@@ -150,22 +197,69 @@ function SourceCardImpl({
 
   useEffect(() => {
     const currentStatusFromData = statusData?.status || sourceWithStatus.status
+    const stage =
+      statusData?.stage ||
+      sourceWithStatus.stage ||
+      sourceWithStatus.pipeline_stage
 
-    if (currentStatusFromData === 'new' || currentStatusFromData === 'running' || currentStatusFromData === 'queued') {
+    if (stage === 'knowledge_graph' && projectId) {
+      wasKnowledgeGraphRef.current = true
+      useGraphLiveStore.getState().setSourceUpdating(projectId, source.id, true)
+    }
+
+    if (
+      currentStatusFromData === 'new' ||
+      currentStatusFromData === 'running' ||
+      currentStatusFromData === 'queued' ||
+      stage === 'extracting' ||
+      stage === 'embedding' ||
+      stage === 'knowledge_graph'
+    ) {
       setWasProcessing(true)
     }
 
-    if (wasProcessing &&
-        (currentStatusFromData === 'completed' || currentStatusFromData === 'failed')) {
+    if (
+      wasProcessing &&
+      (currentStatusFromData === 'completed' || currentStatusFromData === 'failed') &&
+      (stage === 'completed' || stage === 'failed' || !stage)
+    ) {
       setWasProcessing(false)
+      useKnowledgeExtractStore.getState().clearPending(source.id)
+
+      if (projectId) {
+        if (wasKnowledgeGraphRef.current && currentStatusFromData === 'completed') {
+          useGraphLiveStore
+            .getState()
+            .notifySourceKnowledgeReady(projectId, source.id)
+        } else {
+          useGraphLiveStore
+            .getState()
+            .setSourceUpdating(projectId, source.id, false)
+        }
+        wasKnowledgeGraphRef.current = false
+      }
 
       if (onRefresh) {
         setTimeout(() => onRefresh(), 500)
       }
     }
-  }, [statusData, sourceWithStatus.status, wasProcessing, onRefresh, source.id])
+  }, [
+    statusData,
+    sourceWithStatus.status,
+    sourceWithStatus.stage,
+    sourceWithStatus.pipeline_stage,
+    wasProcessing,
+    onRefresh,
+    source.id,
+    projectId,
+  ])
 
-  const statusConfig = statusConfigMap[currentStatus] || statusConfigMap.completed
+  const statusConfigMap = getStatusConfig(t)
+  const stageStatusKey =
+    pipelineStage === 'embedding' || pipelineStage === 'knowledge_graph'
+      ? pipelineStage
+      : currentStatus
+  const statusConfig = statusConfigMap[stageStatusKey as keyof typeof statusConfigMap] || statusConfigMap.completed
   const StatusIcon = statusConfig.icon
   const sourceType = getSourceType(source)
   const SourceTypeIcon = SOURCE_TYPE_ICONS[sourceType]
@@ -198,18 +292,67 @@ function SourceCardImpl({
   }
 
   const handleCardClick = () => {
+    if (selectionMode) {
+      onToggleSelect?.(source.id)
+      return
+    }
     if (onClick) {
       onClick(source.id)
     }
   }
 
-  const isProcessing: boolean = currentStatus === 'new' || currentStatus === 'running' || currentStatus === 'queued'
-  const isFailed: boolean = currentStatus === 'failed'
-  const isCompleted: boolean = currentStatus === 'completed'
+  const longPressHandlers = useLongPress({
+    disabled: !onEnterSelection && !selectionMode,
+    onLongPress: () => {
+      if (selectionMode) {
+        onToggleSelect?.(source.id)
+      } else {
+        onEnterSelection?.(source.id)
+      }
+    },
+    onClick: handleCardClick,
+  })
+
+  const isProcessing: boolean =
+    currentStatus === 'new' ||
+    currentStatus === 'running' ||
+    currentStatus === 'queued'
+  const isFailed: boolean = currentStatus === 'failed' || pipelineStage === 'failed'
+  const isCompleted: boolean = currentStatus === 'completed' && !isFailed
   const progress =
     typeof statusData?.processing_info?.progress === 'number'
       ? Math.round(statusData.processing_info.progress as number)
       : null
+
+  const isKgPending = useKnowledgeExtractStore(
+    (state) => Boolean(state.pendingSourceIds[source.id])
+  )
+  // Lazy-load KG status when the actions menu opens; also poll while a build is pending.
+  const { data: extractorData, isFetching: kgStatusLoading } = useSourceExtractors(
+    source.id,
+    isCompleted && (menuOpen || isKgPending)
+  )
+  const extractKnowledge = useExtractKnowledge(source.id)
+  const genericRun = extractorData?.extractors?.find((e) => e.id === 'generic')
+  const kgStatus = genericRun?.last_run?.status
+  const hasKnowledgeGraph = kgStatus === 'completed'
+  const kgFailed = kgStatus === 'failed'
+  const kgBuilding =
+    extractKnowledge.isBuilding || kgStatus === 'running' || kgStatus === 'queued'
+  const showBuildKnowledgeGraph =
+    isCompleted &&
+    menuOpen &&
+    !kgStatusLoading &&
+    !hasKnowledgeGraph &&
+    !kgBuilding
+
+  const handleBuildKnowledgeGraph = () => {
+    extractKnowledge.mutate({
+      extractor: 'generic',
+      project_id: projectId,
+      force: true,
+    })
+  }
 
   const handleArtifactDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     if (!onArtifactDrop || !isArtifactDragEvent(event)) return
@@ -251,16 +394,18 @@ function SourceCardImpl({
     <div
       role="button"
       tabIndex={0}
+      aria-pressed={selectionMode ? selected : undefined}
       className={cn(
         'group relative flex flex-col gap-0.5 rounded-md px-1 py-0.5',
-        'cursor-pointer transition-colors',
+        'cursor-pointer transition-colors select-none',
         'hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
         isFailed && 'bg-destructive/5 hover:bg-destructive/10',
         isProcessing && 'bg-primary/5',
         isArtifactDragOver && 'ring-2 ring-primary bg-primary/10',
+        selected && 'bg-primary/10 ring-1 ring-primary/40',
         className
       )}
-      onClick={handleCardClick}
+      {...longPressHandlers}
       onDragEnter={handleArtifactDragEnter}
       onDragOver={handleArtifactDragOver}
       onDragLeave={handleArtifactDragLeave}
@@ -274,10 +419,20 @@ function SourceCardImpl({
       }}
     >
       <div className="flex items-center gap-2 min-w-0">
-        <SourceTypeIcon
-          className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-          aria-label={sourceTypeLabel}
-        />
+        {selectionMode ? (
+          <Checkbox
+            checked={selected}
+            onCheckedChange={() => onToggleSelect?.(source.id)}
+            onClick={(e) => e.stopPropagation()}
+            className="shrink-0"
+            aria-label={title}
+          />
+        ) : (
+          <SourceTypeIcon
+            className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+            aria-label={sourceTypeLabel}
+          />
+        )}
 
         <h4
           className="min-w-0 flex-1 truncate text-sm font-medium leading-snug"
@@ -287,13 +442,36 @@ function SourceCardImpl({
         </h4>
 
         <div className="flex shrink-0 items-center gap-0.5">
+          {(kgBuilding || kgFailed) && (
+            <span
+              className={cn(
+                'mr-1 inline-flex items-center',
+                kgFailed ? 'text-destructive' : 'text-blue-600'
+              )}
+              title={
+                kgFailed
+                  ? t('sources.knowledgeGraphFailed')
+                  : t('sources.buildingKnowledgeGraph')
+              }
+            >
+              {kgFailed ? (
+                <AlertTriangle className="h-3 w-3" />
+              ) : (
+                <Network className="h-3 w-3 animate-pulse" />
+              )}
+            </span>
+          )}
           {!isCompleted && (
             <span
               className={cn(
                 'mr-1 inline-flex items-center gap-1 text-[11px] font-medium',
                 statusConfig.color
               )}
-              title={statusLoading && shouldFetchStatus ? t('sources.checking') : statusConfig.label}
+              title={
+                statusLoading && shouldFetchStatus
+                  ? t('sources.checking')
+                  : statusData?.message || statusConfig.label
+              }
             >
               <StatusIcon className={cn('h-3 w-3', isProcessing && 'animate-pulse')} />
               <span className="hidden sm:inline">
@@ -302,16 +480,8 @@ function SourceCardImpl({
             </span>
           )}
 
-          {onContextModeChange && contextMode && (
-            <ContextToggle
-              mode={contextMode}
-              hasInsights={source.insights_count > 0}
-              onChange={onContextModeChange}
-              className="h-7 w-7"
-            />
-          )}
-
-          <DropdownMenu>
+          {!selectionMode && (
+          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
@@ -323,7 +493,42 @@ function SourceCardImpl({
                 <MoreVertical className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-56">
+              {onContextModeChange && contextMode && (
+                <>
+                  <DropdownMenuLabel>{t('sources.bulkContext')}</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={contextMode}
+                    onValueChange={(value) => onContextModeChange(value as ContextMode)}
+                  >
+                    <DropdownMenuRadioItem
+                      value="off"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <EyeOff className="h-4 w-4" />
+                      {t('common.contextModes.off')}
+                    </DropdownMenuRadioItem>
+                    {source.insights_count > 0 && (
+                      <DropdownMenuRadioItem
+                        value="insights"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Lightbulb className="h-4 w-4" />
+                        {t('common.contextModes.insights')}
+                      </DropdownMenuRadioItem>
+                    )}
+                    <DropdownMenuRadioItem
+                      value="full"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <FileText className="h-4 w-4" />
+                      {t('common.contextModes.full')}
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+
               {showRemoveFromProject && (
                 <>
                   <DropdownMenuItem
@@ -371,6 +576,62 @@ function SourceCardImpl({
                 </>
               )}
 
+              {isCompleted && (
+                <>
+                  {kgStatusLoading ? (
+                    <DropdownMenuItem disabled onClick={(e) => e.stopPropagation()}>
+                      <Network className="h-4 w-4 mr-2" />
+                      {t('sources.checkingKnowledgeGraph')}
+                    </DropdownMenuItem>
+                  ) : kgBuilding ? (
+                    <DropdownMenuItem disabled onClick={(e) => e.stopPropagation()}>
+                      <Network className="h-4 w-4 mr-2 animate-pulse" />
+                      {t('sources.buildingKnowledgeGraph')}
+                    </DropdownMenuItem>
+                  ) : kgFailed ? (
+                    <>
+                      <DropdownMenuItem disabled onClick={(e) => e.stopPropagation()}>
+                        <AlertTriangle className="h-4 w-4 mr-2 text-destructive" />
+                        <span className="text-destructive">
+                          {t('sources.knowledgeGraphFailed')}
+                        </span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleBuildKnowledgeGraph()
+                        }}
+                        disabled={extractKnowledge.isBuilding}
+                      >
+                        <Network className="h-4 w-4 mr-2" />
+                        {t('sources.retryKnowledgeGraph')}
+                      </DropdownMenuItem>
+                    </>
+                  ) : showBuildKnowledgeGraph ? (
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleBuildKnowledgeGraph()
+                      }}
+                      disabled={extractKnowledge.isBuilding}
+                    >
+                      <Network className="h-4 w-4 mr-2" />
+                      {t('sources.buildKnowledgeGraph')}
+                    </DropdownMenuItem>
+                  ) : hasKnowledgeGraph ? (
+                    <DropdownMenuItem disabled onClick={(e) => e.stopPropagation()}>
+                      <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                      {t('sources.knowledgeGraphReady')}
+                    </DropdownMenuItem>
+                  ) : null}
+                  {(kgStatusLoading ||
+                    showBuildKnowledgeGraph ||
+                    kgBuilding ||
+                    kgFailed ||
+                    hasKnowledgeGraph) && <DropdownMenuSeparator />}
+                </>
+              )}
+
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation()
@@ -384,55 +645,8 @@ function SourceCardImpl({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          )}
         </div>
-      </div>
-
-      {/* Compact meta: type once + insights; status message only when useful */}
-      <div className="flex items-center gap-1.5 pl-[22px] text-[11px] text-muted-foreground min-w-0">
-        <span className="shrink-0">{sourceTypeLabel}</span>
-
-        {isCompleted && source.insights_count > 0 && (
-          <>
-            <span className="text-border" aria-hidden>·</span>
-            <span className="inline-flex items-center gap-0.5 shrink-0">
-              <Lightbulb className="h-3 w-3" />
-              {source.insights_count}
-            </span>
-          </>
-        )}
-
-        {statusData?.message && (isProcessing || isFailed) && (
-          <>
-            <span className="text-border" aria-hidden>·</span>
-            <span className="truncate italic" title={statusData.message}>
-              {statusData.message}
-            </span>
-          </>
-        )}
-
-        {isProcessing && progress !== null && (
-          <>
-            <span className="text-border" aria-hidden>·</span>
-            <span className="shrink-0 tabular-nums">{progress}%</span>
-          </>
-        )}
-
-        {isFailed && (
-          <>
-            <span className="text-border" aria-hidden>·</span>
-            <button
-              type="button"
-              className="shrink-0 font-medium text-primary hover:underline"
-              onClick={(e) => {
-                e.stopPropagation()
-                handleRetry()
-              }}
-              disabled={!onRetry}
-            >
-              {t('sources.retryProcessing')}
-            </button>
-          </>
-        )}
       </div>
 
       {isProcessing && progress !== null && (
@@ -467,8 +681,18 @@ function topicsEqual(a?: string[], b?: string[]): boolean {
 function areEqual(prev: SourceCardProps, next: SourceCardProps): boolean {
   if (prev === next) return true
 
-  const p = prev.source as SourceListResponse & { command_id?: string; status?: string }
-  const n = next.source as SourceListResponse & { command_id?: string; status?: string }
+  const p = prev.source as SourceListResponse & {
+    command_id?: string
+    status?: string
+    stage?: string
+    pipeline_stage?: string
+  }
+  const n = next.source as SourceListResponse & {
+    command_id?: string
+    status?: string
+    stage?: string
+    pipeline_stage?: string
+  }
 
   return (
     p.id === n.id &&
@@ -476,11 +700,16 @@ function areEqual(prev: SourceCardProps, next: SourceCardProps): boolean {
     p.updated === n.updated &&
     p.status === n.status &&
     p.command_id === n.command_id &&
+    p.stage === n.stage &&
+    p.pipeline_stage === n.pipeline_stage &&
     p.embedded === n.embedded &&
     p.insights_count === n.insights_count &&
     p.asset?.url === n.asset?.url &&
     p.asset?.file_path === n.asset?.file_path &&
     topicsEqual(p.topics, n.topics) &&
+    prev.projectId === next.projectId &&
+    prev.selectionMode === next.selectionMode &&
+    prev.selected === next.selected &&
     prev.contextMode === next.contextMode &&
     prev.showRemoveFromProject === next.showRemoveFromProject &&
     prev.className === next.className

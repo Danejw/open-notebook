@@ -52,6 +52,19 @@ export function ContextIndicator({
       )}
     >
       <div className="flex min-w-0 items-center gap-2">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="truncate cursor-default">
+              Search pool
+            </span>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">
+            <p>
+              Selected sources/notes are searched per message. Chat loads only
+              the most relevant excerpts (not every insight every time).
+            </p>
+          </TooltipContent>
+        </Tooltip>
         {sourcesInsights > 0 && (
           <Tooltip>
             <TooltipTrigger asChild>

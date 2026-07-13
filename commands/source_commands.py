@@ -9,6 +9,11 @@ from construction_os.database.repository import ensure_record_id
 from construction_os.domain.project import Source
 from construction_os.domain.artifact import Artifact
 from construction_os.exceptions import ConfigurationError
+from construction_os.knowledge.pipeline import (
+    PIPELINE_EMBEDDING,
+    PIPELINE_EXTRACTING,
+    set_pipeline_stage,
+)
 
 try:
     from construction_os.graphs.source import source_graph
@@ -88,7 +93,7 @@ async def process_source_command(
         if not source:
             raise ValueError(f"Source '{input_data.source_id}' not found")
 
-        # Update source with command reference
+        # Update source with command reference and start pipeline tracking
         source.command = (
             ensure_record_id(input_data.execution_context.command_id)
             if input_data.execution_context
@@ -96,7 +101,12 @@ async def process_source_command(
         )
         await source.save()
 
+        await set_pipeline_stage(str(source.id), PIPELINE_EXTRACTING)
+
         logger.info(f"Updated source {source.id} with command reference")
+
+        # Always embed so vector search and knowledge graph run after upload
+        embed = True
 
         # 3. Process source with all projects
         logger.info(f"Processing source with {len(input_data.project_ids)} projects")
@@ -107,7 +117,7 @@ async def process_source_command(
                 "content_state": input_data.content_state,
                 "project_ids": input_data.project_ids,
                 "apply_artifacts": artifacts,
-                "embed": input_data.embed,
+                "embed": embed,
                 "source_id": input_data.source_id,
             }
         )
@@ -117,40 +127,18 @@ async def process_source_command(
         # 4. Gather processing results (project associations handled by source_graph)
         # Note: embedding is fire-and-forget (async job), so we can't query the
         # count here — it hasn't completed yet. The embed_source_command logs
-        # the actual count when it finishes.
+        # the actual count when it finishes. Knowledge graph is chained from
+        # embed_source (or submitted immediately when embedding is skipped).
         insights_list = await processed_source.get_insights()
         insights_created = len(insights_list)
 
         processing_time = time.time() - start_time
-        embed_status = "submitted" if input_data.embed else "skipped"
         logger.info(
             f"Successfully processed source: {processed_source.id} in {processing_time:.2f}s"
         )
         logger.info(
-            f"Created {insights_created} insights, embedding {embed_status}"
+            f"Created {insights_created} insights, embedding submitted"
         )
-
-        # Fire-and-forget generic knowledge graph build (corpus-agnostic)
-        try:
-            from surreal_commands import submit_command
-
-            submit_command(
-                "construction_os",
-                "build_knowledge_graph",
-                {
-                    "source_id": str(processed_source.id),
-                    "project_ids": input_data.project_ids or [],
-                    "extractor": "generic",
-                    "force": False,
-                },
-            )
-            logger.info(
-                f"Submitted build_knowledge_graph for source {processed_source.id}"
-            )
-        except Exception as kg_err:
-            logger.warning(
-                f"Failed to submit knowledge graph build for {processed_source.id}: {kg_err}"
-            )
 
         return SourceProcessingOutput(
             success=True,
@@ -361,8 +349,9 @@ async def ingest_text_source_command(
         for project_id in input_data.project_ids:
             await source.add_to_project(project_id)
 
-        if input_data.embed:
-            await source.vectorize()
+        # Always embed promoted text so search + knowledge graph stay in sync
+        await set_pipeline_stage(str(source.id), PIPELINE_EMBEDDING)
+        await source.vectorize()
 
         artifacts: List[Artifact] = []
         for artifact_id in input_data.artifacts:
@@ -378,7 +367,7 @@ async def ingest_text_source_command(
         processing_time = time.time() - start_time
         logger.info(
             f"Ingested text source {source.id} in {processing_time:.2f}s "
-            f"(insights={insights_created}, embed={input_data.embed})"
+            f"(insights={insights_created}, embed=True)"
         )
 
         return IngestTextSourceOutput(

@@ -1,0 +1,17 @@
+-- Rollback migration 29 (reverts FLEXIBLE; nested keys may be stripped again)
+REMOVE FIELD IF EXISTS stats ON TABLE kg_extraction_run;
+DEFINE FIELD stats ON TABLE kg_extraction_run TYPE option<object>;
+
+REMOVE FIELD IF EXISTS metadata ON TABLE kg_entity;
+DEFINE FIELD metadata ON TABLE kg_entity TYPE option<object>;
+
+REMOVE FIELD IF EXISTS metadata ON TABLE kg_claim;
+DEFINE FIELD metadata ON TABLE kg_claim TYPE option<object>;
+
+REMOVE FIELD IF EXISTS metadata ON TABLE kg_relation;
+DEFINE FIELD metadata ON TABLE kg_relation TYPE option<object>;
+
+REMOVE FIELD IF EXISTS metadata ON TABLE kg_community;
+DEFINE FIELD metadata ON TABLE kg_community TYPE option<object>;
+
+RETURN true;

@@ -29,6 +29,7 @@ export interface AgentProgressDetail {
   searchTerm?: string
   resultCount?: number
   answerCount?: number
+  queryRunId?: string
 }
 
 export interface AgentProgressPayload {

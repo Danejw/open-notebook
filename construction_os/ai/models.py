@@ -54,8 +54,10 @@ class Model(ObjectModel):
 
         try:
             return await Credential.get(self.credential)
-        except Exception:
-            logger.warning(f"Could not load credential {self.credential} for model {self.id}")
+        except Exception as e:
+            logger.warning(
+                f"Could not load credential {self.credential} for model {self.id}: {e}"
+            )
             return None
 
 
@@ -119,6 +121,7 @@ class ModelManager:
 
         # Build config from credential if linked, otherwise fall back to env vars
         config: dict = {}
+        credential_load_failed = False
         if model.credential:
             credential = await model.get_credential_obj()
             if credential:
@@ -127,6 +130,7 @@ class ModelManager:
                     f"Using credential '{credential.name}' for model {model.name}"
                 )
             else:
+                credential_load_failed = True
                 logger.warning(
                     f"Model {model.id} has credential {model.credential} but it could not be loaded. "
                     f"Falling back to env vars."
@@ -147,33 +151,45 @@ class ModelManager:
         # Normalize provider name: DB stores underscores but Esperanto expects hyphens
         provider = model.provider.replace("_", "-")
 
-        # Create model based on type (Esperanto will cache the instance)
-        if model.type == "language":
-            return AIFactory.create_language(
-                model_name=model.name,
-                provider=provider,
-                config=config,
-            )
-        elif model.type == "embedding":
-            return AIFactory.create_embedding(
-                model_name=model.name,
-                provider=provider,
-                config=config,
-            )
-        elif model.type == "speech_to_text":
-            return AIFactory.create_speech_to_text(
-                model_name=model.name,
-                provider=provider,
-                config=config,
-            )
-        elif model.type == "text_to_speech":
-            return AIFactory.create_text_to_speech(
-                model_name=model.name,
-                provider=provider,
-                config=config,
-            )
-        else:
+        try:
+            # Create model based on type (Esperanto will cache the instance)
+            if model.type == "language":
+                return AIFactory.create_language(
+                    model_name=model.name,
+                    provider=provider,
+                    config=config,
+                )
+            if model.type == "embedding":
+                return AIFactory.create_embedding(
+                    model_name=model.name,
+                    provider=provider,
+                    config=config,
+                )
+            if model.type == "speech_to_text":
+                return AIFactory.create_speech_to_text(
+                    model_name=model.name,
+                    provider=provider,
+                    config=config,
+                )
+            if model.type == "text_to_speech":
+                return AIFactory.create_text_to_speech(
+                    model_name=model.name,
+                    provider=provider,
+                    config=config,
+                )
             raise ConfigurationError(f"Invalid model type: {model.type}")
+        except ConfigurationError:
+            raise
+        except Exception as e:
+            if credential_load_failed:
+                raise ConfigurationError(
+                    f"Model '{model.name}' is selected, but its API key could not be "
+                    f"decrypted (CONSTRUCTION_OS_ENCRYPTION_KEY may have changed). "
+                    f"Re-save the key in Settings → API Keys, then retry. Details: {e}"
+                ) from e
+            raise ConfigurationError(
+                f"Failed to load model '{model.name}' ({provider}): {e}"
+            ) from e
 
     async def get_defaults(self) -> DefaultModels:
         """Get the default models configuration from database"""
@@ -253,15 +269,42 @@ class ModelManager:
             )
             return None
 
+        load_error: Optional[Exception] = None
         try:
-            return await self.get_model(model_id, **kwargs)
+            model = await self.get_model(model_id, **kwargs)
         except (ValueError, ConfigurationError) as e:
+            load_error = e
             logger.error(
                 f"Failed to load default model for type '{model_type}': {e}. "
-                f"The configured model_id '{model_id}' may have been deleted or misconfigured. "
-                f"Please go to Settings → Models and reconfigure the default model."
+                f"Configured model_id '{model_id}' could not be provisioned."
             )
-            return None
+            model = None
+
+        # Tools extraction can fall back to the chat default when tools fails.
+        if (
+            model is None
+            and model_type == "tools"
+            and defaults.default_chat_model
+            and defaults.default_chat_model != model_id
+        ):
+            logger.warning(
+                f"Falling back from tools model '{model_id}' to chat model "
+                f"'{defaults.default_chat_model}'"
+            )
+            try:
+                return await self.get_model(defaults.default_chat_model, **kwargs)
+            except (ValueError, ConfigurationError) as e:
+                load_error = e
+                logger.error(
+                    f"Chat fallback model also failed to load: {e}. "
+                    f"Please go to Settings → Models and reconfigure defaults."
+                )
+                model = None
+
+        if model is None and load_error is not None:
+            raise ConfigurationError(str(load_error)) from load_error
+
+        return model
 
 
 model_manager = ModelManager()

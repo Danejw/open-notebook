@@ -38,6 +38,7 @@ _RECORD_FIELDS = (
     "from_id",
     "to_id",
     "command_id",
+    "community_id",
 )
 
 
@@ -64,11 +65,13 @@ class KgEntity(_KgModel):
     normalized_key: str
     project_id: str
     source_id: Optional[str] = None
+    community_id: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
     extractor: Optional[str] = None
     extractor_version: Optional[str] = None
     nullable_fields: ClassVar[set[str]] = {
         "source_id",
+        "community_id",
         "metadata",
         "extractor",
         "extractor_version",
@@ -175,6 +178,43 @@ class KgExtractionRun(_KgModel):
         "command_id",
         "started_at",
         "finished_at",
+    }
+
+
+class KgCommunity(_KgModel):
+    table_name: ClassVar[str] = "kg_community"
+    project_id: str
+    label: str
+    member_count: int = 0
+    metadata: Optional[Dict[str, Any]] = None
+    nullable_fields: ClassVar[set[str]] = {"metadata"}
+
+
+class KgGraphLayout(_KgModel):
+    table_name: ClassVar[str] = "kg_graph_layout"
+    project_id: str
+    graph_version: int
+    positions: Dict[str, Any] = {}
+    algorithm: Optional[str] = None
+    nullable_fields: ClassVar[set[str]] = {"algorithm"}
+
+
+class KgQueryRun(_KgModel):
+    table_name: ClassVar[str] = "kg_query_run"
+    project_id: str
+    query: str
+    retrieval_mode: Optional[str] = None
+    seeds: Optional[Dict[str, Any]] = None
+    paths: Optional[List[Any]] = None
+    cited_ids: Optional[Dict[str, Any]] = None
+    status: str = "completed"
+    metadata: Optional[Dict[str, Any]] = None
+    nullable_fields: ClassVar[set[str]] = {
+        "retrieval_mode",
+        "seeds",
+        "paths",
+        "cited_ids",
+        "metadata",
     }
 
 
@@ -354,26 +394,41 @@ class KnowledgeGraphRepository:
         return latest
 
     @staticmethod
-    async def entity_detail(entity_id: str) -> Dict[str, Any]:
+    async def entity_detail(
+        entity_id: str, *, project_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         eid = ensure_record_id(entity_id)
         entity_rows = await repo_query("SELECT * FROM $id", {"id": eid})
         if not entity_rows:
             return {}
         entity = entity_rows[0]
+        if project_id is not None:
+            entity_project = str(entity.get("project_id") or "")
+            if project_id not in entity_project and entity_project not in project_id:
+                return {}
+        claim_vars: Dict[str, Any] = {"id": eid}
+        relation_vars: Dict[str, Any] = {"id": eid}
+        claim_project = ""
+        relation_project = ""
+        if project_id is not None:
+            claim_project = " AND project_id = $project_id"
+            relation_project = " AND project_id = $project_id"
+            claim_vars["project_id"] = ensure_record_id(project_id)
+            relation_vars["project_id"] = ensure_record_id(project_id)
         claims = await repo_query(
-            """
+            f"""
             SELECT * FROM kg_claim
-            WHERE subject_id = $id OR object_id = $id
+            WHERE (subject_id = $id OR object_id = $id){claim_project}
             ORDER BY created DESC
             """,
-            {"id": eid},
+            claim_vars,
         )
         relations = await repo_query(
-            """
+            f"""
             SELECT * FROM kg_relation
-            WHERE from_id = $id OR to_id = $id
+            WHERE (from_id = $id OR to_id = $id){relation_project}
             """,
-            {"id": eid},
+            relation_vars,
         )
         return {
             "entity": entity,
@@ -487,23 +542,32 @@ async def expand_from_seeds(
                 rows = await repo_query(
                     "SELECT * FROM $id", {"id": ensure_record_id(neighbor)}
                 )
-                if rows:
-                    visited[neighbor] = rows[0]
-                    next_frontier.append(neighbor)
-                    paths.append(
-                        EvidencePath(
-                            nodes=[from_id, to_id],
-                            edges=[str(rel.get("type") or "RELATED")],
-                            description=f"{from_id} --[{rel.get('type')}]--> {to_id}",
-                            confidence=float(rel.get("confidence") or 0.0),
-                            source_ids=[str(rel["source_id"])]
-                            if rel.get("source_id")
-                            else [],
-                            chunk_ids=[str(rel["chunk_id"])]
-                            if rel.get("chunk_id")
-                            else [],
-                        )
+                if not rows:
+                    continue
+                row = rows[0]
+                row_id = str(row.get("id") or neighbor)
+                # Defense: only traverse kg_entity neighbors
+                if not (
+                    row_id.startswith("kg_entity:")
+                    or row.get("normalized_key") is not None
+                ):
+                    continue
+                visited[neighbor] = row
+                next_frontier.append(neighbor)
+                paths.append(
+                    EvidencePath(
+                        nodes=[from_id, to_id],
+                        edges=[str(rel.get("type") or "RELATED")],
+                        description=f"{from_id} --[{rel.get('type')}]--> {to_id}",
+                        confidence=float(rel.get("confidence") or 0.0),
+                        source_ids=[str(rel["source_id"])]
+                        if rel.get("source_id")
+                        else [],
+                        chunk_ids=[str(rel["chunk_id"])]
+                        if rel.get("chunk_id")
+                        else [],
                     )
+                )
         frontier = next_frontier
 
     entity_ids = list(visited.keys())[:max_nodes]

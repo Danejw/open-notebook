@@ -9,6 +9,13 @@ from construction_os.ai.models import model_manager
 from construction_os.database.repository import ensure_record_id, repo_insert, repo_query
 from construction_os.domain.project import Note, Source, SourceInsight
 from construction_os.exceptions import ConfigurationError
+from construction_os.knowledge.pipeline import (
+    PIPELINE_FAILED,
+    PIPELINE_KNOWLEDGE_GRAPH,
+    resolve_project_ids_for_source,
+    set_pipeline_stage,
+    submit_auto_knowledge_graph,
+)
 from construction_os.utils.chunking import ContentType, chunk_text, detect_content_type
 from construction_os.utils.embedding import generate_embedding, generate_embeddings
 
@@ -470,6 +477,11 @@ async def embed_source_command(input_data: EmbedSourceInput) -> EmbedSourceOutpu
             f"{total_chunks} chunks in {processing_time:.2f}s"
         )
 
+        # Chain knowledge graph build after embeddings exist (chunk-linked evidence)
+        await set_pipeline_stage(input_data.source_id, PIPELINE_KNOWLEDGE_GRAPH)
+        project_ids = await resolve_project_ids_for_source(input_data.source_id)
+        submit_auto_knowledge_graph(input_data.source_id, project_ids)
+
         return EmbedSourceOutput(
             success=True,
             source_id=input_data.source_id,
@@ -484,6 +496,13 @@ async def embed_source_command(input_data: EmbedSourceInput) -> EmbedSourceOutpu
         logger.error(
             f"Failed to embed source {input_data.source_id} (command: {cmd_id}): {e}"
         )
+        # Still attempt knowledge graph from full_text when embedding cannot run
+        try:
+            await set_pipeline_stage(input_data.source_id, PIPELINE_KNOWLEDGE_GRAPH)
+            project_ids = await resolve_project_ids_for_source(input_data.source_id)
+            submit_auto_knowledge_graph(input_data.source_id, project_ids)
+        except Exception:
+            await set_pipeline_stage(input_data.source_id, PIPELINE_FAILED)
         return EmbedSourceOutput(
             success=False,
             source_id=input_data.source_id,

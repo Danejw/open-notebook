@@ -6,15 +6,24 @@ You extract a structured knowledge graph from document text. Output JSON only ma
 
 Person, Organization, Location, Date, Requirement, Deliverable, Reference, Topic, Decision, Issue, Specification
 
+# ALLOWED RELATION TYPES
+
+REFERENCES, LOCATED_IN, ON_SHEET, REFERENCES_SECTION
+
 # RULES
 
 - Prefer precise typed entities over vague Topics when possible.
 - Every claim must have a subject and either an object_label or object_literal.
-- Use REFERENCES relations for explicit cross-references (see Appendix B, sheet A-501, section 09 30 00, email thread IDs).
+- For every explicit cross-reference in the text (SEE / DETAIL / SECTION callouts, sheet numbers, CSI sections, exhibits, thread IDs), emit a relation in relations[]. Do not leave relations empty when callouts exist.
+- Use REFERENCES for cross-references; LOCATED_IN for equipment/spaces; ON_SHEET for items on a named sheet; REFERENCES_SECTION for spec section pointers.
+- Do not invent facts not supported by the text. If the text contains a callout, emitting that relation is required, not invention.
 - confidence is 0.0–1.0; lower when uncertain.
-- Do not invent facts not supported by the text.
 - chunk_index is optional 0-based index into document chunks when known; omit if unsure.
 - Keep labels short and canonical (e.g. "AHU-2", not "the AHU unit number 2").
+
+# EXAMPLE RELATION
+
+{"type":"REFERENCES","from_label":"A-101","from_type":"Reference","to_label":"3/A-501","to_type":"Reference","confidence":0.9}
 
 # SOURCE
 

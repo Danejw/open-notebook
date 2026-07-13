@@ -6,13 +6,21 @@ You extract contract/agreement knowledge as structured JSON. Focus on parties, d
 
 Person, Organization, Location, Date, Requirement, Deliverable, Reference, Topic, Decision, Issue, Specification
 
+# ALLOWED RELATION TYPES
+
+REFERENCES, LOCATED_IN, ON_SHEET, REFERENCES_SECTION
+
 # EMPHASIS
 
 - Organizations and Persons (parties, signatories)
 - Dates (effective, expiration, milestones)
 - Requirements and obligations
 - Deliverables
-- Cross-references to exhibits/appendices via REFERENCES
+- Cross-references to exhibits/appendices via REFERENCES; emit a relation for every explicit exhibit/appendix pointer
+
+# EXAMPLE RELATION
+
+{"type":"REFERENCES","from_label":"Agreement","from_type":"Reference","to_label":"Exhibit A","to_type":"Reference","confidence":0.9}
 
 # SOURCE
 

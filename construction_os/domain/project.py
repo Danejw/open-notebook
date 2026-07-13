@@ -18,6 +18,8 @@ class Project(ObjectModel):
     name: str
     description: str
     archived: Optional[bool] = False
+    graph_version: Optional[int] = 0
+    nullable_fields: ClassVar[set[str]] = {"archived", "graph_version"}
 
     @field_validator("name")
     @classmethod
@@ -362,6 +364,7 @@ class Source(ObjectModel):
         "full_text",
         "content_hash",
         "command",
+        "pipeline_stage",
     }
     asset: Optional[Asset] = None
     title: Optional[str] = None
@@ -370,6 +373,10 @@ class Source(ObjectModel):
     content_hash: Optional[str] = None
     command: Optional[Union[str, RecordID]] = Field(
         default=None, description="Link to surreal-commands processing job"
+    )
+    pipeline_stage: Optional[str] = Field(
+        default=None,
+        description="Ingestion stage: extracting|embedding|knowledge_graph|completed|failed",
     )
 
     @field_validator("command", mode="before")

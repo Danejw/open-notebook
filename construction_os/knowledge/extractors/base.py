@@ -71,4 +71,7 @@ class KnowledgeExtractor(Protocol):
         chunks: List[Dict[str, Any]],
         source_id: str,
         project_id: str,
+        source_title: Optional[str] = None,
+        file_path: Optional[str] = None,
+        topics: Optional[List[str]] = None,
     ) -> ExtractionResult: ...

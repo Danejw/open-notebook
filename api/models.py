@@ -70,6 +70,9 @@ class AskRequest(BaseModel):
 class AskResponse(BaseModel):
     answer: str = Field(..., description="Final answer from the knowledge base")
     question: str = Field(..., description="Original question")
+    query_run_id: Optional[str] = Field(
+        None, description="Persisted retrieval graph run id for visualization"
+    )
 
 
 # Models API models
@@ -368,6 +371,8 @@ class SourceResponse(BaseModel):
     command_id: Optional[str] = None
     status: Optional[str] = None
     processing_info: Optional[Dict] = None
+    pipeline_stage: Optional[str] = None
+    stage: Optional[str] = None
     # Project associations
     projects: Optional[List[str]] = None
 
@@ -387,6 +392,8 @@ class SourceListResponse(BaseModel):
     command_id: Optional[str] = None
     status: Optional[str] = None
     processing_info: Optional[Dict[str, Any]] = None
+    pipeline_stage: Optional[str] = None
+    stage: Optional[str] = None
 
 
 # Context API models
@@ -477,6 +484,10 @@ class SourceStatusResponse(BaseModel):
         None, description="Detailed processing information"
     )
     command_id: Optional[str] = Field(None, description="Command ID if available")
+    stage: Optional[str] = Field(
+        None,
+        description="Pipeline stage: extracting|embedding|knowledge_graph|completed|failed",
+    )
 
 
 # Error response

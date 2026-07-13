@@ -5,6 +5,7 @@ import { projectsApi } from '@/lib/api/projects'
 import { QUERY_KEYS } from '@/lib/api/query-client'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { useKnowledgeExtractStore } from '@/lib/stores/knowledge-extract-store'
 import { getApiErrorMessage } from '@/lib/utils/error-handler'
 import {
   buildOptimisticSource,
@@ -14,6 +15,7 @@ import {
   snapshotSourceListQueries,
   removeSourceFromAllQueries,
   removeSourceFromProjectQueries,
+  dedupeSourcesById,
 } from '@/lib/utils/source-query-cache'
 import {
   CreateSourceRequest,
@@ -66,9 +68,9 @@ export function useProjectSources(projectId: string) {
     refetchOnWindowFocus: false,
   })
 
-  // Flatten all pages into a single array (memoized to prevent infinite re-renders)
+  // Flatten pages; dedupe guards against pagination overlap + cache races
   const sources: SourceListResponse[] = useMemo(
-    () => query.data?.pages.flatMap(page => page.sources) ?? [],
+    () => dedupeSourcesById(query.data?.pages.flatMap((page) => page.sources) ?? []),
     [query.data?.pages]
   )
 
@@ -119,7 +121,7 @@ export function useAllSourcesInfinite(sortBy: SourcesSortBy, sortOrder: SourcesS
   })
 
   const sources: SourceListResponse[] = useMemo(
-    () => query.data?.pages.flatMap((page) => page.sources) ?? [],
+    () => dedupeSourcesById(query.data?.pages.flatMap((page) => page.sources) ?? []),
     [query.data?.pages]
   )
 
@@ -163,6 +165,9 @@ export function useCreateSource() {
       if (context?.optimisticId) {
         replaceSourceInAllQueries(queryClient, context.optimisticId, result)
       }
+      // Keep KG status polling active while auto-extract runs after upload
+      useKnowledgeExtractStore.getState().markPending(result.id)
+
       // Invalidate queries for all relevant projects with immediate refetch
       if (variables.projects) {
         variables.projects.forEach(projectId => {
@@ -196,7 +201,7 @@ export function useCreateSource() {
       if (variables.async_processing) {
         toast({
           title: t('sources.sourceQueued'),
-          description: t('sources.sourceQueuedDesc'),
+          description: t('sources.sourceQueuedPipelineDesc'),
         })
       } else {
         toast({
@@ -321,13 +326,20 @@ export function useSourceStatus(sourceId: string, enabled = true) {
     queryFn: () => sourcesApi.status(sourceId),
     enabled: !!sourceId && enabled,
     refetchInterval: (query) => {
-      // Auto-refresh every 2 seconds if processing
-      // The query.state.data contains the SourceStatusResponse
+      // Auto-refresh every 2 seconds while the full pipeline is in progress
+      // (extract → embed → knowledge graph).
       const data = query.state.data as SourceStatusResponse | undefined
-      if (data?.status === 'running' || data?.status === 'queued' || data?.status === 'new') {
+      const stage = data?.stage
+      if (
+        data?.status === 'running' ||
+        data?.status === 'queued' ||
+        data?.status === 'new' ||
+        stage === 'extracting' ||
+        stage === 'embedding' ||
+        stage === 'knowledge_graph'
+      ) {
         return 2000
       }
-      // No auto-refresh if completed, failed, or unknown
       return false
     },
     staleTime: 0, // Always consider status data stale for real-time updates

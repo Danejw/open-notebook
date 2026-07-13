@@ -42,6 +42,9 @@ dependencies = [
     "pycountry>=26.2.16",
     "babel>=2.18.0",
     "ag-ui-langgraph>=0.0.42",
+    "markdown>=3.7",
+    "pymdown-extensions>=10.0",
+    "xhtml2pdf>=0.2.16",
 ]
 
 [tool.setuptools]

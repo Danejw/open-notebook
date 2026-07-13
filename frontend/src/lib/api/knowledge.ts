@@ -1,4 +1,5 @@
 import apiClient from '@/lib/api/client'
+import type { CommandJobStatusResponse } from '@/lib/api/insights'
 
 export interface KnowledgeExtractorInfo {
   id: string
@@ -11,6 +12,7 @@ export interface KnowledgeExtractorInfo {
     started_at?: string
     finished_at?: string
     error_message?: string
+    command_id?: string
   }
 }
 
@@ -85,5 +87,38 @@ export const knowledgeApi = {
       data ?? { force: true, extractor: 'generic' }
     )
     return response.data
+  },
+
+  getCommandStatus: async (commandId: string) => {
+    const response = await apiClient.get<CommandJobStatusResponse>(
+      `/commands/jobs/${encodeURIComponent(commandId)}`
+    )
+    return response.data
+  },
+
+  /**
+   * Poll a knowledge-extract command until it reaches a terminal status.
+   */
+  waitForCommand: async (
+    commandId: string,
+    options?: { maxAttempts?: number; intervalMs?: number }
+  ): Promise<CommandJobStatusResponse> => {
+    const maxAttempts = options?.maxAttempts ?? 90
+    const intervalMs = options?.intervalMs ?? 2000
+
+    let last: CommandJobStatusResponse = {
+      job_id: commandId,
+      status: 'queued',
+    }
+
+    for (let i = 0; i < maxAttempts; i++) {
+      last = await knowledgeApi.getCommandStatus(commandId)
+      if (last.status === 'completed' || last.status === 'failed') {
+        return last
+      }
+      await new Promise((resolve) => setTimeout(resolve, intervalMs))
+    }
+
+    return last
   },
 }

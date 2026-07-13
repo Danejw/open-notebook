@@ -1,0 +1,77 @@
+---
+description: Compact, YAGNI frontend UI — densify layouts, cut redundancy, 2px spacing, stay consistent
+globs: frontend/**/*.{tsx,ts,css}
+alwaysApply: false
+---
+
+# Compact UI (mandatory for frontend)
+
+Whenever you create or edit frontend UI, apply this rule. Do not ship spacious, redundant, or one-off layouts.
+
+## Enforce via base components first
+
+**Source of truth**: `frontend/src/components/ui/*`
+
+Defaults in Card, Dialog, AlertDialog, Alert, Accordion, Tabs, Popover, Button, Input, Textarea, Select, Label, Badge, FormSection, CheckboxList, WizardContainer, Command, DropdownMenu, RadioGroup, and Tooltip are already compact. Composed feature UI should inherit density by using these primitives — do not reintroduce spacious padding (`p-3`/`p-4`/`gap-4`/`space-y-3`) on top of them unless accessibility requires it.
+
+When changing density:
+
+1. Prefer updating the relevant `components/ui` primitive so the whole app stays consistent.
+2. Only override with `className` on a call site when that surface truly needs an exception.
+3. Do not invent a parallel “compact” variant system; compact is the default.
+
+## Principles
+
+1. **YAGNI** — Only render what the user needs for this surface. No decorative chrome, extra badges, preview panels, or “nice to have” meta unless the task asks for it.
+2. **No redundant info** — One representation per fact. Never stack icon + badge + text that all say the same thing. Prefer list row identity + critical meta; put secondary detail in menus/modals/detail views.
+3. **Tight spacing** — Default padding, margin, and gap to **2px** (`p-0.5`, `m-0.5`, `gap-0.5`, `py-0.5`, `px-0.5`). Prefer `divide-y` / `gap-0.5` over `space-y-3`+ card stacks. Only increase spacing when tap targets or readability truly require it (icon buttons ≥ ~28px / `size-7` hit area).
+4. **Consistency** — Reuse existing shadcn/ui components, tokens, patterns, and i18n keys. Match neighboring panels. Do not invent a new visual language.
+
+## Default control sizes (from base UI)
+
+| Control | Default |
+|---|---|
+| Button / icon button | `h-7` / `size-7` |
+| Input / Select trigger | `h-7` |
+| Tabs trigger | `h-7` |
+| Meta / descriptions | `text-[11px] text-muted-foreground` |
+| FormSection | `dense` default `true` (`dense={false}` for rare loose forms) |
+
+## Default list / repeated-item layout
+
+```
+[icon] Primary label (truncate)              [status?] [control] [⋮]
+       short meta · count · conditional msg
+```
+
+- Status only when non-success (processing / failed / blocked) — hide perpetual “Completed”
+- Drop per-item Card borders/shadows when a parent already frames the list
+- Meta as muted inline text (`text-[11px] text-muted-foreground`), not badge piles
+- Topics/tags/long descriptions belong in detail, not every list row
+
+## Cut redundancy (in order)
+
+1. One fact → one UI signal (icon **or** short text **or** badge)
+2. List = identity + critical meta; detail = the rest
+3. Actions reachable (visible or overflow); keep Retry/destructive recovery inline
+4. Reuse short existing labels; no translation-key churn unless required
+
+## Anti-patterns
+
+- Padding/gaps of `p-3`, `p-4`, `space-y-3`, `gap-4` on dense lists without a reason
+- Re-padding around Card/Dialog content that already uses `p-0.5`
+- Duplicate type/status labels on the same row
+- Always-visible success chrome
+- Rewriting a whole page when one section was the target
+- Text smaller than 11px for critical labels
+- Hiding the only path to a recovery or destructive action
+- Adding local “compact” className forks instead of fixing the base component
+
+## Before finishing a UI change
+
+- [ ] Density comes from `components/ui` defaults when possible
+- [ ] No duplicated facts on the same row/section
+- [ ] Spacing defaults to 2px unless accessibility needs more
+- [ ] Matches existing app patterns (components, tokens, i18n)
+- [ ] Loading / empty / error / processing states still exist (compacted, not deleted)
+- [ ] Unique info still available somewhere (row, menu, or detail)

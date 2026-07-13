@@ -16,11 +16,12 @@ from construction_os.ai.provision import provision_langchain_model
 from construction_os.domain.artifact import DefaultPrompts
 from construction_os.domain.project import Project
 from construction_os.exceptions import ConstructionOSError
+from construction_os.graphs.chat_context import build_relevance_context
+from construction_os.graphs.chat_intent import latest_user_message, needs_project_context
 from construction_os.graphs.progress import emit_agent_progress
 from construction_os.mcp.chat_loop import generate_with_mcp_tools
 from construction_os.skills.loader import format_skills_context, load_one_skill_md
 from construction_os.utils import clean_thinking_content
-from construction_os.utils.context_builder import ContextBuilder, ContextConfig
 from construction_os.utils.error_classifier import classify_error
 from construction_os.utils.text_utils import extract_text_content
 from construction_os.utils.token_utils import token_count
@@ -178,7 +179,7 @@ def loading_skills(state: ThreadState, config: RunnableConfig) -> dict:
 
 
 def retrieving_context(state: ThreadState, config: RunnableConfig) -> dict:
-    """Retrieve/format Project context with count/token progress events."""
+    """Retrieve query-scoped Project context with count/token progress events."""
     try:
         emit_agent_progress("started", "retrieving_context", {}, config)
 
@@ -189,21 +190,47 @@ def retrieving_context(state: ThreadState, config: RunnableConfig) -> dict:
         elif not project_id and state.get("project") is not None:
             project_id = getattr(state.get("project"), "id", None)
 
+        messages = state.get("messages") or []
+        user_text = latest_user_message(messages)
+
+        # Casual / no-evidence turns: skip corpus dump entirely.
+        if context_config and project_id and not needs_project_context(
+            user_text, messages
+        ):
+            detail = {
+                "sourceCount": 0,
+                "noteCount": 0,
+                "insightCount": 0,
+                "tokenCount": 0,
+            }
+            emit_agent_progress("completed", "retrieving_context", detail, config)
+            return {"context": None}
+
         built: Optional[str | dict] = None
-        if context_config and project_id:
-            config_obj = ContextConfig(
-                sources=(context_config.get("sources") or {}),
-                notes=(context_config.get("notes") or {}),
+        formatted: Optional[str] = None
+        if context_config and project_id and user_text:
+            result = _run_async(
+                build_relevance_context(
+                    query=user_text,
+                    project_id=str(project_id),
+                    context_config=context_config,
+                )
             )
-            built = _run_async(
-                ContextBuilder(
-                    project_id=project_id,
-                    context_config=config_obj,
-                    include_notes=True,
-                    include_insights=True,
-                ).build()
-            )
-            formatted = _format_project_context(built)
+            built = {
+                "sources": result.get("sources") or [],
+                "notes": result.get("notes") or [],
+                "insights": result.get("insights") or [],
+                "total_tokens": result.get("total_tokens") or 0,
+            }
+            formatted = result.get("formatted")
+            detail = {
+                "sourceCount": int(result.get("sourceCount") or 0),
+                "noteCount": int(result.get("noteCount") or 0),
+                "insightCount": int(result.get("insightCount") or 0),
+                "tokenCount": int(result.get("tokenCount") or 0),
+            }
+            emit_agent_progress("completed", "retrieving_context", detail, config)
+            return {"context": formatted}
         else:
             built = state.get("context")
             formatted = _format_project_context(built)

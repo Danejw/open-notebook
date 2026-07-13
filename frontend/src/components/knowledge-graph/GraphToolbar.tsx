@@ -1,0 +1,357 @@
+'use client'
+
+import type { ReactNode } from 'react'
+import {
+  CircleDot,
+  Focus,
+  Maximize2,
+  Network,
+  PanelLeft,
+  RefreshCw,
+  Search,
+  SlidersHorizontal,
+  Tag,
+  Waypoints,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { Slider } from '@/components/ui/slider'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import type { GraphNodeKind } from '@/lib/api/knowledge-graph'
+import { useTranslation } from '@/lib/hooks/use-translation'
+import {
+  NODE_SIZE_SCALE_DEFAULT,
+  NODE_SIZE_SCALE_MAX,
+  NODE_SIZE_SCALE_MIN,
+  useKnowledgeGraphStore,
+} from '@/lib/stores/knowledge-graph-store'
+import { cn } from '@/lib/utils'
+
+const KIND_OPTIONS: GraphNodeKind[] = [
+  'source',
+  'community',
+  'entity',
+  'chunk',
+  'claim',
+]
+
+interface GraphToolbarProps {
+  onSearch: (q: string) => void
+  onExpand: () => void
+  onFindPath: () => void
+  onResetView: () => void
+  onFit: () => void
+  /** Show sources drawer toggle (full-page only). */
+  showSourcesToggle?: boolean
+  sourcesOpen?: boolean
+  onToggleSources?: () => void
+  /** Live KG build in progress for this project. */
+  updating?: boolean
+  /**
+   * `overlay` — floating HUD over the canvas (full-page).
+   * `bar` — column header row (embedded Sources graph).
+   */
+  layout?: 'overlay' | 'bar'
+  /** Trailing actions (view tabs, Add Source, collapse). */
+  trailing?: ReactNode
+}
+
+function ToolIconButton({
+  label,
+  onClick,
+  active,
+  compact,
+  children,
+}: {
+  label: string
+  onClick: () => void
+  active?: boolean
+  compact?: boolean
+  children: ReactNode
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          size="icon"
+          variant={active ? 'default' : 'ghost'}
+          className={cn('shrink-0', compact ? 'size-6' : 'size-7')}
+          aria-label={label}
+          onClick={onClick}
+        >
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{label}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+export function GraphToolbar({
+  onSearch,
+  onExpand,
+  onFindPath,
+  onResetView,
+  onFit,
+  showSourcesToggle = false,
+  sourcesOpen = false,
+  onToggleSources,
+  updating = false,
+  layout = 'overlay',
+  trailing,
+}: GraphToolbarProps) {
+  const { t } = useTranslation()
+  const {
+    searchQuery,
+    setSearchQuery,
+    provenanceMode,
+    setProvenanceMode,
+    showLabels,
+    setShowLabels,
+    nodeSizeScale,
+    setNodeSizeScale,
+    enabledKinds,
+    toggleKind,
+    minConfidence,
+    setMinConfidence,
+    pathPick,
+    viewMode,
+    setViewMode,
+    setQueryRunId,
+  } = useKnowledgeGraphStore()
+
+  const filterActive =
+    provenanceMode ||
+    minConfidence > 0 ||
+    enabledKinds.length !== KIND_OPTIONS.length
+  const nodeSizeActive = nodeSizeScale !== NODE_SIZE_SCALE_DEFAULT
+
+  const isBar = layout === 'bar'
+
+  const controls = (
+    <>
+      {showSourcesToggle ? (
+        <ToolIconButton
+          label={t('knowledge.graphSources')}
+          onClick={() => onToggleSources?.()}
+          active={sourcesOpen}
+          compact={isBar}
+        >
+          <PanelLeft className="size-3.5" />
+        </ToolIconButton>
+      ) : null}
+
+      <div className={cn('relative min-w-0', isBar ? 'flex-1' : 'flex-1 basis-28')}>
+        <Search className="pointer-events-none absolute left-1.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className={cn('pl-6', isBar ? 'h-6 bg-transparent' : 'h-7 bg-background/60')}
+          value={searchQuery}
+          placeholder={t('knowledge.graphSearch')}
+          aria-label={t('knowledge.graphSearch')}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') onSearch(searchQuery)
+          }}
+        />
+      </div>
+
+      <ToolIconButton
+        label={t('knowledge.graphExpand')}
+        onClick={onExpand}
+        compact={isBar}
+      >
+        <Network className="size-3.5" />
+      </ToolIconButton>
+      <ToolIconButton
+        label={t('knowledge.graphShortestPath')}
+        onClick={onFindPath}
+        active={pathPick !== 'idle'}
+        compact={isBar}
+      >
+        <Waypoints className="size-3.5" />
+      </ToolIconButton>
+      <ToolIconButton
+        label={t('knowledge.graphFit')}
+        onClick={onFit}
+        compact={isBar}
+      >
+        <Maximize2 className="size-3.5" />
+      </ToolIconButton>
+      <ToolIconButton
+        label={t('knowledge.graphReset')}
+        onClick={onResetView}
+        compact={isBar}
+      >
+        <RefreshCw className="size-3.5" />
+      </ToolIconButton>
+      <ToolIconButton
+        label={t('knowledge.graphLabels')}
+        onClick={() => setShowLabels(!showLabels)}
+        active={showLabels}
+        compact={isBar}
+      >
+        <Tag className="size-3.5" />
+      </ToolIconButton>
+
+      <Popover>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                size="icon"
+                variant={nodeSizeActive ? 'secondary' : 'ghost'}
+                className={cn('shrink-0', isBar ? 'size-6' : 'size-7')}
+                aria-label={t('knowledge.graphNodeSize')}
+              >
+                <CircleDot className="size-3.5" />
+              </Button>
+            </PopoverTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            {t('knowledge.graphNodeSize')}
+          </TooltipContent>
+        </Tooltip>
+        <PopoverContent align="start" className="w-52 p-1.5">
+          <div className="flex items-center justify-between gap-0.5 pb-1">
+            <span className="text-[11px] font-medium">
+              {t('knowledge.graphNodeSize')}
+            </span>
+            <span className="text-[11px] tabular-nums text-muted-foreground">
+              {Math.round(nodeSizeScale * 100)}%
+            </span>
+          </div>
+          <Slider
+            min={NODE_SIZE_SCALE_MIN}
+            max={NODE_SIZE_SCALE_MAX}
+            step={0.05}
+            value={[nodeSizeScale]}
+            aria-label={t('knowledge.graphNodeSize')}
+            onValueChange={(values) => {
+              const next = values[0]
+              if (typeof next === 'number') setNodeSizeScale(next)
+            }}
+          />
+          <div className="flex justify-between pt-0.5 text-[11px] text-muted-foreground">
+            <span>{t('knowledge.graphNodeSizeSmall')}</span>
+            <span>{t('knowledge.graphNodeSizeLarge')}</span>
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      <DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="icon"
+                variant={filterActive ? 'secondary' : 'ghost'}
+                className={cn('shrink-0', isBar ? 'size-6' : 'size-7')}
+                aria-label={t('knowledge.graphFilters')}
+              >
+                <SlidersHorizontal className="size-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            {t('knowledge.graphFilters')}
+          </TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuLabel>{t('knowledge.graphFilters')}</DropdownMenuLabel>
+          <DropdownMenuCheckboxItem
+            checked={provenanceMode}
+            onCheckedChange={(checked) => setProvenanceMode(!!checked)}
+          >
+            {t('knowledge.graphProvenance')}
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel>{t('knowledge.graphConfidence')}</DropdownMenuLabel>
+          <div className="px-1.5 pb-1">
+            <Input
+              type="number"
+              min={0}
+              max={1}
+              step={0.1}
+              className="h-7"
+              value={minConfidence}
+              aria-label={t('knowledge.graphConfidence')}
+              onChange={(e) => setMinConfidence(Number(e.target.value) || 0)}
+              onKeyDown={(e) => e.stopPropagation()}
+            />
+          </div>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel>{t('knowledge.entities')}</DropdownMenuLabel>
+          {KIND_OPTIONS.map((kind) => (
+            <DropdownMenuCheckboxItem
+              key={kind}
+              checked={enabledKinds.includes(kind)}
+              onCheckedChange={() => toggleKind(kind)}
+              className="capitalize"
+            >
+              {kind}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {viewMode === 'queryTrace' && (
+        <ToolIconButton
+          label={t('knowledge.graphExitTrace')}
+          onClick={() => {
+            setQueryRunId(null)
+            setViewMode('explore')
+          }}
+          compact={isBar}
+        >
+          <Focus className="size-3.5" />
+        </ToolIconButton>
+      )}
+
+      {updating ? (
+        <span className="shrink-0 truncate text-[11px] text-primary">
+          {t('knowledge.graphUpdating')}
+        </span>
+      ) : null}
+
+      {trailing ? (
+        <div className="flex shrink-0 items-center gap-0.5">{trailing}</div>
+      ) : null}
+    </>
+  )
+
+  if (isBar) {
+    return (
+      <div className="flex shrink-0 items-center gap-0.5 overflow-x-auto border-b border-border px-1.5 py-0.5">
+        {controls}
+      </div>
+    )
+  }
+
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start gap-0.5 p-0.5">
+      <div className="pointer-events-auto flex max-w-full flex-nowrap items-center gap-0.5 rounded-md border bg-background/80 p-0.5 shadow-sm backdrop-blur-sm">
+        {controls}
+      </div>
+    </div>
+  )
+}

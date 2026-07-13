@@ -7,6 +7,12 @@ vi.mock('@/lib/hooks/useProjectChat')
 vi.mock('@/components/source/ChatPanel', () => ({
   ChatPanel: () => <div data-testid="chat-panel" />
 }))
+vi.mock('@/lib/stores/project-columns-store', () => ({
+  useProjectColumnsStore: () => ({
+    chatCollapsed: false,
+    toggleChat: vi.fn(),
+  }),
+}))
 
 function createChatMock() {
   return {

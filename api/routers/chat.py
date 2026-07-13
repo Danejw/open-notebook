@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from api import ag_ui_agents
 from construction_os.database.repository import ensure_record_id, repo_query
 from construction_os.domain.artifact import Artifact
-from construction_os.domain.project import ChatSession, Note, Project, Source
+from construction_os.domain.project import ChatSession, Project
 from construction_os.exceptions import (
     NotFoundError,
 )
@@ -483,104 +483,46 @@ async def execute_chat(request: ExecuteChatRequest):
 
 @router.post("/chat/context", response_model=BuildContextResponse)
 async def build_context(request: BuildContextRequest):
-    """Build context for a Project based on context configuration."""
+    """Estimate chat context for the footer preview.
+
+    UI selections are a search pool. Actual chat messages retrieve top-K
+    evidence (capped), so this endpoint returns a retrieval-sized estimate
+    instead of dumping every insight/full text.
+    """
     try:
-        # Verify Project exists
+        from construction_os.graphs.chat_context import (
+            CHAT_CONTEXT_MAX_TOKENS,
+            eligible_note_ids,
+            eligible_source_ids,
+            estimate_preview_tokens,
+        )
+
         project = await Project.get(request.project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
-        context_data: dict[str, list[dict[str, str]]] = {"sources": [], "notes": []}
-        total_content = ""
+        context_config = request.context_config or {}
+        source_pool = eligible_source_ids(context_config)
+        note_pool = eligible_note_ids(context_config)
 
-        # Process context configuration if provided
-        if request.context_config:
-            # Process sources
-            for source_id, status in request.context_config.get("sources", {}).items():
-                if "not in" in status:
-                    continue
+        # Lightweight pool metadata for the client (ids only — not full dumps).
+        context_data: dict[str, list[dict[str, str]]] = {
+            "sources": [{"id": sid} for sid in sorted(source_pool)],
+            "notes": [{"id": nid} for nid in sorted(note_pool)],
+        }
 
-                try:
-                    # Add table prefix if not present
-                    full_source_id = (
-                        source_id
-                        if source_id.startswith("source:")
-                        else f"source:{source_id}"
-                    )
-
-                    try:
-                        source = await Source.get(full_source_id)
-                    except Exception:
-                        continue
-
-                    if "insights" in status:
-                        source_context = await source.get_context(context_size="short")
-                        context_data["sources"].append(source_context)
-                        total_content += str(source_context)
-                    elif "full content" in status:
-                        source_context = await source.get_context(context_size="long")
-                        context_data["sources"].append(source_context)
-                        total_content += str(source_context)
-                except Exception as e:
-                    logger.warning(f"Error processing source {source_id}: {str(e)}")
-                    continue
-
-            # Process notes
-            for note_id, status in request.context_config.get("notes", {}).items():
-                if "not in" in status:
-                    continue
-
-                try:
-                    # Add table prefix if not present
-                    full_note_id = (
-                        note_id if note_id.startswith("note:") else f"note:{note_id}"
-                    )
-                    note = await Note.get(full_note_id)
-                    if not note:
-                        continue
-
-                    if "full content" in status:
-                        note_context = note.get_context(context_size="long")
-                        context_data["notes"].append(note_context)
-                        total_content += str(note_context)
-                except Exception as e:
-                    logger.warning(f"Error processing note {note_id}: {str(e)}")
-                    continue
-        else:
-            # Default behavior - include all sources and notes with short context
-            sources = await project.get_sources()
-            for source in sources:
-                try:
-                    source_context = await source.get_context(context_size="short")
-                    context_data["sources"].append(source_context)
-                    total_content += str(source_context)
-                except Exception as e:
-                    logger.warning(f"Error processing source {source.id}: {str(e)}")
-                    continue
-
-            notes = await project.get_notes()
-            for note in notes:
-                try:
-                    note_context = note.get_context(context_size="short")
-                    context_data["notes"].append(note_context)
-                    total_content += str(note_context)
-                except Exception as e:
-                    logger.warning(f"Error processing note {note.id}: {str(e)}")
-                    continue
-
-        # Calculate character and token counts
-        char_count = len(total_content)
-        # Use token count utility if available
-        try:
-            from construction_os.utils import token_count
-
-            estimated_tokens = token_count(total_content) if total_content else 0
-        except ImportError:
-            # Fallback to simple estimation
-            estimated_tokens = char_count // 4
+        estimated_tokens = estimate_preview_tokens(
+            source_pool_size=len(source_pool),
+            note_pool_size=len(note_pool),
+            max_tokens=CHAT_CONTEXT_MAX_TOKENS,
+        )
+        # Approximate chars from token estimate for legacy UI fields.
+        char_count = estimated_tokens * 4
 
         return BuildContextResponse(
-            context=context_data, token_count=estimated_tokens, char_count=char_count
+            context=context_data,
+            token_count=estimated_tokens,
+            char_count=char_count,
         )
     except HTTPException:
         raise

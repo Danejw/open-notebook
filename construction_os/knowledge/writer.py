@@ -8,6 +8,7 @@ from loguru import logger
 
 from construction_os.domain.knowledge_graph import KnowledgeGraphRepository
 from construction_os.knowledge.extractors.base import ExtractionResult
+from construction_os.knowledge.graph_projection import after_kg_write
 
 
 def _chunk_id_for_index(
@@ -107,6 +108,10 @@ async def write_extraction_result(
 
     stats = {
         **result.stats,
+        "entities": len(result.payload.entities),
+        "mentions": len(result.payload.mentions),
+        "claims": len(result.payload.claims),
+        "relations": len(result.payload.relations),
         "entities_resolved": len(entity_ids),
     }
     logger.info(
@@ -116,4 +121,8 @@ async def write_extraction_result(
         project_id,
         stats,
     )
+    try:
+        await after_kg_write(project_id)
+    except Exception as e:
+        logger.warning("Failed to bump graph version/communities for {}: {}", project_id, e)
     return stats

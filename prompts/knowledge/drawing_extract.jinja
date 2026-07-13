@@ -6,12 +6,20 @@ You extract drawing-set knowledge as structured JSON. Focus on sheet numbers, de
 
 Person, Organization, Location, Date, Requirement, Deliverable, Reference, Topic, Decision, Issue, Specification
 
+# ALLOWED RELATION TYPES
+
+REFERENCES, LOCATED_IN, ON_SHEET, REFERENCES_SECTION
+
 # EMPHASIS
 
 - Reference entities for sheet numbers and detail callouts (e.g. A-501, 3/A-501)
 - Location entities for rooms/areas
 - Specification/Topic for equipment tags
-- REFERENCES relations for SEE / DETAIL / SECTION callouts
+- For every SEE / DETAIL / SECTION callout, emit a REFERENCES (or ON_SHEET) relation. relations[] must not be empty when callouts appear in the text.
+
+# EXAMPLE RELATION
+
+{"type":"REFERENCES","from_label":"A-101","from_type":"Reference","to_label":"3/A-501","to_type":"Reference","confidence":0.9}
 
 # SOURCE
 

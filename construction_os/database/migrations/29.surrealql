@@ -1,0 +1,20 @@
+-- Migration 29: FLEXIBLE object fields for KG stats/metadata
+-- SCHEMAFULL option<object> without FLEXIBLE strips unknown nested keys,
+-- so kg_extraction_run.stats was always saved as {}.
+
+REMOVE FIELD IF EXISTS stats ON TABLE kg_extraction_run;
+DEFINE FIELD stats ON TABLE kg_extraction_run FLEXIBLE TYPE option<object>;
+
+REMOVE FIELD IF EXISTS metadata ON TABLE kg_entity;
+DEFINE FIELD metadata ON TABLE kg_entity FLEXIBLE TYPE option<object>;
+
+REMOVE FIELD IF EXISTS metadata ON TABLE kg_claim;
+DEFINE FIELD metadata ON TABLE kg_claim FLEXIBLE TYPE option<object>;
+
+REMOVE FIELD IF EXISTS metadata ON TABLE kg_relation;
+DEFINE FIELD metadata ON TABLE kg_relation FLEXIBLE TYPE option<object>;
+
+REMOVE FIELD IF EXISTS metadata ON TABLE kg_community;
+DEFINE FIELD metadata ON TABLE kg_community FLEXIBLE TYPE option<object>;
+
+RETURN true;

@@ -1,0 +1,9 @@
+-- Rollback migration 27
+
+REMOVE FIELD community_id ON TABLE kg_entity;
+REMOVE FIELD graph_version ON TABLE project;
+REMOVE TABLE kg_query_run;
+REMOVE TABLE kg_graph_layout;
+REMOVE TABLE kg_community;
+
+RETURN true;

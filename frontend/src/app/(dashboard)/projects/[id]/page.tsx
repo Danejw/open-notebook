@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useEffect, useMemo, useCallback } from 'react'
+import { Suspense, useState, useEffect, useMemo, useCallback, useRef, type PointerEvent as ReactPointerEvent } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 import { ProjectHeader } from '../components/ProjectHeader'
@@ -20,14 +20,12 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from '@/components/ui/resizable'
-import { FileText, MessageSquare, Boxes, Network } from 'lucide-react'
+import { FileText, MessageSquare, Boxes } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   projectPageInsetClassName,
   projectPageStackGapClassName,
 } from '@/components/projects/ColumnHeader'
-import { ProjectKnowledgePanel } from '@/components/projects/ProjectKnowledgePanel'
-import { Button } from '@/components/ui/button'
 import {
   applyBulkSourceContext,
   applyBulkNoteContext,
@@ -64,8 +62,6 @@ function ProjectPageContent() {
 
   const projectId = params?.id ? decodeURIComponent(params.id as string) : ''
   const artifactParam = searchParams.get('artifact')
-  const viewParam = searchParams.get('view')
-  const showKnowledge = viewParam === 'knowledge'
 
   const { data: project, isLoading: projectLoading } = useProject(projectId)
   const { data: artifacts = [] } = useArtifacts()
@@ -80,7 +76,8 @@ function ProjectPageContent() {
   const { data: notes, isLoading: notesLoading } = useNotes(projectId)
 
   // Get collapse states for dynamic layout
-  const { sourcesCollapsed, notesCollapsed, setSources, setNotes } = useProjectColumnsStore()
+  const { sourcesCollapsed, notesCollapsed, chatCollapsed, setSources, setNotes, setChat } =
+    useProjectColumnsStore()
 
   // Detect desktop to avoid double-mounting ChatColumn
   const isDesktop = useIsDesktop()
@@ -95,6 +92,7 @@ function ProjectPageContent() {
 
   const sourcesPanelRef = usePanelRef()
   const notesPanelRef = usePanelRef()
+  const chatPanelRef = usePanelRef()
 
   // Keep resizable panels in sync with the existing collapse toggles
   useEffect(() => {
@@ -119,6 +117,17 @@ function ProjectPageContent() {
     }
   }, [isDesktop, notesCollapsed, notesPanelRef])
 
+  useEffect(() => {
+    if (!isDesktop) return
+    const panel = chatPanelRef.current
+    if (!panel) return
+    if (chatCollapsed && !panel.isCollapsed()) {
+      panel.collapse()
+    } else if (!chatCollapsed && panel.isCollapsed()) {
+      panel.expand()
+    }
+  }, [isDesktop, chatCollapsed, chatPanelRef])
+
   const handleSourcesPanelResize = () => {
     const isCollapsed = sourcesPanelRef.current?.isCollapsed() ?? false
     if (useProjectColumnsStore.getState().sourcesCollapsed !== isCollapsed) {
@@ -132,6 +141,48 @@ function ProjectPageContent() {
       setNotes(isCollapsed)
     }
   }
+
+  const handleChatPanelResize = () => {
+    const isCollapsed = chatPanelRef.current?.isCollapsed() ?? false
+    if (useProjectColumnsStore.getState().chatCollapsed !== isCollapsed) {
+      setChat(isCollapsed)
+    }
+  }
+
+  // When Artifacts is already collapsed, the shared separator can't shrink Chat
+  // via the library (it would try to expand Artifacts first). Intercept a
+  // rightward drag on that handle and collapse Chat imperatively instead.
+  const collapseChatDragRef = useRef<{ startX: number; active: boolean } | null>(null)
+
+  const handleNotesChatSeparatorPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!notesCollapsed || chatCollapsed) return
+
+      collapseChatDragRef.current = { startX: event.clientX, active: true }
+
+      const onPointerMove = (moveEvent: PointerEvent) => {
+        const drag = collapseChatDragRef.current
+        if (!drag?.active) return
+        if (moveEvent.clientX - drag.startX < 28) return
+
+        drag.active = false
+        chatPanelRef.current?.collapse()
+        setChat(true)
+        window.removeEventListener('pointermove', onPointerMove)
+        window.removeEventListener('pointerup', onPointerUp)
+      }
+
+      const onPointerUp = () => {
+        collapseChatDragRef.current = null
+        window.removeEventListener('pointermove', onPointerMove)
+        window.removeEventListener('pointerup', onPointerUp)
+      }
+
+      window.addEventListener('pointermove', onPointerMove)
+      window.addEventListener('pointerup', onPointerUp)
+    },
+    [notesCollapsed, chatCollapsed, chatPanelRef, setChat]
+  )
 
   // Mobile tab state (Sources, Notes, or Chat)
   const [mobileActiveTab, setMobileActiveTab] = useState<'sources' | 'notes' | 'chat'>('chat')
@@ -281,41 +332,9 @@ function ProjectPageContent() {
   return (
           <div className="flex flex-col flex-1 min-h-0">
         <div className="flex-shrink-0 px-2 pt-px pb-0">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <ProjectHeader project={project} />
-            </div>
-            <Button
-              variant={showKnowledge ? 'default' : 'outline'}
-              size="sm"
-              className="mt-1 shrink-0"
-              onClick={() => {
-                const next = new URLSearchParams(searchParams.toString())
-                if (showKnowledge) {
-                  next.delete('view')
-                } else {
-                  next.set('view', 'knowledge')
-                }
-                const qs = next.toString()
-                router.push(qs ? `?${qs}` : window.location.pathname)
-              }}
-            >
-              <Network className="mr-2 h-4 w-4" />
-              {t('knowledge.tab')}
-            </Button>
-          </div>
+          <ProjectHeader project={project} />
         </div>
 
-        {showKnowledge ? (
-          <div
-            className={cn(
-              'flex min-h-0 flex-1 flex-col overflow-hidden',
-              projectPageInsetClassName
-            )}
-          >
-            <ProjectKnowledgePanel projectId={projectId} />
-          </div>
-        ) : (
         <div
           className={cn(
             'flex min-h-0 flex-1 flex-col overflow-x-auto',
@@ -451,22 +470,34 @@ function ProjectPageContent() {
 
               <ResizableHandle
                 withHandle
+                // When Artifacts is collapsed, disable library resize so a rightward
+                // drag doesn't expand it. onPointerDown still collapses Chat.
                 disabled={notesCollapsed}
+                disableDoubleClick={notesCollapsed && !chatCollapsed}
+                onPointerDown={handleNotesChatSeparatorPointerDown}
+                style={
+                  notesCollapsed && !chatCollapsed
+                    ? { cursor: 'col-resize' }
+                    : undefined
+                }
                 className="mx-0 w-1 rounded-full bg-transparent hover:bg-border/60"
               />
 
               <ResizablePanel
                 id="chat"
+                panelRef={chatPanelRef}
                 defaultSize="44%"
-                minSize="24%"
+                minSize="14%"
+                collapsible
+                collapsedSize={48}
                 className="min-h-0 min-w-0"
+                onResize={handleChatPanelResize}
               >
                 <ChatColumn {...chatColumnProps} />
               </ResizablePanel>
             </ResizablePanelGroup>
           )}
         </div>
-        )}
       </div>
   )
 }

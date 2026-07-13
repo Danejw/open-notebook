@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useCallback, type MutableRefObject } from 'react'
 import { NoteResponse } from '@/lib/types/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -8,11 +8,17 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Plus, Bot, User, MoreVertical, Trash2, ListChecks, FileText, Database, Pencil } from 'lucide-react'
+import { Plus, Bot, User, MoreVertical, Trash2, ListChecks, FileText, Database, Pencil, EyeOff, Download } from 'lucide-react'
 import { CompactListRowSkeleton } from '@/components/common/LoadingSkeletons'
 import { EmptyState } from '@/components/common/EmptyState'
+import { ListSelectionBar } from '@/components/common/ListSelectionBar'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -24,9 +30,11 @@ import { formatDistanceToNow } from 'date-fns'
 import { ContextToggle } from '@/components/common/ContextToggle'
 import type { NoteContextMode } from '@/lib/types/project-context'
 import type { NoteContextDefault } from '@/lib/utils/source-context'
-import { useDeleteNote, useNote, useUpdateNote } from '@/lib/hooks/use-notes'
+import { useDeleteNote, useExportNotePdf, useNote, useUpdateNote } from '@/lib/hooks/use-notes'
 import { useArtifacts } from '@/lib/hooks/use-artifacts'
 import { useIngestAsSource } from '@/lib/hooks/use-sources'
+import { useLongPress } from '@/lib/hooks/use-long-press'
+import { useToast } from '@/lib/hooks/use-toast'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { CollapsibleColumn, createCollapseButton } from '@/components/projects/CollapsibleColumn'
 import {
@@ -41,6 +49,9 @@ import { useProjectColumnsStore } from '@/lib/stores/project-columns-store'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { cn } from '@/lib/utils'
 import { setArtifactDragData, clearArtifactDragData } from '@/lib/utils/artifact-drag'
+import { downloadNoteMarkdown, normalizeNoteId } from '@/lib/utils/export-note'
+import { notesApi } from '@/lib/api/notes'
+import { getApiErrorKey } from '@/lib/utils/error-handler'
 import type { TFunction } from 'i18next'
 
 interface ArtifactsColumnProps {
@@ -85,11 +96,45 @@ export function ArtifactsColumn({
   const [renamingNote, setRenamingNote] = useState<NoteResponse | null>(null)
   const [renameTitle, setRenameTitle] = useState('')
   const [draggingNoteId, setDraggingNoteId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkBusy, setBulkBusy] = useState(false)
   const suppressClickRef = useRef(false)
+
+  const selectionMode = selectedIds.size > 0
+  const selectedList = useMemo(() => Array.from(selectedIds), [selectedIds])
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), [])
+  const enterSelection = useCallback((noteId: string) => {
+    setSelectedIds(new Set([noteId]))
+  }, [])
+  const toggleSelect = useCallback((noteId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(noteId)) next.delete(noteId)
+      else next.add(noteId)
+      return next
+    })
+  }, [])
+  const selectAllVisible = useCallback(() => {
+    setSelectedIds(new Set((notes ?? []).map((n) => n.id)))
+  }, [notes])
+
+  const applyBulkNoteContext = useCallback(
+    (mode: NoteContextMode) => {
+      if (!onContextModeChange) return
+      for (const id of selectedList) {
+        onContextModeChange(id, mode)
+      }
+    },
+    [onContextModeChange, selectedList]
+  )
 
   const deleteNote = useDeleteNote()
   const updateNote = useUpdateNote()
+  const exportNotePdf = useExportNotePdf()
   const ingestAsSource = useIngestAsSource()
+  const { toast } = useToast()
 
   const viewingNoteId = viewingArtifact?.id
     ? viewingArtifact.id.includes(':')
@@ -128,6 +173,21 @@ export function ArtifactsColumn({
     }
   }
 
+  const handleBulkDeleteConfirm = async () => {
+    setBulkBusy(true)
+    try {
+      for (const id of selectedList) {
+        await deleteNote.mutateAsync(id)
+      }
+      setBulkDeleteOpen(false)
+      clearSelection()
+    } catch (error) {
+      console.error('Failed to bulk delete artifacts:', error)
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
   const handleIngestNote = async (note: NoteResponse) => {
     if (note.note_type !== 'artifact') return
     await ingestAsSource.mutateAsync({
@@ -135,6 +195,35 @@ export function ArtifactsColumn({
       noteId: note.id,
       projectId,
     })
+  }
+
+  const handleExportPdf = async (note: NoteResponse) => {
+    await exportNotePdf.mutateAsync(note.id)
+  }
+
+  const handleExportMarkdown = async (note: NoteResponse) => {
+    try {
+      let title = note.title || ''
+      let content = note.content || ''
+
+      if (!content) {
+        const fullNote = await notesApi.get(normalizeNoteId(note.id))
+        title = fullNote.title || title
+        content = fullNote.content || ''
+      }
+
+      downloadNoteMarkdown(title, content)
+      toast({
+        title: t('common.success'),
+        description: t('projects.exportMarkdownSuccess'),
+      })
+    } catch (error) {
+      toast({
+        title: t('common.error'),
+        description: getApiErrorKey(error, t('projects.failedToExportMarkdown')),
+        variant: 'destructive',
+      })
+    }
   }
 
   const handleRenameOpen = (note: NoteResponse) => {
@@ -246,149 +335,76 @@ export function ArtifactsColumn({
               />
             ) : (
               <div className="flex flex-col divide-y divide-border/50">
-                {notes.map((note) => {
-                  const { icon: NoteTypeIcon, label: noteTypeLabel } = getNoteTypeInfo(
-                    note.note_type,
-                    t
-                  )
-                  const title = note.title || t('sources.untitledNote')
-
-                  const isIngestibleArtifact = note.note_type === 'artifact'
-                  const isDraggingNote = draggingNoteId === note.id
-
-                  return (
-                    <div
-                      key={note.id}
-                      role="button"
-                      tabIndex={0}
-                      draggable={isIngestibleArtifact}
-                      aria-grabbed={isDraggingNote}
-                      className={cn(
-                        'group relative flex min-w-0 items-center gap-2 rounded-md px-1 py-0.5',
-                        'cursor-pointer transition-colors',
-                        'hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-                        isIngestibleArtifact && 'cursor-grab active:cursor-grabbing'
-                      )}
-                      onClick={() => {
-                        if (suppressClickRef.current) return
-                        setViewingArtifact(note)
-                      }}
-                      onDragStart={
-                        isIngestibleArtifact
-                          ? (event) => {
-                              suppressClickRef.current = false
-                              setDraggingNoteId(note.id)
-                              setArtifactDragData(event.dataTransfer, {
-                                kind: 'note',
-                                id: note.id,
-                                title,
-                              })
-                            }
-                          : undefined
-                      }
-                      onDrag={
-                        isIngestibleArtifact
-                          ? (event) => {
-                              if (event.clientX !== 0 || event.clientY !== 0) {
-                                suppressClickRef.current = true
-                              }
-                            }
-                          : undefined
-                      }
-                      onDragEnd={
-                        isIngestibleArtifact
-                          ? () => {
-                              setDraggingNoteId(null)
-                              clearArtifactDragData()
-                              window.setTimeout(() => {
-                                suppressClickRef.current = false
-                              }, 0)
-                            }
-                          : undefined
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          setViewingArtifact(note)
-                        }
-                      }}
+                {selectionMode && (
+                  <ListSelectionBar
+                    count={selectedIds.size}
+                    countLabel={t('common.selectedItems').replace(
+                      '{count}',
+                      String(selectedIds.size)
+                    )}
+                    onClear={clearSelection}
+                    onSelectAll={selectAllVisible}
+                  >
+                    {onContextModeChange && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7"
+                          onClick={() => applyBulkNoteContext('full')}
+                        >
+                          <FileText className="mr-1 h-3.5 w-3.5" />
+                          {t('sources.includeAllInContext')}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7"
+                          onClick={() => applyBulkNoteContext('off')}
+                        >
+                          <EyeOff className="mr-1 h-3.5 w-3.5" />
+                          {t('sources.excludeAllFromContext')}
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-red-600 hover:text-red-600"
+                      onClick={() => setBulkDeleteOpen(true)}
                     >
-                      <NoteTypeIcon
-                        className={cn(
-                          'h-3.5 w-3.5 shrink-0',
-                          note.note_type === 'ai' || note.note_type === 'artifact'
-                            ? 'text-primary'
-                            : 'text-muted-foreground'
-                        )}
-                        aria-label={noteTypeLabel}
-                      />
-
-                      <h4 className="min-w-0 flex-1 truncate text-sm font-medium leading-snug" title={title}>
-                        {title}
-                      </h4>
-
-                      <div className="flex shrink-0 items-center gap-0.5">
-                        {onContextModeChange && contextSelections?.[note.id] && (
-                          <div onClick={(event) => event.stopPropagation()}>
-                            <ContextToggle
-                              mode={contextSelections[note.id]}
-                              hasInsights={false}
-                              onChange={(mode) => onContextModeChange(note.id, mode)}
-                              className="h-7 w-7"
-                            />
-                          </div>
-                        )}
-
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
-                              onClick={(e) => e.stopPropagation()}
-                              aria-label={t('common.actions')}
-                            >
-                              <MoreVertical className="h-3.5 w-3.5" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            {note.note_type === 'artifact' && (
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  void handleIngestNote(note)
-                                }}
-                                disabled={ingestAsSource.isPending}
-                              >
-                                <Database className="h-4 w-4 mr-2" />
-                                {t('sources.ingestAsSource')}
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleRenameOpen(note)
-                              }}
-                            >
-                              <Pencil className="h-4 w-4 mr-2" />
-                              {t('projects.renameArtifact')}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleDeleteClick(note.id)
-                              }}
-                              className="text-red-600 focus:text-red-600"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              {t('projects.deleteArtifact') || t('projects.deleteNote')}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                  )
-                })}
+                      <Trash2 className="mr-1 h-3.5 w-3.5" />
+                      {t('common.bulkDelete')}
+                    </Button>
+                  </ListSelectionBar>
+                )}
+                {notes.map((note) => (
+                  <ArtifactListRow
+                    key={note.id}
+                    note={note}
+                    t={t}
+                    selectionMode={selectionMode}
+                    selected={selectedIds.has(note.id)}
+                    contextMode={contextSelections?.[note.id]}
+                    onContextModeChange={onContextModeChange}
+                    onEnterSelection={enterSelection}
+                    onToggleSelect={toggleSelect}
+                    onOpen={() => setViewingArtifact(note)}
+                    onRename={() => handleRenameOpen(note)}
+                    onDelete={() => handleDeleteClick(note.id)}
+                    onIngest={() => void handleIngestNote(note)}
+                    onExportPdf={() => void handleExportPdf(note)}
+                    onExportMarkdown={() => void handleExportMarkdown(note)}
+                    exportPdfPending={exportNotePdf.isPending}
+                    ingestPending={ingestAsSource.isPending}
+                    draggingNoteId={draggingNoteId}
+                    setDraggingNoteId={setDraggingNoteId}
+                    suppressClickRef={suppressClickRef}
+                  />
+                ))}
               </div>
             )}
           </CardContent>
@@ -433,6 +449,39 @@ export function ArtifactsColumn({
             )}
           </div>
           <div className="flex justify-end gap-2 border-t px-6 py-3">
+            {displayViewingNote?.note_type === 'artifact' ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="outline">
+                    <Download className="mr-2 h-4 w-4" />
+                    {t('projects.export')}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (displayViewingNote) {
+                        void handleExportPdf(displayViewingNote)
+                      }
+                    }}
+                    disabled={exportNotePdf.isPending}
+                  >
+                    <FileText className="mr-2 h-4 w-4" />
+                    {t('projects.exportPdf')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (displayViewingNote) {
+                        void handleExportMarkdown(displayViewingNote)
+                      }
+                    }}
+                  >
+                    <FileText className="mr-2 h-4 w-4" />
+                    {t('projects.exportMarkdown')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
             {displayViewingNote?.note_type === 'artifact' ? (
               <Button
                 type="button"
@@ -524,6 +573,256 @@ export function ArtifactsColumn({
         isLoading={deleteNote.isPending}
         confirmVariant="destructive"
       />
+
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title={t('projects.deleteArtifact') || t('projects.deleteNote')}
+        description={t('projects.deleteArtifactConfirm') || t('projects.deleteNoteConfirm')}
+        confirmText={t('common.delete')}
+        onConfirm={handleBulkDeleteConfirm}
+        isLoading={bulkBusy}
+        confirmVariant="destructive"
+      />
     </>
+  )
+}
+
+interface ArtifactListRowProps {
+  note: NoteResponse
+  t: TFunction
+  selectionMode: boolean
+  selected: boolean
+  contextMode?: NoteContextMode
+  onContextModeChange?: (noteId: string, mode: NoteContextMode) => void
+  onEnterSelection: (noteId: string) => void
+  onToggleSelect: (noteId: string) => void
+  onOpen: () => void
+  onRename: () => void
+  onDelete: () => void
+  onIngest: () => void
+  onExportPdf: () => void
+  onExportMarkdown: () => void
+  exportPdfPending: boolean
+  ingestPending: boolean
+  draggingNoteId: string | null
+  setDraggingNoteId: (id: string | null) => void
+  suppressClickRef: MutableRefObject<boolean>
+}
+
+function ArtifactListRow({
+  note,
+  t,
+  selectionMode,
+  selected,
+  contextMode,
+  onContextModeChange,
+  onEnterSelection,
+  onToggleSelect,
+  onOpen,
+  onRename,
+  onDelete,
+  onIngest,
+  onExportPdf,
+  onExportMarkdown,
+  exportPdfPending,
+  ingestPending,
+  draggingNoteId,
+  setDraggingNoteId,
+  suppressClickRef,
+}: ArtifactListRowProps) {
+  const { icon: NoteTypeIcon, label: noteTypeLabel } = getNoteTypeInfo(note.note_type, t)
+  const title = note.title || t('sources.untitledNote')
+  const isIngestibleArtifact = note.note_type === 'artifact'
+  const isDraggingNote = draggingNoteId === note.id
+
+  const handleActivate = () => {
+    if (suppressClickRef.current) return
+    if (selectionMode) {
+      onToggleSelect(note.id)
+      return
+    }
+    onOpen()
+  }
+
+  const longPressHandlers = useLongPress({
+    onLongPress: () => {
+      if (selectionMode) onToggleSelect(note.id)
+      else onEnterSelection(note.id)
+    },
+    onClick: handleActivate,
+  })
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={selectionMode ? selected : undefined}
+      draggable={isIngestibleArtifact && !selectionMode}
+      aria-grabbed={isDraggingNote}
+      className={cn(
+        'group relative flex min-w-0 items-center gap-2 rounded-md px-1 py-0.5',
+        'cursor-pointer transition-colors select-none',
+        'hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+        isIngestibleArtifact && !selectionMode && 'cursor-grab active:cursor-grabbing',
+        selected && 'bg-primary/10 ring-1 ring-primary/40'
+      )}
+      {...longPressHandlers}
+      onDragStart={
+        isIngestibleArtifact && !selectionMode
+          ? (event) => {
+              suppressClickRef.current = false
+              setDraggingNoteId(note.id)
+              setArtifactDragData(event.dataTransfer, {
+                kind: 'note',
+                id: note.id,
+                title,
+              })
+            }
+          : undefined
+      }
+      onDrag={
+        isIngestibleArtifact && !selectionMode
+          ? (event) => {
+              if (event.clientX !== 0 || event.clientY !== 0) {
+                suppressClickRef.current = true
+              }
+            }
+          : undefined
+      }
+      onDragEnd={
+        isIngestibleArtifact && !selectionMode
+          ? () => {
+              setDraggingNoteId(null)
+              clearArtifactDragData()
+              window.setTimeout(() => {
+                suppressClickRef.current = false
+              }, 0)
+            }
+          : undefined
+      }
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleActivate()
+        }
+      }}
+    >
+      {selectionMode ? (
+        <Checkbox
+          checked={selected}
+          onCheckedChange={() => onToggleSelect(note.id)}
+          onClick={(e) => e.stopPropagation()}
+          className="shrink-0"
+          aria-label={title}
+        />
+      ) : (
+        <NoteTypeIcon
+          className={cn(
+            'h-3.5 w-3.5 shrink-0',
+            note.note_type === 'ai' || note.note_type === 'artifact'
+              ? 'text-primary'
+              : 'text-muted-foreground'
+          )}
+          aria-label={noteTypeLabel}
+        />
+      )}
+
+      <h4 className="min-w-0 flex-1 truncate text-sm font-medium leading-snug" title={title}>
+        {title}
+      </h4>
+
+      {!selectionMode && (
+        <div className="flex shrink-0 items-center gap-0.5">
+          {onContextModeChange && contextMode && (
+            <div onClick={(event) => event.stopPropagation()}>
+              <ContextToggle
+                mode={contextMode}
+                hasInsights={false}
+                onChange={(mode) => onContextModeChange(note.id, mode)}
+                className="h-7 w-7"
+              />
+            </div>
+          )}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+                onClick={(e) => e.stopPropagation()}
+                aria-label={t('common.actions')}
+              >
+                <MoreVertical className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {isIngestibleArtifact ? (
+                <>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <Download className="mr-2 h-4 w-4" />
+                      {t('projects.export')}
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onExportPdf()
+                        }}
+                        disabled={exportPdfPending}
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        {t('projects.exportPdf')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onExportMarkdown()
+                        }}
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        {t('projects.exportMarkdown')}
+                      </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onIngest()
+                    }}
+                    disabled={ingestPending}
+                  >
+                    <Database className="h-4 w-4 mr-2" />
+                    {t('sources.ingestAsSource')}
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onRename()
+                }}
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                {t('projects.renameArtifact')}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDelete()
+                }}
+                className="text-red-600 focus:text-red-600"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                {t('projects.deleteArtifact') || t('projects.deleteNote')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
+    </div>
   )
 }

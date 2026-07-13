@@ -1,7 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
-import { Network, RefreshCw, Search } from 'lucide-react'
+import { Network, RefreshCw, Search, Waypoints } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -36,15 +37,23 @@ export function ProjectKnowledgePanel({ projectId }: ProjectKnowledgePanelProps)
           </h2>
           <p className="text-sm text-muted-foreground">{t('knowledge.projectMemoryDesc')}</p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={rebuild.isPending}
-          onClick={() => rebuild.mutate()}
-        >
-          <RefreshCw className="mr-2 h-3.5 w-3.5" />
-          {t('knowledge.rebuild')}
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/projects/${encodeURIComponent(projectId)}/graph`}>
+              <Waypoints className="mr-2 h-3.5 w-3.5" />
+              {t('knowledge.graphView')}
+            </Link>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={rebuild.isPending}
+            onClick={() => rebuild.mutate()}
+          >
+            <RefreshCw className="mr-2 h-3.5 w-3.5" />
+            {t('knowledge.rebuild')}
+          </Button>
+        </div>
       </div>
 
       <div className="relative">
@@ -73,7 +82,10 @@ export function ProjectKnowledgePanel({ projectId }: ProjectKnowledgePanelProps)
               {isLoading ? (
                 <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
               ) : (data?.entities?.length ?? 0) === 0 ? (
-                <p className="text-sm text-muted-foreground">{t('knowledge.noEntities')}</p>
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <p>{t('knowledge.noEntities')}</p>
+                  <p className="text-xs">{t('knowledge.noEntitiesProjectHint')}</p>
+                </div>
               ) : (
                 <ul className="space-y-1">
                   {data?.entities.map((entity) => (

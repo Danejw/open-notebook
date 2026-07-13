@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Network, Play, RefreshCw } from 'lucide-react'
+import { AlertTriangle, Loader2, Network, Play, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -18,10 +18,68 @@ import {
   useSourceExtractors,
   useSourceKnowledge,
 } from '@/lib/hooks/use-knowledge'
+import type { KnowledgeExtractorInfo } from '@/lib/api/knowledge'
 
 interface SourceKnowledgePanelProps {
   sourceId: string
   projectId?: string
+}
+
+function statusBadgeVariant(
+  status?: string
+): 'default' | 'secondary' | 'destructive' | 'outline' {
+  switch (status) {
+    case 'completed':
+      return 'default'
+    case 'failed':
+      return 'destructive'
+    case 'running':
+    case 'queued':
+      return 'secondary'
+    default:
+      return 'outline'
+  }
+}
+
+function statusLabel(
+  status: string | undefined,
+  t: (key: string) => string
+): string {
+  switch (status) {
+    case 'running':
+      return t('knowledge.statusRunning')
+    case 'queued':
+      return t('knowledge.statusQueued')
+    case 'completed':
+      return t('knowledge.statusCompleted')
+    case 'failed':
+      return t('knowledge.statusFailed')
+    default:
+      return t('knowledge.notRun')
+  }
+}
+
+function runGraphContentCount(stats?: Record<string, number>): number {
+  if (!stats) return 0
+  return (
+    Number(stats.entities ?? 0) +
+    Number(stats.claims ?? 0) +
+    Number(stats.relations ?? 0)
+  )
+}
+
+function pickPrimaryExtractor(
+  extractors: KnowledgeExtractorInfo[]
+): KnowledgeExtractorInfo | undefined {
+  const withRuns = extractors
+    .filter((e) => e.last_run?.status)
+    .sort((a, b) => {
+      const aTime = String(a.last_run?.started_at ?? a.last_run?.finished_at ?? '')
+      const bTime = String(b.last_run?.started_at ?? b.last_run?.finished_at ?? '')
+      return bTime.localeCompare(aTime)
+    })
+  if (withRuns.length > 0) return withRuns[0]
+  return extractors.find((e) => e.id === 'generic') ?? extractors[0]
 }
 
 export function SourceKnowledgePanel({ sourceId, projectId }: SourceKnowledgePanelProps) {
@@ -35,10 +93,20 @@ export function SourceKnowledgePanel({ sourceId, projectId }: SourceKnowledgePan
     () => (extractorData?.extractors ?? []).filter((e) => !e.auto_run),
     [extractorData]
   )
-  const generic = useMemo(
-    () => (extractorData?.extractors ?? []).find((e) => e.id === 'generic'),
+  const primary = useMemo(
+    () => pickPrimaryExtractor(extractorData?.extractors ?? []),
     [extractorData]
   )
+
+  const runStatus = primary?.last_run?.status
+  const runStats = primary?.last_run?.stats
+  const graphContent = runGraphContentCount(runStats)
+  const entityCount = knowledge?.entities?.length ?? Number(runStats?.entities ?? 0)
+  const isEmptyCompleted = runStatus === 'completed' && graphContent === 0 && entityCount === 0
+  const isBuilding =
+    extractMutation.isBuilding ||
+    runStatus === 'running' ||
+    runStatus === 'queued'
 
   const runExtractor = (extractor: string, force = true) => {
     extractMutation.mutate({
@@ -64,32 +132,116 @@ export function SourceKnowledgePanel({ sourceId, projectId }: SourceKnowledgePan
           <>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-medium">{t('knowledge.genericStatus')}</span>
-              <Badge variant="secondary">
-                {generic?.last_run?.status ?? t('knowledge.notRun')}
+              <Badge
+                variant={statusBadgeVariant(isEmptyCompleted ? 'failed' : runStatus)}
+                className="gap-1"
+              >
+                {isBuilding && <Loader2 className="h-3 w-3 animate-spin" />}
+                {statusLabel(runStatus, t)}
+                {primary && primary.id !== 'generic' ? ` · ${primary.label}` : ''}
               </Badge>
-              {generic?.last_run?.stats && (
+              {runStats && (runStatus === 'completed' || runStatus === 'failed') && (
                 <span className="text-xs text-muted-foreground">
                   {t('knowledge.statsSummary')
                     .replace(
                       '{entities}',
-                      String(generic.last_run.stats.entities ?? knowledge?.entities?.length ?? 0)
+                      String(runStats.entities ?? knowledge?.entities?.length ?? 0)
                     )
                     .replace(
                       '{claims}',
-                      String(generic.last_run.stats.claims ?? knowledge?.claims?.length ?? 0)
+                      String(runStats.claims ?? knowledge?.claims?.length ?? 0)
+                    )
+                    .replace(
+                      '{relations}',
+                      String(
+                        runStats.relations ?? knowledge?.relations?.length ?? 0
+                      )
                     )}
                 </span>
               )}
               <Button
                 size="sm"
                 variant="outline"
-                disabled={extractMutation.isPending}
+                disabled={isBuilding}
                 onClick={() => runExtractor('generic', true)}
               >
-                <RefreshCw className="mr-2 h-3.5 w-3.5" />
-                {t('knowledge.rerunGeneric')}
+                {isBuilding ? (
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                )}
+                {isBuilding
+                  ? t('sources.buildingKnowledgeGraph')
+                  : t('knowledge.rerunGeneric')}
               </Button>
             </div>
+
+            {runStatus === 'failed' && (
+              <div className="flex gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div className="space-y-1">
+                  <p className="font-medium">{t('knowledge.extractRunFailed')}</p>
+                  {primary?.last_run?.error_message ? (
+                    <p className="break-words text-destructive/90">
+                      {primary.last_run.error_message}
+                    </p>
+                  ) : null}
+                  {runStats ? (
+                    <p className="text-xs text-muted-foreground">
+                      {[
+                        runStats.extractor
+                          ? `extractor=${String(runStats.extractor)}`
+                          : primary?.id
+                            ? `extractor=${primary.id}`
+                            : null,
+                        runStats.full_text_length != null
+                          ? `full_text_length=${String(runStats.full_text_length)}`
+                          : null,
+                        runStats.callout_count != null
+                          ? `callout_count=${String(runStats.callout_count)}`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
+                  ) : null}
+                  <p className="text-xs text-muted-foreground">
+                    {t('knowledge.extractRunFailedHint')}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {isEmptyCompleted && (
+              <div className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-amber-800 dark:text-amber-200">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div className="space-y-1">
+                  <p className="font-medium">{t('knowledge.emptyExtractionBanner')}</p>
+                  <p className="text-xs opacity-90">{t('knowledge.extractEmptyHint')}</p>
+                  {runStats ? (
+                    <p className="text-xs opacity-80">
+                      {[
+                        primary?.id ? `extractor=${primary.id}` : null,
+                        runStats.full_text_length != null
+                          ? `full_text_length=${String(runStats.full_text_length)}`
+                          : null,
+                        runStats.callout_count != null
+                          ? `callout_count=${String(runStats.callout_count)}`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            )}
+
+            {isBuilding && (
+              <p className="text-sm text-muted-foreground">
+                {t('knowledge.extractQueuedHint')}
+              </p>
+            )}
 
             <div className="flex flex-wrap items-end gap-2">
               <div className="min-w-[180px] space-y-1">
@@ -111,7 +263,7 @@ export function SourceKnowledgePanel({ sourceId, projectId }: SourceKnowledgePan
               </div>
               <Button
                 size="sm"
-                disabled={extractMutation.isPending || !selectedExtractor}
+                disabled={isBuilding || !selectedExtractor}
                 onClick={() => runExtractor(selectedExtractor, true)}
               >
                 <Play className="mr-2 h-3.5 w-3.5" />

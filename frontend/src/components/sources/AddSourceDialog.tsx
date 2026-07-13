@@ -95,9 +95,9 @@ export function AddSourceDialog({
   const { t } = useTranslation()
 
   const WIZARD_STEPS: readonly WizardStep[] = [
-    { number: 1, title: t('sources.addSource'), description: t('sources.processDescription') },
-    { number: 2, title: t('navigation.projects'), description: t('projects.searchPlaceholder') },
-    { number: 3, title: t('navigation.process'), description: t('sources.processDescription') },
+    { number: 1, title: t('sources.addSource') },
+    { number: 2, title: t('navigation.projects') },
+    { number: 3, title: t('navigation.process') },
   ]
 
   // Simplified state management
@@ -135,7 +135,7 @@ export function AddSourceDialog({
     resolver: zodResolver(createSourceSchema),
     defaultValues: {
       projects: defaultprojectId ? [defaultprojectId] : [],
-      embed: settings?.default_embedding_option === 'always' || settings?.default_embedding_option === 'ask',
+      embed: true,
       async_processing: true,
       artifacts: [],
     },
@@ -144,12 +144,9 @@ export function AddSourceDialog({
   // Initialize form values when settings and artifacts are loaded
   useEffect(() => {
     if (settings && artifacts.length > 0) {
-      const embedValue = settings.default_embedding_option === 'always' ||
-                         (settings.default_embedding_option === 'ask')
-
       reset({
         projects: defaultprojectId ? [defaultprojectId] : [],
-        embed: embedValue,
+        embed: true,
         async_processing: true,
         artifacts: [],
       })
@@ -312,7 +309,7 @@ export function AddSourceDialog({
       content: data.type === 'text' ? data.content : undefined,
       title: data.title,
       artifacts: selectedArtifactIds,
-      embed: data.embed,
+      embed: true,
       delete_source: false,
       async_processing: true,
     }
@@ -362,7 +359,7 @@ export function AddSourceDialog({
           projects: selectedProjectIds,
           url: item.type === 'url' ? item.value as string : undefined,
           artifacts: selectedArtifactIds,
-          embed: data.embed,
+          embed: true,
           delete_source: false,
           async_processing: true,
         }
@@ -465,8 +462,8 @@ export function AddSourceDialog({
 
     return (
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent showCloseButton={true}>
-          <DialogHeader>
+        <DialogContent className="h-auto max-h-[70vh] gap-[2px] p-[2px] [&>button]:right-[2px] [&>button]:top-[2px]" showCloseButton={true}>
+          <DialogHeader className="gap-[2px] p-[2px] pr-8">
             <DialogTitle>
               {batchProgress ? t('sources.processingFiles') : t('sources.statusProcessing')}
             </DialogTitle>
@@ -478,7 +475,7 @@ export function AddSourceDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-[2px] p-[2px]">
             <p className="text-sm text-muted-foreground">
               {processingStatus?.message || t('common.processing')}
             </p>
@@ -492,14 +489,14 @@ export function AddSourceDialog({
                   />
                 </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-4">
-                    <span className="flex items-center gap-1.5 text-green-600">
+                <div className="flex items-center justify-between text-sm gap-[2px]">
+                  <div className="flex items-center gap-[2px]">
+                    <span className="flex items-center gap-[2px] text-green-600">
                       <CheckCircleIcon className="h-4 w-4" />
                       {batchProgress.completed} {t('common.completed')}
                     </span>
                     {batchProgress.failed > 0 && (
-                      <span className="flex items-center gap-1.5 text-destructive">
+                      <span className="flex items-center gap-[2px] text-destructive">
                         <XCircleIcon className="h-4 w-4" />
                         {batchProgress.failed} {t('common.failed')}
                       </span>
@@ -536,12 +533,9 @@ export function AddSourceDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="p-0">
-        <DialogHeader className="px-6 pt-6 pb-0">
+      <DialogContent className="h-auto max-h-[70vh] gap-[2px] p-[2px] [&>button]:right-[2px] [&>button]:top-[2px]">
+        <DialogHeader className="gap-[2px] p-[2px] pr-8">
           <DialogTitle>{t('sources.addNew')}</DialogTitle>
-          <DialogDescription>
-            {t('sources.processDescription')}
-          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="min-w-0">
@@ -549,7 +543,8 @@ export function AddSourceDialog({
             currentStep={currentStep}
             steps={WIZARD_STEPS}
             onStepClick={handleStepClick}
-            className="border-0"
+            showSteps={false}
+            className="border-0 rounded-none"
           >
             {currentStep === 1 && (
               <SourceTypeStep
@@ -587,7 +582,7 @@ export function AddSourceDialog({
           </WizardContainer>
 
           {/* Navigation */}
-          <div className="flex justify-between items-center px-6 py-4 border-t border-border bg-muted">
+          <div className="flex justify-between items-center gap-[2px] p-[2px] border-t border-border bg-muted">
             <Button 
               type="button" 
               variant="outline" 
@@ -596,7 +591,7 @@ export function AddSourceDialog({
               {t('common.cancel')}
             </Button>
 
-            <div className="flex gap-2">
+            <div className="flex gap-[2px]">
               {currentStep > 1 && (
                 <Button
                   type="button"

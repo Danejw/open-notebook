@@ -176,3 +176,25 @@ export function useDeleteNote() {
     },
   })
 }
+
+export function useExportNotePdf() {
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: (id: string) => notesApi.exportPdf(id),
+    onSuccess: () => {
+      toast({
+        title: t('common.success'),
+        description: t('projects.exportPdfSuccess'),
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('common.error'),
+        description: getApiErrorKey(error, t('projects.failedToExportPdf')),
+        variant: 'destructive',
+      })
+    },
+  })
+}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
+import { Suspense, useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import { SourceListResponse } from '@/lib/types/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -10,13 +10,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Plus, FileText, Link2, ChevronDown, ListChecks } from 'lucide-react'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Plus, FileText, Link2, ChevronDown, ListChecks, Trash2, Unlink, EyeOff, Lightbulb, Network, List, Waypoints } from 'lucide-react'
 import { ColumnCardsSkeleton, CompactListRowSkeleton } from '@/components/common/LoadingSkeletons'
 import { EmptyState } from '@/components/common/EmptyState'
+import { ListSelectionBar } from '@/components/common/ListSelectionBar'
 import { AddSourceDialog } from '@/components/sources/AddSourceDialog'
 import { AddExistingSourceDialog } from '@/components/sources/AddExistingSourceDialog'
 import { SourceCard } from '@/components/sources/SourceCard'
+import { KnowledgeGraphView } from '@/components/knowledge-graph/KnowledgeGraphView'
 import { useDeleteSource, useRetrySource, useRemoveSourceFromProject, useIngestAsSource } from '@/lib/hooks/use-sources'
+import { useBulkExtractKnowledge } from '@/lib/hooks/use-knowledge'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { useModalManager } from '@/lib/hooks/use-modal-manager'
 import type { ContextMode } from '@/lib/types/project-context'
@@ -41,6 +45,8 @@ import {
   type ArtifactDragKind,
 } from '@/lib/utils/artifact-drag'
 import { cn } from '@/lib/utils'
+
+type SourcesViewMode = 'list' | 'graph'
 
 interface SourcesColumnProps {
   sources?: SourceListResponse[]
@@ -74,6 +80,7 @@ export function SourcesColumn({
   hasIngestibleArtifacts = false,
 }: SourcesColumnProps) {
   const { t } = useTranslation()
+  const [sourcesView, setSourcesView] = useState<SourcesViewMode>('list')
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [droppedArtifactIds, setDroppedArtifactIds] = useState<string[]>([])
@@ -84,6 +91,42 @@ export function SourcesColumn({
   const [sourceToDelete, setSourceToDelete] = useState<string | null>(null)
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false)
   const [sourceToRemove, setSourceToRemove] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkRemoveOpen, setBulkRemoveOpen] = useState(false)
+  const [bulkBusy, setBulkBusy] = useState(false)
+
+  const selectionMode = selectedIds.size > 0
+  const selectedList = useMemo(() => Array.from(selectedIds), [selectedIds])
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), [])
+
+  const enterSelection = useCallback((sourceId: string) => {
+    setSelectedIds(new Set([sourceId]))
+  }, [])
+
+  const toggleSelect = useCallback((sourceId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(sourceId)) next.delete(sourceId)
+      else next.add(sourceId)
+      return next
+    })
+  }, [])
+
+  const selectAllVisible = useCallback(() => {
+    setSelectedIds(new Set((sources ?? []).map((s) => s.id)))
+  }, [sources])
+
+  const applyBulkContext = useCallback(
+    (mode: ContextMode) => {
+      if (!onContextModeChange) return
+      for (const id of selectedList) {
+        onContextModeChange(id, mode)
+      }
+    },
+    [onContextModeChange, selectedList]
+  )
 
   const { openModal } = useModalManager()
   const deleteSource = useDeleteSource()
@@ -91,6 +134,30 @@ export function SourcesColumn({
   const removeFromProject = useRemoveSourceFromProject()
   const { runArtifactOnSource } = useRunArtifactInsight()
   const ingestAsSource = useIngestAsSource()
+  const bulkExtractKnowledge = useBulkExtractKnowledge()
+
+  const handleBulkBuildKnowledgeGraph = useCallback(async () => {
+    if (selectedList.length === 0) return
+    setBulkBusy(true)
+    try {
+      await bulkExtractKnowledge.mutateAsync({
+        sourceIds: selectedList,
+        project_id: projectId,
+        extractor: 'generic',
+        force: true,
+      })
+      clearSelection()
+    } catch (error) {
+      console.error('Failed to queue bulk knowledge graph builds:', error)
+    } finally {
+      setBulkBusy(false)
+    }
+  }, [
+    selectedList,
+    bulkExtractKnowledge,
+    projectId,
+    clearSelection,
+  ])
 
   const enableArtifactDrop = hasArtifactTemplates || hasIngestibleArtifacts
 
@@ -247,6 +314,100 @@ export function SourcesColumn({
     openModal('source', sourceId)
   }
 
+  const handleBulkDeleteConfirm = async () => {
+    setBulkBusy(true)
+    try {
+      for (const id of selectedList) {
+        await deleteSource.mutateAsync(id)
+      }
+      setBulkDeleteOpen(false)
+      clearSelection()
+      onRefresh?.()
+    } catch (error) {
+      console.error('Failed to bulk delete sources:', error)
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
+  const handleBulkRemoveConfirm = async () => {
+    setBulkBusy(true)
+    try {
+      for (const id of selectedList) {
+        await removeFromProject.mutateAsync({ projectId, sourceId: id })
+      }
+      setBulkRemoveOpen(false)
+      clearSelection()
+    } catch (error) {
+      console.error('Failed to bulk remove sources:', error)
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
+  const viewModeTabs = (
+    <Tabs
+      value={sourcesView}
+      onValueChange={(value) => {
+        if (value === 'list' || value === 'graph') {
+          setSourcesView(value)
+        }
+      }}
+      className="gap-0"
+    >
+      <TabsList className="h-6">
+        <TabsTrigger
+          value="list"
+          className="h-5 gap-0.5 px-1.5"
+          title={t('sources.viewList')}
+        >
+          <List className={columnHeaderIconClassName} />
+          <span className="hidden sm:inline">{t('sources.viewList')}</span>
+        </TabsTrigger>
+        <TabsTrigger
+          value="graph"
+          className="h-5 gap-0.5 px-1.5"
+          title={t('sources.viewGraph')}
+        >
+          <Waypoints className={columnHeaderIconClassName} />
+          <span className="hidden sm:inline">{t('sources.viewGraph')}</span>
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
+  )
+
+  const addSourceMenu = (
+    <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" className={columnHeaderPrimaryButtonClassName}>
+          <Plus className={columnHeaderIconClassName} />
+          {t('sources.addSource')}
+          <ChevronDown className={columnHeaderIconClassName} />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem
+          onClick={() => {
+            setDropdownOpen(false)
+            setAddDialogOpen(true)
+          }}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          {t('sources.addSource')}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => {
+            setDropdownOpen(false)
+            setAddExistingDialogOpen(true)
+          }}
+        >
+          <Link2 className="h-4 w-4 mr-2" />
+          {t('sources.addExistingTitle')}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+
   return (
     <>
       <CollapsibleColumn
@@ -256,67 +417,94 @@ export function SourcesColumn({
         collapsedLabel={t('navigation.sources')}
       >
         <Card className={columnCardClassName}>
-          <ColumnHeader
-            title={t('navigation.sources')}
-            actions={
-              <>
-                {onBulkContextModeChange && sources && sources.length > 0 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={columnHeaderIconButtonClassName}
-                        title={t('sources.bulkContext')}
-                      >
-                        <ListChecks className={columnHeaderIconClassName} />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onBulkContextModeChange('insights')}>
-                        {t('sources.includeAllInsights')}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onBulkContextModeChange('full')}>
-                        {t('sources.includeAllFull')}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onBulkContextModeChange('exclude')}>
-                        {t('sources.excludeAllFromContext')}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-                <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-                  <DropdownMenuTrigger asChild>
-                    <Button size="sm" className={columnHeaderPrimaryButtonClassName}>
-                      <Plus className={columnHeaderIconClassName} />
-                      {t('sources.addSource')}
-                      <ChevronDown className={columnHeaderIconClassName} />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => { setDropdownOpen(false); setAddDialogOpen(true); }}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      {t('sources.addSource')}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => { setDropdownOpen(false); setAddExistingDialogOpen(true); }}>
-                      <Link2 className="h-4 w-4 mr-2" />
-                      {t('sources.addExistingTitle')}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                {collapseButton}
-              </>
-            }
-          />
+          {sourcesView === 'list' ? (
+            <ColumnHeader
+              title={t('navigation.sources')}
+              actions={
+                <>
+                  {viewModeTabs}
+                  {onBulkContextModeChange && sources && sources.length > 0 && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={columnHeaderIconButtonClassName}
+                          title={t('sources.bulkContext')}
+                        >
+                          <ListChecks className={columnHeaderIconClassName} />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => onBulkContextModeChange('insights')}>
+                          {t('sources.includeAllInsights')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onBulkContextModeChange('full')}>
+                          {t('sources.includeAllFull')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onBulkContextModeChange('exclude')}>
+                          {t('sources.excludeAllFromContext')}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                  {addSourceMenu}
+                  {collapseButton}
+                </>
+              }
+            />
+          ) : null}
 
           <CardContent
-            ref={scrollContainerRef}
-            className={cn(columnBodyClassName, 'relative')}
-            onDragEnter={enableArtifactDrop ? handleArtifactDragEnter : undefined}
-            onDragLeave={enableArtifactDrop ? handleArtifactDragLeave : undefined}
-            onDragOver={enableArtifactDrop ? handleArtifactDragOver : undefined}
-            onDrop={enableArtifactDrop ? handleColumnArtifactDrop : undefined}
+            ref={sourcesView === 'list' ? scrollContainerRef : undefined}
+            className={cn(
+              columnBodyClassName,
+              'relative',
+              sourcesView === 'graph' && 'overflow-hidden p-0'
+            )}
+            onDragEnter={
+              sourcesView === 'list' && enableArtifactDrop
+                ? handleArtifactDragEnter
+                : undefined
+            }
+            onDragLeave={
+              sourcesView === 'list' && enableArtifactDrop
+                ? handleArtifactDragLeave
+                : undefined
+            }
+            onDragOver={
+              sourcesView === 'list' && enableArtifactDrop
+                ? handleArtifactDragOver
+                : undefined
+            }
+            onDrop={
+              sourcesView === 'list' && enableArtifactDrop
+                ? handleColumnArtifactDrop
+                : undefined
+            }
           >
+            {sourcesView === 'graph' ? (
+              <Suspense
+                fallback={
+                  <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                    {t('knowledge.graphLoading')}
+                  </div>
+                }
+              >
+                <KnowledgeGraphView
+                  projectId={projectId}
+                  embedded
+                  headerTrailing={
+                    <>
+                      {viewModeTabs}
+                      {addSourceMenu}
+                      {collapseButton}
+                    </>
+                  }
+                />
+              </Suspense>
+            ) : (
+              <>
             {isArtifactDragOver && (
               <div
                 className="pointer-events-none absolute inset-1 z-10 flex items-center justify-center rounded-md border-2 border-dashed border-primary bg-primary/5"
@@ -337,10 +525,90 @@ export function SourcesColumn({
               />
             ) : (
               <div className="flex flex-col divide-y divide-border/50">
+                {selectionMode && (
+                  <ListSelectionBar
+                    count={selectedIds.size}
+                    countLabel={t('sources.selectedCount').replace(
+                      '{count}',
+                      String(selectedIds.size)
+                    )}
+                    onClear={clearSelection}
+                    onSelectAll={selectAllVisible}
+                  >
+                    {onContextModeChange && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7"
+                          onClick={() => applyBulkContext('insights')}
+                        >
+                          <Lightbulb className="mr-1 h-3.5 w-3.5" />
+                          {t('common.contextModes.insights')}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7"
+                          onClick={() => applyBulkContext('full')}
+                        >
+                          <FileText className="mr-1 h-3.5 w-3.5" />
+                          {t('common.contextModes.full')}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7"
+                          onClick={() => applyBulkContext('off')}
+                        >
+                          <EyeOff className="mr-1 h-3.5 w-3.5" />
+                          {t('common.contextModes.off')}
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7"
+                      disabled={bulkBusy || bulkExtractKnowledge.isPending}
+                      onClick={() => void handleBulkBuildKnowledgeGraph()}
+                    >
+                      <Network className="mr-1 h-3.5 w-3.5" />
+                      {bulkExtractKnowledge.isPending
+                        ? t('sources.buildingKnowledgeGraph')
+                        : t('sources.buildKnowledgeGraph')}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7"
+                      onClick={() => setBulkRemoveOpen(true)}
+                    >
+                      <Unlink className="mr-1 h-3.5 w-3.5" />
+                      {t('common.bulkRemove')}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-red-600 hover:text-red-600"
+                      onClick={() => setBulkDeleteOpen(true)}
+                    >
+                      <Trash2 className="mr-1 h-3.5 w-3.5" />
+                      {t('common.bulkDelete')}
+                    </Button>
+                  </ListSelectionBar>
+                )}
                 {sources.map((source) => (
                   <SourceCard
                     key={source.id}
                     source={source}
+                    projectId={projectId}
                     onClick={handleSourceClick}
                     onDelete={handleDeleteClick}
                     onRetry={handleRetry}
@@ -358,11 +626,17 @@ export function SourcesColumn({
                         ? (artifactId) => handleArtifactDropOnSource(source.id, artifactId)
                         : undefined
                     }
+                    selectionMode={selectionMode}
+                    selected={selectedIds.has(source.id)}
+                    onToggleSelect={toggleSelect}
+                    onEnterSelection={enterSelection}
                   />
                 ))}
                 {/* Loading indicator for infinite scroll */}
                 {isFetchingNextPage && <CompactListRowSkeleton />}
               </div>
+            )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -401,6 +675,28 @@ export function SourcesColumn({
         confirmText={t('common.remove')}
         onConfirm={handleRemoveConfirm}
         isLoading={removeFromProject.isPending}
+        confirmVariant="default"
+      />
+
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title={t('sources.delete')}
+        description={t('sources.deleteConfirm')}
+        confirmText={t('common.delete')}
+        onConfirm={handleBulkDeleteConfirm}
+        isLoading={bulkBusy}
+        confirmVariant="destructive"
+      />
+
+      <ConfirmDialog
+        open={bulkRemoveOpen}
+        onOpenChange={setBulkRemoveOpen}
+        title={t('sources.removeFromProject')}
+        description={t('sources.removeConfirm')}
+        confirmText={t('common.remove')}
+        onConfirm={handleBulkRemoveConfirm}
+        isLoading={bulkBusy}
         confirmVariant="default"
       />
     </>

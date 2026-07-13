@@ -330,6 +330,17 @@ export default function SearchPage() {
                           {t('searchPage.saveToProjects')}
                         </Button>
                       )}
+                      {ask.finalAnswer && ask.queryRunId && projectId && projectId !== 'all' && (
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => {
+                            window.location.href = `/projects/${encodeURIComponent(projectId)}/graph?run=${encodeURIComponent(ask.queryRunId!)}`
+                          }}
+                        >
+                          {t('knowledge.graphViewRetrieval')}
+                        </Button>
+                      )}
                     </div>
                   </>
                 )}

@@ -13,6 +13,7 @@ from typing_extensions import TypedDict
 from construction_os.ai.provision import provision_langchain_model
 from construction_os.exceptions import ConstructionOSError
 from construction_os.graphs.progress import aemit_agent_progress
+from construction_os.knowledge.graph_projection import persist_query_run
 from construction_os.retrieval import retrieve
 from construction_os.retrieval.types import RetrievalMode
 from construction_os.utils import clean_thinking_content
@@ -51,6 +52,7 @@ class ThreadState(TypedDict):
     answers: Annotated[list, operator.add]
     final_answer: str
     evidence_paths: Annotated[list, operator.add]
+    query_run_id: Optional[str]
 
 
 def _config_project_id(config: RunnableConfig) -> Optional[str]:
@@ -136,8 +138,13 @@ async def provide_answer(state: SubGraphState, config: RunnableConfig) -> dict:
             search_notes=True,
         )
         results = bundle.to_search_results()
+        path_payload = [
+            p.model_dump() for p in bundle.paths if p.nodes or p.description
+        ]
         path_descriptions = [
-            p.description or " → ".join(p.nodes) for p in bundle.paths if p.nodes or p.description
+            p.description or " → ".join(p.nodes)
+            for p in bundle.paths
+            if p.nodes or p.description
         ]
         if len(results) == 0:
             await aemit_agent_progress(
@@ -146,7 +153,7 @@ async def provide_answer(state: SubGraphState, config: RunnableConfig) -> dict:
                 {"searchTerm": term, "resultCount": 0, "answerCount": 0},
                 config,
             )
-            return {"answers": [], "evidence_paths": path_descriptions}
+            return {"answers": [], "evidence_paths": path_payload or path_descriptions}
         payload["results"] = results
         ids = [r["id"] for r in results]
         payload["ids"] = ids
@@ -174,7 +181,7 @@ async def provide_answer(state: SubGraphState, config: RunnableConfig) -> dict:
         )
         return {
             "answers": [clean_thinking_content(ai_content)],
-            "evidence_paths": path_descriptions,
+            "evidence_paths": path_payload or path_descriptions,
         }
     except ConstructionOSError:
         raise
@@ -195,7 +202,20 @@ async def write_final_answer(state: ThreadState, config: RunnableConfig) -> dict
             },
             config,
         )
-        system_prompt = Prompter(prompt_template="ask/final_answer").render(data=state)  # type: ignore[arg-type]
+        system_prompt = Prompter(prompt_template="ask/final_answer").render(
+            data={
+                **state,
+                "evidence_paths": [
+                    (
+                        p.get("description")
+                        or " → ".join(p.get("nodes") or [])
+                        if isinstance(p, dict)
+                        else str(p)
+                    )
+                    for p in (state.get("evidence_paths") or [])
+                ],
+            }
+        )  # type: ignore[arg-type]
         model = await provision_langchain_model(
             system_prompt,
             config.get("configurable", {}).get("final_answer_model"),
@@ -204,13 +224,69 @@ async def write_final_answer(state: ThreadState, config: RunnableConfig) -> dict
         )
         ai_message = await model.ainvoke(system_prompt)
         final_content = extract_text_content(ai_message.content)
+
+        query_run_id = None
+        project_id = _config_project_id(config)
+        if project_id:
+            try:
+                raw_paths = state.get("evidence_paths") or []
+                path_payload = []
+                entity_ids = set()
+                chunk_ids = set()
+                source_ids = set()
+                for p in raw_paths:
+                    if isinstance(p, dict):
+                        path_payload.append(p)
+                        entity_ids.update(p.get("nodes") or [])
+                        chunk_ids.update(p.get("chunk_ids") or [])
+                        source_ids.update(p.get("source_ids") or [])
+                    elif isinstance(p, str) and p:
+                        path_payload.append(
+                            {"description": p, "nodes": [], "edges": []}
+                        )
+
+                run = await persist_query_run(
+                    project_id=project_id,
+                    query=state.get("question") or "",
+                    retrieval_mode=_config_retrieval_mode(config),
+                    seeds={
+                        "entity_ids": [
+                            e
+                            for e in entity_ids
+                            if str(e).startswith("kg_entity:")
+                        ],
+                        "chunk_ids": list(chunk_ids),
+                    },
+                    paths=path_payload,
+                    cited_ids={
+                        "source_ids": list(source_ids),
+                        "chunk_ids": list(chunk_ids),
+                        "entity_ids": [
+                            e
+                            for e in entity_ids
+                            if str(e).startswith("kg_entity:")
+                        ],
+                        "relation_ids": [],
+                    },
+                    metadata={"answer_count": answer_count},
+                )
+                query_run_id = str(run.id)
+            except Exception:
+                query_run_id = None
+
         await aemit_agent_progress(
             "completed",
             "write_final_answer",
-            {"answerCount": answer_count},
+            {
+                "answerCount": answer_count,
+                "queryRunId": query_run_id,
+            },
             config,
         )
-        return {"final_answer": clean_thinking_content(final_content)}
+        return {
+            "final_answer": clean_thinking_content(final_content),
+            "query_run_id": query_run_id,
+        }
     except ConstructionOSError:
         raise
     except Exception as e:

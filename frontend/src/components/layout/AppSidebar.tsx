@@ -181,7 +181,7 @@ export function AppSidebar() {
     <TooltipProvider delayDuration={0}>
       <div
         className={cn(
-          'app-sidebar flex h-full flex-col bg-sidebar transition-all duration-300',
+          'app-sidebar flex min-h-0 shrink-0 flex-col self-stretch overflow-hidden rounded-lg border border-sidebar-border bg-sidebar transition-all duration-300',
           isCollapsed ? collapsedSidebarWidthClassName : 'w-52'
         )}
       >

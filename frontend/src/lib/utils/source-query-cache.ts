@@ -46,20 +46,56 @@ export function patchAllSourceListQueries(
   }
 }
 
+/** Keep first occurrence of each source id (page order preserved). */
+export function dedupeSourcesById(sources: SourceListResponse[]): SourceListResponse[] {
+  const seen = new Set<string>()
+  return sources.filter((source) => {
+    if (seen.has(source.id)) return false
+    seen.add(source.id)
+    return true
+  })
+}
+
 export function removeSourceFromAllQueries(queryClient: QueryClient, sourceId: string) {
   patchAllSourceListQueries(queryClient, (sources) =>
     sources.filter((source) => source.id !== sourceId)
   )
 }
 
+/**
+ * Prepend a source to list caches.
+ * For infinite queries, only touch the first page and strip the id from later
+ * pages — applying the same prepend to every page creates duplicate React keys.
+ */
 export function prependSourceToAllQueries(
   queryClient: QueryClient,
   source: SourceListResponse
 ) {
-  patchAllSourceListQueries(queryClient, (sources) => {
-    if (sources.some((item) => item.id === source.id)) return sources
-    return [source, ...sources]
-  })
+  const entries = queryClient.getQueriesData<unknown>({ queryKey: ['sources'] })
+
+  for (const [queryKey, data] of entries) {
+    if (isSourcesInfiniteData(data)) {
+      queryClient.setQueryData<SourcesInfiniteData>(queryKey, {
+        ...data,
+        pages: data.pages.map((page, index) => {
+          const without = page.sources.filter((item) => item.id !== source.id)
+          if (index === 0) {
+            return { ...page, sources: [source, ...without] }
+          }
+          return { ...page, sources: without }
+        }),
+      })
+      continue
+    }
+
+    if (Array.isArray(data)) {
+      const list = data as SourceListResponse[]
+      queryClient.setQueryData<SourceListResponse[]>(queryKey, [
+        source,
+        ...list.filter((item) => item.id !== source.id),
+      ])
+    }
+  }
 }
 
 export function replaceSourceInAllQueries(
@@ -67,9 +103,50 @@ export function replaceSourceInAllQueries(
   sourceId: string,
   replacement: SourceListResponse
 ) {
-  patchAllSourceListQueries(queryClient, (sources) =>
-    sources.map((source) => (source.id === sourceId ? replacement : source))
-  )
+  const entries = queryClient.getQueriesData<unknown>({ queryKey: ['sources'] })
+
+  for (const [queryKey, data] of entries) {
+    if (isSourcesInfiniteData(data)) {
+      let replaced = false
+      queryClient.setQueryData<SourcesInfiniteData>(queryKey, {
+        ...data,
+        pages: data.pages.map((page, index) => {
+          const next = page.sources.flatMap((source) => {
+            if (source.id === sourceId || source.id === replacement.id) {
+              if (replaced) return []
+              replaced = true
+              return [replacement]
+            }
+            return [source]
+          })
+          // If optimistic id was missing (race), put replacement on first page
+          if (index === 0 && !replaced) {
+            replaced = true
+            return { ...page, sources: [replacement, ...next] }
+          }
+          return { ...page, sources: next }
+        }),
+      })
+      continue
+    }
+
+    if (Array.isArray(data)) {
+      const list = data as SourceListResponse[]
+      let replaced = false
+      const next = list.flatMap((source) => {
+        if (source.id === sourceId || source.id === replacement.id) {
+          if (replaced) return []
+          replaced = true
+          return [replacement]
+        }
+        return [source]
+      })
+      queryClient.setQueryData<SourceListResponse[]>(
+        queryKey,
+        replaced ? next : [replacement, ...next]
+      )
+    }
+  }
 }
 
 export function removeSourceFromProjectQueries(

@@ -36,6 +36,8 @@ export interface SourceListResponse {
   command_id?: string
   status?: string
   processing_info?: Record<string, unknown>
+  pipeline_stage?: string
+  stage?: string
 }
 
 export interface SourceDetailResponse extends SourceListResponse {
@@ -64,6 +66,7 @@ export interface SourceStatusResponse {
   message: string
   processing_info?: Record<string, unknown>
   command_id?: string
+  stage?: string
 }
 
 export interface SettingsResponse {

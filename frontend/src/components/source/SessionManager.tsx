@@ -103,17 +103,19 @@ export function SessionManager({
 
   return (
     <>
-      <Card className="h-full flex flex-col">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5" />
+      <Card className="h-full flex flex-col border-0 shadow-none">
+        {/* pr-8 reserves space for DialogContent's absolute close button */}
+        <CardHeader className="pb-0.5 pr-8">
+          <CardTitle className="flex items-center justify-between gap-0.5">
+            <span className="flex items-center gap-0.5">
+              <MessageSquare className="h-4 w-4" />
               {t('chat.sessions')}
             </span>
             <Button
-              size="sm"
+              size="icon"
               variant="outline"
               onClick={() => setIsCreating(true)}
+              aria-label={t('common.create')}
             >
               <Plus className="h-4 w-4" />
             </Button>

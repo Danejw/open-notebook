@@ -41,10 +41,10 @@ export function upsertNode(graph: KnowledgeGraphology, node: GraphNodeDTO): void
     color: nodeColor(node),
     x: graph.hasNode(node.id)
       ? (graph.getNodeAttribute(node.id, 'x') as number)
-      : Math.random() * 100,
+      : (Math.random() - 0.5) * 100,
     y: graph.hasNode(node.id)
       ? (graph.getNodeAttribute(node.id, 'y') as number)
-      : Math.random() * 100,
+      : (Math.random() - 0.5) * 100,
     z: graph.hasNode(node.id)
       ? (graph.getNodeAttribute(node.id, 'z') as number)
       : (Math.random() - 0.5) * 100,
@@ -115,7 +115,75 @@ export function collectPositions(
   return positions
 }
 
-/** Place nodes that lack stable coords near the centroid of existing nodes. */
+/**
+ * True when saved positions include real Z depth (not a flat / missing-z layout).
+ * Used to decide whether we can freeze the camera on a saved layout or must
+ * re-run a 3D force simulation.
+ */
+export function layoutHas3DDepth(
+  positions: Record<string, GraphNodePosition>,
+  minSpread = 5
+): boolean {
+  const entries = Object.values(positions)
+  if (entries.length === 0) return false
+  const zs = entries
+    .map((p) => p.z)
+    .filter((z): z is number => z != null && Number.isFinite(z))
+  // Require z on most nodes so a few accidental z values don't count.
+  if (zs.length < Math.max(3, Math.ceil(entries.length * 0.5))) return false
+  const min = Math.min(...zs)
+  const max = Math.max(...zs)
+  return max - min >= minSpread
+}
+
+/**
+ * Detect the old cold-load bug: nodes parked on concentric radius bands
+ * from `placeNewNodesNearExisting` (`radius = 40 + (i % 5) * 12`).
+ */
+export function layoutLooksParametric(
+  positions: Record<string, GraphNodePosition>
+): boolean {
+  const pts = Object.values(positions)
+  if (pts.length < 20) return false
+
+  let cx = 0
+  let cy = 0
+  for (const p of pts) {
+    cx += p.x
+    cy += p.y
+  }
+  cx /= pts.length
+  cy /= pts.length
+
+  // Exact bands produced by the old placer.
+  const expectedRadii = [40, 52, 64, 76, 88]
+  let nearBand = 0
+  for (const p of pts) {
+    const r = Math.hypot(p.x - cx, p.y - cy)
+    if (expectedRadii.some((er) => Math.abs(r - er) < 4)) {
+      nearBand += 1
+    }
+  }
+  return nearBand / pts.length >= 0.55
+}
+
+/** Scatter all nodes into a random 3D cloud (force-layout seed). */
+export function seedRandomNodePositions(
+  graph: KnowledgeGraphology,
+  spread = 100
+): void {
+  graph.forEachNode((id) => {
+    graph.setNodeAttribute(id, 'x', (Math.random() - 0.5) * spread)
+    graph.setNodeAttribute(id, 'y', (Math.random() - 0.5) * spread)
+    graph.setNodeAttribute(id, 'z', (Math.random() - 0.5) * spread)
+  })
+}
+
+/**
+ * Place a small set of new nodes near the centroid of existing ones.
+ * Uses random jitter (not parametric rings) so incremental inserts don't
+ * create artificial arcs.
+ */
 export function placeNewNodesNearExisting(
   graph: KnowledgeGraphology,
   newNodeIds: Iterable<string>
@@ -127,27 +195,30 @@ export function placeNewNodesNearExisting(
   let sy = 0
   let sz = 0
   let count = 0
+  const idSet = new Set(ids)
   graph.forEachNode((id, attrs) => {
-    if (ids.includes(id)) return
+    if (idSet.has(id)) return
     sx += Number(attrs.x) || 0
     sy += Number(attrs.y) || 0
     sz += Number(attrs.z) || 0
     count += 1
   })
-  const cx = count > 0 ? sx / count : 0
-  const cy = count > 0 ? sy / count : 0
-  const cz = count > 0 ? sz / count : 0
+  // No existing nodes → leave upsertNode random seeds alone.
+  if (count === 0) return
 
-  ids.forEach((id, index) => {
-    const angle = (index / Math.max(ids.length, 1)) * Math.PI * 2
-    const radius = 40 + (index % 5) * 12
-    graph.setNodeAttribute(id, 'x', cx + Math.cos(angle) * radius)
-    graph.setNodeAttribute(id, 'y', cy + Math.sin(angle) * radius)
-    graph.setNodeAttribute(id, 'z', cz + Math.sin(angle * 1.7) * (radius * 0.4))
-  })
+  const cx = sx / count
+  const cy = sy / count
+  const cz = sz / count
+  const jitter = 60
+
+  for (const id of ids) {
+    graph.setNodeAttribute(id, 'x', cx + (Math.random() - 0.5) * jitter)
+    graph.setNodeAttribute(id, 'y', cy + (Math.random() - 0.5) * jitter)
+    graph.setNodeAttribute(id, 'z', cz + (Math.random() - 0.5) * jitter)
+  }
 }
 
-/** Sync graph to slice while keeping the same Graph instance (Sigma-safe). */
+/** Sync graph to slice while keeping the same Graph instance. */
 export function syncGraphToSlice(
   graph: KnowledgeGraphology,
   slice: GraphSliceDTO,
@@ -192,7 +263,14 @@ export function syncGraphToSlice(
     upsertEdge(graph, edge)
   }
 
-  if (newNodeIds.length > 0) {
+  // Only nudge incremental inserts near existing nodes. Cold load (all new)
+  // must keep random seeds so d3-force-3d can form a real cloud — never ring-place.
+  const isColdLoad = previousIds.size === 0
+  if (
+    !isColdLoad &&
+    newNodeIds.length > 0 &&
+    newNodeIds.length < graph.order
+  ) {
     placeNewNodesNearExisting(graph, newNodeIds)
   }
 

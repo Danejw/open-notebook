@@ -25,6 +25,9 @@ import {
   applyPositions,
   collectPositions,
   createEmptyGraph,
+  layoutHas3DDepth,
+  layoutLooksParametric,
+  seedRandomNodePositions,
   syncGraphToSlice,
 } from '@/lib/graph/build-graphology-graph'
 import {
@@ -224,14 +227,27 @@ export function KnowledgeGraphView({
       layoutQuery.data?.layout?.positions &&
       String(layoutQuery.data.layout.graph_version) === activeSlice.graph_version
     ) {
-      applyPositions(graph, layoutQuery.data.layout.positions)
+      const saved = layoutQuery.data.layout.positions
+      const algorithm = layoutQuery.data.layout.algorithm
+      const usable3d =
+        algorithm === 'd3-force-3d' &&
+        layoutHas3DDepth(saved) &&
+        !layoutLooksParametric(saved)
+
       setLayoutApplied(true)
-      setRunLayout(false)
+      if (usable3d) {
+        applyPositions(graph, saved)
+        setRunLayout(false)
+      } else {
+        // Flat FA2, missing z, or concentric-ring bug — reseed and run 3D force.
+        seedRandomNodePositions(graph)
+        setRunLayout(true)
+      }
     } else if (!layoutApplied && graph.order > 0 && previousOrder === 0) {
-      // Cold load with no saved layout
+      // Cold load with no saved layout — random seeds + 3D force.
       setRunLayout(true)
     }
-    // Incremental merges: new nodes already placed near existing; skip FA2 to keep camera
+    // Incremental merges: new nodes already placed near existing; skip full re-layout
 
     setGraphRevision((v) => v + 1)
   }, [
@@ -408,8 +424,10 @@ export function KnowledgeGraphView({
       onResetView={() => {
         resetSelection()
         setMergedSlice(overviewQuery.data ?? null)
+        seedRandomNodePositions(graphRef.current)
         setLayoutApplied(false)
         setRunLayout(true)
+        setGraphRevision((v) => v + 1)
         setCameraCommand({ type: 'reset', token: Date.now() })
       }}
       onFit={() => {

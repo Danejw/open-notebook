@@ -183,6 +183,8 @@ export function GraphCanvas({
   const containerRef = useRef<HTMLDivElement>(null)
   const fgRef = useRef<ForceGraph3DInstance | null>(null)
   const settledRef = useRef(false)
+  const runLayoutRef = useRef(runLayout)
+  runLayoutRef.current = runLayout
   const selectedNodeIdRef = useRef(selectedNodeId)
   selectedNodeIdRef.current = selectedNodeId
   const highlightedRef = useRef(highlightedNodeIds)
@@ -256,6 +258,10 @@ export function GraphCanvas({
         onStageClickRef.current()
       })
       .onEngineStop(() => {
+        // Only persist when we intentionally ran a layout. Otherwise
+        // cooldownTicks(0) / pin freezes also fire onEngineStop and would
+        // lock in bad seed coords (rings / flat 2D).
+        if (!runLayoutRef.current) return
         if (settledRef.current) return
         settledRef.current = true
         syncPositionsToGraphology(graph, getNodes(fg))
@@ -353,8 +359,16 @@ export function GraphCanvas({
         node.y = old.y
         node.z = old.z
       }
+      // While laying out, never carry pinned coords into the new payload.
+      if (runLayoutRef.current) {
+        delete node.fx
+        delete node.fy
+        delete node.fz
+      }
     }
-    settledRef.current = true
+    if (!runLayoutRef.current) {
+      settledRef.current = true
+    }
     fg.graphData(data)
     applyHighlightColors(
       fg,
@@ -362,6 +376,12 @@ export function GraphCanvas({
       selectedNodeIdRef.current,
       highlightedRef.current
     )
+    if (runLayoutRef.current) {
+      settledRef.current = false
+      fg.d3ReheatSimulation()
+      fg.cooldownTicks(250)
+      fg.warmupTicks(40)
+    }
   }, [graphRevision, graph])
 
   useEffect(() => {
@@ -432,8 +452,8 @@ export function GraphCanvas({
         delete node.fz
       }
       fg.d3ReheatSimulation()
-      fg.cooldownTicks(120)
-      fg.warmupTicks(20)
+      fg.cooldownTicks(250)
+      fg.warmupTicks(40)
     } else {
       for (const node of nodes) {
         if (Number.isFinite(node.x)) node.fx = node.x

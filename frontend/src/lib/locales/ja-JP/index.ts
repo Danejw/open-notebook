@@ -462,6 +462,14 @@ export const jaJP = {
     processingSource: "ソースを処理中です。しばらくお待ちください。",
     maxFilesAllowed: "一括処理は最大{count}件までです",
   },
+  share: {
+    projectNotFound: "プロジェクトが見つかりません",
+    chatTitle: "共有チャット",
+    loading: "共有チャットを読み込み中...",
+    copyLink: "共有リンクをコピー",
+    linkCopied: "共有リンクをコピーしました",
+    linkCopyFailed: "共有リンクのコピーに失敗しました",
+  },
   chat: {
     sessions: "セッション",
     sessionTitlePlaceholder: "タイトルを入力...",
@@ -493,6 +501,10 @@ export const jaJP = {
     artifactSendPlaceholder: "Send to generate this artifact from project context...",
     saveArtifactToNotes: "Save artifact to notes",
     saveAsArtifact: "Save as artifact",
+    suggestionsLabel: "提案メッセージ",
+    suggestionsLoading: "提案を読み込み中...",
+    suggestionsCollapse: "Hide suggestions",
+    suggestionsExpand: "Show suggestions",
   },
   searchPage: {
     askAndSearch: "質問と検索",

@@ -462,6 +462,14 @@ export const itIT = {
     processingSource: "La tua fonte è in elaborazione. Potrebbe richiedere qualche istante.",
     maxFilesAllowed: "Massimo {count} file consentiti per batch",
   },
+  share: {
+    projectNotFound: "Progetto non trovato",
+    chatTitle: "Chat condivisa",
+    loading: "Caricamento chat condivisa...",
+    copyLink: "Copia link di condivisione",
+    linkCopied: "Link di condivisione copiato",
+    linkCopyFailed: "Impossibile copiare il link",
+  },
   chat: {
     sessions: "Sessioni",
     sessionTitlePlaceholder: "Digita un titolo qui...",
@@ -493,6 +501,10 @@ export const itIT = {
     artifactSendPlaceholder: "Send to generate this artifact from project context...",
     saveArtifactToNotes: "Save artifact to notes",
     saveAsArtifact: "Save as artifact",
+    suggestionsLabel: "Messaggi suggeriti",
+    suggestionsLoading: "Caricamento suggerimenti...",
+    suggestionsCollapse: "Hide suggestions",
+    suggestionsExpand: "Show suggestions",
   },
   searchPage: {
     askAndSearch: "Chiedi e cerca",

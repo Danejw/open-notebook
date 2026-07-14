@@ -462,6 +462,14 @@ export const bnIN = {
     processingSource: "আপনার উৎস প্রক্রিয়াকরণ করা হচ্ছে। এটি কিছু মুহূর্ত সময় নিতে পারে।",
     maxFilesAllowed: "ব্যাচে সর্বোচ্চ {count}টি ফাইল অনুমোদিত",
   },
+  share: {
+    projectNotFound: "প্রজেক্ট পাওয়া যায়নি",
+    chatTitle: "শেয়ার করা চ্যাট",
+    loading: "শেয়ার করা চ্যাট লোড হচ্ছে...",
+    copyLink: "শেয়ার লিঙ্ক কপি করুন",
+    linkCopied: "শেয়ার লিঙ্ক কপি হয়েছে",
+    linkCopyFailed: "শেয়ার লিঙ্ক কপি করা যায়নি",
+  },
   chat: {
     sessions: "সেশনগুলি",
     sessionTitlePlaceholder: "এখানে একটি শিরোনাম লিখুন...",
@@ -493,6 +501,10 @@ export const bnIN = {
     artifactSendPlaceholder: "Send to generate this artifact from project context...",
     saveArtifactToNotes: "Save artifact to notes",
     saveAsArtifact: "Save as artifact",
+    suggestionsLabel: "প্রস্তাবিত বার্তা",
+    suggestionsLoading: "পরামর্শ লোড হচ্ছে...",
+    suggestionsCollapse: "Hide suggestions",
+    suggestionsExpand: "Show suggestions",
   },
   searchPage: {
     askAndSearch: "জিজ্ঞাসা ও অনুসন্ধান",

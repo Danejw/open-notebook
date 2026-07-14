@@ -462,6 +462,14 @@ export const ruRU = {
     processingSource: "Источник обрабатывается. Это может занять некоторое время.",
     maxFilesAllowed: "Максимальное количество файлов в пакете: {count}",
   },
+  share: {
+    projectNotFound: "Проект не найден",
+    chatTitle: "Общий чат",
+    loading: "Загрузка общего чата...",
+    copyLink: "Копировать ссылку",
+    linkCopied: "Ссылка скопирована",
+    linkCopyFailed: "Не удалось скопировать ссылку",
+  },
   chat: {
     sessions: "Сессии",
     sessionTitlePlaceholder: "Введите название...",
@@ -493,6 +501,10 @@ export const ruRU = {
     artifactSendPlaceholder: "Send to generate this artifact from project context...",
     saveArtifactToNotes: "Save artifact to notes",
     saveAsArtifact: "Save as artifact",
+    suggestionsLabel: "Предлагаемые сообщения",
+    suggestionsLoading: "Загрузка предложений...",
+    suggestionsCollapse: "Hide suggestions",
+    suggestionsExpand: "Show suggestions",
   },
   searchPage: {
     askAndSearch: "Запрос и поиск",

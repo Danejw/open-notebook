@@ -465,6 +465,14 @@ export const deDE = {
     processingSource: "Deine Quelle wird verarbeitet. Das kann einen Moment dauern.",
     maxFilesAllowed: "Maximal {count} Dateien pro Sammelimport erlaubt",
   },
+  share: {
+    projectNotFound: "Projekt nicht gefunden",
+    chatTitle: "Geteilter Chat",
+    loading: "Geteilter Chat wird geladen...",
+    copyLink: "Share-Link kopieren",
+    linkCopied: "Share-Link kopiert",
+    linkCopyFailed: "Share-Link konnte nicht kopiert werden",
+  },
   chat: {
     sessions: "Sitzungen",
     sessionTitlePlaceholder: "Titel hier eingeben...",
@@ -496,6 +504,10 @@ export const deDE = {
     artifactSendPlaceholder: "Send to generate this artifact from project context...",
     saveArtifactToNotes: "Save artifact to notes",
     saveAsArtifact: "Save as artifact",
+    suggestionsLabel: "Vorgeschlagene Nachrichten",
+    suggestionsLoading: "Vorschlage werden geladen...",
+    suggestionsCollapse: "Hide suggestions",
+    suggestionsExpand: "Show suggestions",
   },
   searchPage: {
     askAndSearch: "Fragen und Suchen",

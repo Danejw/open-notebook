@@ -462,6 +462,14 @@ export const zhCN = {
     processingSource: "正在处理您的来源，请稍候...",
     maxFilesAllowed: "每批最多允许 {count} 个文件",
   },
+  share: {
+    projectNotFound: "未找到项目",
+    chatTitle: "共享聊天",
+    loading: "正在加载共享聊天...",
+    copyLink: "复制分享链接",
+    linkCopied: "分享链接已复制",
+    linkCopyFailed: "复制分享链接失败",
+  },
   chat: {
     sessions: "会话",
     sessionTitlePlaceholder: "在此输入标题...",
@@ -493,6 +501,10 @@ export const zhCN = {
     artifactSendPlaceholder: "Send to generate this artifact from project context...",
     saveArtifactToNotes: "Save artifact to notes",
     saveAsArtifact: "Save as artifact",
+    suggestionsLabel: "建议消息",
+    suggestionsLoading: "正在加载建议...",
+    suggestionsCollapse: "Hide suggestions",
+    suggestionsExpand: "Show suggestions",
   },
   searchPage: {
     askAndSearch: "提问与搜索",

@@ -513,6 +513,14 @@ export const enUS = {
     processingSource: "Your source is being processed. This may take a few moments.",
     maxFilesAllowed: "Maximum {count} files allowed per batch",
   },
+  share: {
+    projectNotFound: "Project not found",
+    chatTitle: "Shared chat",
+    loading: "Loading shared chat...",
+    copyLink: "Copy share link",
+    linkCopied: "Share link copied",
+    linkCopyFailed: "Failed to copy share link",
+  },
   chat: {
     sessions: "Sessions",
     sessionTitlePlaceholder: "Type a title here...",
@@ -544,6 +552,10 @@ export const enUS = {
     artifactSendPlaceholder: "Send to generate this artifact from project context...",
     saveArtifactToNotes: "Save artifact to notes",
     saveAsArtifact: "Save as artifact",
+    suggestionsLabel: "Suggested messages",
+    suggestionsLoading: "Loading suggestions...",
+    suggestionsCollapse: "Hide suggestions",
+    suggestionsExpand: "Show suggestions",
   },
   searchPage: {
     askAndSearch: "Ask and Search",

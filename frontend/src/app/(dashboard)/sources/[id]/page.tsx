@@ -80,6 +80,7 @@ export default function SourceDetailPage() {
             onDeleteSession={chat.deleteSession}
             loadingSessions={chat.loadingSessions}
             projectId={projectId}
+            sourceId={sourceId}
           />
         </div>
       </div>

@@ -462,6 +462,14 @@ export const trTR = {
     processingSource: "Kaynağınız işleniyor. Bu birkaç dakika sürebilir.",
     maxFilesAllowed: "Toplu işlem başına en fazla {count} dosya",
   },
+  share: {
+    projectNotFound: "Proje bulunamadi",
+    chatTitle: "Paylasilan sohbet",
+    loading: "Paylasilan sohbet yukleniyor...",
+    copyLink: "Paylasim baglantisini kopyala",
+    linkCopied: "Paylasim baglantisi kopyalandi",
+    linkCopyFailed: "Baglanti kopyalanamadi",
+  },
   chat: {
     sessions: "Oturumlar",
     sessionTitlePlaceholder: "Buraya bir başlık yazın...",
@@ -493,6 +501,10 @@ export const trTR = {
     artifactSendPlaceholder: "Send to generate this artifact from project context...",
     saveArtifactToNotes: "Save artifact to notes",
     saveAsArtifact: "Save as artifact",
+    suggestionsLabel: "Onerilen mesajlar",
+    suggestionsLoading: "Oneriler yukleniyor...",
+    suggestionsCollapse: "Hide suggestions",
+    suggestionsExpand: "Show suggestions",
   },
   searchPage: {
     askAndSearch: "Sor ve Ara",

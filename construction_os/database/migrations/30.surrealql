@@ -1,0 +1,6 @@
+-- Migration 30: guest_key on chat_session for shared-chat isolation
+
+DEFINE FIELD IF NOT EXISTS guest_key ON TABLE chat_session TYPE option<string>;
+DEFINE INDEX IF NOT EXISTS chat_session_guest_key_idx ON TABLE chat_session COLUMNS guest_key;
+
+RETURN true;

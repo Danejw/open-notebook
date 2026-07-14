@@ -462,6 +462,14 @@ export const ptBR = {
     processingSource: "Sua fonte está sendo processada. Isso pode levar alguns momentos.",
     maxFilesAllowed: "Máximo de {count} arquivos permitidos por lote",
   },
+  share: {
+    projectNotFound: "Projeto nao encontrado",
+    chatTitle: "Chat compartilhado",
+    loading: "Carregando chat compartilhado...",
+    copyLink: "Copiar link de compartilhamento",
+    linkCopied: "Link de compartilhamento copiado",
+    linkCopyFailed: "Falha ao copiar o link",
+  },
   chat: {
     sessions: "Sessões",
     sessionTitlePlaceholder: "Digite um título aqui...",
@@ -493,6 +501,10 @@ export const ptBR = {
     artifactSendPlaceholder: "Send to generate this artifact from project context...",
     saveArtifactToNotes: "Save artifact to notes",
     saveAsArtifact: "Save as artifact",
+    suggestionsLabel: "Mensagens sugeridas",
+    suggestionsLoading: "Carregando sugestoes...",
+    suggestionsCollapse: "Hide suggestions",
+    suggestionsExpand: "Show suggestions",
   },
   searchPage: {
     askAndSearch: "Perguntar e Buscar",

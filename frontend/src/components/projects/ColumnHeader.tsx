@@ -7,6 +7,7 @@ interface ColumnHeaderProps {
   title: string
   actions?: ReactNode
   className?: string
+  titleClassName?: string
 }
 
 /** Tight outer inset for the project detail page (matches column internal rhythm) */
@@ -19,7 +20,7 @@ export const projectPageStackGapClassName = 'gap-1'
  * Shared compact header for project column panels (Sources, Notes, Chat).
  * Uses a plain div — not CardHeader — to avoid shadcn's [.border-b]:pb-6 default.
  */
-export function ColumnHeader({ title, actions, className }: ColumnHeaderProps) {
+export function ColumnHeader({ title, actions, className, titleClassName }: ColumnHeaderProps) {
   return (
     <div
       className={cn(
@@ -27,7 +28,9 @@ export function ColumnHeader({ title, actions, className }: ColumnHeaderProps) {
         className
       )}
     >
-      <h2 className="truncate text-sm font-semibold leading-none">{title}</h2>
+      <h2 className={cn('truncate text-sm font-semibold leading-none', titleClassName)}>
+        {title}
+      </h2>
       {actions ? (
         <div className="flex shrink-0 items-center gap-0.5">{actions}</div>
       ) : null}

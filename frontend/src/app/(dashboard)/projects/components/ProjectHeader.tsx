@@ -4,7 +4,8 @@ import { useState, type ReactNode } from 'react'
 import { ProjectResponse } from '@/lib/types/api'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Archive, ArchiveRestore, Trash2 } from 'lucide-react'
+import { Archive, ArchiveRestore, Link2, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { useUpdateProject } from '@/lib/hooks/use-projects'
 import { ProjectDeleteDialog } from './ProjectDeleteDialog'
 import { InlineEdit } from '@/components/common/InlineEdit'
@@ -19,6 +20,7 @@ interface ProjectHeaderProps {
 export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
   const { t } = useTranslation()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [copyingLink, setCopyingLink] = useState(false)
 
   const updateProject = useUpdateProject()
   const hasDescription = Boolean(project.description?.trim())
@@ -46,6 +48,21 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
       id: project.id,
       data: { archived: !project.archived },
     })
+  }
+
+  const handleCopyShareLink = async () => {
+    if (typeof window === 'undefined' || !project.id) return
+
+    const shareUrl = `${window.location.origin}/share/projects/${encodeURIComponent(project.id)}/chat`
+    setCopyingLink(true)
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      toast.success(t('share.linkCopied'))
+    } catch {
+      toast.error(t('share.linkCopyFailed'))
+    } finally {
+      setCopyingLink(false)
+    }
   }
 
   return (
@@ -86,6 +103,19 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
 
           <div className="flex flex-wrap items-center gap-1 shrink-0">
             {actions}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => {
+                void handleCopyShareLink()
+              }}
+              disabled={copyingLink}
+              title={t('share.copyLink')}
+            >
+              <Link2 className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">{t('share.copyLink')}</span>
+            </Button>
             <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={handleArchiveToggle}>
               {project.archived ? (
                 <>

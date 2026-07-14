@@ -1,0 +1,6 @@
+-- Rollback migration 30: remove guest_key from chat_session
+
+REMOVE INDEX IF EXISTS chat_session_guest_key_idx ON TABLE chat_session;
+REMOVE FIELD IF EXISTS guest_key ON TABLE chat_session;
+
+RETURN true;

@@ -5,6 +5,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { SourceChatMessage } from '@/lib/types/api'
 import { ChatToolCall } from '@/lib/types/mcp'
 import { ChatMessageRow, ChatMessageRowProps } from '@/components/source/ChatMessageRow'
+import { cn } from '@/lib/utils'
 
 const VIRTUALIZE_THRESHOLD = 40
 const ESTIMATED_ROW_HEIGHT = 72
@@ -28,6 +29,10 @@ export interface ChatMessageListProps {
   onEditKeyDown: (e: React.KeyboardEvent) => void
   emptyState: React.ReactNode
   footer?: React.ReactNode
+  /** Extra classes on the scroll container (padding, spacing) */
+  className?: string
+  /** Extra classes on the message stack (e.g. top margin under header) */
+  contentClassName?: string
 }
 
 export function ChatMessageList({
@@ -49,6 +54,8 @@ export function ChatMessageList({
   onEditKeyDown,
   emptyState,
   footer,
+  className,
+  contentClassName,
 }: ChatMessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -100,10 +107,15 @@ export function ChatMessageList({
     onEditKeyDown,
   })
 
+  const scrollClassName = cn(
+    'flex-1 min-h-0 overflow-y-auto hide-scrollbar px-2',
+    className
+  )
+
   if (messages.length === 0) {
     return (
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto hide-scrollbar px-2">
-        {emptyState}
+      <div ref={scrollRef} className={scrollClassName}>
+        <div className={cn(contentClassName)}>{emptyState}</div>
         {footer}
         <div ref={messagesEndRef} />
       </div>
@@ -112,8 +124,8 @@ export function ChatMessageList({
 
   if (!useVirtual) {
     return (
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto hide-scrollbar px-2">
-        <div className="flex flex-col gap-1.5 py-0">
+      <div ref={scrollRef} className={scrollClassName}>
+        <div className={cn('flex flex-col gap-1.5 py-0', contentClassName)}>
           {messages.map((message) => (
             <ChatMessageRow key={message.id} {...rowProps(message)} />
           ))}
@@ -125,9 +137,9 @@ export function ChatMessageList({
   }
 
   return (
-    <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto hide-scrollbar px-2">
+    <div ref={scrollRef} className={scrollClassName}>
       <div
-        className="relative w-full py-0"
+        className={cn('relative w-full py-0', contentClassName)}
         style={{ height: `${virtualizer.getTotalSize()}px` }}
       >
         {virtualizer.getVirtualItems().map((virtualRow) => {

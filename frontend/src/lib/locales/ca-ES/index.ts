@@ -462,6 +462,14 @@ export const caES = {
     processingSource: "S'està processant la teva font. Això pot trigar uns moments.",
     maxFilesAllowed: "Màxim {count} fitxers per lot",
   },
+  share: {
+    projectNotFound: "Projecte no trobat",
+    chatTitle: "Xat compartit",
+    loading: "S'esta carregant el xat compartit...",
+    copyLink: "Copia l'enllac per compartir",
+    linkCopied: "Enllac compartit copiat",
+    linkCopyFailed: "No s'ha pogut copiar l'enllac",
+  },
   chat: {
     sessions: "Sessions",
     sessionTitlePlaceholder: "Escriu un títol aquí...",
@@ -493,6 +501,10 @@ export const caES = {
     artifactSendPlaceholder: "Send to generate this artifact from project context...",
     saveArtifactToNotes: "Save artifact to notes",
     saveAsArtifact: "Save as artifact",
+    suggestionsLabel: "Missatges suggerits",
+    suggestionsLoading: "S'estan carregant els suggeriments...",
+    suggestionsCollapse: "Hide suggestions",
+    suggestionsExpand: "Show suggestions",
   },
   searchPage: {
     askAndSearch: "Pregunta i cerca",

@@ -1,16 +1,18 @@
 import asyncio
 import traceback
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from loguru import logger
 from pydantic import BaseModel, Field
 
 from api import ag_ui_agents
+from construction_os.ai.provision import provision_langchain_model
 from construction_os.database.repository import ensure_record_id, repo_query
 from construction_os.domain.artifact import Artifact
-from construction_os.domain.project import ChatSession, Project
+from construction_os.domain.project import ChatSession, Project, Source
 from construction_os.exceptions import (
     NotFoundError,
 )
@@ -19,8 +21,52 @@ from construction_os.utils.graph_utils import (
     get_session_message_count,
     truncate_messages_from_id,
 )
+from construction_os.utils.text_utils import clean_thinking_content, extract_text_content
 
 router = APIRouter()
+
+GUEST_KEY_HEADER = "X-Guest-Key"
+
+
+def _normalize_guest_key(value: Optional[str]) -> Optional[str]:
+    """Treat missing/blank guest keys as owner (None)."""
+    if value is None:
+        return None
+    trimmed = value.strip()
+    return trimmed or None
+
+
+def _session_guest_key(session: ChatSession) -> Optional[str]:
+    return _normalize_guest_key(getattr(session, "guest_key", None))
+
+
+def _assert_session_guest_access(
+    session: ChatSession, request_guest_key: Optional[str]
+) -> None:
+    """Owners see untagged sessions; guests only their own guest_key sessions."""
+    session_key = _session_guest_key(session)
+    request_key = _normalize_guest_key(request_guest_key)
+    if session_key != request_key:
+        raise HTTPException(status_code=403, detail="Session access denied")
+
+
+def _session_response(
+    session: ChatSession,
+    *,
+    project_id: Optional[str],
+    message_count: Optional[int] = None,
+) -> "ChatSessionResponse":
+    return ChatSessionResponse(
+        id=session.id or "",
+        title=session.title or "Untitled Session",
+        project_id=project_id,
+        created=str(session.created),
+        updated=str(session.updated),
+        message_count=message_count,
+        model_override=getattr(session, "model_override", None),
+        skill_ids=getattr(session, "skill_ids", None) or [],
+        guest_key=_session_guest_key(session),
+    )
 
 
 # Request/Response models
@@ -32,6 +78,10 @@ class CreateSessionRequest(BaseModel):
     )
     skill_ids: Optional[List[str]] = Field(
         None, description="Skill IDs selected for this session"
+    )
+    guest_key: Optional[str] = Field(
+        None,
+        description="Optional guest key for shared-chat private sessions",
     )
 
 
@@ -66,6 +116,9 @@ class ChatSessionResponse(BaseModel):
     )
     skill_ids: Optional[List[str]] = Field(
         None, description="Skill IDs selected for this session"
+    )
+    guest_key: Optional[str] = Field(
+        None, description="Guest key when this is a shared-chat session"
     )
 
 
@@ -128,35 +181,162 @@ class SuccessResponse(BaseModel):
     message: str = Field(..., description="Success message")
 
 
-@router.get("/chat/sessions", response_model=List[ChatSessionResponse])
-async def get_sessions(project_id: str = Query(..., description="Project ID")):
-    """Get all chat sessions for a Project."""
+class ChatSuggestionsRequest(BaseModel):
+    scope: Literal["project", "source"] = Field(
+        ..., description="Whether suggestions are for project or source chat"
+    )
+    project_id: Optional[str] = Field(
+        None, description="Project ID (required for project scope)"
+    )
+    source_id: Optional[str] = Field(
+        None, description="Source ID (required for source scope)"
+    )
+    count: int = Field(
+        4, ge=3, le=5, description="Number of suggestions to generate (3–5)"
+    )
+
+
+class ChatSuggestionsResponse(BaseModel):
+    suggestions: List[str] = Field(
+        default_factory=list, description="Suggested user messages"
+    )
+
+
+def _parse_suggestions_json(raw: str, count: int) -> List[str]:
+    """Extract a JSON string array from model output; soft-fail to []."""
+    import json
+    import re
+
+    text = (raw or "").strip()
+    if not text:
+        return []
+
+    # Prefer fenced JSON, then first [...] block
+    fenced = re.search(r"```(?:json)?\s*(\[[\s\S]*?\])\s*```", text, re.IGNORECASE)
+    candidate = fenced.group(1) if fenced else None
+    if not candidate:
+        bracket = re.search(r"\[[\s\S]*\]", text)
+        candidate = bracket.group(0) if bracket else text
+
     try:
-        # Get Project to verify it exists
+        parsed = json.loads(candidate)
+    except json.JSONDecodeError:
+        logger.warning("Chat suggestions: failed to parse model JSON")
+        return []
+
+    if not isinstance(parsed, list):
+        return []
+
+    cleaned: List[str] = []
+    for item in parsed:
+        if isinstance(item, str):
+            s = item.strip()
+            if s:
+                cleaned.append(s)
+        if len(cleaned) >= count:
+            break
+    return cleaned[:count]
+
+
+async def _build_suggestion_context(
+    *,
+    scope: Literal["project", "source"],
+    project_id: Optional[str],
+    source_id: Optional[str],
+) -> str:
+    """Cheap titles/topics/description context — never full_text."""
+    lines: List[str] = []
+
+    if scope == "project":
+        if not project_id:
+            raise HTTPException(status_code=400, detail="project_id is required")
         project = await Project.get(project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
-        # Get sessions for this Project
+        lines.append(f"Project name: {project.name}")
+        if getattr(project, "description", None):
+            lines.append(f"Project description: {project.description}")
+
+        sources = await project.get_sources(include_full_text=False)
+        for source in sources[:12]:
+            title = source.title or "Untitled source"
+            topics = [t for t in (source.topics or []) if t][:6]
+            topic_bit = f" (topics: {', '.join(topics)})" if topics else ""
+            lines.append(f"- Source: {title}{topic_bit}")
+
+        notes = await project.get_notes(include_content=False)
+        for note in notes[:12]:
+            lines.append(f"- Note: {note.title or 'Untitled note'}")
+
+    else:
+        if not source_id:
+            raise HTTPException(status_code=400, detail="source_id is required")
+        source = await Source.get(source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+
+        title = source.title or "Untitled source"
+        topics = [t for t in (source.topics or []) if t][:8]
+        lines.append(f"Source title: {title}")
+        if topics:
+            lines.append(f"Topics: {', '.join(topics)}")
+
+        try:
+            insights = await source.get_insights()
+            types = sorted(
+                {
+                    str(getattr(i, "insight_type", "") or "").strip()
+                    for i in (insights or [])
+                    if getattr(i, "insight_type", None)
+                }
+            )
+            if types:
+                lines.append(f"Insight types: {', '.join(types[:8])}")
+        except Exception as e:
+            logger.debug(f"Skipping insights for suggestion context: {e}")
+
+        if project_id:
+            project = await Project.get(project_id)
+            if project:
+                lines.append(f"Related project: {project.name}")
+
+    return "\n".join(lines) if lines else "No project content titles available yet."
+
+
+@router.get("/chat/sessions", response_model=List[ChatSessionResponse])
+async def get_sessions(
+    project_id: str = Query(..., description="Project ID"),
+    x_guest_key: Optional[str] = Header(None, alias=GUEST_KEY_HEADER),
+):
+    """Get chat sessions for a Project, scoped by optional guest key."""
+    try:
+        guest_key = _normalize_guest_key(x_guest_key)
+        project = await Project.get(project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
         sessions_list = await project.get_chat_sessions()
+        if guest_key:
+            sessions_list = [
+                s for s in sessions_list if _session_guest_key(s) == guest_key
+            ]
+        else:
+            sessions_list = [
+                s for s in sessions_list if _session_guest_key(s) is None
+            ]
 
         results = []
         for session in sessions_list:
             session_id = str(session.id)
-
-            # Get message count from LangGraph state
-            msg_count = await get_session_message_count(chat_graph_module.graph, session_id)
-
+            msg_count = await get_session_message_count(
+                chat_graph_module.graph, session_id
+            )
             results.append(
-                ChatSessionResponse(
-                    id=session.id or "",
-                    title=session.title or "Untitled Session",
+                _session_response(
+                    session,
                     project_id=project_id,
-                    created=str(session.created),
-                    updated=str(session.updated),
                     message_count=msg_count,
-                    model_override=getattr(session, "model_override", None),
-                    skill_ids=getattr(session, "skill_ids", None) or [],
                 )
             )
 
@@ -171,36 +351,32 @@ async def get_sessions(project_id: str = Query(..., description="Project ID")):
 
 
 @router.post("/chat/sessions", response_model=ChatSessionResponse)
-async def create_session(request: CreateSessionRequest):
+async def create_session(
+    request: CreateSessionRequest,
+    x_guest_key: Optional[str] = Header(None, alias=GUEST_KEY_HEADER),
+):
     """Create a new chat session."""
     try:
-        # Verify Project exists
+        guest_key = _normalize_guest_key(x_guest_key) or _normalize_guest_key(
+            request.guest_key
+        )
         project = await Project.get(request.project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
-        # Create new session
+        skill_ids: List[str] = [] if guest_key else list(request.skill_ids or [])
+
         session = ChatSession(
             title=request.title
             or f"Chat Session {asyncio.get_event_loop().time():.0f}",
-            model_override=request.model_override,
-            skill_ids=request.skill_ids or [],
+            model_override=None if guest_key else request.model_override,
+            skill_ids=skill_ids,
+            guest_key=guest_key,
         )
         await session.save()
-
-        # Relate session to Project
         await session.relate_to_project(request.project_id)
 
-        return ChatSessionResponse(
-            id=session.id or "",
-            title=session.title or "",
-            project_id=request.project_id,
-            created=str(session.created),
-            updated=str(session.updated),
-            message_count=0,
-            model_override=session.model_override,
-            skill_ids=session.skill_ids or [],
-        )
+        return _session_response(session, project_id=request.project_id, message_count=0)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Project not found")
     except Exception as e:
@@ -213,11 +389,13 @@ async def create_session(request: CreateSessionRequest):
 @router.get(
     "/chat/sessions/{session_id}", response_model=ChatSessionWithMessagesResponse
 )
-async def get_session(session_id: str):
+async def get_session(
+    session_id: str,
+    x_guest_key: Optional[str] = Header(None, alias=GUEST_KEY_HEADER),
+):
     """Get a specific session with its messages."""
     try:
-        # Get session
-        # Ensure session_id has proper table prefix
+        guest_key = _normalize_guest_key(x_guest_key)
         full_session_id = (
             session_id
             if session_id.startswith("chat_session:")
@@ -227,12 +405,12 @@ async def get_session(session_id: str):
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
 
-        # Get session state from LangGraph to retrieve messages
+        _assert_session_guest_access(session, guest_key)
+
         thread_state = await chat_graph_module.graph.aget_state(
             config=RunnableConfig(configurable={"thread_id": full_session_id}),
         )
 
-        # Extract messages from state
         messages: list[ChatMessage] = []
         if thread_state and thread_state.values and "messages" in thread_state.values:
             for msg in thread_state.values["messages"]:
@@ -241,17 +419,9 @@ async def get_session(session_id: str):
                         id=getattr(msg, "id", f"msg_{len(messages)}"),
                         type=msg.type if hasattr(msg, "type") else "unknown",
                         content=msg.content if hasattr(msg, "content") else str(msg),
-                        timestamp=None,  # LangChain messages don't have timestamps by default
+                        timestamp=None,
                     )
                 )
-
-        # Find project_id (we need to query the relationship)
-        # Ensure session_id has proper table prefix
-        full_session_id = (
-            session_id
-            if session_id.startswith("chat_session:")
-            else f"chat_session:{session_id}"
-        )
 
         project_query = await repo_query(
             "SELECT out FROM refers_to WHERE in = $session_id",
@@ -261,22 +431,19 @@ async def get_session(session_id: str):
         project_id = project_query[0]["out"] if project_query else None
 
         if not project_id:
-            # This might be an old session created before API migration
             logger.warning(
                 f"No Project relationship found for session {session_id} - may be an orphaned session"
             )
 
-        return ChatSessionWithMessagesResponse(
-            id=session.id or "",
-            title=session.title or "Untitled Session",
-            project_id=project_id,
-            created=str(session.created),
-            updated=str(session.updated),
-            message_count=len(messages),
-            messages=messages,
-            model_override=getattr(session, "model_override", None),
-            skill_ids=getattr(session, "skill_ids", None) or [],
+        base = _session_response(
+            session, project_id=project_id, message_count=len(messages)
         )
+        return ChatSessionWithMessagesResponse(
+            **base.model_dump(),
+            messages=messages,
+        )
+    except HTTPException:
+        raise
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Session not found")
     except Exception as e:
@@ -285,10 +452,14 @@ async def get_session(session_id: str):
 
 
 @router.put("/chat/sessions/{session_id}", response_model=ChatSessionResponse)
-async def update_session(session_id: str, request: UpdateSessionRequest):
+async def update_session(
+    session_id: str,
+    request: UpdateSessionRequest,
+    x_guest_key: Optional[str] = Header(None, alias=GUEST_KEY_HEADER),
+):
     """Update session title."""
     try:
-        # Ensure session_id has proper table prefix
+        guest_key = _normalize_guest_key(x_guest_key)
         full_session_id = (
             session_id
             if session_id.startswith("chat_session:")
@@ -298,45 +469,37 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
 
+        _assert_session_guest_access(session, guest_key)
+
         update_data = request.model_dump(exclude_unset=True)
 
         if "title" in update_data:
             session.title = update_data["title"]
 
-        if "model_override" in update_data:
-            session.model_override = update_data["model_override"]
+        if not guest_key:
+            if "model_override" in update_data:
+                session.model_override = update_data["model_override"]
 
-        if "skill_ids" in update_data:
-            session.skill_ids = update_data["skill_ids"] or []
+            if "skill_ids" in update_data:
+                session.skill_ids = update_data["skill_ids"] or []
 
         await session.save()
 
-        # Find project_id
-        # Ensure session_id has proper table prefix
-        full_session_id = (
-            session_id
-            if session_id.startswith("chat_session:")
-            else f"chat_session:{session_id}"
-        )
         project_query = await repo_query(
             "SELECT out FROM refers_to WHERE in = $session_id",
             {"session_id": ensure_record_id(full_session_id)},
         )
         project_id = project_query[0]["out"] if project_query else None
 
-        # Get message count from LangGraph state
-        msg_count = await get_session_message_count(chat_graph_module.graph, full_session_id)
-
-        return ChatSessionResponse(
-            id=session.id or "",
-            title=session.title or "",
-            project_id=project_id,
-            created=str(session.created),
-            updated=str(session.updated),
-            message_count=msg_count,
-            model_override=session.model_override,
-            skill_ids=session.skill_ids or [],
+        msg_count = await get_session_message_count(
+            chat_graph_module.graph, full_session_id
         )
+
+        return _session_response(
+            session, project_id=project_id, message_count=msg_count
+        )
+    except HTTPException:
+        raise
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Session not found")
     except Exception as e:
@@ -345,10 +508,13 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
 
 
 @router.delete("/chat/sessions/{session_id}", response_model=SuccessResponse)
-async def delete_session(session_id: str):
+async def delete_session(
+    session_id: str,
+    x_guest_key: Optional[str] = Header(None, alias=GUEST_KEY_HEADER),
+):
     """Delete a chat session."""
     try:
-        # Ensure session_id has proper table prefix
+        guest_key = _normalize_guest_key(x_guest_key)
         full_session_id = (
             session_id
             if session_id.startswith("chat_session:")
@@ -358,9 +524,13 @@ async def delete_session(session_id: str):
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
 
+        _assert_session_guest_access(session, guest_key)
+
         await session.delete()
 
         return SuccessResponse(success=True, message="Session deleted successfully")
+    except HTTPException:
+        raise
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Session not found")
     except Exception as e:
@@ -369,11 +539,13 @@ async def delete_session(session_id: str):
 
 
 @router.post("/chat/execute")
-async def execute_chat(request: ExecuteChatRequest):
+async def execute_chat(
+    request: ExecuteChatRequest,
+    x_guest_key: Optional[str] = Header(None, alias=GUEST_KEY_HEADER),
+):
     """Execute a chat request and stream AG-UI events."""
     try:
-        # Verify session exists
-        # Ensure session_id has proper table prefix
+        guest_key = _normalize_guest_key(x_guest_key)
         full_session_id = (
             request.session_id
             if request.session_id.startswith("chat_session:")
@@ -383,7 +555,8 @@ async def execute_chat(request: ExecuteChatRequest):
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
 
-        # Fetch Project linked to this session
+        _assert_session_guest_access(session, guest_key)
+
         project_query = await repo_query(
             "SELECT out FROM refers_to WHERE in = $session_id",
             {"session_id": ensure_record_id(full_session_id)},
@@ -401,20 +574,41 @@ async def execute_chat(request: ExecuteChatRequest):
                     "description": getattr(project, "description", None),
                 }
 
-        # Determine model override (per-request override takes precedence over session-level)
-        model_override = (
-            request.model_override
-            if request.model_override is not None
-            else getattr(session, "model_override", None)
-        )
-
-        # Resolve skills: request wins when provided; otherwise use session-stored selection
-        # Skills are loaded inside the graph (loading_skills step) so AG-UI can stream it.
-        if request.skill_ids is not None:
-            skill_ids = list(request.skill_ids)
-            session.skill_ids = skill_ids
+        if guest_key:
+            model_override = None
+            skill_ids: List[str] = []
+            session.skill_ids = []
+            mcp_tool_ids: List[str] = []
+            artifact_id = None
+            artifact_meta = None
         else:
-            skill_ids = list(getattr(session, "skill_ids", None) or [])
+            model_override = (
+                request.model_override
+                if request.model_override is not None
+                else getattr(session, "model_override", None)
+            )
+
+            if request.skill_ids is not None:
+                skill_ids = list(request.skill_ids)
+                session.skill_ids = skill_ids
+            else:
+                skill_ids = list(getattr(session, "skill_ids", None) or [])
+
+            mcp_tool_ids = list(request.mcp_tool_ids or [])
+            artifact_id = request.artifact_id
+            artifact_meta = None
+            if artifact_id:
+                artifact = await Artifact.get(artifact_id)
+                if artifact:
+                    artifact_meta = {
+                        "id": artifact.id,
+                        "name": artifact.name,
+                        "title": artifact.title,
+                        "description": artifact.description,
+                        "prompt": artifact.prompt,
+                    }
+                else:
+                    artifact_id = None
 
         if request.edit_message_id:
             try:
@@ -428,20 +622,7 @@ async def execute_chat(request: ExecuteChatRequest):
             except ValueError as e:
                 raise HTTPException(status_code=400, detail=str(e)) from e
 
-        # Update session timestamp (and skill_ids if changed) before streaming
         await session.save()
-
-        artifact_meta = None
-        if request.artifact_id:
-            artifact = await Artifact.get(request.artifact_id)
-            if artifact:
-                artifact_meta = {
-                    "id": artifact.id,
-                    "name": artifact.name,
-                    "title": artifact.title,
-                    "description": artifact.description,
-                    "prompt": artifact.prompt,
-                }
 
         run_input = ag_ui_agents.build_run_input(
             thread_id=full_session_id,
@@ -454,9 +635,9 @@ async def execute_chat(request: ExecuteChatRequest):
                 "project": project_meta,
                 "model_override": model_override,
                 "skill_ids": skill_ids,
-                "mcp_tool_ids": list(request.mcp_tool_ids or []),
+                "mcp_tool_ids": mcp_tool_ids,
                 "session_id": full_session_id,
-                "artifact_id": request.artifact_id if artifact_meta else None,
+                "artifact_id": artifact_id if artifact_meta else None,
                 "artifact": artifact_meta,
             },
         )
@@ -471,7 +652,6 @@ async def execute_chat(request: ExecuteChatRequest):
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Session not found")
     except Exception as e:
-        # Log detailed error with context for debugging
         logger.error(
             f"Error executing chat: {str(e)}\n"
             f"  Session ID: {request.session_id}\n"
@@ -505,7 +685,6 @@ async def build_context(request: BuildContextRequest):
         source_pool = eligible_source_ids(context_config)
         note_pool = eligible_note_ids(context_config)
 
-        # Lightweight pool metadata for the client (ids only — not full dumps).
         context_data: dict[str, list[dict[str, str]]] = {
             "sources": [{"id": sid} for sid in sorted(source_pool)],
             "notes": [{"id": nid} for nid in sorted(note_pool)],
@@ -516,7 +695,6 @@ async def build_context(request: BuildContextRequest):
             note_pool_size=len(note_pool),
             max_tokens=CHAT_CONTEXT_MAX_TOKENS,
         )
-        # Approximate chars from token estimate for legacy UI fields.
         char_count = estimated_tokens * 4
 
         return BuildContextResponse(
@@ -529,3 +707,51 @@ async def build_context(request: BuildContextRequest):
     except Exception as e:
         logger.error(f"Error building context: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error building context: {str(e)}")
+
+
+@router.post("/chat/suggestions", response_model=ChatSuggestionsResponse)
+async def get_chat_suggestions(request: ChatSuggestionsRequest):
+    """Generate short LLM starter prompts grounded in project/source titles."""
+    try:
+        context_text = await _build_suggestion_context(
+            scope=request.scope,
+            project_id=request.project_id,
+            source_id=request.source_id,
+        )
+
+        count = request.count
+        scope_label = "project knowledge base" if request.scope == "project" else "source"
+        system_prompt = (
+            f"You help users start a chat about a construction research {scope_label}. "
+            f"Using ONLY the titles/topics/metadata below (never invent documents), "
+            f"propose {count} short, actionable example user messages they could send. "
+            "Requirements:\n"
+            f"- Return ONLY a JSON array of {count} strings (no prose, no markdown).\n"
+            "- Each string is a complete user message, under 120 characters.\n"
+            "- Diversify intents: summarize, compare, find risks/issues, explain a topic, next steps.\n"
+            "- Ground wording in the listed titles/topics when possible.\n"
+            "- If little content exists, still return useful generic research questions for this chat."
+        )
+        payload = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=context_text),
+        ]
+        # Use default chat model (cheap short call) — not artifact/prompt_graph defaults
+        model = await provision_langchain_model(
+            str(payload),
+            None,
+            "chat",
+            max_tokens=800,
+        )
+        response = await model.ainvoke(payload)
+        raw_output = clean_thinking_content(extract_text_content(response.content))
+        suggestions = _parse_suggestions_json(raw_output, count)
+        return ChatSuggestionsResponse(suggestions=suggestions)
+    except HTTPException:
+        raise
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Error generating chat suggestions: {str(e)}")
+        # Soft degrade — empty list keeps the chat usable
+        return ChatSuggestionsResponse(suggestions=[])

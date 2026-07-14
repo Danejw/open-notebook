@@ -42,6 +42,9 @@ import {
   ActiveArtifactBar,
   buildArtifactTriggerMessage,
 } from '@/components/projects/ActiveArtifactBar'
+import { ChatSuggestionPills } from '@/components/source/ChatSuggestionPills'
+import { useChatSuggestions } from '@/lib/hooks/useChatSuggestions'
+import { useChatUiStore } from '@/lib/stores/chat-ui-store'
 
 interface ProjectContextStats {
   sourcesInsights: number
@@ -74,6 +77,12 @@ interface ChatPanelProps {
   contextType?: 'source' | 'project'
   projectContextStats?: ProjectContextStats
   projectId?: string
+  /** Source chat id — enables source-scoped suggestion pills */
+  sourceId?: string
+  /** Shared-chat guest key for suggestion API scoping */
+  guestKey?: string | null
+  /** When false, suggestion pills are disabled */
+  enableSuggestions?: boolean
   selectedSkillIds?: string[]
   onSkillIdsChange?: (ids: string[]) => void
   // MCP tools selection (transient per message)
@@ -86,6 +95,11 @@ interface ChatPanelProps {
   autoSendArtifactKey?: number
   /** Optional trailing header actions (e.g. column collapse control) */
   headerActions?: ReactNode
+  /**
+   * `column` — compact project-panel chrome.
+   * `immersive` — full-bleed shared/chat surfaces with roomier header & message spacing.
+   */
+  variant?: 'column' | 'immersive'
 }
 
 export function ChatPanel({
@@ -109,6 +123,9 @@ export function ChatPanel({
   contextType = 'source',
   projectContextStats,
   projectId,
+  sourceId,
+  guestKey = null,
+  enableSuggestions = true,
   selectedSkillIds,
   onSkillIdsChange,
   selectedMcpToolIds,
@@ -119,6 +136,7 @@ export function ChatPanel({
   noteSaveTitle,
   autoSendArtifactKey = 0,
   headerActions,
+  variant = 'column',
 }: ChatPanelProps) {
   const { t } = useTranslation()
   const chatInputId = useId()
@@ -147,6 +165,24 @@ export function ChatPanel({
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState('')
   const { openModal } = useModalManager()
+
+  const suggestionsCollapsed = useChatUiStore((s) => s.suggestionsCollapsed)
+  const setSuggestionsCollapsed = useChatUiStore((s) => s.setSuggestionsCollapsed)
+
+  const {
+    suggestions,
+    isLoading: suggestionsLoading,
+    recordSuggestionUsed,
+    recordManualSend,
+  } = useChatSuggestions({
+    scope: contextType === 'project' ? 'project' : 'source',
+    projectId: projectId ?? null,
+    sourceId: sourceId ?? null,
+    sessionId: currentSessionId ?? null,
+    messageCount: messages.length,
+    enabled: enableSuggestions && !suggestionsCollapsed,
+    guestKey,
+  })
 
   useEffect(() => {
     if (!activeArtifact) {
@@ -222,10 +258,21 @@ export function ChatPanel({
 
   const handleSend = () => {
     if (input.trim() && !isStreaming) {
+      recordManualSend()
       onSendMessage(input.trim(), modelOverride)
       setInput('')
     }
   }
+
+  const handleSuggestionSelect = useCallback(
+    (suggestion: string) => {
+      if (isStreaming || !suggestion.trim()) return
+      recordSuggestionUsed()
+      onSendMessage(suggestion.trim(), modelOverride)
+      setInput('')
+    },
+    [isStreaming, modelOverride, onSendMessage, recordSuggestionUsed]
+  )
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -235,6 +282,7 @@ export function ChatPanel({
   }
 
   const keyHint = 'Enter'
+  const isImmersive = variant === 'immersive'
   const resolvedTitle =
     title ||
     (contextType === 'source'
@@ -243,9 +291,23 @@ export function ChatPanel({
 
   return (
     <>
-      <Card className={columnCardClassName}>
+      <Card
+        className={cn(
+          columnCardClassName,
+          isImmersive &&
+            'rounded-none border-0 bg-transparent shadow-none ring-0'
+        )}
+      >
         <ColumnHeader
           title={resolvedTitle}
+          className={
+            isImmersive
+              ? 'gap-3 border-border/60 px-5 py-4 sm:px-6 sm:py-5'
+              : undefined
+          }
+          titleClassName={
+            isImmersive ? 'text-lg font-semibold leading-snug tracking-tight sm:text-xl' : undefined
+          }
           actions={
             (onSelectSession && onCreateSession && onDeleteSession) || headerActions ? (
               <>
@@ -302,9 +364,20 @@ export function ChatPanel({
             onCancelEdit={cancelEditingMessage}
             onSubmitEdit={submitEditedMessage}
             onEditKeyDown={handleEditKeyDown}
+            className={
+              isImmersive
+                ? 'px-4 pt-5 sm:px-6 sm:pt-6 md:px-10 lg:px-14'
+                : undefined
+            }
+            contentClassName={isImmersive ? 'gap-3' : undefined}
             emptyState={
-              <div className="px-2 py-3 text-center text-muted-foreground">
-                <p className="text-sm">
+              <div
+                className={cn(
+                  'text-center text-muted-foreground',
+                  isImmersive ? 'px-2 py-10' : 'px-2 py-3'
+                )}
+              >
+                <p className={cn(isImmersive ? 'text-base' : 'text-sm')}>
                   {t('chat.startConversation').replace(
                     '{type}',
                     contextType === 'source' ? t('navigation.sources') : t('common.project')
@@ -367,8 +440,27 @@ export function ChatPanel({
           ) : null}
 
           {/* Input: model + composer on one compact strip */}
-          <div className={columnFooterClassName}>
-            <div className="flex items-end gap-1 min-w-0">
+          <div
+            className={cn(
+              columnFooterClassName,
+              isImmersive &&
+                'border-border/60 px-4 py-3 sm:px-6 sm:py-4 md:px-10 lg:px-14'
+            )}
+          >
+            {!input.trim() &&
+            !isStreaming &&
+            enableSuggestions &&
+            (!suggestionsCollapsed || messages.length === 0) ? (
+              <ChatSuggestionPills
+                suggestions={suggestions}
+                isLoading={suggestionsLoading}
+                disabled={isStreaming}
+                collapsed={suggestionsCollapsed}
+                onCollapsedChange={setSuggestionsCollapsed}
+                onSelect={handleSuggestionSelect}
+              />
+            ) : null}
+            <div className={cn('flex min-w-0 items-end', isImmersive ? 'gap-2' : 'gap-1')}>
               {onModelChange && (
                 <ModelSelector
                   currentModel={modelOverride}
@@ -403,14 +495,22 @@ export function ChatPanel({
                     : `${t('chat.sendPlaceholder')} (${keyHint})`
                 }
                 disabled={isStreaming}
-                className="min-h-[32px] max-h-[88px] flex-1 resize-none px-2 py-1 text-sm min-w-0"
+                className={cn(
+                  'max-h-[88px] flex-1 resize-none text-sm min-w-0',
+                  isImmersive
+                    ? 'min-h-[44px] rounded-xl px-3 py-2.5'
+                    : 'min-h-[32px] px-2 py-1'
+                )}
                 rows={1}
               />
               <Button
                 onClick={handleSend}
                 disabled={!input.trim() || isStreaming}
                 size="icon"
-                className="h-8 w-8 flex-shrink-0"
+                className={cn(
+                  'flex-shrink-0',
+                  isImmersive ? 'h-11 w-11 rounded-xl' : 'h-8 w-8'
+                )}
               >
                 {isStreaming ? (
                   <InlineSkeleton />

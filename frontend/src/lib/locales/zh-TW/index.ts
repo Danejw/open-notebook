@@ -462,6 +462,14 @@ export const zhTW = {
     processingSource: "正在處理您的來源，請稍候...",
     maxFilesAllowed: "每批最多允許 {count} 個檔案",
   },
+  share: {
+    projectNotFound: "找不到專案",
+    chatTitle: "共享聊天",
+    loading: "正在載入共享聊天...",
+    copyLink: "複製分享連結",
+    linkCopied: "分享連結已複製",
+    linkCopyFailed: "複製分享連結失敗",
+  },
   chat: {
     sessions: "對話",
     sessionTitlePlaceholder: "在此輸入標題...",
@@ -493,6 +501,10 @@ export const zhTW = {
     artifactSendPlaceholder: "Send to generate this artifact from project context...",
     saveArtifactToNotes: "Save artifact to notes",
     saveAsArtifact: "Save as artifact",
+    suggestionsLabel: "建議訊息",
+    suggestionsLoading: "正在載入建議...",
+    suggestionsCollapse: "Hide suggestions",
+    suggestionsExpand: "Show suggestions",
   },
   searchPage: {
     askAndSearch: "提問與搜尋",

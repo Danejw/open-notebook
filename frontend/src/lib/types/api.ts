@@ -155,6 +155,7 @@ export interface BaseChatSession {
   message_count?: number
   model_override?: string | null
   skill_ids?: string[] | null
+  guest_key?: string | null
 }
 
 export interface SourceChatSession extends BaseChatSession {
@@ -229,6 +230,7 @@ export interface CreateProjectChatSessionRequest {
   title?: string
   model_override?: string
   skill_ids?: string[]
+  guest_key?: string
 }
 
 export interface UpdateProjectChatSessionRequest {
@@ -271,4 +273,15 @@ export interface BuildContextResponse {
   }
   token_count: number
   char_count: number
+}
+
+export interface ChatSuggestionsRequest {
+  scope: 'project' | 'source'
+  project_id?: string
+  source_id?: string
+  count?: number
+}
+
+export interface ChatSuggestionsResponse {
+  suggestions: string[]
 }

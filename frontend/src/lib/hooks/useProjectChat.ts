@@ -37,9 +37,21 @@ interface UseProjectChatParams {
   notes: NoteResponse[]
   contextSelections: ContextSelections
   activeArtifactId?: string | null
+  /** Shared-chat guest identity; scopes sessions and API calls. */
+  guestKey?: string | null
+  /** When true: no skills, tools, model override, or artifacts. */
+  sharedMode?: boolean
 }
 
-export function useProjectChat({ projectId, sources, notes, contextSelections, activeArtifactId }: UseProjectChatParams) {
+export function useProjectChat({
+  projectId,
+  sources,
+  notes,
+  contextSelections,
+  activeArtifactId,
+  guestKey = null,
+  sharedMode = false,
+}: UseProjectChatParams) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
@@ -57,6 +69,10 @@ export function useProjectChat({ projectId, sources, notes, contextSelections, a
   const [liveMcpToolCalls, setLiveMcpToolCalls] = useState<ChatToolCall[]>([])
   const streamContentRef = useRef<Map<string, string>>(new Map())
   const streamRafRef = useRef<number | null>(null)
+
+  const sessionsQueryKey = QUERY_KEYS.projectChatSessions(projectId, guestKey)
+  const sessionQueryKey = (sessionId: string) =>
+    QUERY_KEYS.projectChatSession(sessionId, guestKey)
 
   const flushStreamingContent = useCallback(() => {
     streamRafRef.current = null
@@ -90,9 +106,9 @@ export function useProjectChat({ projectId, sources, notes, contextSelections, a
     isLoading: loadingSessions,
     refetch: refetchSessions
   } = useQuery({
-    queryKey: QUERY_KEYS.projectChatSessions(projectId),
-    queryFn: () => chatApi.listSessions(projectId),
-    enabled: !!projectId
+    queryKey: sessionsQueryKey,
+    queryFn: () => chatApi.listSessions(projectId, guestKey),
+    enabled: !!projectId && (!sharedMode || !!guestKey),
   })
 
   // Fetch current session with messages
@@ -100,9 +116,9 @@ export function useProjectChat({ projectId, sources, notes, contextSelections, a
     data: currentSession,
     refetch: refetchCurrentSession
   } = useQuery({
-    queryKey: QUERY_KEYS.projectChatSession(currentSessionId!),
-    queryFn: () => chatApi.getSession(currentSessionId!),
-    enabled: !!projectId && !!currentSessionId
+    queryKey: sessionQueryKey(currentSessionId!),
+    queryFn: () => chatApi.getSession(currentSessionId!, guestKey),
+    enabled: !!projectId && !!currentSessionId && (!sharedMode || !!guestKey),
   })
 
   // Update messages when current session changes
@@ -114,6 +130,11 @@ export function useProjectChat({ projectId, sources, notes, contextSelections, a
 
   // Restore skill selection from the active session (or pending selection)
   useEffect(() => {
+    if (sharedMode) {
+      setSelectedSkillIdsState([])
+      setSelectedMcpToolIdsState([])
+      return
+    }
     if (!currentSessionId) {
       setSelectedSkillIdsState(pendingSkillIds ?? [])
       return
@@ -125,7 +146,7 @@ export function useProjectChat({ projectId, sources, notes, contextSelections, a
     if (currentSession) {
       setSelectedSkillIdsState(currentSession.skill_ids ?? [])
     }
-  }, [currentSession, currentSessionId, pendingSkillIds])
+  }, [currentSession, currentSessionId, pendingSkillIds, sharedMode])
 
   // Auto-select most recent session when sessions are loaded
   useEffect(() => {
@@ -142,21 +163,26 @@ export function useProjectChat({ projectId, sources, notes, contextSelections, a
     if (!firstSession) return
 
     void queryClient.prefetchQuery({
-      queryKey: QUERY_KEYS.projectChatSession(firstSession.id),
-      queryFn: () => chatApi.getSession(firstSession.id),
+      queryKey: sessionQueryKey(firstSession.id),
+      queryFn: () => chatApi.getSession(firstSession.id, guestKey),
     })
-  }, [sessions, queryClient])
+  }, [sessions, queryClient, guestKey])
 
   // Create session mutation
   const createSessionMutation = useMutation({
     mutationFn: (data: CreateProjectChatSessionRequest) =>
-      chatApi.createSession(data),
+      chatApi.createSession(
+        sharedMode ? { ...data, skill_ids: [], model_override: undefined } : data,
+        guestKey
+      ),
     onSuccess: (newSession) => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.projectChatSessions(projectId)
+        queryKey: sessionsQueryKey,
       })
       setCurrentSessionId(newSession.id)
-      toast.success(t('chat.sessionCreated'))
+      if (!sharedMode) {
+        toast.success(t('chat.sessionCreated'))
+      }
     },
     onError: (err: unknown) => {
       const error = err as { response?: { data?: { detail?: string } }, message?: string };
@@ -169,13 +195,13 @@ export function useProjectChat({ projectId, sources, notes, contextSelections, a
     mutationFn: ({ sessionId, data }: {
       sessionId: string
       data: UpdateProjectChatSessionRequest
-    }) => chatApi.updateSession(sessionId, data),
+    }) => chatApi.updateSession(sessionId, data, guestKey),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.projectChatSessions(projectId)
+        queryKey: sessionsQueryKey,
       })
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.projectChatSession(currentSessionId!)
+        queryKey: sessionQueryKey(currentSessionId!),
       })
       toast.success(t('chat.sessionUpdated'))
     },
@@ -188,10 +214,10 @@ export function useProjectChat({ projectId, sources, notes, contextSelections, a
   // Delete session mutation
   const deleteSessionMutation = useMutation({
     mutationFn: (sessionId: string) =>
-      chatApi.deleteSession(sessionId),
+      chatApi.deleteSession(sessionId, guestKey),
     onSuccess: (_, deletedId) => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.projectChatSessions(projectId)
+        queryKey: sessionsQueryKey,
       })
       if (currentSessionId === deletedId) {
         setCurrentSessionId(null)
@@ -267,16 +293,17 @@ export function useProjectChat({ projectId, sources, notes, contextSelections, a
         const newSession = await chatApi.createSession({
           project_id: projectId,
           title: defaultTitle,
-          model_override: pendingModelOverride ?? undefined,
-          skill_ids: selectedSkillIds,
-        })
+          model_override: sharedMode ? undefined : (pendingModelOverride ?? undefined),
+          skill_ids: sharedMode ? [] : selectedSkillIds,
+          guest_key: guestKey ?? undefined,
+        }, guestKey)
         sessionId = newSession.id
         setCurrentSessionId(sessionId)
         // Clear pending overrides now that they're applied to the session
         setPendingModelOverride(null)
         setPendingSkillIds(null)
         queryClient.invalidateQueries({
-          queryKey: QUERY_KEYS.projectChatSessions(projectId)
+          queryKey: sessionsQueryKey,
         })
       } catch (err: unknown) {
         const error = err as { response?: { data?: { detail?: string } }, message?: string };
@@ -317,12 +344,14 @@ export function useProjectChat({ projectId, sources, notes, contextSelections, a
         session_id: sessionId,
         message,
         context_config,
-        model_override: modelOverride ?? (currentSession?.model_override ?? undefined),
-        skill_ids: selectedSkillIds,
-        mcp_tool_ids: selectedMcpToolIds,
+        model_override: sharedMode
+          ? undefined
+          : (modelOverride ?? (currentSession?.model_override ?? undefined)),
+        skill_ids: sharedMode ? [] : selectedSkillIds,
+        mcp_tool_ids: sharedMode ? [] : selectedMcpToolIds,
         edit_message_id: editMessageId,
-        artifact_id: activeArtifactId ?? undefined,
-      })
+        artifact_id: sharedMode ? undefined : (activeArtifactId ?? undefined),
+      }, guestKey)
 
       let aiMessageId: string | null = null
 
@@ -462,7 +491,10 @@ export function useProjectChat({ projectId, sources, notes, contextSelections, a
     flushStreamingContent,
     refetchCurrentSession,
     queryClient,
-    t
+    t,
+    guestKey,
+    sharedMode,
+    sessionsQueryKey,
   ])
 
   const editAndResend = useCallback(async (messageId: string, content: string, modelOverride?: string) => {
@@ -484,9 +516,10 @@ export function useProjectChat({ projectId, sources, notes, contextSelections, a
     return createSessionMutation.mutate({
       project_id: projectId,
       title,
-      skill_ids: selectedSkillIds,
+      skill_ids: sharedMode ? [] : selectedSkillIds,
+      guest_key: guestKey ?? undefined,
     })
-  }, [createSessionMutation, projectId, selectedSkillIds])
+  }, [createSessionMutation, projectId, selectedSkillIds, sharedMode, guestKey])
 
   // Update session
   const updateSession = useCallback((sessionId: string, data: UpdateProjectChatSessionRequest) => {
@@ -503,6 +536,9 @@ export function useProjectChat({ projectId, sources, notes, contextSelections, a
 
   // Set model override - handles both existing sessions and pending state
   const setModelOverride = useCallback((model: string | null) => {
+    if (sharedMode) {
+      return
+    }
     if (currentSessionId) {
       // Session exists - update it directly
       updateSessionMutation.mutate({
@@ -513,20 +549,24 @@ export function useProjectChat({ projectId, sources, notes, contextSelections, a
       // No session yet - store as pending
       setPendingModelOverride(model)
     }
-  }, [currentSessionId, updateSessionMutation])
+  }, [currentSessionId, sharedMode, updateSessionMutation])
 
   // Persist skill selection on the session so it survives across messages
   const setSelectedSkillIds = useCallback((ids: string[]) => {
+    if (sharedMode) {
+      setSelectedSkillIdsState([])
+      return
+    }
     setSelectedSkillIdsState(ids)
     if (currentSessionId) {
       void (async () => {
         try {
-          await chatApi.updateSession(currentSessionId, { skill_ids: ids })
+          await chatApi.updateSession(currentSessionId, { skill_ids: ids }, guestKey)
           queryClient.invalidateQueries({
-            queryKey: QUERY_KEYS.projectChatSessions(projectId),
+            queryKey: sessionsQueryKey,
           })
           queryClient.invalidateQueries({
-            queryKey: QUERY_KEYS.projectChatSession(currentSessionId),
+            queryKey: sessionQueryKey(currentSessionId),
           })
         } catch (err: unknown) {
           const error = err as { response?: { data?: { detail?: string } }, message?: string }
@@ -537,11 +577,15 @@ export function useProjectChat({ projectId, sources, notes, contextSelections, a
     } else {
       setPendingSkillIds(ids)
     }
-  }, [currentSessionId, projectId, queryClient, t])
+  }, [currentSessionId, guestKey, queryClient, sessionsQueryKey, sharedMode, t])
 
   const setSelectedMcpToolIds = useCallback((ids: string[]) => {
+    if (sharedMode) {
+      setSelectedMcpToolIdsState([])
+      return
+    }
     setSelectedMcpToolIdsState(ids)
-  }, [])
+  }, [sharedMode])
 
   // Update token/char counts when context selections change (debounced)
   useEffect(() => {

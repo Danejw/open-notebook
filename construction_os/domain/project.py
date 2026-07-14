@@ -694,10 +694,11 @@ class Note(ObjectModel):
 
 class ChatSession(ObjectModel):
     table_name: ClassVar[str] = "chat_session"
-    nullable_fields: ClassVar[set[str]] = {"model_override", "skill_ids"}
+    nullable_fields: ClassVar[set[str]] = {"model_override", "skill_ids", "guest_key"}
     title: Optional[str] = None
     model_override: Optional[str] = None
     skill_ids: Optional[List[str]] = None
+    guest_key: Optional[str] = None
 
     async def relate_to_project(self, project_id: str) -> Any:
         if not project_id:

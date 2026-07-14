@@ -5,12 +5,14 @@ const INTERNAL_API_URL = process.env.INTERNAL_API_URL || 'http://localhost:5055'
 export async function sseProxy(req: NextRequest, upstreamPath: string) {
   const body = await req.text()
   const auth = req.headers.get('authorization')
+  const guestKey = req.headers.get('x-guest-key')
 
   const upstream = await fetch(`${INTERNAL_API_URL}${upstreamPath}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(auth ? { Authorization: auth } : {}),
+      ...(guestKey ? { 'X-Guest-Key': guestKey } : {}),
       Accept: 'text/event-stream',
     },
     body,

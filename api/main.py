@@ -22,6 +22,7 @@ from api.routers import (
     embedding,
     embedding_rebuild,
     episode_profiles,
+    html_documents,
     insights,
     knowledge_graph,
     knowledge_graph_viz,
@@ -340,6 +341,7 @@ app.include_router(projects.router, prefix="/api", tags=["projects"])
 app.include_router(search.router, prefix="/api", tags=["search"])
 app.include_router(models.router, prefix="/api", tags=["models"])
 app.include_router(artifacts.router, prefix="/api", tags=["artifacts"])
+app.include_router(html_documents.router, prefix="/api", tags=["html-documents"])
 app.include_router(skills.router, prefix="/api", tags=["skills"])
 app.include_router(mcp.router, prefix="/api", tags=["mcp"])
 app.include_router(notes.router, prefix="/api", tags=["notes"])

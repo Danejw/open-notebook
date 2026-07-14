@@ -748,3 +748,63 @@ class ProjectDeleteResponse(BaseModel):
     unlinked_sources: int = Field(
         ..., description="Number of sources unlinked from Project"
     )
+
+
+# --- HTML-native bid documents ---
+
+
+class HtmlTemplateCreate(BaseModel):
+    name: str = Field(..., description="Template display name")
+    category: str = Field("estimate", description="estimate | sow | rfi | other")
+    html_body: str = Field(..., description="Full HTML template body")
+
+
+class HtmlTemplateUpdate(BaseModel):
+    name: Optional[str] = None
+    category: Optional[str] = None
+    html_body: Optional[str] = None
+
+
+class HtmlTemplateResponse(BaseModel):
+    id: str
+    name: str
+    category: str
+    html_body: str
+    created: str
+    updated: str
+
+
+class DocumentCreate(BaseModel):
+    template_id: str = Field(..., description="HtmlTemplate id to copy from")
+    title: Optional[str] = Field(None, description="Document title; defaults to template name")
+    scenario_label: str = Field("Base", description="Scenario label")
+
+
+class DocumentUpdate(BaseModel):
+    title: Optional[str] = None
+    scenario_label: Optional[str] = None
+    html_body: Optional[str] = None
+    span_updates: Optional[Dict[int, str]] = Field(
+        None, description="Page/Amounts span index → text replacements"
+    )
+    allow_structure_change: bool = Field(
+        False,
+        description="True when Code view saves full HTML (may change span structure)",
+    )
+
+
+class DocumentDuplicateRequest(BaseModel):
+    scenario_label: str = Field(..., description="Label for the new scenario copy")
+    title: Optional[str] = None
+
+
+class DocumentResponse(BaseModel):
+    id: str
+    project_id: str
+    template_id: Optional[str] = None
+    title: str
+    scenario_label: str
+    html_body: str
+    parent_document_id: Optional[str] = None
+    created: str
+    updated: str

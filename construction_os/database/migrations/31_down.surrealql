@@ -1,0 +1,3 @@
+REMOVE TABLE IF EXISTS document;
+REMOVE TABLE IF EXISTS html_template;
+RETURN true;

@@ -1,0 +1,19 @@
+-- HTML-native bid document templates and project documents
+DEFINE TABLE IF NOT EXISTS html_template SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS name ON TABLE html_template TYPE string;
+DEFINE FIELD IF NOT EXISTS category ON TABLE html_template TYPE string;
+DEFINE FIELD IF NOT EXISTS html_body ON TABLE html_template TYPE string;
+DEFINE FIELD IF NOT EXISTS created ON TABLE html_template TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS updated ON TABLE html_template TYPE option<datetime>;
+
+DEFINE TABLE IF NOT EXISTS document SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS project_id ON TABLE document TYPE string;
+DEFINE FIELD IF NOT EXISTS template_id ON TABLE document TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS title ON TABLE document TYPE string;
+DEFINE FIELD IF NOT EXISTS scenario_label ON TABLE document TYPE string;
+DEFINE FIELD IF NOT EXISTS html_body ON TABLE document TYPE string;
+DEFINE FIELD IF NOT EXISTS parent_document_id ON TABLE document TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created ON TABLE document TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS updated ON TABLE document TYPE option<datetime>;
+DEFINE INDEX IF NOT EXISTS idx_document_project ON TABLE document COLUMNS project_id;
+RETURN true;

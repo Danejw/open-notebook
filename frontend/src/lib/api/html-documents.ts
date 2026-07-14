@@ -1,0 +1,112 @@
+import apiClient from '@/lib/api/client'
+import { sanitizeExportFilename } from '@/lib/utils/export-note'
+import type {
+  BidDocument,
+  CreateBidDocumentRequest,
+  CreateHtmlTemplateRequest,
+  DuplicateBidDocumentRequest,
+  HtmlTemplate,
+  UpdateBidDocumentRequest,
+  UpdateHtmlTemplateRequest,
+} from '@/lib/types/html-documents'
+
+function parseFilenameFromDisposition(header?: string): string | null {
+  if (!header) return null
+  const utf8Match = /filename\*=UTF-8''([^;]+)/i.exec(header)
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1])
+    } catch {
+      return utf8Match[1]
+    }
+  }
+  const plainMatch = /filename="?([^";]+)"?/i.exec(header)
+  return plainMatch?.[1] ?? null
+}
+
+function triggerBlobDownload(blob: Blob, filename: string) {
+  const blobUrl = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = blobUrl
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(blobUrl)
+}
+
+export const htmlDocumentsApi = {
+  listTemplates: async () => {
+    const response = await apiClient.get<HtmlTemplate[]>('/templates/html')
+    return response.data
+  },
+
+  getTemplate: async (id: string) => {
+    const response = await apiClient.get<HtmlTemplate>(`/templates/html/${id}`)
+    return response.data
+  },
+
+  createTemplate: async (data: CreateHtmlTemplateRequest) => {
+    const response = await apiClient.post<HtmlTemplate>('/templates/html', data)
+    return response.data
+  },
+
+  updateTemplate: async (id: string, data: UpdateHtmlTemplateRequest) => {
+    const response = await apiClient.patch<HtmlTemplate>(`/templates/html/${id}`, data)
+    return response.data
+  },
+
+  deleteTemplate: async (id: string) => {
+    await apiClient.delete(`/templates/html/${id}`)
+  },
+
+  listDocuments: async (projectId: string) => {
+    const response = await apiClient.get<BidDocument[]>(
+      `/projects/${projectId}/documents`
+    )
+    return response.data
+  },
+
+  getDocument: async (id: string) => {
+    const response = await apiClient.get<BidDocument>(`/documents/${id}`)
+    return response.data
+  },
+
+  createDocument: async (projectId: string, data: CreateBidDocumentRequest) => {
+    const response = await apiClient.post<BidDocument>(
+      `/projects/${projectId}/documents`,
+      data
+    )
+    return response.data
+  },
+
+  updateDocument: async (id: string, data: UpdateBidDocumentRequest) => {
+    const response = await apiClient.patch<BidDocument>(`/documents/${id}`, data)
+    return response.data
+  },
+
+  duplicateDocument: async (id: string, data: DuplicateBidDocumentRequest) => {
+    const response = await apiClient.post<BidDocument>(
+      `/documents/${id}/duplicate`,
+      data
+    )
+    return response.data
+  },
+
+  deleteDocument: async (id: string) => {
+    await apiClient.delete(`/documents/${id}`)
+  },
+
+  exportPdf: async (id: string) => {
+    const response = await apiClient.get<Blob>(`/documents/${id}/export.pdf`, {
+      responseType: 'blob',
+    })
+    const filename =
+      parseFilenameFromDisposition(
+        response.headers?.['content-disposition'] as string | undefined
+      ) || `${sanitizeExportFilename('document')}.pdf`
+
+    triggerBlobDownload(response.data, filename)
+    return { filename }
+  },
+}

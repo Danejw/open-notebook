@@ -47,4 +47,8 @@ export const QUERY_KEYS = {
   mcpConnectionTools: (id: string) => ['mcp', 'connections', id, 'tools'] as const,
   mcpSelectableTools: ['mcp', 'tools', 'selectable'] as const,
   mcpSessionToolCalls: (sessionId: string) => ['mcp', 'sessions', sessionId, 'tool-calls'] as const,
+  htmlTemplates: ['html-templates'] as const,
+  htmlTemplate: (id: string) => ['html-templates', id] as const,
+  projectDocuments: (projectId: string) => ['documents', 'project', projectId] as const,
+  bidDocument: (id: string) => ['documents', id] as const,
 }

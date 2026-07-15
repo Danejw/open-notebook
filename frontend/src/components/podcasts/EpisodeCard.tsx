@@ -8,17 +8,7 @@ import { InfoIcon, RefreshCcw, Trash2 } from 'lucide-react'
 import { resolvePodcastAssetUrl } from '@/lib/api/podcasts'
 import { EpisodeStatus, FAILED_EPISODE_STATUSES, PodcastEpisode } from '@/lib/types/podcasts'
 import { cn } from '@/lib/utils'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -144,6 +134,7 @@ export function EpisodeCard({ episode, onDelete, deleting, onRetry, retrying }: 
   const [audioSrc, setAudioSrc] = useState<string | undefined>()
   const [audioError, setAudioError] = useState<string | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   const outlineSegments = useMemo(() => extractOutlineSegments(episode.outline), [episode.outline])
   const transcriptEntries = useMemo(() => extractTranscriptEntries(episode.transcript), [episode.transcript])
@@ -229,6 +220,7 @@ export function EpisodeCard({ episode, onDelete, deleting, onRetry, retrying }: 
   const isFailed = FAILED_EPISODE_STATUSES.includes(episode.job_status as EpisodeStatus)
 
   return (
+    <>
     <Card className="shadow-sm">
       <CardContent className="space-y-3 p-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -393,28 +385,10 @@ export function EpisodeCard({ episode, onDelete, deleting, onRetry, retrying }: 
                 {retrying ? t('podcasts.retrying') : t('podcasts.retry')}
               </Button>
             ) : null}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-destructive">
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  {t('podcasts.delete')}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>{t('podcasts.deleteEpisodeTitle')}</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {t('podcasts.deleteEpisodeDesc').replace('{name}', episode.name)}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete} disabled={deleting}>
-                    {deleting ? t('podcasts.deleting') : t('podcasts.delete')}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              {t('podcasts.delete')}
+            </Button>
           </div>
         </div>
 
@@ -432,5 +406,15 @@ export function EpisodeCard({ episode, onDelete, deleting, onRetry, retrying }: 
         ) : null}
       </CardContent>
     </Card>
+    <ConfirmDialog
+      open={deleteOpen}
+      onOpenChange={setDeleteOpen}
+      title={t('podcasts.deleteEpisodeTitle')}
+      description={t('podcasts.deleteEpisodeDesc').replace('{name}', episode.name)}
+      confirmText={t('podcasts.delete')}
+      isLoading={deleting}
+      onConfirm={handleDelete}
+    />
+    </>
   )
 }

@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { AlertTriangle, Copy, Edit3, MoreVertical, Trash2, Volume2 } from 'lucide-react'
 
+import { EmptyState } from '@/components/common/EmptyState'
 import { SpeakerProfile, needsModelSetup } from '@/lib/types/podcasts'
 import {
   useDeleteSpeakerProfile,
@@ -10,17 +11,7 @@ import {
 } from '@/lib/hooks/use-podcasts'
 import { useModels } from '@/lib/hooks/use-models'
 import { SpeakerProfileFormDialog } from '@/components/podcasts/forms/SpeakerProfileFormDialog'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -51,6 +42,7 @@ export function SpeakerProfilesPanel({
   const { t } = useTranslation()
   const [createOpen, setCreateOpen] = useState(false)
   const [editProfile, setEditProfile] = useState<SpeakerProfile | null>(null)
+  const [profileToDelete, setProfileToDelete] = useState<SpeakerProfile | null>(null)
 
   const deleteProfile = useDeleteSpeakerProfile()
   const duplicateProfile = useDuplicateSpeakerProfile()
@@ -85,9 +77,11 @@ export function SpeakerProfilesPanel({
       </div>
 
       {sortedProfiles.length === 0 ? (
-        <div className="rounded-lg border border-dashed bg-muted/30 p-8 text-center text-sm text-muted-foreground">
-          {t('podcasts.noSpeakerProfiles')}
-        </div>
+        <EmptyState
+          icon={Volume2}
+          title={t('podcasts.noSpeakerProfiles')}
+          className="rounded-lg bg-muted/30 p-8"
+        />
       ) : (
         <div className="space-y-4">
           {sortedProfiles.map((profile) => {
@@ -178,65 +172,40 @@ export function SpeakerProfilesPanel({
                     >
                       <Edit3 className="mr-2 h-4 w-4" /> {t('podcasts.edit')}
                     </Button>
-                    <AlertDialog>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          align="end"
-                          className="w-48"
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <DropdownMenuItem
-                            onClick={() => duplicateProfile.mutate(profile.id)}
-                            disabled={duplicateProfile.isPending}
-                          >
-                            <Copy className="h-4 w-4 mr-2" />
-                            {t('podcasts.duplicate')}
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <AlertDialogTrigger asChild>
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              disabled={deleteDisabled}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              {t('podcasts.delete')}
-                            </DropdownMenuItem>
-                          </AlertDialogTrigger>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>{t('podcasts.deleteSpeakerProfileTitle')}</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {t('podcasts.deleteSpeakerProfileDesc').replace('{name}', profile.name)}
-                          </AlertDialogDescription>
-                          {deleteDisabled ? (
-                            <p className="mt-2 text-sm text-muted-foreground">
-                              {t('podcasts.deleteSpeakerDisabledHint')}
-                            </p>
-                          ) : null}
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => deleteProfile.mutate(profile.id)}
-                            disabled={deleteDisabled || deleteProfile.isPending}
-                          >
-                            {deleteProfile.isPending ? t('podcasts.deleting') : t('podcasts.delete')}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="w-48"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <DropdownMenuItem
+                          onClick={() => duplicateProfile.mutate(profile.id)}
+                          disabled={duplicateProfile.isPending}
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          {t('podcasts.duplicate')}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          disabled={deleteDisabled}
+                          onClick={() => setProfileToDelete(profile)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          {t('podcasts.delete')}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </CardContent>
               </Card>
@@ -260,6 +229,17 @@ export function SpeakerProfilesPanel({
           }
         }}
         initialData={editProfile ?? undefined}
+      />
+
+      <ConfirmDialog
+        open={!!profileToDelete}
+        onOpenChange={(open) => { if (!open) setProfileToDelete(null) }}
+        title={t('podcasts.deleteSpeakerProfileTitle')}
+        description={profileToDelete ? t('podcasts.deleteSpeakerProfileDesc').replace('{name}', profileToDelete.name) : ''}
+        confirmText={t('podcasts.delete')}
+        confirmVariant="destructive"
+        isLoading={deleteProfile.isPending}
+        onConfirm={() => { if (profileToDelete) deleteProfile.mutate(profileToDelete.id) }}
       />
     </div>
   )

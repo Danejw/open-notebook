@@ -18,16 +18,7 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { getDateLocale } from '@/lib/utils/date-locale'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { BaseChatSession } from '@/lib/types/api'
 import { useModels } from '@/lib/hooks/use-models'
 
@@ -251,22 +242,14 @@ export function SessionManager({
         </CardContent>
       </Card>
 
-      <AlertDialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('chat.deleteSession')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('chat.deleteSessionDesc')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm}>
-              {t('common.delete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deleteConfirmId}
+        onOpenChange={(open) => { if (!open) setDeleteConfirmId(null) }}
+        title={t('chat.deleteSession')}
+        description={t('chat.deleteSessionDesc')}
+        confirmText={t('common.delete')}
+        onConfirm={handleDeleteConfirm}
+      />
     </>
   )
 }

@@ -27,16 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import {
   Select,
   SelectContent,
@@ -765,28 +756,16 @@ export function SourceDetailContent({
         }}
       />
 
-      <AlertDialog open={!!insightToDelete} onOpenChange={() => setInsightToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('sources.deleteInsight')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('sources.deleteInsightConfirm')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingInsight}>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction asChild>
-              <Button
-                onClick={handleDeleteInsight}
-                disabled={deletingInsight}
-                variant="destructive"
-              >
-                {deletingInsight ? t('common.deleting') : t('common.delete')}
-              </Button>
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!insightToDelete}
+        onOpenChange={(open) => { if (!open) setInsightToDelete(null) }}
+        title={t('sources.deleteInsight')}
+        description={t('sources.deleteInsightConfirm')}
+        confirmText={t('common.delete')}
+        confirmVariant="destructive"
+        isLoading={deletingInsight}
+        onConfirm={handleDeleteInsight}
+      />
     </div>
   )
 }

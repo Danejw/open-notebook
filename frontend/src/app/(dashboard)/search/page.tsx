@@ -6,6 +6,7 @@ import { useTranslation } from '@/lib/hooks/use-translation'
 import { PageHeader, pageContentClassName, pageSectionGapClassName } from '@/components/layout/PageHeader'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -252,20 +253,23 @@ export default function SearchPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="ask-project">{t('searchPage.projectScope')}</Label>
-                  <select
-                    id="ask-project"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  <Select
                     value={projectId}
-                    onChange={(e) => setProjectId(e.target.value)}
+                    onValueChange={setProjectId}
                     disabled={ask.isStreaming}
                   >
-                    <option value="all">{t('searchPage.allProjects')}</option>
-                    {(projects ?? []).map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger id="ask-project">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('searchPage.allProjects')}</SelectItem>
+                      {(projects ?? []).map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Models Display */}
@@ -479,20 +483,23 @@ export default function SearchPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="search-project">{t('searchPage.projectScope')}</Label>
-                    <select
-                      id="search-project"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    <Select
                       value={projectId}
-                      onChange={(e) => setProjectId(e.target.value)}
+                      onValueChange={setProjectId}
                       disabled={searchMutation.isPending}
                     >
-                      <option value="all">{t('searchPage.allProjects')}</option>
-                      {(projects ?? []).map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger id="search-project">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t('searchPage.allProjects')}</SelectItem>
+                        {(projects ?? []).map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Search Locations */}

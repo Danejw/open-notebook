@@ -385,6 +385,59 @@ export function useRetrySource() {
   })
 }
 
+export function useBulkRetrySources() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: async (sourceIds: string[]) => {
+      const results = await Promise.allSettled(
+        sourceIds.map((sourceId) => sourcesApi.retry(sourceId))
+      )
+      const successes = results.filter((r) => r.status === 'fulfilled').length
+      const failures = results.length - successes
+      return { successes, failures, total: sourceIds.length, sourceIds }
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['sources'] })
+      for (const sourceId of result.sourceIds) {
+        queryClient.invalidateQueries({
+          queryKey: ['sources', sourceId, 'status'],
+        })
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.source(sourceId) })
+      }
+
+      if (result.successes > 0) {
+        toast({
+          title: t('sources.bulkRetryQueued').replace(
+            '{count}',
+            String(result.successes)
+          ),
+          description: t('sources.sourceRequeuedDesc'),
+        })
+      }
+      if (result.failures > 0) {
+        toast({
+          title: t('common.error'),
+          description: t('sources.bulkRetryPartial').replace(
+            '{failed}',
+            String(result.failures)
+          ),
+          variant: 'destructive',
+        })
+      }
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('common.error'),
+        description: getApiErrorMessage(error, (key) => t(key), t('sources.failedToRetry')),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
 export function useAddSourcesToProject() {
   const queryClient = useQueryClient()
   const { toast } = useToast()

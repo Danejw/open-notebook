@@ -1,9 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { AlertTriangle, Loader2, Network, Play, RefreshCw } from 'lucide-react'
+import { AlertTriangle, Loader2, Play, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
   Select,
@@ -117,180 +116,172 @@ export function SourceKnowledgePanel({ sourceId, projectId }: SourceKnowledgePan
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Network className="h-4 w-4" />
-          {t('knowledge.title')}
-        </CardTitle>
-        <CardDescription>{t('knowledge.sourceDesc')}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
-        ) : (
-          <>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-medium">{t('knowledge.genericStatus')}</span>
-              <Badge
-                variant={statusBadgeVariant(isEmptyCompleted ? 'failed' : runStatus)}
-                className="gap-1"
-              >
-                {isBuilding && <Loader2 className="h-3 w-3 animate-spin" />}
-                {statusLabel(runStatus, t)}
-                {primary && primary.id !== 'generic' ? ` · ${primary.label}` : ''}
-              </Badge>
-              {runStats && (runStatus === 'completed' || runStatus === 'failed') && (
-                <span className="text-xs text-muted-foreground">
-                  {t('knowledge.statsSummary')
-                    .replace(
-                      '{entities}',
-                      String(runStats.entities ?? knowledge?.entities?.length ?? 0)
+    <div className="space-y-1 rounded-md border border-border/60 p-1">
+      {isLoading ? (
+        <p className="px-0.5 py-2 text-[11px] text-muted-foreground">{t('common.loading')}</p>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-1">
+            <Badge
+              variant={statusBadgeVariant(isEmptyCompleted ? 'failed' : runStatus)}
+              className="h-5 gap-1 px-1.5 text-[10px]"
+            >
+              {isBuilding && <Loader2 className="h-3 w-3 animate-spin" />}
+              {statusLabel(runStatus, t)}
+              {primary && primary.id !== 'generic' ? ` · ${primary.label}` : ''}
+            </Badge>
+            {runStats && (runStatus === 'completed' || runStatus === 'failed') && (
+              <span className="text-[11px] text-muted-foreground">
+                {t('knowledge.statsSummary')
+                  .replace(
+                    '{entities}',
+                    String(runStats.entities ?? knowledge?.entities?.length ?? 0)
+                  )
+                  .replace(
+                    '{claims}',
+                    String(runStats.claims ?? knowledge?.claims?.length ?? 0)
+                  )
+                  .replace(
+                    '{relations}',
+                    String(
+                      runStats.relations ?? knowledge?.relations?.length ?? 0
                     )
-                    .replace(
-                      '{claims}',
-                      String(runStats.claims ?? knowledge?.claims?.length ?? 0)
-                    )
-                    .replace(
-                      '{relations}',
-                      String(
-                        runStats.relations ?? knowledge?.relations?.length ?? 0
-                      )
-                    )}
-                </span>
-              )}
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={isBuilding}
-                onClick={() => runExtractor('generic', true)}
-              >
-                {isBuilding ? (
-                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-2 h-3.5 w-3.5" />
-                )}
-                {isBuilding
-                  ? t('sources.buildingKnowledgeGraph')
-                  : t('knowledge.rerunGeneric')}
-              </Button>
-            </div>
-
-            {runStatus === 'failed' && (
-              <div className="flex gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <div className="space-y-1">
-                  <p className="font-medium">{t('knowledge.extractRunFailed')}</p>
-                  {primary?.last_run?.error_message ? (
-                    <p className="break-words text-destructive/90">
-                      {primary.last_run.error_message}
-                    </p>
-                  ) : null}
-                  {runStats ? (
-                    <p className="text-xs text-muted-foreground">
-                      {[
-                        runStats.extractor
-                          ? `extractor=${String(runStats.extractor)}`
-                          : primary?.id
-                            ? `extractor=${primary.id}`
-                            : null,
-                        runStats.full_text_length != null
-                          ? `full_text_length=${String(runStats.full_text_length)}`
-                          : null,
-                        runStats.callout_count != null
-                          ? `callout_count=${String(runStats.callout_count)}`
-                          : null,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </p>
-                  ) : null}
-                  <p className="text-xs text-muted-foreground">
-                    {t('knowledge.extractRunFailedHint')}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {isEmptyCompleted && (
-              <div className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-amber-800 dark:text-amber-200">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <div className="space-y-1">
-                  <p className="font-medium">{t('knowledge.emptyExtractionBanner')}</p>
-                  <p className="text-xs opacity-90">{t('knowledge.extractEmptyHint')}</p>
-                  {runStats ? (
-                    <p className="text-xs opacity-80">
-                      {[
-                        primary?.id ? `extractor=${primary.id}` : null,
-                        runStats.full_text_length != null
-                          ? `full_text_length=${String(runStats.full_text_length)}`
-                          : null,
-                        runStats.callout_count != null
-                          ? `callout_count=${String(runStats.callout_count)}`
-                          : null,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-            )}
-
-            {isBuilding && (
-              <p className="text-sm text-muted-foreground">
-                {t('knowledge.extractQueuedHint')}
-              </p>
-            )}
-
-            <div className="flex flex-wrap items-end gap-2">
-              <div className="min-w-[180px] space-y-1">
-                <label className="text-sm font-medium">
-                  {t('knowledge.specializedExtractor')}
-                </label>
-                <Select value={selectedExtractor} onValueChange={setSelectedExtractor}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('knowledge.selectExtractor')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {specialized.map((ext) => (
-                      <SelectItem key={ext.id} value={ext.id}>
-                        {ext.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                size="sm"
-                disabled={isBuilding || !selectedExtractor}
-                onClick={() => runExtractor(selectedExtractor, true)}
-              >
-                <Play className="mr-2 h-3.5 w-3.5" />
-                {t('knowledge.runExtractor')}
-              </Button>
-            </div>
-
-            {knowledge?.entities && knowledge.entities.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium">
-                  {t('knowledge.entitiesCount').replace(
-                    '{count}',
-                    String(knowledge.entities.length)
                   )}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {knowledge.entities.slice(0, 20).map((entity) => (
-                    <Badge key={entity.id} variant="outline">
-                      {entity.type}: {entity.label}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
+              </span>
             )}
-          </>
-        )}
-      </CardContent>
-    </Card>
+            <Button
+              size="sm"
+              variant="outline"
+              className="ml-auto h-7"
+              disabled={isBuilding}
+              onClick={() => runExtractor('generic', true)}
+            >
+              {isBuilding ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              {isBuilding
+                ? t('sources.buildingKnowledgeGraph')
+                : t('knowledge.rerunGeneric')}
+            </Button>
+          </div>
+
+          {runStatus === 'failed' && (
+            <div className="flex gap-1 rounded-md border border-destructive/30 bg-destructive/5 p-1.5 text-[11px] text-destructive">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <div className="min-w-0 space-y-0.5">
+                <p className="font-medium">{t('knowledge.extractRunFailed')}</p>
+                {primary?.last_run?.error_message ? (
+                  <p className="break-words text-destructive/90">
+                    {primary.last_run.error_message}
+                  </p>
+                ) : null}
+                {runStats ? (
+                  <p className="text-muted-foreground">
+                    {[
+                      runStats.extractor
+                        ? `extractor=${String(runStats.extractor)}`
+                        : primary?.id
+                          ? `extractor=${primary.id}`
+                          : null,
+                      runStats.full_text_length != null
+                        ? `full_text_length=${String(runStats.full_text_length)}`
+                        : null,
+                      runStats.callout_count != null
+                        ? `callout_count=${String(runStats.callout_count)}`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                ) : null}
+                <p className="text-muted-foreground">
+                  {t('knowledge.extractRunFailedHint')}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {isEmptyCompleted && (
+            <div className="flex gap-1 rounded-md border border-amber-500/30 bg-amber-500/5 p-1.5 text-[11px] text-amber-800 dark:text-amber-200">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <div className="min-w-0 space-y-0.5">
+                <p className="font-medium">{t('knowledge.emptyExtractionBanner')}</p>
+                <p className="opacity-90">{t('knowledge.extractEmptyHint')}</p>
+                {runStats ? (
+                  <p className="opacity-80">
+                    {[
+                      primary?.id ? `extractor=${primary.id}` : null,
+                      runStats.full_text_length != null
+                        ? `full_text_length=${String(runStats.full_text_length)}`
+                        : null,
+                      runStats.callout_count != null
+                        ? `callout_count=${String(runStats.callout_count)}`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          )}
+
+          {isBuilding && (
+            <p className="px-0.5 text-[11px] text-muted-foreground">
+              {t('knowledge.extractQueuedHint')}
+            </p>
+          )}
+
+          <div className="flex flex-wrap items-end gap-1">
+            <div className="min-w-[160px] flex-1 space-y-0.5">
+              <label className="text-[11px] text-muted-foreground">
+                {t('knowledge.specializedExtractor')}
+              </label>
+              <Select value={selectedExtractor} onValueChange={setSelectedExtractor}>
+                <SelectTrigger className="h-7">
+                  <SelectValue placeholder={t('knowledge.selectExtractor')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {specialized.map((ext) => (
+                    <SelectItem key={ext.id} value={ext.id}>
+                      {ext.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              size="sm"
+              className="h-7"
+              disabled={isBuilding || !selectedExtractor}
+              onClick={() => runExtractor(selectedExtractor, true)}
+            >
+              <Play className="mr-1.5 h-3.5 w-3.5" />
+              {t('knowledge.runExtractor')}
+            </Button>
+          </div>
+
+          {knowledge?.entities && knowledge.entities.length > 0 && (
+            <div className="space-y-0.5 px-0.5">
+              <p className="text-[11px] text-muted-foreground">
+                {t('knowledge.entitiesCount').replace(
+                  '{count}',
+                  String(knowledge.entities.length)
+                )}
+              </p>
+              <div className="flex flex-wrap gap-0.5">
+                {knowledge.entities.slice(0, 20).map((entity) => (
+                  <Badge key={entity.id} variant="outline" className="h-5 px-1.5 text-[10px]">
+                    {entity.type}: {entity.label}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
   )
 }

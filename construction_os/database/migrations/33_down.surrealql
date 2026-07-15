@@ -1,0 +1,4 @@
+-- Rollback Migration 33: remove embed_command / kg_command from source
+REMOVE FIELD IF EXISTS embed_command ON TABLE source;
+REMOVE FIELD IF EXISTS kg_command ON TABLE source;
+RETURN true;

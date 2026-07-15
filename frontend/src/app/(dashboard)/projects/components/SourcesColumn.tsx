@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Plus, FileText, Link2, ChevronDown, ListChecks, Trash2, Unlink, EyeOff, Lightbulb, Network, List, Waypoints } from 'lucide-react'
+import { Plus, FileText, Link2, ChevronDown, ListChecks, Trash2, Unlink, Lightbulb, Network, List, Waypoints, RefreshCw } from 'lucide-react'
 import { ColumnCardsSkeleton, CompactListRowSkeleton } from '@/components/common/LoadingSkeletons'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ListSelectionBar } from '@/components/common/ListSelectionBar'
@@ -19,7 +19,7 @@ import { AddSourceDialog } from '@/components/sources/AddSourceDialog'
 import { AddExistingSourceDialog } from '@/components/sources/AddExistingSourceDialog'
 import { SourceCard } from '@/components/sources/SourceCard'
 import { KnowledgeGraphView } from '@/components/knowledge-graph/KnowledgeGraphView'
-import { useDeleteSource, useRetrySource, useRemoveSourceFromProject, useIngestAsSource } from '@/lib/hooks/use-sources'
+import { useDeleteSource, useRetrySource, useBulkRetrySources, useRemoveSourceFromProject, useIngestAsSource } from '@/lib/hooks/use-sources'
 import { useBulkExtractKnowledge } from '@/lib/hooks/use-knowledge'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { useModalManager } from '@/lib/hooks/use-modal-manager'
@@ -131,6 +131,7 @@ export function SourcesColumn({
   const { openModal } = useModalManager()
   const deleteSource = useDeleteSource()
   const retrySource = useRetrySource()
+  const bulkRetrySources = useBulkRetrySources()
   const removeFromProject = useRemoveSourceFromProject()
   const { runArtifactOnSource } = useRunArtifactInsight()
   const ingestAsSource = useIngestAsSource()
@@ -158,6 +159,19 @@ export function SourcesColumn({
     projectId,
     clearSelection,
   ])
+
+  const handleBulkRetryProcessing = useCallback(async () => {
+    if (selectedList.length === 0) return
+    setBulkBusy(true)
+    try {
+      await bulkRetrySources.mutateAsync(selectedList)
+      clearSelection()
+    } catch (error) {
+      console.error('Failed to bulk retry sources:', error)
+    } finally {
+      setBulkBusy(false)
+    }
+  }, [selectedList, bulkRetrySources, clearSelection])
 
   const enableArtifactDrop = hasArtifactTemplates || hasIngestibleArtifacts
 
@@ -536,39 +550,35 @@ export function SourcesColumn({
                     onSelectAll={selectAllVisible}
                   >
                     {onContextModeChange && (
-                      <>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7"
-                          onClick={() => applyBulkContext('insights')}
-                        >
-                          <Lightbulb className="mr-1 h-3.5 w-3.5" />
-                          {t('common.contextModes.insights')}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7"
-                          onClick={() => applyBulkContext('full')}
-                        >
-                          <FileText className="mr-1 h-3.5 w-3.5" />
-                          {t('common.contextModes.full')}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7"
-                          onClick={() => applyBulkContext('off')}
-                        >
-                          <EyeOff className="mr-1 h-3.5 w-3.5" />
-                          {t('common.contextModes.off')}
-                        </Button>
-                      </>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7"
+                        onClick={() => applyBulkContext('insights')}
+                      >
+                        <Lightbulb className="mr-1 h-3.5 w-3.5" />
+                        {t('common.contextModes.insights')}
+                      </Button>
                     )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7"
+                      disabled={bulkBusy || bulkRetrySources.isPending}
+                      onClick={() => void handleBulkRetryProcessing()}
+                    >
+                      <RefreshCw
+                        className={cn(
+                          'mr-1 h-3.5 w-3.5',
+                          bulkRetrySources.isPending && 'animate-spin'
+                        )}
+                      />
+                      {bulkRetrySources.isPending
+                        ? t('sources.retryingProcessing')
+                        : t('sources.retryProcessing')}
+                    </Button>
                     <Button
                       type="button"
                       variant="ghost"

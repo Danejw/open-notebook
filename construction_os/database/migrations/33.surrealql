@@ -1,0 +1,10 @@
+-- Migration 33: track embed/kg child jobs on source; repair stuck active stages
+DEFINE FIELD IF NOT EXISTS embed_command ON TABLE source TYPE option<record<command>>;
+DEFINE FIELD IF NOT EXISTS kg_command ON TABLE source TYPE option<record<command>>;
+
+-- Orphaned active stages have no trustworthy child-job linkage yet.
+-- Mark failed so the UI surfaces Retry Processing after deploy.
+UPDATE source SET pipeline_stage = 'failed'
+WHERE pipeline_stage IN ['embedding', 'knowledge_graph'];
+
+RETURN true;

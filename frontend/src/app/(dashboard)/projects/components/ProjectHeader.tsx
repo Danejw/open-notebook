@@ -68,7 +68,7 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
   return (
     <>
       <div className="py-1">
-        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+        <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1 space-y-0.5">
             <div className="flex min-w-0 items-center gap-2">
               <InlineEdit
@@ -101,7 +101,7 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
             ) : null}
           </div>
 
-          <div className="flex flex-wrap items-center gap-1 shrink-0">
+          <div className="flex shrink-0 flex-nowrap items-center gap-1">
             {actions}
             <Button
               variant="outline"

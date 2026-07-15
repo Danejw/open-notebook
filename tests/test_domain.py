@@ -339,17 +339,15 @@ class TestSourceDomain:
 
     @pytest.mark.asyncio
     async def test_vectorize_submits_command_with_valid_text(self):
-        """Test that vectorize() submits embed_source command when text is valid."""
+        """Test that vectorize() begins embed stage when text is valid."""
         source = Source(id="source:test_valid", title="Test", full_text="Real content")
         with patch(
-            "construction_os.domain.project.submit_command", return_value="command:123"
-        ) as mock_submit:
+            "construction_os.knowledge.pipeline.begin_embed_stage",
+            new_callable=AsyncMock,
+            return_value="command:123",
+        ) as mock_begin:
             result = await source.vectorize()
-            mock_submit.assert_called_once_with(
-                "construction_os",
-                "embed_source",
-                {"source_id": "source:test_valid"},
-            )
+            mock_begin.assert_awaited_once_with("source:test_valid")
             assert result == "command:123"
 
 

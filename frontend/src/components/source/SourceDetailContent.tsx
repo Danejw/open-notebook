@@ -17,9 +17,7 @@ import {
 } from '@/components/common/LoadingSkeletons'
 import { InlineEdit } from '@/components/common/InlineEdit'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -48,18 +46,13 @@ import {
 } from '@/components/ui/select'
 import {
   Link as LinkIcon,
-  Upload,
-  AlignLeft,
   ExternalLink,
   Download,
   Copy,
   CheckCircle,
-  Youtube,
   MoreVertical,
   Trash2,
-  Sparkles,
   Plus,
-  Lightbulb,
   Database,
   AlertCircle,
   MessageSquare,
@@ -68,9 +61,17 @@ import { formatDistanceToNow } from 'date-fns'
 import { getDateLocale } from '@/lib/utils/date-locale'
 import { toast } from 'sonner'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { cn } from '@/lib/utils'
 import { SourceInsightDialog } from '@/components/source/SourceInsightDialog'
 import { ProjectAssociations } from '@/components/source/ProjectAssociations'
 import { SourceKnowledgePanel } from '@/components/source/SourceKnowledgePanel'
+
+/** OCR / drawing dumps are often one long line — mono + wrap is more scannable than Markdown. */
+function isDensePlainExtraction(text: string): boolean {
+  if (text.length < 400) return false
+  const newlines = (text.match(/\n/g) ?? []).length
+  return newlines / text.length < 0.008
+}
 
 interface SourceDetailContentProps {
   sourceId: string
@@ -306,19 +307,13 @@ export function SourceDetailContent({
     }
   }
 
-  const getSourceIcon = () => {
-    if (!source) return null
-    if (source.asset?.url) return <LinkIcon className="h-5 w-5" />
-    if (source.asset?.file_path) return <Upload className="h-5 w-5" />
-    return <AlignLeft className="h-5 w-5" />
-  }
-
-  const getSourceType = () => {
-    if (!source) return 'unknown'
-    if (source.asset?.url) return 'link'
-    if (source.asset?.file_path) return 'file'
-    return 'text'
-  }
+  const handleCopyId = useCallback(() => {
+    if (!source?.id) return
+    void navigator.clipboard.writeText(source.id)
+    setCopied(true)
+    toast.success(t('common.success'))
+    setTimeout(() => setCopied(false), 2000)
+  }, [source?.id, t])
 
   const handleCopyUrl = useCallback(() => {
     if (source?.asset?.url) {
@@ -358,6 +353,12 @@ export function SourceDetailContent({
     return getYouTubeVideoId(source.asset.url)
   }, [source?.asset?.url])
 
+  const contentText = source?.full_text ?? ''
+  const usePlainExtractionView = useMemo(
+    () => Boolean(contentText && isDensePlainExtraction(contentText)),
+    [contentText]
+  )
+
   const handleDelete = async () => {
     if (!source) return
 
@@ -379,17 +380,22 @@ export function SourceDetailContent({
 
   if (error || !source) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 p-8">
-        <p className="text-red-500">{error || t('sources.notFound')}</p>
+      <div className="flex h-full flex-col items-center justify-center gap-2 p-4">
+        <p className="text-sm text-destructive">{error || t('sources.notFound')}</p>
       </div>
     )
   }
 
+  const relativeCreated = formatDistanceToNow(new Date(source.created), {
+    addSuffix: true,
+    locale: getDateLocale(language),
+  })
+
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="border-b border-border py-2 px-2">
-        <div className="flex items-start justify-between gap-2">
+    <div className="flex h-full flex-col">
+      {/* Header — pr-8 clears DialogContent absolute close (same as DialogHeader) */}
+      <div className="flex shrink-0 items-center justify-center gap-1 border-b border-border py-0.5 pl-1 pr-8">
+        <div className="flex min-w-0 flex-1 items-start gap-1">
           <div className="min-w-0 flex-1">
             <InlineEdit
               value={source.title || ''}
@@ -399,392 +405,335 @@ export function SourceDetailContent({
               placeholder={t('sources.titlePlaceholder')}
               emptyText={t('sources.untitledSource')}
             />
-            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-              {t('sources.id')}: {source.id}
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
-            {getSourceIcon()}
-            <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
-              {getSourceType()}
-            </Badge>
-
-            {showChatButton && onChatClick && (
-              <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={onChatClick}>
-                <MessageSquare className="h-3.5 w-3.5 sm:mr-1.5" />
-                <span className="hidden sm:inline">{t('chat.chatWith').replace('{name}', t('navigation.sources'))}</span>
-              </Button>
-            )}
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
-                  <MoreVertical className="h-3.5 w-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {source.asset?.file_path && (
-                  <>
-                    <DropdownMenuItem
-                      onClick={handleDownloadFile}
-                      disabled={isDownloadingFile || fileAvailable === false}
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      {fileAvailable === false
-                        ? t('sources.fileUnavailable')
-                        : isDownloadingFile
-                          ? t('sources.preparing')
-                          : t('sources.downloadFile')}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
-                )}
-                <DropdownMenuItem
-                  onClick={handleEmbedContent}
-                  disabled={isEmbedding || source.embedded}
-                >
-                  <Database className="mr-2 h-4 w-4" />
-                  {isEmbedding ? t('sources.embedding') : source.embedded ? t('sources.alreadyEmbedded') : t('sources.embedContent')}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={handleDelete}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  {t('sources.deleteSource')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label={t('common.actions')}>
+              <MoreVertical className="h-3.5 w-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {showChatButton && onChatClick && (
+              <DropdownMenuItem onClick={onChatClick}>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                {t('chat.chatWith').replace('{name}', t('navigation.sources'))}
+              </DropdownMenuItem>
+            )}
+            {source.asset?.file_path && (
+              <DropdownMenuItem
+                onClick={handleDownloadFile}
+                disabled={isDownloadingFile || fileAvailable === false}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {fileAvailable === false
+                  ? t('sources.fileUnavailable')
+                  : isDownloadingFile
+                    ? t('sources.preparing')
+                    : t('sources.downloadFile')}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              onClick={handleEmbedContent}
+              disabled={isEmbedding || source.embedded}
+            >
+              <Database className="mr-2 h-4 w-4" />
+              {isEmbedding
+                ? t('sources.embedding')
+                : source.embedded
+                  ? t('sources.alreadyEmbedded')
+                  : t('sources.embedContent')}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-destructive"
+              onClick={handleDelete}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              {t('sources.deleteSource')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      {/* Tabs Content */}
-      <div className="flex-1 overflow-y-auto px-2">
+      <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-1">
         <Tabs defaultValue="content" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 sticky top-0 z-10">
+          <TabsList className="sticky top-0 z-10 mt-0.5 grid w-full grid-cols-4">
             <TabsTrigger value="content">{t('sources.content')}</TabsTrigger>
             <TabsTrigger value="insights">
-              {t('common.insights')} {insights.length > 0 && `(${insights.length})`}
+              {t('common.insights')}
+              {insights.length > 0 ? ` (${insights.length})` : ''}
             </TabsTrigger>
             <TabsTrigger value="knowledge">{t('knowledge.tab')}</TabsTrigger>
             <TabsTrigger value="details">{t('sources.details')}</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="content" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  {isYouTubeUrl && <Youtube className="h-5 w-5" />}
-                  {t('sources.content')}
-                </CardTitle>
-                {source.asset?.url && !isYouTubeUrl && (
-                  <CardDescription className="flex items-center gap-2">
-                    <LinkIcon className="h-4 w-4" />
-                    <a
-                      href={source.asset.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:underline text-blue-600"
-                    >
-                      {source.asset.url}
-                    </a>
-                  </CardDescription>
+          <TabsContent value="content" className="mt-1 space-y-1">
+            {source.asset?.url && !isYouTubeUrl && (
+              <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                <LinkIcon className="h-3 w-3 shrink-0" />
+                <a
+                  href={source.asset.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="min-w-0 truncate hover:underline"
+                >
+                  {source.asset.url}
+                </a>
+              </div>
+            )}
+
+            {isYouTubeUrl && youTubeVideoId && (
+              <div className="space-y-1">
+                <div className="aspect-video overflow-hidden rounded-md bg-black">
+                  <iframe
+                    src={`https://www.youtube.com/embed/${youTubeVideoId}`}
+                    title={t('common.accessibility.ytVideo')}
+                    className="h-full w-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+                {source.asset?.url && (
+                  <a
+                    href={source.asset.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:underline"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    {t('sources.openOnYoutube')}
+                  </a>
                 )}
-              </CardHeader>
-              <CardContent>
-                {isYouTubeUrl && youTubeVideoId && (
-                  <div className="mb-6">
-                    <div className="aspect-video rounded-lg overflow-hidden bg-black">
-                      <iframe
-                        src={`https://www.youtube.com/embed/${youTubeVideoId}`}
-                        title={t('common.accessibility.ytVideo')}
-                        className="w-full h-full"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
-                    </div>
-                    {source.asset?.url && (
-                      <div className="mt-2">
-                        <a
-                          href={source.asset.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-muted-foreground hover:underline inline-flex items-center gap-1"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          {t('sources.openOnYoutube')}
-                        </a>
-                      </div>
-                    )}
-                  </div>
+              </div>
+            )}
+
+            {!contentText ? (
+              <p className="px-0.5 py-2 text-sm text-muted-foreground">{t('sources.noContent')}</p>
+            ) : usePlainExtractionView ? (
+              <pre
+                className={cn(
+                  'max-h-[min(52vh,560px)] overflow-auto rounded-md border border-border/60',
+                  'bg-muted/20 px-1.5 py-1 font-mono text-[11px] leading-snug',
+                  'whitespace-pre-wrap break-words text-foreground'
                 )}
-                <MarkdownRenderer size="base">
-                  {source.full_text || t('sources.noContent')}
-                </MarkdownRenderer>
-              </CardContent>
-            </Card>
+              >
+                {contentText}
+              </pre>
+            ) : (
+              <div className="rounded-md border border-border/60 bg-muted/20 px-1.5 py-1">
+                <MarkdownRenderer size="sm">{contentText}</MarkdownRenderer>
+              </div>
+            )}
           </TabsContent>
 
-          <TabsContent value="insights" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <Lightbulb className="h-5 w-5" />
-                    {t('common.insights')}
-                  </span>
-                  <Badge variant="secondary">{insights.length}</Badge>
-                </CardTitle>
-                <CardDescription>
-                  {t('sources.insightsDesc')}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Create New Insight */}
-                <div className="rounded-lg border bg-muted/30 p-4">
-                  <Label 
-                    htmlFor="artifact-select"
-                    className="mb-3 text-sm font-semibold flex items-center gap-2"
+          <TabsContent value="insights" className="mt-1 space-y-1">
+            <div className="flex items-center gap-1 rounded-md border border-border/60 bg-muted/20 p-0.5">
+              <Select
+                name="artifact"
+                value={selectedArtifactId}
+                onValueChange={setSelectedArtifactId}
+                disabled={creatingInsight}
+              >
+                <SelectTrigger id="artifact-select" className="h-7 flex-1 text-[11px]">
+                  <SelectValue placeholder={t('sources.selectArtifact')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {artifacts.map((artifact) => (
+                    <SelectItem key={artifact.id} value={artifact.id}>
+                      {artifact.title || artifact.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                className="h-7 shrink-0 px-2 text-xs"
+                onClick={createInsight}
+                disabled={!selectedArtifactId || creatingInsight}
+              >
+                {creatingInsight ? (
+                  <InlineSkeleton className="h-3 w-3" />
+                ) : (
+                  <>
+                    <Plus className="h-3.5 w-3.5 sm:mr-1" />
+                    <span className="hidden sm:inline">{t('common.create')}</span>
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {loadingInsights ? (
+              <ListRowsSkeleton rows={3} withHeader={false} />
+            ) : insights.length === 0 ? (
+              <p className="px-0.5 py-3 text-center text-[11px] text-muted-foreground">
+                {t('sources.noInsightsYet')}
+              </p>
+            ) : (
+              <div className="divide-y divide-border rounded-md border border-border/60">
+                {insights.map((insight) => (
+                  <div
+                    key={insight.id}
+                    className="flex items-start gap-1 px-1 py-1.5"
                   >
-                    <Sparkles className="h-4 w-4" />
-                    {t('sources.generateNewInsight')}
-                  </Label>
-                  <div className="flex gap-2">
-                    <Select
-                      name="artifact"
-                      value={selectedArtifactId}
-                      onValueChange={setSelectedArtifactId}
-                      disabled={creatingInsight}
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 text-left"
+                      onClick={() => setSelectedInsight(insight)}
                     >
-                      <SelectTrigger id="artifact-select" className="flex-1">
-                        <SelectValue placeholder={t('sources.selectArtifact')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {artifacts.map((artifact) => (
-                          <SelectItem key={artifact.id} value={artifact.id}>
-                            {artifact.title || artifact.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      <span className="text-[11px] font-medium uppercase text-muted-foreground">
+                        {insight.insight_type}
+                      </span>
+                      <p className="line-clamp-2 text-sm leading-snug text-foreground">
+                        {insight.content.slice(0, 160)}
+                        {insight.content.length > 160 ? '…' : ''}
+                      </p>
+                    </button>
                     <Button
-                      size="sm"
-                      onClick={createInsight}
-                      disabled={!selectedArtifactId || creatingInsight}
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
+                      onClick={() => setInsightToDelete(insight.id)}
+                      aria-label={t('common.delete')}
                     >
-                      {creatingInsight ? (
-                        <>
-                          <InlineSkeleton className="mr-2 h-3 w-3" />
-                          {t('common.creating')}
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="mr-2 h-4 w-4" />
-                          {t('common.create')}
-                        </>
-                      )}
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
-                </div>
-
-                {/* Insights List */}
-                {loadingInsights ? (
-                  <ListRowsSkeleton rows={3} withHeader={false} />
-                ) : insights.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Lightbulb className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm">{t('sources.noInsightsYet')}</p>
-                    <p className="text-xs mt-1">{t('sources.createFirstInsight')}</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {insights.map((insight) => (
-                      <div key={insight.id} className="rounded-lg border bg-background p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs uppercase">
-                              {insight.insight_type}
-                            </Badge>
-                          </div>
-                        </div>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          {insight.content.slice(0, 180)}{insight.content.length > 180 ? '…' : ''}
-                        </p>
-                        <div className="mt-3 flex justify-end gap-2">
-                          <Button size="sm" variant="outline" onClick={() => setSelectedInsight(insight)}>
-                            {t('sources.viewInsight')}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setInsightToDelete(insight.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
-          <TabsContent value="knowledge" className="mt-6">
+          <TabsContent value="knowledge" className="mt-1">
             <SourceKnowledgePanel
               sourceId={sourceId}
               projectId={source.projects?.[0]}
             />
           </TabsContent>
 
-          <TabsContent value="details" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('sources.details')}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Embedding Alert */}
-                {!source.embedded && (
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>
-                      {t('sources.notEmbeddedAlert')}
-                    </AlertTitle>
-                    <AlertDescription>
-                      {t('sources.notEmbeddedDesc')}
-                      <div className="mt-3">
-                        <Button
-                          onClick={handleEmbedContent}
-                          disabled={isEmbedding}
-                          size="sm"
-                        >
-                          <Database className="mr-2 h-4 w-4" />
-                          {isEmbedding ? t('sources.embedding') : t('sources.embedContent')}
-                        </Button>
-                      </div>
-                    </AlertDescription>
-                  </Alert>
-                )}
+          <TabsContent value="details" className="mt-1 space-y-2">
+            {!source.embedded && (
+              <Alert className="py-1">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle className="text-sm">{t('sources.notEmbeddedAlert')}</AlertTitle>
+                <AlertDescription className="text-[11px]">
+                  {t('sources.notEmbeddedDesc')}
+                  <div className="mt-1">
+                    <Button
+                      onClick={handleEmbedContent}
+                      disabled={isEmbedding}
+                      size="sm"
+                      className="h-7"
+                    >
+                      <Database className="mr-1.5 h-3.5 w-3.5" />
+                      {isEmbedding ? t('sources.embedding') : t('sources.embedContent')}
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
 
-                {/* Source Information */}
-                <div className="space-y-4">
-                  {source.asset?.url && (
-                    <div>
-                      <h3 className="mb-2 text-sm font-semibold">{t('common.url')}</h3>
-                      <div className="flex items-center gap-2">
-                        <code className="flex-1 rounded bg-muted px-2 py-1 text-sm">
-                          {source.asset.url}
-                        </code>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={handleCopyUrl}
-                        >
-                          {copied ? (
-                            <CheckCircle className="h-4 w-4" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={handleOpenExternal}
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+            <div className="divide-y divide-border rounded-md border border-border/60 text-sm">
+              <div className="flex items-center gap-1 px-1 py-1.5">
+                <span className="w-20 shrink-0 text-[11px] text-muted-foreground">
+                  {t('sources.id')}
+                </span>
+                <code className="min-w-0 flex-1 truncate text-[11px]">{source.id}</code>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 shrink-0"
+                  onClick={handleCopyId}
+                  aria-label={t('common.copyToClipboard')}
+                >
+                  {copied ? <CheckCircle className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
 
-                  {source.asset?.file_path && (
-                    <div className="space-y-2">
-                      <h3 className="text-sm font-semibold">{t('sources.uploadedFile')}</h3>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <code className="rounded bg-muted px-2 py-1 text-sm">
-                          {source.asset.file_path}
-                        </code>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={handleDownloadFile}
-                          disabled={isDownloadingFile || fileAvailable === false}
-                        >
-                          <Download className="mr-2 h-4 w-4" />
-                          {fileAvailable === false
-                            ? t('sources.fileUnavailable')
-                            : isDownloadingFile
-                              ? t('sources.preparing')
-                              : t('common.download')}
-                        </Button>
-                      </div>
-                      {fileAvailable === false ? (
-                        <p className="text-xs text-muted-foreground">
-                          {t('sources.fileUnavailableDesc')}
-                        </p>
-                      ) : null}
-                    </div>
-                  )}
-
-                  {source.topics && source.topics.length > 0 && (
-                    <div>
-                      <h3 className="mb-2 text-sm font-semibold">{t('sources.topics')}</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {source.topics.map((topic, idx) => (
-                          <Badge key={idx} variant="outline">
-                            {topic}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+              {source.asset?.url && (
+                <div className="flex items-center gap-1 px-1 py-1.5">
+                  <span className="w-20 shrink-0 text-[11px] text-muted-foreground">
+                    {t('common.url')}
+                  </span>
+                  <code className="min-w-0 flex-1 truncate text-[11px]">{source.asset.url}</code>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={handleCopyUrl}>
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={handleOpenExternal}>
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
+              )}
 
-                {/* Metadata */}
+              {source.asset?.file_path && (
+                <div className="space-y-0.5 px-1 py-1.5">
+                  <div className="flex items-center gap-1">
+                    <span className="w-20 shrink-0 text-[11px] text-muted-foreground">
+                      {t('sources.uploadedFile')}
+                    </span>
+                    <code className="min-w-0 flex-1 truncate text-[11px]">
+                      {source.asset.file_path}
+                    </code>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 shrink-0 px-2 text-xs"
+                      onClick={handleDownloadFile}
+                      disabled={isDownloadingFile || fileAvailable === false}
+                    >
+                      <Download className="mr-1 h-3.5 w-3.5" />
+                      {fileAvailable === false
+                        ? t('sources.fileUnavailable')
+                        : isDownloadingFile
+                          ? t('sources.preparing')
+                          : t('common.download')}
+                    </Button>
+                  </div>
+                  {fileAvailable === false ? (
+                    <p className="pl-20 text-[11px] text-muted-foreground">
+                      {t('sources.fileUnavailableDesc')}
+                    </p>
+                  ) : null}
+                </div>
+              )}
+
+              <div className="grid gap-1 px-1 py-1.5 sm:grid-cols-2">
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold">{t('sources.metadata')}</h3>
-                    <div className="flex items-center gap-2">
-                      <Database className="h-3.5 w-3.5 text-muted-foreground" />
-                      <Badge variant={source.embedded ? "default" : "secondary"} className="text-xs">
-                        {source.embedded ? t('sources.embedded') : t('sources.notEmbedded')}
+                  <p className="text-[11px] text-muted-foreground">{t('common.created_label')}</p>
+                  <p className="text-sm leading-snug">{relativeCreated}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {new Date(source.created).toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground">{t('common.updated_label')}</p>
+                  <p className="text-sm leading-snug">
+                    {formatDistanceToNow(new Date(source.updated), {
+                      addSuffix: true,
+                      locale: getDateLocale(language),
+                    })}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {new Date(source.updated).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              {source.topics && source.topics.length > 0 && (
+                <div className="px-1 py-1.5">
+                  <p className="mb-0.5 text-[11px] text-muted-foreground">{t('sources.topics')}</p>
+                  <div className="flex flex-wrap gap-0.5">
+                    {source.topics.map((topic, idx) => (
+                      <Badge key={idx} variant="outline" className="h-5 px-1.5 text-[10px]">
+                        {topic}
                       </Badge>
-                    </div>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground">{t('common.created_label')}</p>
-                      <p className="text-sm">
-                        {formatDistanceToNow(new Date(source.created), {
-                          addSuffix: true,
-                          locale: getDateLocale(language)
-                        })}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(source.created).toLocaleString()}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground">{t('common.updated_label')}</p>
-                      <p className="text-sm">
-                        {formatDistanceToNow(new Date(source.updated), {
-                          addSuffix: true,
-                          locale: getDateLocale(language)
-                        })}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(source.updated).toLocaleString()}
-                      </p>
-                    </div>
+                    ))}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              )}
+            </div>
 
-            {/* Project Associations */}
             <ProjectAssociations
               sourceId={sourceId}
               currentProjectIds={source.projects || []}

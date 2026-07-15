@@ -178,6 +178,9 @@ class TestRetrySourceProcessing:
         assert "command:command" not in str(source.command)
         assert str(source.command).count("command:") == 1
         assert str(source.command).startswith("command:")
+        assert source.pipeline_stage == "extracting"
+        assert source.embed_command is None
+        assert source.kg_command is None
 
     @pytest.mark.asyncio
     @patch("api.routers.sources.repo_query", new_callable=AsyncMock)

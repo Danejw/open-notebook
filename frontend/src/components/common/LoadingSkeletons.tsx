@@ -93,22 +93,17 @@ export function PickerDialogSkeleton({ rows = 5 }: { rows?: number }) {
 export function SourceDetailSkeleton() {
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b px-3 py-3 space-y-2">
-        <Skeleton className="h-5 w-64 max-w-full" />
-        <Skeleton className="h-3 w-40" />
-        <div className="flex gap-2">
-          <Skeleton className="h-5 w-16 rounded-full" />
-          <Skeleton className="h-5 w-20 rounded-full" />
+      <div className="flex items-center justify-center gap-1 border-b py-0.5 pl-1 pr-8">
+        <Skeleton className="mt-1.5 h-3.5 w-3.5 shrink-0" />
+        <div className="min-w-0 flex-1 space-y-1">
+          <Skeleton className="h-5 w-64 max-w-full" />
+          <Skeleton className="h-3 w-40" />
         </div>
+        <Skeleton className="h-7 w-7 shrink-0" />
       </div>
-      <div className="flex flex-1 flex-col gap-4 p-4 min-h-0">
-        <Skeleton className="h-9 w-full max-w-md" />
-        <Skeleton className="min-h-[120px] flex-1 rounded-lg" />
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-16 w-full rounded-lg" />
-          <Skeleton className="h-16 w-full rounded-lg" />
-        </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-1 p-1">
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="min-h-[160px] flex-1 rounded-md" />
       </div>
     </div>
   )

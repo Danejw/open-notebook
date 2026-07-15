@@ -66,6 +66,31 @@ const SOURCE_TYPE_ICONS = {
   text: FileText,
 } as const
 
+/** Discrete pipeline milestones — the card fill width is the only progress UI. */
+const PIPELINE_FILL_PERCENT: Record<string, number> = {
+  new: 14,
+  queued: 10,
+  extracting: 32,
+  embedding: 58,
+  knowledge_graph: 84,
+  running: 32,
+}
+
+function resolvePipelineFillPercent(
+  pipelineStage: string | undefined,
+  currentStatus: string,
+  apiProgress: number | null
+): number {
+  const stageFloor =
+    (pipelineStage && PIPELINE_FILL_PERCENT[pipelineStage]) ||
+    PIPELINE_FILL_PERCENT[currentStatus] ||
+    16
+  if (apiProgress !== null) {
+    return Math.min(99, Math.max(apiProgress, stageFloor))
+  }
+  return stageFloor
+}
+
 const getStatusConfig = (t: TFunction) => ({
   new: {
     icon: Clock,
@@ -78,6 +103,11 @@ const getStatusConfig = (t: TFunction) => ({
     label: t('sources.statusQueued'),
   },
   running: {
+    icon: Clock,
+    color: 'text-blue-600',
+    label: t('sources.statusProcessing'),
+  },
+  extracting: {
     icon: Clock,
     color: 'text-blue-600',
     label: t('sources.statusProcessing'),
@@ -256,7 +286,9 @@ function SourceCardImpl({
 
   const statusConfigMap = getStatusConfig(t)
   const stageStatusKey =
-    pipelineStage === 'embedding' || pipelineStage === 'knowledge_graph'
+    pipelineStage === 'extracting' ||
+    pipelineStage === 'embedding' ||
+    pipelineStage === 'knowledge_graph'
       ? pipelineStage
       : currentStatus
   const statusConfig = statusConfigMap[stageStatusKey as keyof typeof statusConfigMap] || statusConfigMap.completed
@@ -316,13 +348,27 @@ function SourceCardImpl({
   const isProcessing: boolean =
     currentStatus === 'new' ||
     currentStatus === 'running' ||
-    currentStatus === 'queued'
+    currentStatus === 'queued' ||
+    pipelineStage === 'extracting' ||
+    pipelineStage === 'embedding' ||
+    pipelineStage === 'knowledge_graph'
   const isFailed: boolean = currentStatus === 'failed' || pipelineStage === 'failed'
   const isCompleted: boolean = currentStatus === 'completed' && !isFailed
-  const progress =
+  const apiProgress =
     typeof statusData?.processing_info?.progress === 'number'
       ? Math.round(statusData.processing_info.progress as number)
       : null
+  const fillPercent = isProcessing
+    ? resolvePipelineFillPercent(pipelineStage, currentStatus, apiProgress)
+    : 0
+  // Prefer live pipeline message (“Extracting content…”) over generic “Processing”
+  const statusLabel =
+    isProcessing &&
+    typeof statusData?.message === 'string' &&
+    statusData.message.trim()
+      ? statusData.message.replace(/\u2026$/, '').replace(/\.\.\.$/, '').trim() ||
+        statusConfig.label
+      : statusConfig.label
 
   const isKgPending = useKnowledgeExtractStore(
     (state) => Boolean(state.pendingSourceIds[source.id])
@@ -395,14 +441,16 @@ function SourceCardImpl({
       role="button"
       tabIndex={0}
       aria-pressed={selectionMode ? selected : undefined}
+      aria-busy={isProcessing || undefined}
       className={cn(
-        'group relative flex flex-col gap-0.5 rounded-md px-1 py-0.5',
+        'group relative flex flex-col gap-0.5 overflow-hidden rounded-md px-1 py-0.5',
         'cursor-pointer transition-colors select-none',
         'hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
         isFailed && 'bg-destructive/5 hover:bg-destructive/10',
-        isProcessing && 'bg-primary/5',
+        isProcessing && 'bg-muted/40',
         isArtifactDragOver && 'ring-2 ring-primary bg-primary/10',
-        selected && 'bg-primary/10 ring-1 ring-primary/40',
+        selected && !isProcessing && 'bg-primary/10 ring-1 ring-primary/40',
+        selected && isProcessing && 'ring-1 ring-primary/40',
         className
       )}
       {...longPressHandlers}
@@ -410,7 +458,13 @@ function SourceCardImpl({
       onDragOver={handleArtifactDragOver}
       onDragLeave={handleArtifactDragLeave}
       onDrop={handleArtifactDrop}
-      title={isArtifactDragOver ? t('sources.dropArtifactOnSource') : title}
+      title={
+        isArtifactDragOver
+          ? t('sources.dropArtifactOnSource')
+          : isProcessing
+            ? `${title} — ${statusData?.message || statusLabel}`
+            : title
+      }
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
@@ -418,7 +472,15 @@ function SourceCardImpl({
         }
       }}
     >
-      <div className="flex items-center gap-2 min-w-0">
+      {isProcessing && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 left-0 bg-primary/20 transition-[width] duration-700 ease-out"
+          style={{ width: `${fillPercent}%` }}
+        />
+      )}
+
+      <div className="relative z-[1] flex items-center gap-2 min-w-0">
         {selectionMode ? (
           <Checkbox
             checked={selected}
@@ -464,18 +526,18 @@ function SourceCardImpl({
           {!isCompleted && (
             <span
               className={cn(
-                'mr-1 inline-flex items-center gap-1 text-[11px] font-medium',
+                'mr-1 inline-flex max-w-[9.5rem] items-center gap-1 truncate text-[11px] font-medium',
                 statusConfig.color
               )}
               title={
                 statusLoading && shouldFetchStatus
                   ? t('sources.checking')
-                  : statusData?.message || statusConfig.label
+                  : statusData?.message || statusLabel
               }
             >
-              <StatusIcon className={cn('h-3 w-3', isProcessing && 'animate-pulse')} />
-              <span className="hidden sm:inline">
-                {statusLoading && shouldFetchStatus ? t('sources.checking') : statusConfig.label}
+              <StatusIcon className={cn('h-3 w-3 shrink-0', isProcessing && 'animate-pulse')} />
+              <span className="hidden truncate sm:inline">
+                {statusLoading && shouldFetchStatus ? t('sources.checking') : statusLabel}
               </span>
             </span>
           )}
@@ -648,15 +710,6 @@ function SourceCardImpl({
           )}
         </div>
       </div>
-
-      {isProcessing && progress !== null && (
-        <div className="ml-[22px] h-0.5 w-[calc(100%-22px)] overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-primary transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      )}
     </div>
   )
 }

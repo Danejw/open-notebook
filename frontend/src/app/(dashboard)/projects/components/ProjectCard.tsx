@@ -9,11 +9,8 @@ import {
   Archive,
   ArchiveRestore,
   Trash2,
-  FileText,
-  StickyNote,
   BookOpen,
 } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,14 +21,13 @@ import { useUpdateProject } from '@/lib/hooks/use-projects'
 import { ProjectDeleteDialog } from './ProjectDeleteDialog'
 import { useState } from 'react'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { getDateLocale } from '@/lib/utils/date-locale'
 
 interface ProjectCardProps {
   project: ProjectResponse
 }
 
 export function ProjectCard({ project }: ProjectCardProps) {
-  const { t, language } = useTranslation()
+  const { t } = useTranslation()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const router = useRouter()
   const updateProject = useUpdateProject()
@@ -48,21 +44,13 @@ export function ProjectCard({ project }: ProjectCardProps) {
     router.push(`/projects/${encodeURIComponent(project.id)}`)
   }
 
-  const updatedLabel = t('common.updated').replace(
-    '{time}',
-    formatDistanceToNow(new Date(project.updated), {
-      addSuffix: true,
-      locale: getDateLocale(language),
-    }),
-  )
-
   return (
     <>
       <div
-        className="group flex cursor-pointer items-start gap-2 px-3 py-1.5 transition-colors hover:bg-muted/40"
+        className="group flex cursor-pointer items-center gap-2 px-3 py-1.5 transition-colors hover:bg-muted/40"
         onClick={handleCardClick}
       >
-        <BookOpen className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        <BookOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1">
             <span className="min-w-0 flex-1 truncate text-sm font-medium group-hover:text-primary">
@@ -112,25 +100,6 @@ export function ProjectCard({ project }: ProjectCardProps) {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <p className="truncate text-[11px] text-muted-foreground">
-            {project.description ? (
-              <>
-                <span>{project.description}</span>
-                <span aria-hidden> · </span>
-              </>
-            ) : null}
-            <span>{updatedLabel}</span>
-            <span aria-hidden> · </span>
-            <span className="inline-flex items-center gap-0.5">
-              <FileText className="h-3 w-3" aria-hidden />
-              {project.source_count}
-            </span>
-            <span aria-hidden> · </span>
-            <span className="inline-flex items-center gap-0.5">
-              <StickyNote className="h-3 w-3" aria-hidden />
-              {project.note_count}
-            </span>
-          </p>
         </div>
       </div>
 

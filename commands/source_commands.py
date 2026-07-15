@@ -10,7 +10,6 @@ from construction_os.domain.project import Source
 from construction_os.domain.artifact import Artifact
 from construction_os.exceptions import ConfigurationError
 from construction_os.knowledge.pipeline import (
-    PIPELINE_EMBEDDING,
     PIPELINE_EXTRACTING,
     set_pipeline_stage,
 )
@@ -350,7 +349,6 @@ async def ingest_text_source_command(
             await source.add_to_project(project_id)
 
         # Always embed promoted text so search + knowledge graph stay in sync
-        await set_pipeline_stage(str(source.id), PIPELINE_EMBEDDING)
         await source.vectorize()
 
         artifacts: List[Artifact] = []

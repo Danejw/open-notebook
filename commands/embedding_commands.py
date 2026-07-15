@@ -10,11 +10,9 @@ from construction_os.database.repository import ensure_record_id, repo_insert, r
 from construction_os.domain.project import Note, Source, SourceInsight
 from construction_os.exceptions import ConfigurationError
 from construction_os.knowledge.pipeline import (
-    PIPELINE_FAILED,
-    PIPELINE_KNOWLEDGE_GRAPH,
+    begin_kg_stage,
+    fail_pipeline,
     resolve_project_ids_for_source,
-    set_pipeline_stage,
-    submit_auto_knowledge_graph,
 )
 from construction_os.utils.chunking import ContentType, chunk_text, detect_content_type
 from construction_os.utils.embedding import generate_embedding, generate_embeddings
@@ -393,16 +391,16 @@ async def embed_source_command(input_data: EmbedSourceInput) -> EmbedSourceOutpu
 
     Flow:
     1. Load Source by ID
-    2. DELETE existing source_embedding records for this source
-    3. Detect content type from file path or content
-    4. Chunk text using appropriate splitter
-    5. Generate embeddings for all chunks in batches
-    6. Bulk INSERT source_embedding records
+    2. Detect content type + chunk text
+    3. Generate embeddings for all chunks in batches
+    4. DELETE existing + bulk INSERT new source_embedding records
+    5. Chain knowledge graph stage
 
-    Retry Strategy:
-    - Retries up to 5 times for transient failures (network, timeout, etc.)
-    - Uses exponential-jitter backoff (1-60s)
-    - Does NOT retry permanent failures (ValueError for validation errors)
+    Failure handling:
+    - ValueError (content validation): try KG from full_text, else fail pipeline
+    - ConfigurationError / other errors: fail pipeline and return (no re-raise)
+      so the UI never stays stuck on embedding mid surreal-commands retries.
+      Batch-level retries remain inside generate_embeddings.
     """
     start_time = time.time()
 
@@ -417,19 +415,12 @@ async def embed_source_command(input_data: EmbedSourceInput) -> EmbedSourceOutpu
         if not source.full_text or not source.full_text.strip():
             raise ValueError(f"Source '{input_data.source_id}' has no text to embed")
 
-        # 2. DELETE existing embeddings (idempotency)
-        logger.debug(f"Deleting existing embeddings for source {input_data.source_id}")
-        await repo_query(
-            "DELETE source_embedding WHERE source = $source_id",
-            {"source_id": ensure_record_id(input_data.source_id)},
-        )
-
-        # 3. Detect content type from file path if available
+        # 2. Detect content type from file path if available
         file_path = source.asset.file_path if source.asset else None
         content_type = detect_content_type(source.full_text, file_path)
         logger.debug(f"Detected content type: {content_type.value}")
 
-        # 4. Chunk text using appropriate splitter
+        # 3. Chunk text using appropriate splitter
         chunks = chunk_text(source.full_text, content_type=content_type)
         total_chunks = len(chunks)
 
@@ -445,7 +436,7 @@ async def embed_source_command(input_data: EmbedSourceInput) -> EmbedSourceOutpu
         if total_chunks == 0:
             raise ValueError("No chunks created after splitting text")
 
-        # 5. Generate embeddings for all chunks in batches
+        # 4. Generate embeddings for all chunks in batches (before deleting old rows)
         cmd_id = get_command_id(input_data)
         logger.debug(f"Generating embeddings for {total_chunks} chunks")
         embeddings = await generate_embeddings(chunks, command_id=cmd_id)
@@ -457,7 +448,13 @@ async def embed_source_command(input_data: EmbedSourceInput) -> EmbedSourceOutpu
                 f"for {len(chunks)} chunks"
             )
 
-        # 6. Bulk INSERT source_embedding records
+        # 5. Replace embeddings only after successful generation
+        logger.debug(f"Deleting existing embeddings for source {input_data.source_id}")
+        await repo_query(
+            "DELETE source_embedding WHERE source = $source_id",
+            {"source_id": ensure_record_id(input_data.source_id)},
+        )
+
         records = [
             {
                 "source": ensure_record_id(input_data.source_id),
@@ -478,9 +475,8 @@ async def embed_source_command(input_data: EmbedSourceInput) -> EmbedSourceOutpu
         )
 
         # Chain knowledge graph build after embeddings exist (chunk-linked evidence)
-        await set_pipeline_stage(input_data.source_id, PIPELINE_KNOWLEDGE_GRAPH)
         project_ids = await resolve_project_ids_for_source(input_data.source_id)
-        submit_auto_knowledge_graph(input_data.source_id, project_ids)
+        await begin_kg_stage(input_data.source_id, project_ids)
 
         return EmbedSourceOutput(
             success=True,
@@ -490,19 +486,32 @@ async def embed_source_command(input_data: EmbedSourceInput) -> EmbedSourceOutpu
         )
 
     except ValueError as e:
-        # Permanent failure - don't retry
+        # Content validation — try KG from full_text when embedding cannot run
         processing_time = time.time() - start_time
         cmd_id = get_command_id(input_data)
         logger.error(
             f"Failed to embed source {input_data.source_id} (command: {cmd_id}): {e}"
         )
-        # Still attempt knowledge graph from full_text when embedding cannot run
         try:
-            await set_pipeline_stage(input_data.source_id, PIPELINE_KNOWLEDGE_GRAPH)
             project_ids = await resolve_project_ids_for_source(input_data.source_id)
-            submit_auto_knowledge_graph(input_data.source_id, project_ids)
+            await begin_kg_stage(input_data.source_id, project_ids)
         except Exception:
-            await set_pipeline_stage(input_data.source_id, PIPELINE_FAILED)
+            await fail_pipeline(input_data.source_id)
+        return EmbedSourceOutput(
+            success=False,
+            source_id=input_data.source_id,
+            chunks_created=0,
+            processing_time=processing_time,
+            error_message=str(e),
+        )
+    except ConfigurationError as e:
+        processing_time = time.time() - start_time
+        cmd_id = get_command_id(input_data)
+        logger.error(
+            f"Configuration error embedding source {input_data.source_id} "
+            f"(command: {cmd_id}): {e}"
+        )
+        await fail_pipeline(input_data.source_id)
         return EmbedSourceOutput(
             success=False,
             source_id=input_data.source_id,
@@ -511,13 +520,21 @@ async def embed_source_command(input_data: EmbedSourceInput) -> EmbedSourceOutpu
             error_message=str(e),
         )
     except Exception as e:
-        # Transient failure - will be retried (surreal-commands logs final failure)
+        # Terminal failure for UI reliability (batch retries already attempted)
+        processing_time = time.time() - start_time
         cmd_id = get_command_id(input_data)
-        logger.debug(
-            f"Transient error embedding source {input_data.source_id} "
+        logger.error(
+            f"Failed embedding source {input_data.source_id} "
             f"(command: {cmd_id}): {e}"
         )
-        raise
+        await fail_pipeline(input_data.source_id)
+        return EmbedSourceOutput(
+            success=False,
+            source_id=input_data.source_id,
+            chunks_created=0,
+            processing_time=processing_time,
+            error_message=str(e),
+        )
 
 
 @command(

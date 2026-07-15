@@ -1,7 +1,7 @@
 import asyncio
 import os
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple
 
 from fastapi import (
     APIRouter,
@@ -38,6 +38,8 @@ from construction_os.exceptions import InvalidInputError, NotFoundError
 from construction_os.knowledge.pipeline import (
     ACTIVE_PIPELINE_STAGES,
     PIPELINE_EXTRACTING,
+    fetched_command_status,
+    heal_pipeline_stage_if_needed,
     pipeline_processing_info,
     resolve_pipeline_status,
 )
@@ -199,15 +201,16 @@ async def get_sources(
             if not project:
                 raise HTTPException(status_code=404, detail="Project not found")
 
-            # Query sources for specific Project - include command field with FETCH
+            # Query sources for specific Project - include command fields with FETCH
             query = f"""
-                SELECT id, asset, created, title, updated, topics, command, pipeline_stage,
+                SELECT id, asset, created, title, updated, topics, command,
+                embed_command, kg_command, pipeline_stage,
                 (SELECT VALUE count() FROM source_insight WHERE source = $parent.id GROUP ALL)[0].count OR 0 AS insights_count,
                 (SELECT VALUE id FROM source_embedding WHERE source = $parent.id LIMIT 1) != [] AS embedded
                 FROM (select value in from reference where out=$project_id)
                 {order_clause}
                 LIMIT $limit START $offset
-                FETCH command
+                FETCH command, embed_command, kg_command
             """
             result = await repo_query(
                 query,
@@ -218,15 +221,16 @@ async def get_sources(
                 },
             )
         else:
-            # Query all sources - include command field with FETCH
+            # Query all sources - include command fields with FETCH
             query = f"""
-                SELECT id, asset, created, title, updated, topics, command, pipeline_stage,
+                SELECT id, asset, created, title, updated, topics, command,
+                embed_command, kg_command, pipeline_stage,
                 (SELECT VALUE count() FROM source_insight WHERE source = $parent.id GROUP ALL)[0].count OR 0 AS insights_count,
                 (SELECT VALUE id FROM source_embedding WHERE source = $parent.id LIMIT 1) != [] AS embedded
                 FROM source
                 {order_clause}
                 LIMIT $limit START $offset
-                FETCH command
+                FETCH command, embed_command, kg_command
             """
             result = await repo_query(query, {"limit": limit, "offset": offset})
 
@@ -261,9 +265,21 @@ async def get_sources(
                 status = "unknown"
 
             pipeline_stage = row.get("pipeline_stage")
+            embed_status, has_embed = fetched_command_status(row.get("embed_command"))
+            kg_status, has_kg = fetched_command_status(row.get("kg_command"))
             status, stage, _message = resolve_pipeline_status(
                 extract_status=status,
                 pipeline_stage=pipeline_stage,
+                embed_command_status=embed_status,
+                kg_command_status=kg_status,
+                has_embed_command=has_embed,
+                has_kg_command=has_kg,
+            )
+            source_row_id = str(row["id"])
+            await heal_pipeline_stage_if_needed(
+                source_row_id,
+                current_stage=pipeline_stage,
+                resolved_stage=stage,
             )
             processing_info = pipeline_processing_info(processing_info, stage)
 
@@ -289,7 +305,7 @@ async def get_sources(
                     command_id=command_id,
                     status=status,
                     processing_info=processing_info,
-                    pipeline_stage=pipeline_stage,
+                    pipeline_stage=pipeline_stage if stage != "failed" else stage,
                     stage=stage,
                 )
             )
@@ -756,6 +772,24 @@ async def download_source_file(source_id: str):
         raise HTTPException(status_code=500, detail="Failed to download source file")
 
 
+async def _child_command_status(
+    command_ref: Any,
+) -> Tuple[Optional[str], bool]:
+    """Resolve status for embed_command / kg_command links."""
+    if not command_ref:
+        return None, False
+    try:
+        from surreal_commands import get_command_status
+
+        status_result = await get_command_status(str(command_ref))
+        if not status_result:
+            return "unknown", True
+        return status_result.status if status_result.status else "unknown", True
+    except Exception as e:
+        logger.warning(f"Failed to get child command status for {command_ref}: {e}")
+        return "unknown", True
+
+
 @router.get("/sources/{source_id}/status", response_model=SourceStatusResponse)
 async def get_source_status(source_id: str):
     """Get processing status for a source."""
@@ -765,13 +799,29 @@ async def get_source_status(source_id: str):
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
 
+        pipeline_stage = getattr(source, "pipeline_stage", None)
+        embed_status, has_embed = await _child_command_status(
+            getattr(source, "embed_command", None)
+        )
+        kg_status, has_kg = await _child_command_status(
+            getattr(source, "kg_command", None)
+        )
+
         # Check if this is a legacy source (no command)
         if not source.command:
-            stage = getattr(source, "pipeline_stage", None)
-            if stage in ACTIVE_PIPELINE_STAGES:
+            if pipeline_stage in ACTIVE_PIPELINE_STAGES:
                 status, stage, message = resolve_pipeline_status(
                     extract_status="completed",
-                    pipeline_stage=stage,
+                    pipeline_stage=pipeline_stage,
+                    embed_command_status=embed_status,
+                    kg_command_status=kg_status,
+                    has_embed_command=has_embed,
+                    has_kg_command=has_kg,
+                )
+                await heal_pipeline_stage_if_needed(
+                    str(source.id or source_id),
+                    current_stage=pipeline_stage,
+                    resolved_stage=stage,
                 )
                 return SourceStatusResponse(
                     status=status,
@@ -785,17 +835,25 @@ async def get_source_status(source_id: str):
                 message="Legacy source (completed before async processing)",
                 processing_info=None,
                 command_id=None,
-                stage=stage or "completed",
+                stage=pipeline_stage or "completed",
             )
 
         # Get command status and processing info
         try:
             extract_status = await source.get_status()
             processing_info = await source.get_processing_progress()
-            pipeline_stage = getattr(source, "pipeline_stage", None)
             status, stage, message = resolve_pipeline_status(
                 extract_status=extract_status,
                 pipeline_stage=pipeline_stage,
+                embed_command_status=embed_status,
+                kg_command_status=kg_status,
+                has_embed_command=has_embed,
+                has_kg_command=has_kg,
+            )
+            await heal_pipeline_stage_if_needed(
+                str(source.id or source_id),
+                current_stage=pipeline_stage,
+                resolved_stage=stage,
             )
 
             return SourceStatusResponse(
@@ -952,9 +1010,12 @@ async def retry_source_processing(source_id: str):
                 f"Submitted retry processing command: {command_id} for source {source_id}"
             )
 
-            # Update source with new command ID
+            # Update source with new command ID and reset pipeline child jobs
             # command_id already includes 'command:' prefix
             source.command = ensure_record_id(command_id)
+            source.embed_command = None
+            source.kg_command = None
+            source.pipeline_stage = PIPELINE_EXTRACTING
             await source.save()
 
             # Get current embedded chunks count
@@ -978,7 +1039,11 @@ async def retry_source_processing(source_id: str):
                 updated=str(source.updated),
                 command_id=command_id,
                 status="queued",
-                processing_info={"retry": True, "queued": True},
+                processing_info={
+                    "retry": True,
+                    "queued": True,
+                    "stage": PIPELINE_EXTRACTING,
+                },
             )
 
         except Exception as e:

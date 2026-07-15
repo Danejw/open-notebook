@@ -364,6 +364,8 @@ class Source(ObjectModel):
         "full_text",
         "content_hash",
         "command",
+        "embed_command",
+        "kg_command",
         "pipeline_stage",
     }
     asset: Optional[Asset] = None
@@ -374,12 +376,19 @@ class Source(ObjectModel):
     command: Optional[Union[str, RecordID]] = Field(
         default=None, description="Link to surreal-commands processing job"
     )
+    embed_command: Optional[Union[str, RecordID]] = Field(
+        default=None, description="Link to embed_source job for pipeline tracking"
+    )
+    kg_command: Optional[Union[str, RecordID]] = Field(
+        default=None,
+        description="Link to build_knowledge_graph job for pipeline tracking",
+    )
     pipeline_stage: Optional[str] = Field(
         default=None,
         description="Ingestion stage: extracting|embedding|knowledge_graph|completed|failed",
     )
 
-    @field_validator("command", mode="before")
+    @field_validator("command", "embed_command", "kg_command", mode="before")
     @classmethod
     def parse_command(cls, value):
         """Parse command field to ensure RecordID format"""
@@ -494,12 +503,8 @@ class Source(ObjectModel):
         """
         Submit vectorization as a background job using the embed_source command.
 
-        This method leverages the job-based architecture to prevent HTTP connection
-        pool exhaustion when processing large documents. The embed_source command:
-        1. Detects content type from file path
-        2. Chunks text using content-type aware splitter
-        3. Generates all embeddings in batches
-        4. Bulk inserts source_embedding records
+        Persists embed_command and sets pipeline_stage=embedding only after a
+        successful job submit. Marks the pipeline failed if submit fails.
 
         Returns:
             str: The command/job ID that can be used to track progress via the commands API
@@ -508,35 +513,12 @@ class Source(ObjectModel):
             ValueError: If source has no text to vectorize
             DatabaseOperationError: If job submission fails
         """
-        logger.info(f"Submitting embed_source job for source {self.id}")
+        from construction_os.knowledge.pipeline import begin_embed_stage
 
-        try:
-            if not self.full_text or not self.full_text.strip():
-                raise ValueError(f"Source {self.id} has no text to vectorize")
+        if not self.full_text or not self.full_text.strip():
+            raise ValueError(f"Source {self.id} has no text to vectorize")
 
-            # Submit the embed_source command
-            command_id = submit_command(
-                "construction_os",
-                "embed_source",
-                {"source_id": str(self.id)},
-            )
-
-            command_id_str = str(command_id)
-            logger.info(
-                f"Embed source job submitted for source {self.id}: "
-                f"command_id={command_id_str}"
-            )
-
-            return command_id_str
-
-        except ValueError:
-            raise
-        except Exception as e:
-            logger.error(
-                f"Failed to submit embed_source job for source {self.id}: {e}"
-            )
-            logger.exception(e)
-            raise DatabaseOperationError(e)
+        return await begin_embed_stage(str(self.id))
 
     async def add_insight(self, insight_type: str, content: str) -> Optional[str]:
         """

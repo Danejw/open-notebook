@@ -21,19 +21,19 @@ import {
 import { Settings2 } from 'lucide-react'
 import { useModelDefaults, useModels } from '@/lib/hooks/use-models'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { InlineSkeleton, PickerDialogSkeleton, SelectMenuSkeleton } from '@/components/common/LoadingSkeletons'
+import { InlineSkeleton, SelectMenuSkeleton } from '@/components/common/LoadingSkeletons'
 
-interface ModelSelectorProps {
+interface ChatModelOverrideDialogProps {
   currentModel?: string
   onModelChange: (model?: string) => void
   disabled?: boolean
 }
 
-export function ModelSelector({ 
-  currentModel, 
+export function ChatModelOverrideDialog({
+  currentModel,
   onModelChange,
-  disabled = false 
-}: ModelSelectorProps) {
+  disabled = false,
+}: ChatModelOverrideDialogProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [selectedModel, setSelectedModel] = useState(currentModel || 'default')
@@ -44,7 +44,6 @@ export function ModelSelector({
     setSelectedModel(currentModel || 'default')
   }, [currentModel])
 
-  // Filter for language models only and sort by name
   const languageModels = useMemo(() => {
     if (!models) {
       return []
@@ -83,8 +82,8 @@ export function ModelSelector({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           size="sm"
           disabled={disabled}
           className="my-0 h-9 max-w-[140px] gap-1.5 px-2 shrink-0"
@@ -110,8 +109,8 @@ export function ModelSelector({
                 <SelectItem value="default">
                   <div className="flex items-center justify-between w-full">
                     <span>
-                      {defaultModel 
-                        ? `${t('common.default')} (${defaultModel.name})` 
+                      {defaultModel
+                        ? `${t('common.default')} (${defaultModel.name})`
                         : t('artifacts.systemDefault')}
                     </span>
                     {defaultModel?.provider && (
@@ -142,7 +141,7 @@ export function ModelSelector({
             <div className="rounded-lg bg-muted p-3">
               <p className="text-sm text-muted-foreground">
                 {t('artifacts.sessionUseReplacement').replace(
-                  '{name}', 
+                  '{name}',
                   languageModels.find(m => m.id === selectedModel)?.name || selectedModel
                 )}
               </p>

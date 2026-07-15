@@ -13,6 +13,8 @@ import { MarkdownEditor } from '@/components/ui/markdown-editor'
 import { InlineEdit } from '@/components/common/InlineEdit'
 import { cn } from "@/lib/utils";
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { DialogBodyLoading } from '@/components/common/LoadingSkeletons'
+import { FieldError } from '@/components/common/FieldError'
 
 const createNoteSchema = z.object({
   title: z.string().optional(),
@@ -131,9 +133,7 @@ export function NoteEditorDialog({ open, onOpenChange, projectId, note }: NoteEd
         </DialogTitle>
         <form onSubmit={handleSubmit(onSubmit)} className="flex h-full min-w-0 flex-col">
           {isEditing && noteLoading ? (
-            <div className="flex flex-1 items-center justify-center py-10">
-              <span className="text-sm text-muted-foreground">{t('common.loading')}</span>
-            </div>
+            <DialogBodyLoading label={t('common.loading')} />
           ) : (
             <>
               <DialogHeader className="border-b">
@@ -173,9 +173,7 @@ export function NoteEditorDialog({ open, onOpenChange, projectId, note }: NoteEd
                     />
                   )}
                 />
-                {errors.content && (
-                  <p className="mt-1 text-xs text-red-600">{errors.content.message}</p>
-                )}
+                <FieldError message={errors.content?.message} />
               </div>
             </>
           )}

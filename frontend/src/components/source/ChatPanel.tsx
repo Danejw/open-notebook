@@ -12,7 +12,7 @@ import {
   SourceChatContextIndicator,
   BaseChatSession
 } from '@/lib/types/api'
-import { ModelSelector } from '@/components/source/ModelSelector'
+import { ChatModelOverrideDialog } from '@/components/source/ChatModelOverrideDialog'
 import { SkillPicker } from '@/components/skills/SkillPicker'
 import { ToolPicker } from '@/components/mcp/ToolPicker'
 import { TemplatePicker } from '@/components/templates/TemplatePicker'
@@ -587,7 +587,7 @@ export function ChatPanel({
             ) : null}
             <div className={cn('flex min-w-0 items-end', isImmersive ? 'gap-2' : 'gap-1')}>
               {onModelChange && (
-                <ModelSelector
+                <ChatModelOverrideDialog
                   currentModel={modelOverride}
                   onModelChange={onModelChange}
                   disabled={composerBusy}

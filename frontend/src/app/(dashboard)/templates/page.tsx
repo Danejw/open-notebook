@@ -3,6 +3,8 @@
 import { useRef, useState } from 'react'
 import { FileCode2, Pencil, RefreshCw, Trash2, Upload } from 'lucide-react'
 import { PageHeader, pageContentClassName, pageSectionGapClassName } from '@/components/layout/PageHeader'
+import { EmptyState } from '@/components/common/EmptyState'
+import { ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,6 +26,7 @@ import {
 } from '@/lib/hooks/use-html-documents'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import type { HtmlTemplate } from '@/lib/types/html-documents'
+import { listActionTriggerClassName } from '@/lib/utils/list-action-trigger'
 
 export default function TemplatesPage() {
   const { t } = useTranslation()
@@ -117,12 +120,9 @@ export default function TemplatesPage() {
         />
 
         {isLoading ? (
-          <p className="text-xs text-muted-foreground">{t('common.loading')}</p>
+          <ListRowsSkeleton rows={4} withHeader={false} />
         ) : templates.length === 0 ? (
-          <div className="rounded-md border border-dashed px-3 py-6 text-center">
-            <FileCode2 className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground">{t('templates.emptyTemplates')}</p>
-          </div>
+          <EmptyState icon={FileCode2} title={t('templates.emptyTemplates')} />
         ) : (
           <ul className="divide-y rounded-md border">
             {templates.map((template) => (
@@ -140,7 +140,7 @@ export default function TemplatesPage() {
                     {template.category}
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-0.5 opacity-70 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                <div className={cn('flex shrink-0 items-center gap-0.5', listActionTriggerClassName)}>
                   <Button
                     size="sm"
                     variant="ghost"

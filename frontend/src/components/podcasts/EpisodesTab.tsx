@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { AlertCircle, RefreshCcw } from 'lucide-react'
+import { AlertCircle, ListMusic, RefreshCcw } from 'lucide-react'
+import { EmptyState } from '@/components/common/EmptyState'
 import { InlineSkeleton, ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
 
 import { useDeletePodcastEpisode, usePodcastEpisodes, useRetryPodcastEpisode } from '@/lib/hooks/use-podcasts'
@@ -133,11 +134,11 @@ export function EpisodesTab() {
       ) : null}
 
       {emptyState ? (
-        <div className="rounded-lg border border-dashed bg-muted/30 p-10 text-center">
-          <p className="text-sm text-muted-foreground">
-            {t('podcasts.noEpisodesYet')}
-          </p>
-        </div>
+        <EmptyState
+          icon={ListMusic}
+          title={t('podcasts.noEpisodesYet')}
+          className="rounded-lg bg-muted/30 p-10"
+        />
       ) : null}
 
       {getSTATUS_ORDER(t).map(({ key, title, description }) => {

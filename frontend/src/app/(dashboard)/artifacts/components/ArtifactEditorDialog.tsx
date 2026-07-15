@@ -17,6 +17,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { QUERY_KEYS } from '@/lib/api/query-client'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { cn } from '@/lib/utils'
+import { DialogBodyLoading } from '@/components/common/LoadingSkeletons'
+import { FieldError } from '@/components/common/FieldError'
 
 const artifactSchema = z.object({
   name: z.string().min(1),
@@ -125,9 +127,7 @@ export function ArtifactEditorDialog({ open, onOpenChange, artifact }: ArtifactE
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex h-full min-h-0 flex-col">
           {isEditing && isLoading ? (
-            <div className="flex flex-1 items-center justify-center py-10">
-              <span className="text-sm text-muted-foreground">{t('common.loading')}</span>
-            </div>
+            <DialogBodyLoading label={t('common.loading')} />
           ) : (
             <div className={cn(dialogBodyClassName, 'space-y-3')}>
               <div className="space-y-1.5">
@@ -144,9 +144,7 @@ export function ArtifactEditorDialog({ open, onOpenChange, artifact }: ArtifactE
                     />
                   )}
                 />
-                {errors.name && (
-                  <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>
-                )}
+                <FieldError message={errors.name?.message} />
               </div>
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -220,9 +218,7 @@ export function ArtifactEditorDialog({ open, onOpenChange, artifact }: ArtifactE
                     />
                   )}
                 />
-                {errors.prompt && (
-                  <p className="mt-1 text-xs text-red-600">{errors.prompt.message}</p>
-                )}
+                <FieldError message={errors.prompt?.message} />
                 <p className="text-[11px] text-muted-foreground">
                   {t('artifacts.promptHint')}
                 </p>

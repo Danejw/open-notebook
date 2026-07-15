@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { FileText, Database } from 'lucide-react'
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
+import { DialogBodyLoading } from '@/components/common/LoadingSkeletons'
 import { useInsight } from '@/lib/hooks/use-insights'
 import { useIngestAsSource } from '@/lib/hooks/use-sources'
 import { useModalManager } from '@/lib/hooks/use-modal-manager'
@@ -142,9 +143,7 @@ export function SourceInsightDialog({
         ) : (
           <div className="flex-1 overflow-y-auto min-h-0">
             {isLoading ? (
-              <div className="flex items-center justify-center py-10">
-                <span className="text-sm text-muted-foreground">{t('common.loading')}</span>
-              </div>
+              <DialogBodyLoading label={t('common.loading')} />
             ) : displayInsight ? (
               <MarkdownRenderer size="sm">
                 {displayInsight.content ?? ''}

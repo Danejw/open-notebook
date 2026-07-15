@@ -1,6 +1,8 @@
 'use client'
 
 import { Image as ImageIcon } from 'lucide-react'
+import { EmptyState } from '@/components/common/EmptyState'
+import { PickerDialogSkeleton } from '@/components/common/LoadingSkeletons'
 import { MediaThumbnail } from '@/components/media/MediaThumbnail'
 import { Button } from '@/components/ui/button'
 import {
@@ -41,12 +43,9 @@ export function ImageLibraryPicker({
         </DialogHeader>
         <div className="max-h-[60vh] overflow-y-auto px-1 py-1">
           {isLoading ? (
-            <p className="text-xs text-muted-foreground">{t('common.loading')}</p>
+            <PickerDialogSkeleton rows={4} />
           ) : assets.length === 0 ? (
-            <div className="rounded-md border border-dashed px-3 py-6 text-center">
-              <ImageIcon className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
-              <p className="text-xs text-muted-foreground">{t('images.pickerEmpty')}</p>
-            </div>
+            <EmptyState icon={ImageIcon} title={t('images.pickerEmpty')} />
           ) : (
             <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {assets.map((asset) => (

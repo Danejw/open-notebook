@@ -3,6 +3,8 @@
 import { useRef, useState } from 'react'
 import { Copy, Image as ImageIcon, Pencil, RefreshCw, Trash2, Upload } from 'lucide-react'
 import { PageHeader, pageContentClassName, pageSectionGapClassName } from '@/components/layout/PageHeader'
+import { EmptyState } from '@/components/common/EmptyState'
+import { ColumnCardsSkeleton } from '@/components/common/LoadingSkeletons'
 import { MediaThumbnail } from '@/components/media/MediaThumbnail'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Button } from '@/components/ui/button'
@@ -138,12 +140,9 @@ export default function ImagesPage() {
         <p className="text-xs text-muted-foreground">{t('images.desc')}</p>
 
         {isLoading ? (
-          <p className="text-xs text-muted-foreground">{t('common.loading')}</p>
+          <ColumnCardsSkeleton count={5} />
         ) : assets.length === 0 ? (
-          <div className="rounded-md border border-dashed px-3 py-6 text-center">
-            <ImageIcon className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground">{t('images.empty')}</p>
-          </div>
+          <EmptyState icon={ImageIcon} title={t('images.empty')} />
         ) : (
           <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {assets.map((asset) => (

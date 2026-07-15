@@ -203,3 +203,11 @@ export function SearchButtonSkeleton() {
 export function PanelSkeleton({ className }: { className?: string }) {
   return <Skeleton className={cn('h-64 rounded-lg', className)} />
 }
+
+export function DialogBodyLoading({ label }: { label: string }) {
+  return (
+    <div className="flex flex-1 items-center justify-center py-10">
+      <span className="text-sm text-muted-foreground">{label}</span>
+    </div>
+  )
+}

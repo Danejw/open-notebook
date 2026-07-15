@@ -39,6 +39,7 @@ import { useTranslation } from '@/lib/hooks/use-translation'
 import type { TFunction } from 'i18next'
 import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
+import { listActionTriggerClassName } from '@/lib/utils/list-action-trigger'
 import { getArtifactDragData, getActiveArtifactDragPayload, isArtifactDragEvent, clearArtifactDragData } from '@/lib/utils/artifact-drag'
 import { ContextMode } from '@/app/(dashboard)/projects/[id]/page'
 import {
@@ -639,7 +640,7 @@ function SourceCardImpl({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                className={cn('h-7 w-7 p-0', listActionTriggerClassName)}
                 onClick={(e) => e.stopPropagation()}
                 aria-label={t('common.actions')}
               >

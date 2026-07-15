@@ -17,6 +17,8 @@ import { Artifact } from '@/lib/types/artifacts'
 import { useDeleteArtifact } from '@/lib/hooks/use-artifacts'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
+import { cn } from '@/lib/utils'
+import { listActionTriggerClassName } from '@/lib/utils/list-action-trigger'
 
 interface ArtifactCardProps {
   artifact: Artifact
@@ -64,7 +66,7 @@ export function ArtifactCard({ artifact, onPlayground, onEdit }: ArtifactCardPro
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100"
+                  className={cn('h-7 w-7 shrink-0', listActionTriggerClassName)}
                   aria-label={t('common.actions') || 'Actions'}
                 >
                   <MoreVertical className="h-3.5 w-3.5" />

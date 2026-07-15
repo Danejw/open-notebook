@@ -21,6 +21,8 @@ import { useUpdateProject } from '@/lib/hooks/use-projects'
 import { ProjectDeleteDialog } from './ProjectDeleteDialog'
 import { useState } from 'react'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { cn } from '@/lib/utils'
+import { listActionTriggerClassName } from '@/lib/utils/list-action-trigger'
 
 interface ProjectCardProps {
   project: ProjectResponse
@@ -66,7 +68,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 w-6 shrink-0 p-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
+                  className={cn('h-6 w-6 shrink-0 p-0', listActionTriggerClassName)}
                   onClick={(e) => e.stopPropagation()}
                   aria-label={t('common.actions')}
                 >

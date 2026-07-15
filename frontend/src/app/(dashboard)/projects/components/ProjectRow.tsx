@@ -26,6 +26,8 @@ import { ProjectDeleteDialog } from './ProjectDeleteDialog'
 import { useState } from 'react'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { getDateLocale } from '@/lib/utils/date-locale'
+import { cn } from '@/lib/utils'
+import { listActionTriggerClassName } from '@/lib/utils/list-action-trigger'
 
 interface ProjectRowProps {
   project: ProjectResponse
@@ -84,7 +86,7 @@ export function ProjectRow({ project }: ProjectRowProps) {
                   aria-label={t('common.actions')}
                   variant="ghost"
                   size="sm"
-                  className="h-6 w-6 shrink-0 p-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
+                  className={cn('h-6 w-6 shrink-0 p-0', listActionTriggerClassName)}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <MoreHorizontal className="h-3.5 w-3.5" />

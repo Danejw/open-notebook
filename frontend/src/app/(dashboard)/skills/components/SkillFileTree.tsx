@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { SkillFile } from '@/lib/types/skills'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { cn } from '@/lib/utils'
+import { listActionTriggerClassName } from '@/lib/utils/list-action-trigger'
 
 interface SkillFileTreeProps {
   files: SkillFile[]
@@ -67,7 +68,7 @@ export function SkillFileTree({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 opacity-0 group-hover:opacity-100"
+                    className={cn('h-7 w-7', listActionTriggerClassName)}
                     onClick={() => onRename(file.path)}
                     aria-label={t('skills.renameFile')}
                   >
@@ -77,7 +78,7 @@ export function SkillFileTree({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 text-red-600 opacity-0 group-hover:opacity-100"
+                    className={cn('h-7 w-7 text-red-600', listActionTriggerClassName)}
                     onClick={() => onDelete(file.path)}
                     aria-label={t('skills.deleteFile')}
                     disabled={file.path === 'SKILL.md'}

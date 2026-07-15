@@ -32,6 +32,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { ModelSelector } from '@/components/common/ModelSelector'
+import { FieldError } from '@/components/common/FieldError'
 import type { TFunction } from 'i18next'
 
 const episodeProfileSchema = (t: TFunction) => z.object({
@@ -162,9 +163,7 @@ export function EpisodeProfileFormDialog({
             <div className="space-y-1.5">
               <Label htmlFor="name">{t('podcasts.profileName')} *</Label>
               <Input id="name" placeholder={t('podcasts.profileNamePlaceholder')} {...register('name')} />
-              {errors.name ? (
-                <p className="text-xs text-red-600">{errors.name.message}</p>
-              ) : null}
+              <FieldError message={errors.name?.message} />
             </div>
 
             <div className="space-y-2">
@@ -177,9 +176,7 @@ export function EpisodeProfileFormDialog({
                 {...register('num_segments', { valueAsNumber: true })}
                 autoComplete="off"
               />
-              {errors.num_segments ? (
-                <p className="text-xs text-red-600">{errors.num_segments.message}</p>
-              ) : null}
+              <FieldError message={errors.num_segments?.message} />
             </div>
 
             <div className="md:col-span-2 space-y-2">
@@ -219,11 +216,7 @@ export function EpisodeProfileFormDialog({
                       ))}
                     </SelectContent>
                   </Select>
-                  {errors.speaker_config ? (
-                    <p className="text-xs text-red-600">
-                      {errors.speaker_config.message}
-                    </p>
-                  ) : null}
+                  <FieldError message={errors.speaker_config?.message} />
                 </div>
               )}
             />
@@ -248,11 +241,7 @@ export function EpisodeProfileFormDialog({
                     onChange={field.onChange}
                     placeholder={t('podcasts.selectOutlineModel')}
                   />
-                  {errors.outline_llm ? (
-                    <p className="text-xs text-red-600 mt-1">
-                      {errors.outline_llm.message}
-                    </p>
-                  ) : null}
+                  <FieldError message={errors.outline_llm?.message} />
                 </div>
               )}
             />
@@ -277,11 +266,7 @@ export function EpisodeProfileFormDialog({
                     onChange={field.onChange}
                     placeholder={t('podcasts.selectTranscriptModel')}
                   />
-                  {errors.transcript_llm ? (
-                    <p className="text-xs text-red-600 mt-1">
-                      {errors.transcript_llm.message}
-                    </p>
-                  ) : null}
+                  <FieldError message={errors.transcript_llm?.message} />
                 </div>
               )}
             />
@@ -328,11 +313,7 @@ export function EpisodeProfileFormDialog({
               placeholder={t('podcasts.defaultBriefingPlaceholder')}
               {...register('default_briefing')}
             />
-            {errors.default_briefing ? (
-              <p className="text-xs text-red-600">
-                {errors.default_briefing.message}
-              </p>
-            ) : null}
+            <FieldError message={errors.default_briefing?.message} />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

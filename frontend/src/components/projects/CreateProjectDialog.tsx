@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label'
 import { useCreateProject } from '@/lib/hooks/use-projects'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { cn } from '@/lib/utils'
+import { FieldError } from '@/components/common/FieldError'
 
 const createProjectSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -80,9 +81,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
               placeholder={t('projects.namePlaceholder')}
               autoComplete="off"
             />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
-            )}
+            <FieldError message={errors.name?.message} />
           </div>
 
           <div className="space-y-1.5">

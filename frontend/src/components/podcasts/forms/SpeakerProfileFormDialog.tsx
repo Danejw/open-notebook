@@ -24,6 +24,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { ModelSelector } from '@/components/common/ModelSelector'
+import { FieldError } from '@/components/common/FieldError'
 
 import type { TFunction } from 'i18next'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -165,9 +166,7 @@ export function SpeakerProfileFormDialog({
             <div className="space-y-1.5">
               <Label htmlFor="name">{t('podcasts.profileName')} *</Label>
               <Input id="name" placeholder={t('podcasts.profileNamePlaceholder')} {...register('name')} />
-              {errors.name ? (
-                <p className="text-xs text-red-600">{errors.name.message}</p>
-              ) : null}
+              <FieldError message={errors.name?.message} />
             </div>
 
             <div className="space-y-2">
@@ -200,11 +199,7 @@ export function SpeakerProfileFormDialog({
                     onChange={field.onChange}
                     placeholder={t('podcasts.selectVoiceModel')}
                   />
-                  {errors.voice_model ? (
-                    <p className="text-xs text-red-600 mt-1">
-                      {errors.voice_model.message}
-                    </p>
-                  ) : null}
+                  <FieldError message={errors.voice_model?.message} />
                 </div>
               )}
             />
@@ -258,11 +253,7 @@ export function SpeakerProfileFormDialog({
                       placeholder={t('podcasts.hostPlaceholder').replace('{number}', (index + 1).toString())}
                       autoComplete="off"
                     />
-                    {errors.speakers?.[index]?.name ? (
-                      <p className="text-xs text-red-600">
-                        {errors.speakers[index]?.name?.message}
-                      </p>
-                    ) : null}
+                    <FieldError message={errors.speakers?.[index]?.name?.message} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor={`speaker-voice-${index}`}>{t('podcasts.voiceId')} *</Label>
@@ -272,11 +263,7 @@ export function SpeakerProfileFormDialog({
                       placeholder="voice_123"
                       autoComplete="off"
                     />
-                    {errors.speakers?.[index]?.voice_id ? (
-                      <p className="text-xs text-red-600">
-                        {errors.speakers[index]?.voice_id?.message}
-                      </p>
-                    ) : null}
+                    <FieldError message={errors.speakers?.[index]?.voice_id?.message} />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -288,11 +275,7 @@ export function SpeakerProfileFormDialog({
                     {...register(`speakers.${index}.backstory` as const)}
                     autoComplete="off"
                   />
-                  {errors.speakers?.[index]?.backstory ? (
-                    <p className="text-xs text-red-600">
-                      {errors.speakers[index]?.backstory?.message}
-                    </p>
-                  ) : null}
+                  <FieldError message={errors.speakers?.[index]?.backstory?.message} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor={`speaker-personality-${index}`}>{t('podcasts.personality')} *</Label>
@@ -303,11 +286,7 @@ export function SpeakerProfileFormDialog({
                     {...register(`speakers.${index}.personality` as const)}
                     autoComplete="off"
                   />
-                  {errors.speakers?.[index]?.personality ? (
-                    <p className="text-xs text-red-600">
-                      {errors.speakers[index]?.personality?.message}
-                    </p>
-                  ) : null}
+                  <FieldError message={errors.speakers?.[index]?.personality?.message} />
                 </div>
                 <Controller
                   control={control}
@@ -327,9 +306,7 @@ export function SpeakerProfileFormDialog({
               </div>
             ))}
 
-            {speakersArrayError ? (
-              <p className="text-xs text-red-600">{speakersArrayError}</p>
-            ) : null}
+            <FieldError message={speakersArrayError} />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

@@ -22,6 +22,7 @@ from construction_os.utils.graph_utils import (
     get_session_message_count,
     truncate_messages_from_id,
 )
+from construction_os.utils.html_media import expand_image_tokens
 from construction_os.utils.text_utils import clean_thinking_content, extract_text_content
 
 router = APIRouter()
@@ -627,11 +628,14 @@ async def execute_chat(
             if html_template_id:
                 try:
                     tmpl = await HtmlTemplate.get(html_template_id)
+                    # Expand {{image:slug}} so the model sees concrete library img tags
+                    # and is less likely to invent relative logo paths.
+                    html_body = await expand_image_tokens(tmpl.html_body)
                     html_template_meta = {
                         "id": tmpl.id,
                         "name": tmpl.name,
                         "category": tmpl.category,
-                        "html_body": tmpl.html_body,
+                        "html_body": html_body,
                     }
                 except NotFoundError:
                     html_template_id = None

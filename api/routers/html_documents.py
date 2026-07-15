@@ -21,6 +21,7 @@ from construction_os.domain.html_document import Document, HtmlTemplate
 from construction_os.domain.project import Project
 from construction_os.exceptions import InvalidInputError, NotFoundError
 from construction_os.utils.html_pdf_export import render_html_pdf
+from construction_os.utils.html_media import resolve_media_for_pdf, resolve_media_for_preview
 from construction_os.utils.html_spans import (
     StructureChangedError,
     apply_span_updates,
@@ -263,10 +264,11 @@ async def duplicate_document(document_id: str, data: DocumentDuplicateRequest):
 
 @router.get("/documents/{document_id}/preview")
 async def preview_document(document_id: str):
-    """Return document HTML for preview."""
+    """Return document HTML for preview (image tokens expanded)."""
     try:
         document = await Document.get(document_id)
-        return Response(content=document.html_body, media_type="text/html")
+        html = await resolve_media_for_preview(document.html_body)
+        return Response(content=html, media_type="text/html")
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -280,7 +282,8 @@ async def render_html_as_pdf(data: DocumentPdfRenderRequest):
     try:
         if not _looks_like_html(data.html_body):
             raise InvalidInputError("html_body must be valid HTML content")
-        pdf_bytes = await asyncio.to_thread(render_html_pdf, data.html_body)
+        prepared = await resolve_media_for_pdf(data.html_body)
+        pdf_bytes = await asyncio.to_thread(render_html_pdf, prepared)
         filename = export_pdf_filename(data.title or "document")
         return Response(
             content=pdf_bytes,
@@ -301,7 +304,8 @@ async def export_document_pdf(document_id: str):
     """Export the current document HTML as PDF."""
     try:
         document = await Document.get(document_id)
-        pdf_bytes = await asyncio.to_thread(render_html_pdf, document.html_body)
+        prepared = await resolve_media_for_pdf(document.html_body)
+        pdf_bytes = await asyncio.to_thread(render_html_pdf, prepared)
         filename = export_pdf_filename(document.title)
         return Response(
             content=pdf_bytes,

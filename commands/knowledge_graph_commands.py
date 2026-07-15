@@ -26,7 +26,11 @@ from construction_os.knowledge.extractors.select import select_extractor_id
 from construction_os.knowledge.pipeline import (
     PIPELINE_COMPLETED,
     PIPELINE_FAILED,
+    PIPELINE_KNOWLEDGE_GRAPH,
+    clear_pipeline_failure,
+    record_pipeline_failure,
     resolve_project_ids_for_source,
+    sanitize_processing_error,
     set_pipeline_stage,
 )
 from construction_os.knowledge.writer import write_extraction_result
@@ -96,8 +100,10 @@ async def _fail_run(
     content_hash: str,
     error_message: str,
     command_id: Optional[str],
+    error_type: Optional[str] = None,
     stats: Optional[Dict[str, Any]] = None,
 ) -> KgExtractionRun:
+    safe_error = sanitize_processing_error(error_message)
     run = KgExtractionRun(
         source_id=source_id,
         project_id=project_id,
@@ -106,7 +112,8 @@ async def _fail_run(
         status="failed",
         content_hash=content_hash,
         stats=stats or {},
-        error_message=error_message,
+        error_message=safe_error,
+        error_type=error_type,
         started_at=datetime.utcnow(),
         finished_at=datetime.utcnow(),
         command_id=command_id,
@@ -185,6 +192,7 @@ async def build_knowledge_graph_command(input_data: BuildKGInput) -> BuildKGOutp
                 content_hash=content_hash,
                 error_message=msg,
                 command_id=command_id,
+                error_type="ValueError",
                 stats={"reason": "no_projects"},
             )
             await set_pipeline_stage(str(source.id), PIPELINE_FAILED)
@@ -202,6 +210,7 @@ async def build_knowledge_graph_command(input_data: BuildKGInput) -> BuildKGOutp
                     content_hash=content_hash,
                     error_message=msg,
                     command_id=command_id,
+                    error_type="ValueError",
                     stats={"reason": "no_text"},
                 )
             await set_pipeline_stage(str(source.id), PIPELINE_FAILED)
@@ -230,6 +239,9 @@ async def build_knowledge_graph_command(input_data: BuildKGInput) -> BuildKGOutp
                 None,
             )
             if contentful:
+                await clear_pipeline_failure(
+                    str(source.id), PIPELINE_KNOWLEDGE_GRAPH
+                )
                 await set_pipeline_stage(str(source.id), PIPELINE_COMPLETED)
                 return BuildKGOutput(
                     success=True,
@@ -297,7 +309,8 @@ async def build_knowledge_graph_command(input_data: BuildKGInput) -> BuildKGOutp
                         f"extractor={extractor_id})"
                     )
                     run.status = "failed"
-                    run.error_message = msg
+                    run.error_message = sanitize_processing_error(msg)
+                    run.error_type = "ValueError"
                     run.stats = _diagnostic_stats(
                         full_text=full_text,
                         extractor_id=extractor_id,
@@ -319,7 +332,8 @@ async def build_knowledge_graph_command(input_data: BuildKGInput) -> BuildKGOutp
                 )
                 if missing_rels:
                     run.status = "failed"
-                    run.error_message = missing_rels
+                    run.error_message = sanitize_processing_error(missing_rels)
+                    run.error_type = "ValueError"
                     run.stats = _diagnostic_stats(
                         full_text=full_text,
                         extractor_id=extractor_id,
@@ -369,12 +383,14 @@ async def build_knowledge_graph_command(input_data: BuildKGInput) -> BuildKGOutp
                 raise
             except Exception as e:
                 run.status = "failed"
-                run.error_message = str(e)
+                run.error_message = sanitize_processing_error(e)
+                run.error_type = type(e).__name__
                 run.finished_at = datetime.utcnow()
                 await run.save()
                 await set_pipeline_stage(str(source.id), PIPELINE_FAILED)
                 raise
 
+        await clear_pipeline_failure(str(source.id), PIPELINE_KNOWLEDGE_GRAPH)
         await set_pipeline_stage(str(source.id), PIPELINE_COMPLETED)
         return BuildKGOutput(
             success=True,
@@ -386,11 +402,32 @@ async def build_knowledge_graph_command(input_data: BuildKGInput) -> BuildKGOutp
         )
     except (ValueError, KeyError, ConfigurationError) as e:
         logger.error(f"KG build failed (permanent): {e}")
+        safe_error = sanitize_processing_error(e)
         try:
+            await record_pipeline_failure(
+                input_data.source_id,
+                PIPELINE_KNOWLEDGE_GRAPH,
+                e,
+                command_id=command_id,
+            )
             await set_pipeline_stage(input_data.source_id, PIPELINE_FAILED)
         except Exception:
             pass
+        e.args = (safe_error,)
         raise
     except Exception as e:
         logger.debug(f"Transient KG build error for {input_data.source_id}: {e}")
+        safe_error = sanitize_processing_error(e)
+        try:
+            await record_pipeline_failure(
+                input_data.source_id,
+                PIPELINE_KNOWLEDGE_GRAPH,
+                e,
+                command_id=command_id,
+            )
+        except Exception:
+            logger.warning(
+                "Failed to persist KG failure details for {}", input_data.source_id
+            )
+        e.args = (safe_error,)
         raise

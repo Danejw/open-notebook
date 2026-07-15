@@ -166,6 +166,7 @@ class KgExtractionRun(_KgModel):
     content_hash: Optional[str] = None
     stats: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
+    error_type: Optional[str] = None
     command_id: Optional[str] = None
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
@@ -175,6 +176,7 @@ class KgExtractionRun(_KgModel):
         "content_hash",
         "stats",
         "error_message",
+        "error_type",
         "command_id",
         "started_at",
         "finished_at",

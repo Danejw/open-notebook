@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { useMediaAssets } from '@/lib/hooks/use-media'
+import { resolveMediaInHtml } from '@/lib/utils/resolve-media-html'
 import { cn } from '@/lib/utils'
 
 interface TemplateHtmlPreviewProps {
@@ -54,6 +56,7 @@ export function TemplateHtmlPreview({
   maxHeightPx,
 }: TemplateHtmlPreviewProps) {
   const { t } = useTranslation()
+  const { data: mediaAssets = [] } = useMediaAssets()
   const containerRef = useRef<HTMLDivElement>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const viewRef = useRef<ViewState>(INITIAL_VIEW)
@@ -168,43 +171,53 @@ export function TemplateHtmlPreview({
 
     const iframe = iframeRef.current
     if (!iframe) return
-    const doc = iframe.contentDocument
-    if (!doc) return
+    let cancelled = false
+    const timeouts: number[] = []
 
-    doc.open()
-    doc.write(html)
-    doc.close()
+    const writeAndFit = async () => {
+      const resolved = await resolveMediaInHtml(html, mediaAssets)
+      if (cancelled) return
+      const doc = iframe.contentDocument
+      if (!doc) return
 
-    const style = doc.createElement('style')
-    style.setAttribute('data-template-fit', 'true')
-    style.textContent = `
+      doc.open()
+      doc.write(resolved)
+      doc.close()
+
+      const style = doc.createElement('style')
+      style.setAttribute('data-template-fit', 'true')
+      style.textContent = `
       html, body {
         margin: 0 !important;
         overflow: hidden !important;
       }
     `
-    doc.head?.appendChild(style)
+      doc.head?.appendChild(style)
 
-    const runFit = () => {
-      requestAnimationFrame(() => measureAndFit())
-    }
-    runFit()
-
-    const images = Array.from(doc.images ?? [])
-    for (const img of images) {
-      if (!img.complete) {
-        img.addEventListener('load', runFit, { once: true })
-        img.addEventListener('error', runFit, { once: true })
+      const runFit = () => {
+        requestAnimationFrame(() => measureAndFit())
       }
+      runFit()
+
+      const images = Array.from(doc.images ?? [])
+      for (const img of images) {
+        if (!img.complete) {
+          img.addEventListener('load', runFit, { once: true })
+          img.addEventListener('error', runFit, { once: true })
+        }
+      }
+
+      timeouts.push(window.setTimeout(runFit, 50))
+      timeouts.push(window.setTimeout(runFit, 250))
     }
 
-    const t1 = window.setTimeout(runFit, 50)
-    const t2 = window.setTimeout(runFit, 250)
+    void writeAndFit()
+
     return () => {
-      window.clearTimeout(t1)
-      window.clearTimeout(t2)
+      cancelled = true
+      for (const id of timeouts) window.clearTimeout(id)
     }
-  }, [html, measureAndFit])
+  }, [html, mediaAssets, measureAndFit])
 
   useEffect(() => {
     const container = containerRef.current

@@ -112,6 +112,16 @@ docker compose restart
 
 ---
 
+## "Source embeddings or knowledge graph failed"
+
+Click the red database or knowledge-graph icon on the source card to see the
+latest failure reason, time, error type, and job reference. Use **Retry** in the
+details popover after correcting the reported provider, credential, content, or
+configuration problem. Older failures may show that diagnostic details are
+unavailable if they occurred before failure tracking was enabled.
+
+---
+
 ## #5: "Chat is very slow"
 
 **Symptom:** Chat responses take minutes or timeout

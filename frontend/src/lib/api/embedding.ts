@@ -4,6 +4,8 @@ export interface EmbedContentRequest {
   item_id: string
   item_type: 'source' | 'note'
   async_processing?: boolean
+  /** When false, embed sources without chaining knowledge graph. Default true. */
+  chain_kg?: boolean
 }
 
 export interface EmbedContentResponse {
@@ -58,11 +60,16 @@ export interface RebuildStatusResponse {
 }
 
 export const embeddingApi = {
-  embedContent: async (itemId: string, itemType: 'source' | 'note', asyncProcessing = false): Promise<EmbedContentResponse> => {
+  embedContent: async (
+    itemId: string,
+    itemType: 'source' | 'note',
+    options: { asyncProcessing?: boolean; chainKg?: boolean } = {}
+  ): Promise<EmbedContentResponse> => {
     const response = await apiClient.post<EmbedContentResponse>('/embed', {
       item_id: itemId,
       item_type: itemType,
-      async_processing: asyncProcessing
+      async_processing: options.asyncProcessing ?? false,
+      chain_kg: options.chainKg ?? true,
     })
     return response.data
   },

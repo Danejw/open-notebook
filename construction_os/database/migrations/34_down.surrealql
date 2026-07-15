@@ -1,0 +1,4 @@
+-- Rollback Migration 34: remove source processing failure snapshots
+REMOVE FIELD IF EXISTS processing_failures ON TABLE source;
+REMOVE FIELD IF EXISTS error_type ON TABLE kg_extraction_run;
+RETURN true;

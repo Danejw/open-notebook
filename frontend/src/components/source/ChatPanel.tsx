@@ -505,14 +505,14 @@ export function ChatPanel({
                 placeholder={
                   activeArtifact
                     ? `${t('chat.artifactSendPlaceholder')} (${keyHint})`
-                    : `${t('chat.sendPlaceholder')} (${keyHint})`
+                    : t('chat.sendPlaceholder')
                 }
                 disabled={isStreaming}
                 className={cn(
                   'max-h-[88px] flex-1 resize-none text-sm min-w-0',
                   isImmersive
                     ? 'min-h-[44px] rounded-xl px-3 py-2.5'
-                    : 'min-h-[32px] px-2 py-1'
+                    : 'min-h-[32px] px-2 py-[5px] leading-5'
                 )}
                 rows={1}
               />

@@ -1,9 +1,12 @@
 """Unit tests for knowledge graph helpers."""
 
+import hashlib
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+import commands.knowledge_graph_commands as kg_commands
 from construction_os.domain.knowledge_graph import normalize_entity_key
 from construction_os.knowledge.extractors.base import (
     ExtractedClaim,
@@ -37,6 +40,99 @@ from construction_os.knowledge.graph_projection import (
     _appears_in_edge,
     entity_source_ids,
 )
+
+
+@pytest.mark.asyncio
+async def test_kg_no_projects_records_stage_failure(monkeypatch):
+    source = MagicMock()
+    source.id = "source:abc"
+    source.full_text = "source text"
+    source.content_hash = hashlib.sha256(b"source text").hexdigest()
+
+    monkeypatch.setattr(kg_commands.Source, "get", AsyncMock(return_value=source))
+    monkeypatch.setattr(kg_commands, "select_extractor_id", lambda **_kwargs: "generic")
+    monkeypatch.setattr(
+        kg_commands, "get_extractor", lambda _extractor: SimpleNamespace(version="1")
+    )
+    monkeypatch.setattr(
+        kg_commands, "resolve_project_ids_for_source", AsyncMock(return_value=[])
+    )
+    monkeypatch.setattr(kg_commands, "_fail_run", AsyncMock())
+    monkeypatch.setattr(kg_commands, "set_pipeline_stage", AsyncMock())
+    record_failure = AsyncMock()
+    monkeypatch.setattr(kg_commands, "record_pipeline_failure", record_failure)
+
+    with pytest.raises(ValueError, match="not linked"):
+        await kg_commands.build_knowledge_graph_command(
+            kg_commands.BuildKGInput(
+                source_id="source:abc",
+                extractor="generic",
+                auto_select=False,
+            )
+        )
+
+    record_failure.assert_awaited()
+    assert record_failure.await_args.args[0:2] == (
+        "source:abc",
+        "knowledge_graph",
+    )
+
+
+@pytest.mark.asyncio
+async def test_kg_unchanged_success_clears_stage_failure(monkeypatch):
+    source = MagicMock()
+    source.id = "source:abc"
+    source.full_text = "source text"
+    source.content_hash = hashlib.sha256(b"source text").hexdigest()
+
+    monkeypatch.setattr(kg_commands.Source, "get", AsyncMock(return_value=source))
+    monkeypatch.setattr(kg_commands, "select_extractor_id", lambda **_kwargs: "generic")
+    monkeypatch.setattr(
+        kg_commands, "get_extractor", lambda _extractor: SimpleNamespace(version="1")
+    )
+    monkeypatch.setattr(
+        kg_commands,
+        "resolve_project_ids_for_source",
+        AsyncMock(return_value=["project:one"]),
+    )
+    monkeypatch.setattr(
+        kg_commands,
+        "repo_query",
+        AsyncMock(return_value=[{"stats": {"entities": 1}}]),
+    )
+    monkeypatch.setattr(kg_commands, "set_pipeline_stage", AsyncMock())
+    clear_failure = AsyncMock()
+    monkeypatch.setattr(kg_commands, "clear_pipeline_failure", clear_failure)
+
+    result = await kg_commands.build_knowledge_graph_command(
+        kg_commands.BuildKGInput(
+            source_id="source:abc",
+            extractor="generic",
+            auto_select=False,
+        )
+    )
+
+    assert result.success is True
+    assert result.skipped is True
+    clear_failure.assert_awaited_once_with("source:abc", "knowledge_graph")
+
+
+@pytest.mark.asyncio
+async def test_kg_command_redacts_credentials_before_rethrow(monkeypatch):
+    monkeypatch.setattr(
+        kg_commands.Source,
+        "get",
+        AsyncMock(side_effect=RuntimeError("provider api_key=secret-value")),
+    )
+    monkeypatch.setattr(kg_commands, "record_pipeline_failure", AsyncMock())
+
+    with pytest.raises(RuntimeError) as exc_info:
+        await kg_commands.build_knowledge_graph_command(
+            kg_commands.BuildKGInput(source_id="source:abc")
+        )
+
+    assert "secret-value" not in str(exc_info.value)
+    assert "[REDACTED]" in str(exc_info.value)
 
 
 def test_normalize_entity_key():

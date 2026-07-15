@@ -46,6 +46,8 @@ Do **not** answer as a normal chat message or markdown essay.
 
 ## Rules
 - Preserve the template structure, CSS, and tags exactly (including `@page`, `break-before` / `break-after` / `break-inside`, and other print/pagination rules).
+- Preserve every `<img>` tag exactly: keep `src`, `alt`, `data-media-slug`, width/height, and classes unchanged. Do **not** replace `/api/media/.../file` URLs with relative paths, filenames, or empty `src`.
+- Preserve any `{% raw %}{{image:slug}}{% endraw %}` tokens exactly if present.
 - Fill every `<span>…</span>` with values grounded in the source CONTEXT (and the user request).
 - Do not invent unsupported facts.
 - Do not redesign layout or invent new major sections; content fills existing spans/cells/lists.

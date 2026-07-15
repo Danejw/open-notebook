@@ -37,8 +37,16 @@ export function ConfirmDialog({
   const { t } = useTranslation()
   const finalConfirmText = confirmText || t('common.confirm')
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    onOpenChange(nextOpen)
+    // DropdownMenu → AlertDialog combos can leave body.pointerEvents = 'none'.
+    if (!nextOpen && typeof document !== 'undefined') {
+      document.body.style.pointerEvents = ''
+    }
+  }
+
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
@@ -47,7 +55,13 @@ export function ConfirmDialog({
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isLoading}>{t('common.cancel')}</AlertDialogCancel>
           <AlertDialogAction
-            onClick={onConfirm}
+            onClick={(event) => {
+              // Prevent Radix from racing close with DropdownMenu teardown, which
+              // can leave document.body.style.pointerEvents = 'none'.
+              event.preventDefault()
+              onConfirm()
+              handleOpenChange(false)
+            }}
             disabled={isLoading}
             className={confirmVariant === 'destructive' ? 'bg-red-600 hover:bg-red-700' : ''}
           >

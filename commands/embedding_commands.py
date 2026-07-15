@@ -1,4 +1,5 @@
 import time
+from datetime import datetime, timezone
 from typing import Dict, List, Literal, Optional
 
 from loguru import logger
@@ -10,9 +11,16 @@ from construction_os.database.repository import ensure_record_id, repo_insert, r
 from construction_os.domain.project import Note, Source, SourceInsight
 from construction_os.exceptions import ConfigurationError
 from construction_os.knowledge.pipeline import (
+    PIPELINE_COMPLETED,
+    PIPELINE_EMBEDDING,
+    begin_embed_stage,
     begin_kg_stage,
+    clear_pipeline_failure,
     fail_pipeline,
+    record_pipeline_failure,
     resolve_project_ids_for_source,
+    sanitize_processing_error,
+    set_pipeline_stage,
 )
 from construction_os.utils.chunking import ContentType, chunk_text, detect_content_type
 from construction_os.utils.embedding import generate_embedding, generate_embeddings
@@ -111,6 +119,7 @@ class EmbedSourceInput(CommandInput):
     """Input for embedding a source (creates multiple chunk embeddings)."""
 
     source_id: str
+    chain_kg: bool = True
 
 
 class EmbedSourceOutput(CommandOutput):
@@ -121,6 +130,8 @@ class EmbedSourceOutput(CommandOutput):
     chunks_created: int
     processing_time: float
     error_message: Optional[str] = None
+    error_type: Optional[str] = None
+    completed_at: Optional[str] = None
 
 
 class LegacyEmbedSingleItemInput(CommandInput):
@@ -473,10 +484,14 @@ async def embed_source_command(input_data: EmbedSourceInput) -> EmbedSourceOutpu
             f"Successfully embedded source {input_data.source_id}: "
             f"{total_chunks} chunks in {processing_time:.2f}s"
         )
+        await clear_pipeline_failure(input_data.source_id, PIPELINE_EMBEDDING)
 
         # Chain knowledge graph build after embeddings exist (chunk-linked evidence)
-        project_ids = await resolve_project_ids_for_source(input_data.source_id)
-        await begin_kg_stage(input_data.source_id, project_ids)
+        if input_data.chain_kg:
+            project_ids = await resolve_project_ids_for_source(input_data.source_id)
+            await begin_kg_stage(input_data.source_id, project_ids)
+        else:
+            await set_pipeline_stage(input_data.source_id, PIPELINE_COMPLETED)
 
         return EmbedSourceOutput(
             success=True,
@@ -492,17 +507,28 @@ async def embed_source_command(input_data: EmbedSourceInput) -> EmbedSourceOutpu
         logger.error(
             f"Failed to embed source {input_data.source_id} (command: {cmd_id}): {e}"
         )
-        try:
-            project_ids = await resolve_project_ids_for_source(input_data.source_id)
-            await begin_kg_stage(input_data.source_id, project_ids)
-        except Exception:
+        await record_pipeline_failure(
+            input_data.source_id,
+            PIPELINE_EMBEDDING,
+            e,
+            command_id=cmd_id,
+        )
+        if input_data.chain_kg:
+            try:
+                project_ids = await resolve_project_ids_for_source(input_data.source_id)
+                await begin_kg_stage(input_data.source_id, project_ids)
+            except Exception:
+                await fail_pipeline(input_data.source_id)
+        else:
             await fail_pipeline(input_data.source_id)
         return EmbedSourceOutput(
             success=False,
             source_id=input_data.source_id,
             chunks_created=0,
             processing_time=processing_time,
-            error_message=str(e),
+            error_message=sanitize_processing_error(e),
+            error_type=type(e).__name__,
+            completed_at=datetime.now(timezone.utc).isoformat(),
         )
     except ConfigurationError as e:
         processing_time = time.time() - start_time
@@ -511,13 +537,21 @@ async def embed_source_command(input_data: EmbedSourceInput) -> EmbedSourceOutpu
             f"Configuration error embedding source {input_data.source_id} "
             f"(command: {cmd_id}): {e}"
         )
+        await record_pipeline_failure(
+            input_data.source_id,
+            PIPELINE_EMBEDDING,
+            e,
+            command_id=cmd_id,
+        )
         await fail_pipeline(input_data.source_id)
         return EmbedSourceOutput(
             success=False,
             source_id=input_data.source_id,
             chunks_created=0,
             processing_time=processing_time,
-            error_message=str(e),
+            error_message=sanitize_processing_error(e),
+            error_type=type(e).__name__,
+            completed_at=datetime.now(timezone.utc).isoformat(),
         )
     except Exception as e:
         # Terminal failure for UI reliability (batch retries already attempted)
@@ -527,13 +561,21 @@ async def embed_source_command(input_data: EmbedSourceInput) -> EmbedSourceOutpu
             f"Failed embedding source {input_data.source_id} "
             f"(command: {cmd_id}): {e}"
         )
+        await record_pipeline_failure(
+            input_data.source_id,
+            PIPELINE_EMBEDDING,
+            e,
+            command_id=cmd_id,
+        )
         await fail_pipeline(input_data.source_id)
         return EmbedSourceOutput(
             success=False,
             source_id=input_data.source_id,
             chunks_created=0,
             processing_time=processing_time,
-            error_message=str(e),
+            error_message=sanitize_processing_error(e),
+            error_type=type(e).__name__,
+            completed_at=datetime.now(timezone.utc).isoformat(),
         )
 
 
@@ -1003,11 +1045,7 @@ async def rebuild_embeddings_command(
         logger.info(f"\nSubmitting {len(items['sources'])} source embedding jobs...")
         for idx, source_id in enumerate(items["sources"], 1):
             try:
-                submit_command(
-                    "construction_os",
-                    "embed_source",
-                    {"source_id": source_id},
-                )
+                await begin_embed_stage(source_id, chain_kg=False)
                 sources_submitted += 1
 
                 if idx % 50 == 0 or idx == len(items["sources"]):

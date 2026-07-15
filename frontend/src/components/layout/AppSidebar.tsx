@@ -40,6 +40,7 @@ import {
   Menu,
   FileText,
   FileCode2,
+  Image as ImageIcon,
   Plus,
   Wrench,
   Sparkles,
@@ -76,6 +77,7 @@ const getManageNavigation = (t: TFunction): NavSection => ({
   items: [
     { name: t('navigation.sources'), href: '/sources', icon: FileText },
     { name: t('navigation.artifacts'), href: '/artifacts', icon: Shuffle },
+    { name: t('navigation.images'), href: '/images', icon: ImageIcon },
     { name: t('navigation.templates'), href: '/templates', icon: FileCode2 },
     { name: t('navigation.models'), href: '/settings/api-keys', icon: Bot },
     { name: t('navigation.advanced'), href: '/advanced', icon: Wrench },

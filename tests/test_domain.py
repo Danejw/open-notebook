@@ -347,7 +347,7 @@ class TestSourceDomain:
             return_value="command:123",
         ) as mock_begin:
             result = await source.vectorize()
-            mock_begin.assert_awaited_once_with("source:test_valid")
+            mock_begin.assert_awaited_once_with("source:test_valid", chain_kg=True)
             assert result == "command:123"
 
 

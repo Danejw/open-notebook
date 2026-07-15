@@ -14,7 +14,7 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse, Response
 from loguru import logger
-from surreal_commands import execute_command_sync, submit_command
+from surreal_commands import execute_command_sync, get_command_status, submit_command
 
 from api.command_service import CommandService
 from api.models import (
@@ -41,6 +41,7 @@ from construction_os.knowledge.pipeline import (
     fetched_command_status,
     heal_pipeline_stage_if_needed,
     pipeline_processing_info,
+    resolve_processing_failures,
     resolve_pipeline_status,
 )
 
@@ -204,7 +205,10 @@ async def get_sources(
             # Query sources for specific Project - include command fields with FETCH
             query = f"""
                 SELECT id, asset, created, title, updated, topics, command,
-                embed_command, kg_command, pipeline_stage,
+                embed_command, kg_command, pipeline_stage, processing_failures,
+                (SELECT status, error_message, error_type, started_at, finished_at, updated, command_id
+                 FROM kg_extraction_run WHERE source_id = $parent.id
+                 ORDER BY started_at DESC LIMIT 1)[0] AS latest_kg_run,
                 (SELECT VALUE count() FROM source_insight WHERE source = $parent.id GROUP ALL)[0].count OR 0 AS insights_count,
                 (SELECT VALUE id FROM source_embedding WHERE source = $parent.id LIMIT 1) != [] AS embedded
                 FROM (select value in from reference where out=$project_id)
@@ -224,7 +228,10 @@ async def get_sources(
             # Query all sources - include command fields with FETCH
             query = f"""
                 SELECT id, asset, created, title, updated, topics, command,
-                embed_command, kg_command, pipeline_stage,
+                embed_command, kg_command, pipeline_stage, processing_failures,
+                (SELECT status, error_message, error_type, started_at, finished_at, updated, command_id
+                 FROM kg_extraction_run WHERE source_id = $parent.id
+                 ORDER BY started_at DESC LIMIT 1)[0] AS latest_kg_run,
                 (SELECT VALUE count() FROM source_insight WHERE source = $parent.id GROUP ALL)[0].count OR 0 AS insights_count,
                 (SELECT VALUE id FROM source_embedding WHERE source = $parent.id LIMIT 1) != [] AS embedded
                 FROM source
@@ -282,6 +289,15 @@ async def get_sources(
                 resolved_stage=stage,
             )
             processing_info = pipeline_processing_info(processing_info, stage)
+            processing_failures = resolve_processing_failures(
+                row.get("processing_failures"),
+                embed_command=row.get("embed_command"),
+                kg_command=row.get("kg_command"),
+                kg_run=row.get("latest_kg_run"),
+            )
+            failure_details_unavailable = (
+                stage == "failed" and not processing_failures
+            )
 
             response_list.append(
                 SourceListResponse(
@@ -307,6 +323,9 @@ async def get_sources(
                     processing_info=processing_info,
                     pipeline_stage=pipeline_stage if stage != "failed" else stage,
                     stage=stage,
+                    kg_status=kg_status,
+                    processing_failures=processing_failures,
+                    failure_details_unavailable=failure_details_unavailable,
                 )
             )
 
@@ -700,6 +719,19 @@ async def get_source(source_id: str):
                 status = "unknown"
 
         embedded_chunks = await source.get_embedded_chunks()
+        embed_command, _ = await _child_command_details(
+            getattr(source, "embed_command", None)
+        )
+        kg_command, _ = await _child_command_details(
+            getattr(source, "kg_command", None)
+        )
+        processing_failures = resolve_processing_failures(
+            getattr(source, "processing_failures", None),
+            embed_command=embed_command,
+            kg_command=kg_command,
+            kg_run=await _latest_kg_run(str(source.id or source_id)),
+        )
+        pipeline_stage = getattr(source, "pipeline_stage", None)
 
         # Get associated projects
         projects_query = await repo_query(
@@ -730,6 +762,12 @@ async def get_source(source_id: str):
             command_id=str(source.command) if source.command else None,
             status=status,
             processing_info=processing_info,
+            pipeline_stage=pipeline_stage,
+            stage=pipeline_stage,
+            processing_failures=processing_failures,
+            failure_details_unavailable=(
+                pipeline_stage == "failed" and not processing_failures
+            ),
             # Project associations
             projects=project_ids,
         )
@@ -772,22 +810,50 @@ async def download_source_file(source_id: str):
         raise HTTPException(status_code=500, detail="Failed to download source file")
 
 
-async def _child_command_status(
+async def _child_command_details(
     command_ref: Any,
-) -> Tuple[Optional[str], bool]:
-    """Resolve status for embed_command / kg_command links."""
+) -> Tuple[Optional[dict[str, Any]], bool]:
+    """Resolve status and failure output for an embed/KG command link."""
     if not command_ref:
         return None, False
     try:
-        from surreal_commands import get_command_status
-
         status_result = await get_command_status(str(command_ref))
         if not status_result:
-            return "unknown", True
-        return status_result.status if status_result.status else "unknown", True
+            return {"id": str(command_ref), "status": "unknown"}, True
+        return (
+            {
+                "id": str(command_ref),
+                "status": status_result.status or "unknown",
+                "result": getattr(status_result, "result", None),
+                "error_message": getattr(status_result, "error_message", None),
+                "updated": str(status_result.updated)
+                if getattr(status_result, "updated", None)
+                else None,
+            },
+            True,
+        )
     except Exception as e:
         logger.warning(f"Failed to get child command status for {command_ref}: {e}")
-        return "unknown", True
+        return {"id": str(command_ref), "status": "unknown"}, True
+
+
+async def _latest_kg_run(source_id: str) -> Optional[dict[str, Any]]:
+    """Fetch the latest KG run for diagnostics fallback."""
+    try:
+        rows = await repo_query(
+            """
+            SELECT status, error_message, error_type, started_at, finished_at, updated, command_id
+            FROM kg_extraction_run
+            WHERE source_id = $source_id
+            ORDER BY started_at DESC
+            LIMIT 1
+            """,
+            {"source_id": ensure_record_id(source_id)},
+        )
+        return rows[0] if rows else None
+    except Exception as exc:
+        logger.warning(f"Failed to load KG diagnostics for {source_id}: {exc}")
+        return None
 
 
 @router.get("/sources/{source_id}/status", response_model=SourceStatusResponse)
@@ -800,12 +866,32 @@ async def get_source_status(source_id: str):
             raise HTTPException(status_code=404, detail="Source not found")
 
         pipeline_stage = getattr(source, "pipeline_stage", None)
-        embed_status, has_embed = await _child_command_status(
+        embed_command, has_embed = await _child_command_details(
             getattr(source, "embed_command", None)
         )
-        kg_status, has_kg = await _child_command_status(
+        kg_command, has_kg = await _child_command_details(
             getattr(source, "kg_command", None)
         )
+        embed_status, _ = fetched_command_status(embed_command)
+        kg_status, _ = fetched_command_status(kg_command)
+        processing_failures = resolve_processing_failures(
+            getattr(source, "processing_failures", None),
+            embed_command=embed_command,
+            kg_command=kg_command,
+            kg_run=await _latest_kg_run(str(source.id or source_id)),
+        )
+        failure_details_unavailable = (
+            pipeline_stage == "failed" and not processing_failures
+        )
+        # Cheap existence check — avoid COUNT on every 2s poll while embedding runs.
+        try:
+            emb_rows = await repo_query(
+                "SELECT VALUE id FROM source_embedding WHERE source = $id LIMIT 1",
+                {"id": ensure_record_id(source.id or source_id)},
+            )
+            embedded = bool(emb_rows)
+        except Exception:
+            embedded = None
 
         # Check if this is a legacy source (no command)
         if not source.command:
@@ -829,6 +915,12 @@ async def get_source_status(source_id: str):
                     processing_info=pipeline_processing_info(None, stage),
                     command_id=None,
                     stage=stage,
+                    embedded=embedded,
+                    kg_status=kg_status,
+                    processing_failures=processing_failures,
+                    failure_details_unavailable=(
+                        stage == "failed" and not processing_failures
+                    ),
                 )
             return SourceStatusResponse(
                 status=None,
@@ -836,6 +928,10 @@ async def get_source_status(source_id: str):
                 processing_info=None,
                 command_id=None,
                 stage=pipeline_stage or "completed",
+                embedded=embedded,
+                kg_status=kg_status,
+                processing_failures=processing_failures,
+                failure_details_unavailable=failure_details_unavailable,
             )
 
         # Get command status and processing info
@@ -862,6 +958,12 @@ async def get_source_status(source_id: str):
                 processing_info=pipeline_processing_info(processing_info, stage),
                 command_id=str(source.command) if source.command else None,
                 stage=stage,
+                embedded=embedded,
+                kg_status=kg_status,
+                processing_failures=processing_failures,
+                failure_details_unavailable=(
+                    stage == "failed" and not processing_failures
+                ),
             )
 
         except Exception as e:
@@ -872,6 +974,10 @@ async def get_source_status(source_id: str):
                 processing_info=None,
                 command_id=str(source.command) if source.command else None,
                 stage=getattr(source, "pipeline_stage", None),
+                embedded=embedded,
+                kg_status=kg_status,
+                processing_failures=processing_failures,
+                failure_details_unavailable=failure_details_unavailable,
             )
 
     except HTTPException:
@@ -1044,6 +1150,11 @@ async def retry_source_processing(source_id: str):
                     "queued": True,
                     "stage": PIPELINE_EXTRACTING,
                 },
+                pipeline_stage=PIPELINE_EXTRACTING,
+                stage=PIPELINE_EXTRACTING,
+                processing_failures=resolve_processing_failures(
+                    getattr(source, "processing_failures", None)
+                ),
             )
 
         except Exception as e:

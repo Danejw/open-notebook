@@ -8,6 +8,7 @@ Importing this package registers ObjectModel subclasses for polymorphic get().
 from construction_os.domain.artifact import Artifact, DefaultPrompts
 from construction_os.domain.base import ObjectModel, RecordModel
 from construction_os.domain.html_document import Document, HtmlTemplate
+from construction_os.domain.media_asset import MediaAsset
 from construction_os.domain.knowledge_graph import (
     KgClaim,
     KgEntity,
@@ -34,6 +35,7 @@ __all__ = [
     "DefaultPrompts",
     "Document",
     "HtmlTemplate",
+    "MediaAsset",
     "KgClaim",
     "KgEntity",
     "KgExtractionRun",

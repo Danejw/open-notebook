@@ -1,8 +1,10 @@
 'use client'
 
 import React, { useState, useEffect, useRef, memo } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { SourceListResponse } from '@/lib/types/api'
 import { Button } from '@/components/ui/button'
+import { patchAllSourceListQueries } from '@/lib/utils/source-query-cache'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,7 +30,7 @@ import {
   Lightbulb,
   Network,
 } from 'lucide-react'
-import { useSourceStatus } from '@/lib/hooks/use-sources'
+import { useSourceStatus, useEmbedSource } from '@/lib/hooks/use-sources'
 import { useExtractKnowledge, useSourceExtractors } from '@/lib/hooks/use-knowledge'
 import { useGraphLiveStore } from '@/lib/stores/graph-live-store'
 import { useKnowledgeExtractStore } from '@/lib/stores/knowledge-extract-store'
@@ -39,6 +41,10 @@ import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
 import { getArtifactDragData, getActiveArtifactDragPayload, isArtifactDragEvent, clearArtifactDragData } from '@/lib/utils/artifact-drag'
 import { ContextMode } from '@/app/(dashboard)/projects/[id]/page'
+import {
+  SourceStageActions,
+  type StageActionState,
+} from '@/components/sources/SourceStageActions'
 
 interface SourceCardProps {
   source: SourceListResponse
@@ -175,6 +181,7 @@ function SourceCardImpl({
 
   const [isArtifactDragOver, setIsArtifactDragOver] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const queryClient = useQueryClient()
 
   const sourceWithStatus = source as SourceListResponse & {
     command_id?: string
@@ -269,9 +276,29 @@ function SourceCardImpl({
         wasKnowledgeGraphRef.current = false
       }
 
-      if (onRefresh) {
-        setTimeout(() => onRefresh(), 500)
-      }
+      // Patch this card in the list cache — full list refetch freezes large projects.
+      patchAllSourceListQueries(queryClient, (sources) =>
+        sources.map((item) =>
+          item.id === source.id
+            ? {
+                ...item,
+                status: currentStatusFromData,
+                stage: stage || currentStatusFromData,
+                pipeline_stage: stage || item.pipeline_stage,
+                embedded:
+                  typeof statusData?.embedded === 'boolean'
+                    ? statusData.embedded
+                    : item.embedded,
+                kg_status: statusData?.kg_status ?? item.kg_status,
+                processing_failures:
+                  statusData?.processing_failures ?? item.processing_failures,
+                failure_details_unavailable:
+                  statusData?.failure_details_unavailable ??
+                  item.failure_details_unavailable,
+              }
+            : item
+        )
+      )
     }
   }, [
     statusData,
@@ -279,9 +306,9 @@ function SourceCardImpl({
     sourceWithStatus.stage,
     sourceWithStatus.pipeline_stage,
     wasProcessing,
-    onRefresh,
     source.id,
     projectId,
+    queryClient,
   ])
 
   const statusConfigMap = getStatusConfig(t)
@@ -379,12 +406,46 @@ function SourceCardImpl({
     isCompleted && (menuOpen || isKgPending)
   )
   const extractKnowledge = useExtractKnowledge(source.id)
+  const embedSource = useEmbedSource()
   const genericRun = extractorData?.extractors?.find((e) => e.id === 'generic')
-  const kgStatus = genericRun?.last_run?.status
-  const hasKnowledgeGraph = kgStatus === 'completed'
-  const kgFailed = kgStatus === 'failed'
+  const extractorKgStatus = genericRun?.last_run?.status
+  const processingFailures =
+    statusData?.processing_failures ?? sourceWithStatus.processing_failures
+  const embedFailure = processingFailures?.embedding
+  const kgFailure =
+    processingFailures?.knowledge_graph ??
+    (genericRun?.last_run?.status === 'failed' &&
+    genericRun.last_run.error_message
+      ? {
+          stage: 'knowledge_graph' as const,
+          message: genericRun.last_run.error_message,
+          occurred_at:
+            genericRun.last_run.finished_at ?? genericRun.last_run.started_at,
+          command_id: genericRun.last_run.command_id,
+        }
+      : undefined)
+  const failureDetailsUnavailable =
+    statusData?.failure_details_unavailable ??
+    sourceWithStatus.failure_details_unavailable ??
+    false
+  const liveEmbedded =
+    typeof statusData?.embedded === 'boolean'
+      ? statusData.embedded
+      : Boolean(sourceWithStatus.embedded)
+  const liveKgStatus =
+    statusData?.kg_status ??
+    sourceWithStatus.kg_status ??
+    extractorKgStatus ??
+    null
+  const hasKnowledgeGraph =
+    liveKgStatus === 'completed' || extractorKgStatus === 'completed'
+  const kgFailed =
+    liveKgStatus === 'failed' || extractorKgStatus === 'failed'
   const kgBuilding =
-    extractKnowledge.isBuilding || kgStatus === 'running' || kgStatus === 'queued'
+    extractKnowledge.isBuilding ||
+    liveKgStatus === 'running' ||
+    liveKgStatus === 'queued' ||
+    liveKgStatus === 'new'
   const showBuildKnowledgeGraph =
     isCompleted &&
     menuOpen &&
@@ -392,12 +453,44 @@ function SourceCardImpl({
     !hasKnowledgeGraph &&
     !kgBuilding
 
+  const extractReady =
+    liveEmbedded ||
+    pipelineStage === 'embedding' ||
+    pipelineStage === 'knowledge_graph' ||
+    pipelineStage === 'completed' ||
+    pipelineStage === 'failed' ||
+    isCompleted ||
+    isFailed
+
+  const embedState: StageActionState =
+    pipelineStage === 'embedding' || embedSource.isPending
+      ? 'running'
+      : embedFailure || (isFailed && !liveEmbedded)
+        ? 'failed'
+        : liveEmbedded
+          ? 'done'
+          : 'idle'
+
+  const kgState: StageActionState = kgBuilding
+    ? 'running'
+    : kgFailure ||
+        kgFailed ||
+        (isFailed && liveEmbedded && pipelineStage !== 'embedding')
+        ? 'failed'
+      : hasKnowledgeGraph
+        ? 'done'
+        : 'idle'
+
   const handleBuildKnowledgeGraph = () => {
     extractKnowledge.mutate({
       extractor: 'generic',
       project_id: projectId,
       force: true,
     })
+  }
+
+  const handleRunEmbeddings = () => {
+    embedSource.mutate({ sourceId: source.id, chainKg: false })
   }
 
   const handleArtifactDragOver = (event: React.DragEvent<HTMLDivElement>) => {
@@ -504,26 +597,21 @@ function SourceCardImpl({
         </h4>
 
         <div className="flex shrink-0 items-center gap-0.5">
-          {(kgBuilding || kgFailed) && (
-            <span
-              className={cn(
-                'mr-1 inline-flex items-center',
-                kgFailed ? 'text-destructive' : 'text-blue-600'
-              )}
-              title={
-                kgFailed
-                  ? t('sources.knowledgeGraphFailed')
-                  : t('sources.buildingKnowledgeGraph')
-              }
-            >
-              {kgFailed ? (
-                <AlertTriangle className="h-3 w-3" />
-              ) : (
-                <Network className="h-3 w-3 animate-pulse" />
-              )}
-            </span>
+          {!selectionMode && (
+            <SourceStageActions
+              embedState={embedState}
+              kgState={kgState}
+              extractReady={extractReady}
+              embedBusy={embedSource.isPending}
+              kgBusy={extractKnowledge.isPending || extractKnowledge.isBuilding}
+              embedFailure={embedFailure}
+              kgFailure={kgFailure}
+              failureDetailsUnavailable={failureDetailsUnavailable}
+              onRunEmbeddings={handleRunEmbeddings}
+              onRunKnowledgeGraph={handleBuildKnowledgeGraph}
+            />
           )}
-          {!isCompleted && (
+          {!isCompleted && pipelineStage === 'extracting' && (
             <span
               className={cn(
                 'mr-1 inline-flex max-w-[9.5rem] items-center gap-1 truncate text-[11px] font-medium',
@@ -540,6 +628,9 @@ function SourceCardImpl({
                 {statusLoading && shouldFetchStatus ? t('sources.checking') : statusLabel}
               </span>
             </span>
+          )}
+          {!isCompleted && pipelineStage !== 'extracting' && !selectionMode && isProcessing && (
+            <span className="sr-only">{statusLabel}</span>
           )}
 
           {!selectionMode && (
@@ -756,6 +847,9 @@ function areEqual(prev: SourceCardProps, next: SourceCardProps): boolean {
     p.stage === n.stage &&
     p.pipeline_stage === n.pipeline_stage &&
     p.embedded === n.embedded &&
+    p.kg_status === n.kg_status &&
+    p.processing_failures === n.processing_failures &&
+    p.failure_details_unavailable === n.failure_details_unavailable &&
     p.insights_count === n.insights_count &&
     p.asset?.url === n.asset?.url &&
     p.asset?.file_path === n.asset?.file_path &&

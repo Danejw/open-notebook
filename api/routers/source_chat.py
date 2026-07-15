@@ -13,6 +13,7 @@ from construction_os.domain.project import ChatSession, Source
 from construction_os.exceptions import NotFoundError
 from construction_os.graphs import source_chat as source_chat_module
 from construction_os.utils.graph_utils import get_session_message_count
+from construction_os.utils.html_media import expand_image_tokens
 
 router = APIRouter()
 
@@ -543,11 +544,12 @@ async def send_message_to_source_chat(
         if html_template_id:
             try:
                 tmpl = await HtmlTemplate.get(html_template_id)
+                html_body = await expand_image_tokens(tmpl.html_body)
                 html_template_meta = {
                     "id": tmpl.id,
                     "name": tmpl.name,
                     "category": tmpl.category,
-                    "html_body": tmpl.html_body,
+                    "html_body": html_body,
                 }
             except NotFoundError:
                 html_template_id = None

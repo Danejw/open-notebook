@@ -174,20 +174,25 @@ class TestHtmlDocumentsApi:
         assert response.json()["scenario_label"] == "Alt A"
         duplicate.save.assert_awaited()
 
+    @patch("api.routers.html_documents.resolve_media_for_pdf", new_callable=AsyncMock)
     @patch("api.routers.html_documents.render_html_pdf")
     @patch("api.routers.html_documents.Document")
-    def test_export_pdf(self, mock_doc_cls, mock_render, client):
+    def test_export_pdf(self, mock_doc_cls, mock_render, mock_resolve, client):
         mock_doc_cls.get = AsyncMock(return_value=_mock_document(title="Bid Summary"))
+        mock_resolve.return_value = SAMPLE_HTML
         mock_render.return_value = b"%PDF-1.4 test"
 
         response = client.get("/api/documents/document:d1/export.pdf")
         assert response.status_code == 200
         assert response.headers["content-type"] == "application/pdf"
         assert response.content.startswith(b"%PDF")
-        mock_render.assert_called_once()
+        mock_resolve.assert_awaited()
+        mock_render.assert_called_once_with(SAMPLE_HTML)
 
+    @patch("api.routers.html_documents.resolve_media_for_pdf", new_callable=AsyncMock)
     @patch("api.routers.html_documents.render_html_pdf")
-    def test_render_pdf_from_html(self, mock_render, client):
+    def test_render_pdf_from_html(self, mock_render, mock_resolve, client):
+        mock_resolve.return_value = SAMPLE_HTML
         mock_render.return_value = b"%PDF-1.4 chat"
 
         response = client.post(
@@ -197,7 +202,26 @@ class TestHtmlDocumentsApi:
         assert response.status_code == 200
         assert response.headers["content-type"] == "application/pdf"
         assert response.content.startswith(b"%PDF")
+        mock_resolve.assert_awaited_once_with(SAMPLE_HTML)
         mock_render.assert_called_once_with(SAMPLE_HTML)
+
+    @patch("api.routers.html_documents.resolve_media_for_pdf", new_callable=AsyncMock)
+    @patch("api.routers.html_documents.render_html_pdf")
+    def test_render_pdf_inlines_media_before_chromium(
+        self, mock_render, mock_resolve, client
+    ):
+        prepared = '<img src="data:image/png;base64,abc" alt="Logo" />'
+        mock_resolve.return_value = prepared
+        mock_render.return_value = b"%PDF-1.4 logo"
+
+        html = '<img src="/api/media/media_asset:m1/file" alt="Logo" />'
+        response = client.post(
+            "/api/documents/render.pdf",
+            json={"html_body": f"<html><body>{html}</body></html>", "title": "Logo"},
+        )
+        assert response.status_code == 200
+        mock_render.assert_called_once_with(prepared)
+        assert "data:image/png" in mock_render.call_args.args[0]
 
     def test_render_pdf_rejects_non_html(self, client):
         response = client.post(

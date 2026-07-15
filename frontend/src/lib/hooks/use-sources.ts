@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tansta
 import { useCallback, useMemo } from 'react'
 import { sourcesApi } from '@/lib/api/sources'
 import { projectsApi } from '@/lib/api/projects'
+import { embeddingApi } from '@/lib/api/embedding'
 import { QUERY_KEYS } from '@/lib/api/query-client'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -16,6 +17,7 @@ import {
   removeSourceFromAllQueries,
   removeSourceFromProjectQueries,
   dedupeSourcesById,
+  patchAllSourceListQueries,
 } from '@/lib/utils/source-query-cache'
 import {
   CreateSourceRequest,
@@ -432,6 +434,74 @@ export function useBulkRetrySources() {
       toast({
         title: t('common.error'),
         description: getApiErrorMessage(error, (key) => t(key), t('sources.failedToRetry')),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function useEmbedSource() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: ({
+      sourceId,
+      chainKg = false,
+    }: {
+      sourceId: string
+      chainKg?: boolean
+    }) =>
+      embeddingApi.embedContent(sourceId, 'source', {
+        chainKg,
+      }),
+    onSuccess: (_result, { sourceId }) => {
+      // Patch the one card in-place instead of refetching the whole project list
+      // (large lists freeze the UI while every page reloads).
+      patchAllSourceListQueries(queryClient, (sources) =>
+        sources.map((source) =>
+          source.id === sourceId
+            ? {
+                ...source,
+                status: 'running',
+                stage: 'embedding',
+                pipeline_stage: 'embedding',
+              }
+            : source
+        )
+      )
+      queryClient.setQueryData<SourceStatusResponse>(
+        ['sources', sourceId, 'status'],
+        (prev) => ({
+          status: 'running',
+          message: prev?.message || 'Creating vector embeddings…',
+          processing_info: prev?.processing_info,
+          command_id: prev?.command_id,
+          stage: 'embedding',
+          embedded: prev?.embedded ?? false,
+          kg_status: prev?.kg_status ?? null,
+          processing_failures: prev?.processing_failures,
+          failure_details_unavailable: prev?.failure_details_unavailable,
+        })
+      )
+      void queryClient.invalidateQueries({
+        queryKey: ['sources', sourceId, 'status'],
+      })
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.source(sourceId) })
+      toast({
+        title: t('sources.embeddingsQueued'),
+        description: t('sources.embeddingsQueuedDesc'),
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('common.error'),
+        description: getApiErrorMessage(
+          error,
+          (key) => t(key),
+          t('sources.embeddingsFailed')
+        ),
         variant: 'destructive',
       })
     },

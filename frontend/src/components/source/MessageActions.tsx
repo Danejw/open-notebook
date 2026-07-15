@@ -9,9 +9,11 @@ import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
 import { useCreateNote } from '@/lib/hooks/use-notes'
 import { htmlDocumentsApi } from '@/lib/api/html-documents'
 import { extractHtmlFromChatContent } from '@/lib/utils/extract-html-from-chat'
+import { restoreTemplateMedia } from '@/lib/utils/restore-template-media'
 import { toast } from 'sonner'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { getApiErrorMessage } from '@/lib/utils/error-handler'
+import { useHtmlTemplate } from '@/lib/hooks/use-html-documents'
 
 interface MessageActionsProps {
   content: string
@@ -32,10 +34,25 @@ export function MessageActions({
   const [savingDocument, setSavingDocument] = useState(false)
   const [exportingPdf, setExportingPdf] = useState(false)
   const createNote = useCreateNote()
+  const { data: htmlTemplate } = useHtmlTemplate(htmlTemplateId ?? undefined)
 
-  const extractedHtml = extractHtmlFromChatContent(content)
+  const extractedRaw = extractHtmlFromChatContent(content)
+  const extractedHtml =
+    extractedRaw && htmlTemplate?.html_body
+      ? restoreTemplateMedia(extractedRaw, htmlTemplate.html_body)
+      : extractedRaw
   const canSaveDocument = Boolean(projectId && htmlTemplateId && extractedHtml)
   const canExportPdf = Boolean(extractedHtml)
+
+  const resolveFilledHtml = async (): Promise<string | null> => {
+    const raw = extractHtmlFromChatContent(content)
+    if (!raw) return null
+    if (!htmlTemplateId) return raw
+    const templateBody =
+      htmlTemplate?.html_body ??
+      (await htmlDocumentsApi.getTemplate(htmlTemplateId)).html_body
+    return restoreTemplateMedia(raw, templateBody)
+  }
 
   const handleSave = (asArtifact: boolean) => {
     if (!projectId) {
@@ -52,16 +69,18 @@ export function MessageActions({
   }
 
   const handleSaveAsDocument = async () => {
-    if (!projectId || !htmlTemplateId || !extractedHtml) {
+    if (!projectId || !htmlTemplateId) {
       return
     }
+    const filledHtml = await resolveFilledHtml()
+    if (!filledHtml) return
 
     setSavingDocument(true)
     try {
       const doc = await htmlDocumentsApi.createDocument(projectId, {
         template_id: htmlTemplateId,
         scenario_label: 'Chat',
-        html_body: extractedHtml,
+        html_body: filledHtml,
       })
       toast.success(t('documents.saveAsDocumentSuccess'), {
         action: {
@@ -79,12 +98,13 @@ export function MessageActions({
   }
 
   const handleExportPdf = async () => {
-    if (!extractedHtml) return
+    const filledHtml = await resolveFilledHtml()
+    if (!filledHtml) return
 
     setExportingPdf(true)
     try {
       await htmlDocumentsApi.renderPdfFromHtml({
-        html_body: extractedHtml,
+        html_body: filledHtml,
         title: noteTitle || t('documents.title'),
       })
       toast.success(t('documents.exportSuccess'))

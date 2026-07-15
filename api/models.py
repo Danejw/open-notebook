@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -229,6 +230,13 @@ class EmbedRequest(BaseModel):
     async_processing: bool = Field(
         False, description="Process asynchronously in background"
     )
+    chain_kg: bool = Field(
+        True,
+        description=(
+            "For sources: when True, continue into knowledge graph after embeddings. "
+            "When False, only create embeddings."
+        ),
+    )
 
 
 class EmbedResponse(BaseModel):
@@ -356,6 +364,14 @@ class SourceUpdate(BaseModel):
     topics: Optional[List[str]] = Field(None, description="Source topics")
 
 
+class ProcessingFailureResponse(BaseModel):
+    stage: Literal["embedding", "knowledge_graph"]
+    message: str
+    error_type: Optional[str] = None
+    occurred_at: Optional[datetime] = None
+    command_id: Optional[str] = None
+
+
 class SourceResponse(BaseModel):
     id: str
     title: Optional[str]
@@ -373,8 +389,18 @@ class SourceResponse(BaseModel):
     processing_info: Optional[Dict] = None
     pipeline_stage: Optional[str] = None
     stage: Optional[str] = None
+    processing_failures: Dict[str, ProcessingFailureResponse] = Field(
+        default_factory=dict
+    )
+    failure_details_unavailable: bool = False
     # Project associations
     projects: Optional[List[str]] = None
+
+    @field_validator("processing_failures", mode="before")
+    @classmethod
+    def normalize_processing_failures(cls, value: Any) -> Dict[str, Any]:
+        """Treat absent/non-mapping ORM attributes as no recorded failures."""
+        return value if isinstance(value, dict) else {}
 
 
 class SourceListResponse(BaseModel):
@@ -394,6 +420,12 @@ class SourceListResponse(BaseModel):
     processing_info: Optional[Dict[str, Any]] = None
     pipeline_stage: Optional[str] = None
     stage: Optional[str] = None
+    # Child-job status for per-stage UI (from FETCH'd kg_command)
+    kg_status: Optional[str] = None
+    processing_failures: Dict[str, ProcessingFailureResponse] = Field(
+        default_factory=dict
+    )
+    failure_details_unavailable: bool = False
 
 
 # Context API models
@@ -488,6 +520,16 @@ class SourceStatusResponse(BaseModel):
         None,
         description="Pipeline stage: extracting|embedding|knowledge_graph|completed|failed",
     )
+    embedded: Optional[bool] = Field(
+        None, description="Whether the source currently has vector embeddings"
+    )
+    kg_status: Optional[str] = Field(
+        None, description="Knowledge graph job status when linked"
+    )
+    processing_failures: Dict[str, ProcessingFailureResponse] = Field(
+        default_factory=dict
+    )
+    failure_details_unavailable: bool = False
 
 
 # Error response
@@ -817,3 +859,22 @@ class DocumentResponse(BaseModel):
     parent_document_id: Optional[str] = None
     created: str
     updated: str
+
+
+# --- Global media asset library ---
+
+
+class MediaAssetUpdate(BaseModel):
+    name: Optional[str] = None
+    slug: Optional[str] = None
+
+
+class MediaAssetResponse(BaseModel):
+    id: str
+    name: str
+    slug: str
+    mime_type: str
+    byte_size: int
+    created: str
+    updated: str
+    file_url: str = Field(..., description="Authenticated API path to fetch the file")

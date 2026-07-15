@@ -15,7 +15,9 @@ import {
   createCompactReferenceLinkComponent,
 } from '@/lib/utils/source-references'
 import { extractHtmlFromChatContent } from '@/lib/utils/extract-html-from-chat'
+import { restoreTemplateMedia } from '@/lib/utils/restore-template-media'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { useHtmlTemplate } from '@/lib/hooks/use-html-documents'
 import { cn } from '@/lib/utils'
 
 const EMPTY_TOOL_CALLS: ChatToolCall[] = []
@@ -60,10 +62,15 @@ function ChatMessageRowImpl({
   onEditKeyDown,
 }: ChatMessageRowProps) {
   const { t } = useTranslation()
-  const extractedHtml =
+  const { data: htmlTemplate } = useHtmlTemplate(htmlTemplateId ?? undefined)
+  const extractedRaw =
     message.type === 'ai' && !isStreamingThisMessage
       ? extractHtmlFromChatContent(message.content)
       : null
+  const extractedHtml =
+    extractedRaw && htmlTemplate?.html_body
+      ? restoreTemplateMedia(extractedRaw, htmlTemplate.html_body)
+      : extractedRaw
   const showTemplatePreview = Boolean(extractedHtml)
   const showTemplateMissing =
     message.type === 'ai' &&

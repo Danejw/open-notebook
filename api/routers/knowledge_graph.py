@@ -8,10 +8,10 @@ from fastapi import APIRouter, HTTPException, Query
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from api.command_service import CommandService
 from construction_os.domain.knowledge_graph import KnowledgeGraphRepository
 from construction_os.domain.project import Project, Source
 from construction_os.knowledge.extractors.registry import list_extractors
+from construction_os.knowledge.pipeline import begin_kg_stage
 from construction_os.knowledge.project_linker import link_project_references
 
 router = APIRouter()
@@ -81,18 +81,16 @@ async def extract_source_knowledge(source_id: str, request: KnowledgeExtractRequ
         project_ids = [request.project_id]
 
     try:
-        command_id = await CommandService.submit_command_job(
-            "construction_os",
-            "build_knowledge_graph",
-            {
-                "source_id": source_id,
-                "project_ids": project_ids,
-                "extractor": request.extractor,
-                "force": request.force,
-                # Specialized extractors keep their id; generic may auto-upgrade.
-                "auto_select": request.extractor == "generic",
-            },
+        command_id = await begin_kg_stage(
+            source_id,
+            project_ids,
+            extractor=request.extractor,
+            force=request.force,
+            # Specialized extractors keep their id; generic may auto-upgrade.
+            auto_select=request.extractor == "generic",
         )
+        if not command_id:
+            raise RuntimeError("Failed to queue knowledge graph extraction")
         return KnowledgeExtractResponse(
             command_id=str(command_id),
             source_id=source_id,
@@ -163,18 +161,15 @@ async def rebuild_project_knowledge(
     command_ids: List[str] = []
     for source in sources:
         try:
-            command_id = await CommandService.submit_command_job(
-                "construction_os",
-                "build_knowledge_graph",
-                {
-                    "source_id": str(source.id),
-                    "project_ids": [project_id],
-                    "extractor": request.extractor,
-                    "force": request.force,
-                    "auto_select": request.extractor == "generic",
-                },
+            command_id = await begin_kg_stage(
+                str(source.id),
+                [project_id],
+                extractor=request.extractor,
+                force=request.force,
+                auto_select=request.extractor == "generic",
             )
-            command_ids.append(str(command_id))
+            if command_id:
+                command_ids.append(str(command_id))
         except Exception as e:
             logger.warning(f"Failed to queue KG rebuild for {source.id}: {e}")
 

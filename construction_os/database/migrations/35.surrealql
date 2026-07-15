@@ -1,0 +1,11 @@
+-- Global media asset library for template images and logos
+DEFINE TABLE IF NOT EXISTS media_asset SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS name ON TABLE media_asset TYPE string;
+DEFINE FIELD IF NOT EXISTS slug ON TABLE media_asset TYPE string;
+DEFINE FIELD IF NOT EXISTS file_path ON TABLE media_asset TYPE string;
+DEFINE FIELD IF NOT EXISTS mime_type ON TABLE media_asset TYPE string;
+DEFINE FIELD IF NOT EXISTS byte_size ON TABLE media_asset TYPE int;
+DEFINE FIELD IF NOT EXISTS created ON TABLE media_asset TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS updated ON TABLE media_asset TYPE option<datetime>;
+DEFINE INDEX IF NOT EXISTS idx_media_asset_slug ON TABLE media_asset COLUMNS slug UNIQUE;
+RETURN true;

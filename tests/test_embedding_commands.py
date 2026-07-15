@@ -85,7 +85,11 @@ async def test_embed_source_runtime_error_fails_pipeline_without_raise(monkeypat
     source.asset = None
 
     fail_pipeline = AsyncMock()
+    record_failure = AsyncMock()
     monkeypatch.setattr(embedding_commands, "fail_pipeline", fail_pipeline)
+    monkeypatch.setattr(
+        embedding_commands, "record_pipeline_failure", record_failure
+    )
     monkeypatch.setattr(
         embedding_commands.Source, "get", AsyncMock(return_value=source)
     )
@@ -96,7 +100,7 @@ async def test_embed_source_runtime_error_fails_pipeline_without_raise(monkeypat
     monkeypatch.setattr(
         embedding_commands,
         "generate_embeddings",
-        AsyncMock(side_effect=RuntimeError("provider down")),
+        AsyncMock(side_effect=RuntimeError("provider down api_key=secret-value")),
     )
     monkeypatch.setattr(embedding_commands, "repo_query", AsyncMock())
     monkeypatch.setattr(embedding_commands, "repo_insert", AsyncMock())
@@ -108,7 +112,17 @@ async def test_embed_source_runtime_error_fails_pipeline_without_raise(monkeypat
 
     assert result.success is False
     assert "provider down" in (result.error_message or "")
+    assert "secret-value" not in (result.error_message or "")
+    assert result.error_type == "RuntimeError"
+    assert result.completed_at
     fail_pipeline.assert_awaited_once_with("source:abc")
+    record_failure.assert_awaited_once()
+    assert record_failure.await_args.args[:3] == (
+        "source:abc",
+        "embedding",
+        record_failure.await_args.args[2],
+    )
+    assert isinstance(record_failure.await_args.args[2], RuntimeError)
 
 
 @pytest.mark.asyncio
@@ -147,7 +161,9 @@ async def test_embed_source_success_begins_kg(monkeypatch):
     source.asset = None
 
     begin_kg = AsyncMock(return_value="command:kg")
+    clear_failure = AsyncMock()
     monkeypatch.setattr(embedding_commands, "begin_kg_stage", begin_kg)
+    monkeypatch.setattr(embedding_commands, "clear_pipeline_failure", clear_failure)
     monkeypatch.setattr(
         embedding_commands.Source, "get", AsyncMock(return_value=source)
     )
@@ -175,6 +191,44 @@ async def test_embed_source_success_begins_kg(monkeypatch):
     assert result.success is True
     assert result.chunks_created == 1
     begin_kg.assert_awaited_once_with("source:abc", ["project:1"])
+    clear_failure.assert_awaited_once_with("source:abc", "embedding")
+
+
+@pytest.mark.asyncio
+async def test_rebuild_sources_uses_linked_embed_stage(monkeypatch):
+    monkeypatch.setattr(
+        embedding_commands.model_manager,
+        "get_embedding_model",
+        AsyncMock(return_value=MagicMock()),
+    )
+    monkeypatch.setattr(
+        embedding_commands,
+        "collect_items_for_rebuild",
+        AsyncMock(
+            return_value={
+                "sources": ["source:one", "source:two"],
+                "notes": [],
+                "insights": [],
+            }
+        ),
+    )
+    begin_embed = AsyncMock(side_effect=["command:one", "command:two"])
+    monkeypatch.setattr(embedding_commands, "begin_embed_stage", begin_embed)
+
+    result = await embedding_commands.rebuild_embeddings_command(
+        embedding_commands.RebuildEmbeddingsInput(
+            mode="all",
+            include_sources=True,
+            include_notes=False,
+            include_insights=False,
+        )
+    )
+
+    assert result.success is True
+    assert result.sources_submitted == 2
+    assert begin_embed.await_count == 2
+    begin_embed.assert_any_await("source:one", chain_kg=False)
+    begin_embed.assert_any_await("source:two", chain_kg=False)
 
 
 @pytest.mark.asyncio

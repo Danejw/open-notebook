@@ -18,6 +18,18 @@ export interface NoteResponse {
   updated: string
 }
 
+export interface SourceProcessingFailure {
+  stage: 'embedding' | 'knowledge_graph'
+  message: string
+  error_type?: string | null
+  occurred_at?: string | null
+  command_id?: string | null
+}
+
+export type SourceProcessingFailures = Partial<
+  Record<SourceProcessingFailure['stage'], SourceProcessingFailure>
+>
+
 export interface SourceListResponse {
   id: string
   title: string | null
@@ -38,6 +50,9 @@ export interface SourceListResponse {
   processing_info?: Record<string, unknown>
   pipeline_stage?: string
   stage?: string
+  kg_status?: string | null
+  processing_failures?: SourceProcessingFailures
+  failure_details_unavailable?: boolean
 }
 
 export interface SourceDetailResponse extends SourceListResponse {
@@ -67,6 +82,10 @@ export interface SourceStatusResponse {
   processing_info?: Record<string, unknown>
   command_id?: string
   stage?: string
+  embedded?: boolean | null
+  kg_status?: string | null
+  processing_failures?: SourceProcessingFailures
+  failure_details_unavailable?: boolean
 }
 
 export interface SettingsResponse {

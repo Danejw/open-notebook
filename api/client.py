@@ -292,13 +292,18 @@ class APIClient:
 
     # Embedding API methods
     def embed_content(
-        self, item_id: str, item_type: str, async_processing: bool = False
+        self,
+        item_id: str,
+        item_type: str,
+        async_processing: bool = False,
+        chain_kg: bool = True,
     ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
         """Embed content for vector search."""
         data = {
             "item_id": item_id,
             "item_type": item_type,
             "async_processing": async_processing,
+            "chain_kg": chain_kg,
         }
         # Use configured timeout for embedding operations
         return self._make_request("POST", "/api/embed", json=data, timeout=self.timeout)

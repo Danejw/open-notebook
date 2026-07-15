@@ -1,5 +1,6 @@
 import asyncio
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Any, ClassVar, Dict, List, Literal, Optional, Tuple, Union
 
@@ -353,6 +354,16 @@ class SourceInsight(ObjectModel):
         return note
 
 
+class ProcessingFailure(BaseModel):
+    """Latest user-visible failure recorded for one source processing stage."""
+
+    stage: Literal["embedding", "knowledge_graph"]
+    message: str
+    error_type: Optional[str] = None
+    occurred_at: datetime
+    command_id: Optional[str] = None
+
+
 class Source(ObjectModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -367,6 +378,7 @@ class Source(ObjectModel):
         "embed_command",
         "kg_command",
         "pipeline_stage",
+        "processing_failures",
     }
     asset: Optional[Asset] = None
     title: Optional[str] = None
@@ -386,6 +398,10 @@ class Source(ObjectModel):
     pipeline_stage: Optional[str] = Field(
         default=None,
         description="Ingestion stage: extracting|embedding|knowledge_graph|completed|failed",
+    )
+    processing_failures: Dict[str, ProcessingFailure] = Field(
+        default_factory=dict,
+        description="Latest user-safe failure snapshot keyed by processing stage",
     )
 
     @field_validator("command", "embed_command", "kg_command", mode="before")
@@ -499,12 +515,16 @@ class Source(ObjectModel):
             raise InvalidInputError("Project ID must be provided")
         return await self.relate("reference", project_id)
 
-    async def vectorize(self) -> str:
+    async def vectorize(self, *, chain_kg: bool = True) -> str:
         """
         Submit vectorization as a background job using the embed_source command.
 
         Persists embed_command and sets pipeline_stage=embedding only after a
         successful job submit. Marks the pipeline failed if submit fails.
+
+        Args:
+            chain_kg: When True (default), continue into knowledge graph after
+                embeddings. When False, only create embeddings.
 
         Returns:
             str: The command/job ID that can be used to track progress via the commands API
@@ -518,7 +538,7 @@ class Source(ObjectModel):
         if not self.full_text or not self.full_text.strip():
             raise ValueError(f"Source {self.id} has no text to vectorize")
 
-        return await begin_embed_stage(str(self.id))
+        return await begin_embed_stage(str(self.id), chain_kg=chain_kg)
 
     async def add_insight(self, insight_type: str, content: str) -> Optional[str]:
         """

@@ -1,0 +1,8 @@
+-- Migration 34: latest user-safe source processing failures by stage
+DEFINE FIELD IF NOT EXISTS processing_failures ON TABLE source FLEXIBLE TYPE option<object> DEFAULT {};
+DEFINE FIELD IF NOT EXISTS error_type ON TABLE kg_extraction_run TYPE option<string>;
+
+UPDATE source SET processing_failures = {}
+WHERE processing_failures = NONE;
+
+RETURN true;

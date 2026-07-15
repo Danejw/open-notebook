@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { AlertTriangle, Copy, Edit3, MoreVertical, Trash2, Users } from 'lucide-react'
+import { AlertTriangle, Users } from 'lucide-react'
 
 import { EmptyState } from '@/components/common/EmptyState'
 import { EpisodeProfile, SpeakerProfile, needsModelSetup } from '@/lib/types/podcasts'
@@ -9,11 +9,12 @@ import {
   useDeleteEpisodeProfile,
   useDuplicateEpisodeProfile,
 } from '@/lib/hooks/use-podcasts'
-import { useModels } from '@/lib/hooks/use-models'
 import { EpisodeProfileFormDialog } from '@/components/podcasts/forms/EpisodeProfileFormDialog'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { PodcastPanelHeader } from '@/components/podcasts/PodcastPanelHeader'
+import { ProfileCardActions } from '@/components/podcasts/ProfileCardActions'
+import { useModelNameMap } from '@/lib/hooks/use-model-name-map'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -21,13 +22,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
 interface EpisodeProfilesPanelProps {
@@ -53,15 +47,7 @@ export function EpisodeProfilesPanel({
 
   const deleteProfile = useDeleteEpisodeProfile()
   const duplicateProfile = useDuplicateEpisodeProfile()
-  const { data: models = [] } = useModels()
-
-  const modelNameMap = useMemo(() => {
-    const map: Record<string, string> = {}
-    for (const m of models) {
-      map[m.id] = `${m.provider} / ${m.name}`
-    }
-    return map
-  }, [models])
+  const modelNameMap = useModelNameMap()
 
   const sortedProfiles = useMemo(
     () =>
@@ -73,22 +59,13 @@ export function EpisodeProfilesPanel({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold leading-snug">{t('podcasts.episodeProfilesTitle')}</h2>
-          <p className="text-xs text-muted-foreground">
-            {t('podcasts.episodeProfilesDesc')}
-          </p>
-        </div>
-        <Button
-          size="sm"
-          className="h-7 shrink-0 text-xs"
-          onClick={() => setCreateOpen(true)}
-          disabled={disableCreate}
-        >
-          {t('podcasts.createProfile')}
-        </Button>
-      </div>
+      <PodcastPanelHeader
+        title={t('podcasts.episodeProfilesTitle')}
+        description={t('podcasts.episodeProfilesDesc')}
+        buttonLabel={t('podcasts.createProfile')}
+        onCreate={() => setCreateOpen(true)}
+        disabled={disableCreate}
+      />
 
       {disableCreate ? (
         <p className="rounded-lg border border-dashed bg-amber-50 p-4 text-sm text-amber-900">
@@ -130,48 +107,12 @@ export function EpisodeProfilesPanel({
                       {profile.description || t('podcasts.noDescription')}
                     </CardDescription>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setEditProfile(profile)}
-                    >
-                      <Edit3 className="mr-2 h-4 w-4" /> {t('podcasts.edit')}
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        align="end"
-                        className="w-44"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <DropdownMenuItem
-                          onClick={() => duplicateProfile.mutate(profile.id)}
-                          disabled={duplicateProfile.isPending}
-                        >
-                          <Copy className="h-4 w-4 mr-2" />
-                          {t('podcasts.duplicate')}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => setProfileToDelete(profile)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          {t('podcasts.delete')}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                  <ProfileCardActions
+                    onEdit={() => setEditProfile(profile)}
+                    onDuplicate={() => duplicateProfile.mutate(profile.id)}
+                    onRequestDelete={() => setProfileToDelete(profile)}
+                    isDuplicating={duplicateProfile.isPending}
+                  />
                 </CardHeader>
 
                 <CardContent className="space-y-4 text-sm">

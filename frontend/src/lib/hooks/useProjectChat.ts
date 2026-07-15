@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/utils/error-handler'
@@ -21,7 +21,6 @@ import {
   parseMcpToolCallEvent,
   upsertMcpToolCall,
 } from '@/lib/ag-ui/mcp-tool-calls'
-import { ChatToolCall } from '@/lib/types/mcp'
 import {
   ProjectChatMessage,
   CreateProjectChatSessionRequest,
@@ -31,6 +30,7 @@ import {
 } from '@/lib/types/api'
 import type { ContextSelections } from '@/lib/types/project-context'
 import { useChatQueue } from '@/lib/hooks/useChatQueue'
+import { useChatStreamingBuffer } from '@/lib/hooks/useChatStreamingBuffer'
 import { mergeActiveQueueMessages } from '@/lib/utils/chat-queue-messages'
 
 interface UseProjectChatParams {
@@ -68,43 +68,25 @@ export function useProjectChat({
   const [selectedHtmlTemplateId, setSelectedHtmlTemplateIdState] = useState<string | null>(null)
   const [pendingHtmlTemplateId, setPendingHtmlTemplateId] = useState<string | null | undefined>(undefined)
   const [selectedMcpToolIds, setSelectedMcpToolIdsState] = useState<string[]>([])
-  const [streamStatus, setStreamStatus] = useState<string | null>(null)
-  const [activityLog, setActivityLog] = useState<string[]>([])
-  const [liveMcpToolCalls, setLiveMcpToolCalls] = useState<ChatToolCall[]>([])
-  const streamContentRef = useRef<Map<string, string>>(new Map())
-  const streamRafRef = useRef<number | null>(null)
+  const {
+    streamContentRef,
+    streamRafRef,
+    flushStreamingContent,
+    appendStreamingDelta,
+    clearStreamingBuffers,
+    streamStatus,
+    setStreamStatus,
+    activityLog,
+    setActivityLog,
+    liveMcpToolCalls,
+    setLiveMcpToolCalls,
+  } = useChatStreamingBuffer(setMessages)
 
   const sessionsQueryKey = QUERY_KEYS.projectChatSessions(projectId, guestKey)
   const sessionQueryKey = useCallback(
     (sessionId: string) =>
       QUERY_KEYS.projectChatSession(sessionId, guestKey),
     [guestKey]
-  )
-
-  const flushStreamingContent = useCallback(() => {
-    streamRafRef.current = null
-    const snapshot = new Map(streamContentRef.current)
-    if (snapshot.size === 0) return
-    setMessages((prev) =>
-      prev.map((msg) => {
-        const streamed = snapshot.get(msg.id)
-        return streamed !== undefined ? { ...msg, content: streamed } : msg
-      })
-    )
-  }, [])
-
-  const scheduleStreamingFlush = useCallback(() => {
-    if (streamRafRef.current != null) return
-    streamRafRef.current = requestAnimationFrame(flushStreamingContent)
-  }, [flushStreamingContent])
-
-  const appendStreamingDelta = useCallback(
-    (messageId: string, delta: string) => {
-      const prev = streamContentRef.current.get(messageId) ?? ''
-      streamContentRef.current.set(messageId, prev + delta)
-      scheduleStreamingFlush()
-    },
-    [scheduleStreamingFlush]
   )
 
   // Fetch sessions for this project
@@ -454,6 +436,8 @@ export function useProjectChat({
             break
           }
           case 'TEXT_MESSAGE_END': {
+            // Cancel any pending RAF tick then flush; do not clear the map
+            // (RUN_FINISHED is responsible for the final clear).
             if (streamRafRef.current != null) {
               cancelAnimationFrame(streamRafRef.current)
               streamRafRef.current = null
@@ -463,12 +447,8 @@ export function useProjectChat({
             break
           }
           case 'RUN_FINISHED': {
-            if (streamRafRef.current != null) {
-              cancelAnimationFrame(streamRafRef.current)
-              streamRafRef.current = null
-            }
             flushStreamingContent()
-            streamContentRef.current.clear()
+            clearStreamingBuffers()
             setStreamStatus(null)
             break
           }
@@ -524,6 +504,7 @@ export function useProjectChat({
     buildContext,
     buildContextConfig,
     appendStreamingDelta,
+    clearStreamingBuffers,
     flushStreamingContent,
     refetchCurrentSession,
     queryClient,

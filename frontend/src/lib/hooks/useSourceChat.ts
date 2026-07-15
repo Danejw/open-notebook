@@ -21,7 +21,6 @@ import {
   parseMcpToolCallEvent,
   upsertMcpToolCall,
 } from '@/lib/ag-ui/mcp-tool-calls'
-import { ChatToolCall } from '@/lib/types/mcp'
 import {
   SourceChatSession,
   SourceChatMessage,
@@ -30,6 +29,7 @@ import {
   UpdateSourceChatSessionRequest
 } from '@/lib/types/api'
 import { useChatQueue } from '@/lib/hooks/useChatQueue'
+import { useChatStreamingBuffer } from '@/lib/hooks/useChatStreamingBuffer'
 import { mergeActiveQueueMessages } from '@/lib/utils/chat-queue-messages'
 
 export function useSourceChat(sourceId: string) {
@@ -44,46 +44,19 @@ export function useSourceChat(sourceId: string) {
   const [selectedHtmlTemplateId, setSelectedHtmlTemplateIdState] = useState<string | null>(null)
   const [pendingHtmlTemplateId, setPendingHtmlTemplateId] = useState<string | null | undefined>(undefined)
   const [selectedMcpToolIds, setSelectedMcpToolIdsState] = useState<string[]>([])
-  const [streamStatus, setStreamStatus] = useState<string | null>(null)
-  const [activityLog, setActivityLog] = useState<string[]>([])
-  const [liveMcpToolCalls, setLiveMcpToolCalls] = useState<ChatToolCall[]>([])
   const abortControllerRef = useRef<AbortController | null>(null)
-  const streamContentRef = useRef<Map<string, string>>(new Map())
-  const streamRafRef = useRef<number | null>(null)
-
-  const flushStreamingContent = useCallback(() => {
-    streamRafRef.current = null
-    const snapshot = new Map(streamContentRef.current)
-    if (snapshot.size === 0) return
-    setMessages((prev) =>
-      prev.map((msg) => {
-        const streamed = snapshot.get(msg.id)
-        return streamed !== undefined ? { ...msg, content: streamed } : msg
-      })
-    )
-  }, [])
-
-  const scheduleStreamingFlush = useCallback(() => {
-    if (streamRafRef.current != null) return
-    streamRafRef.current = requestAnimationFrame(flushStreamingContent)
-  }, [flushStreamingContent])
-
-  const appendStreamingDelta = useCallback(
-    (messageId: string, delta: string) => {
-      const prev = streamContentRef.current.get(messageId) ?? ''
-      streamContentRef.current.set(messageId, prev + delta)
-      scheduleStreamingFlush()
-    },
-    [scheduleStreamingFlush]
-  )
-
-  const clearStreamingBuffers = useCallback(() => {
-    if (streamRafRef.current != null) {
-      cancelAnimationFrame(streamRafRef.current)
-      streamRafRef.current = null
-    }
-    streamContentRef.current.clear()
-  }, [])
+  const {
+    streamContentRef,
+    flushStreamingContent,
+    appendStreamingDelta,
+    clearStreamingBuffers,
+    streamStatus,
+    setStreamStatus,
+    activityLog,
+    setActivityLog,
+    liveMcpToolCalls,
+    setLiveMcpToolCalls,
+  } = useChatStreamingBuffer(setMessages)
 
   // Fetch sessions
   const { data: sessions = [], isLoading: loadingSessions, refetch: refetchSessions } = useQuery<SourceChatSession[]>({

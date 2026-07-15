@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Dialog,
@@ -275,9 +276,8 @@ function CredentialFormDialog({
           {/* Name */}
           <div className="space-y-2">
             <Label htmlFor="cred-name">{t('apiKeys.configName')}</Label>
-            <input
+            <Input
               id="cred-name"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={`${PROVIDER_DISPLAY_NAMES[provider] || provider} Production`}
@@ -291,9 +291,8 @@ function CredentialFormDialog({
             <>
               <div className="space-y-2">
                 <Label htmlFor="vertex-project">{t('apiKeys.vertexProject')}</Label>
-                <input
+                <Input
                   id="vertex-project"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={project}
                   onChange={(e) => setProject(e.target.value)}
                   placeholder="my-gcp-project"
@@ -302,9 +301,8 @@ function CredentialFormDialog({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="vertex-location">{t('apiKeys.vertexLocation')}</Label>
-                <input
+                <Input
                   id="vertex-location"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="us-central1"
@@ -316,9 +314,8 @@ function CredentialFormDialog({
                   {t('apiKeys.vertexCredentials')}
                   <span className="text-muted-foreground font-normal ml-1">({t('common.optional')})</span>
                 </Label>
-                <input
+                <Input
                   id="vertex-creds"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={credentialsPath}
                   onChange={(e) => setCredentialsPath(e.target.value)}
                   placeholder="/path/to/service-account.json"
@@ -334,10 +331,10 @@ function CredentialFormDialog({
                 {!requiresApiKey && <span className="text-muted-foreground font-normal ml-1">({t('common.optional')})</span>}
               </Label>
               <div className="relative">
-                <input
+                <Input
                   id="api-key"
                   type={showApiKey ? 'text' : 'password'}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm pr-10"
+                  className="pr-10"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder={isEditing ? '••••••••••••' : 'sk-...'}
@@ -366,10 +363,9 @@ function CredentialFormDialog({
           {!isVertex && (
             <div className="space-y-2">
               <Label htmlFor="base-url" className="text-muted-foreground">{t('apiKeys.baseUrl')}</Label>
-              <input
+              <Input
                 id="base-url"
                 type="url"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={baseUrl}
                 onChange={(e) => setBaseUrl(e.target.value)}
                 placeholder={isOllama ? 'http://localhost:11434' : 'https://api.example.com/v1'}
@@ -386,11 +382,10 @@ function CredentialFormDialog({
                 {t('apiKeys.numCtx')}
                 <span className="text-muted-foreground font-normal ml-1">({t('common.optional')})</span>
               </Label>
-              <input
+              <Input
                 id="num-ctx"
                 type="number"
                 min={1}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={numCtx}
                 onChange={(e) => setNumCtx(e.target.value)}
                 placeholder="8192"
@@ -590,9 +585,8 @@ function DiscoverModelsDialog({
             </div>
 
             {/* Search input */}
-            <input
+            <Input
               type="text"
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm placeholder:text-muted-foreground"
               placeholder={t('models.searchOrAddModel')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

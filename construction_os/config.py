@@ -5,8 +5,12 @@ DATA_FOLDER = "./data"
 
 # LANGGRAPH CHECKPOINT FILE
 sqlite_folder = f"{DATA_FOLDER}/sqlite-db"
-os.makedirs(sqlite_folder, exist_ok=True)
-LANGGRAPH_CHECKPOINT_FILE = f"{sqlite_folder}/checkpoints.sqlite"
+LANGGRAPH_CHECKPOINT_FILE = (
+    os.environ.get("LANGGRAPH_CHECKPOINT_FILE", "").strip()
+    or f"{sqlite_folder}/checkpoints.sqlite"
+)
+checkpoint_folder = os.path.dirname(LANGGRAPH_CHECKPOINT_FILE) or "."
+os.makedirs(checkpoint_folder, exist_ok=True)
 
 # UPLOADS FOLDER
 UPLOADS_FOLDER = f"{DATA_FOLDER}/uploads"

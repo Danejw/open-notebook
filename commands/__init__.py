@@ -1,5 +1,6 @@
 """Surreal-commands integration for Construction OS"""
 
+from .chat_queue_commands import drain_chat_queue_command
 from .embedding_commands import (
     create_insight_command,
     embed_insight_command,
@@ -17,6 +18,8 @@ from .source_commands import (
 )
 
 __all__ = [
+    # Persistent chat queue
+    "drain_chat_queue_command",
     # Embedding commands
     "embed_note_command",
     "embed_insight_command",

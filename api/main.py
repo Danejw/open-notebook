@@ -14,8 +14,10 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from api.auth import PasswordAuthMiddleware
 from api.routers import (
+    artifacts,
     auth,
     chat,
+    chat_queue,
     config,
     context,
     credentials,
@@ -30,27 +32,26 @@ from api.routers import (
     mcp,
     media,
     models,
-    projects,
     notes,
     podcasts,
+    projects,
     search,
     settings,
     skills,
     source_chat,
     sources,
     speaker_profiles,
-    artifacts,
 )
 from api.routers import commands as commands_router
 from construction_os.database.async_migrate import AsyncMigrationManager
 from construction_os.exceptions import (
     AuthenticationError,
     ConfigurationError,
+    ConstructionOSError,
     ExternalServiceError,
     InvalidInputError,
     NetworkError,
     NotFoundError,
-    ConstructionOSError,
     RateLimitError,
 )
 from construction_os.utils.encryption import get_secret_from_env
@@ -96,6 +97,8 @@ def _cors_headers(request: Request) -> dict[str, str]:
 
 # Import commands to register them in the API process
 try:
+    import commands  # noqa: F401
+
     logger.info("Commands imported in API process")
 except Exception as e:
     logger.error(f"Failed to import commands in API process: {e}")
@@ -144,7 +147,9 @@ async def lifespan(app: FastAPI):
 
     # Run Construction OS rebrand data migrations (notebook→project, transformation→artifact)
     try:
-        from construction_os.database.rebrand_migration import run_construction_os_rebrand
+        from construction_os.database.rebrand_migration import (
+            run_construction_os_rebrand,
+        )
 
         await run_construction_os_rebrand()
     except Exception as e:
@@ -154,7 +159,9 @@ async def lifespan(app: FastAPI):
 
     # Copy legacy open_notebook namespace data into construction_os when needed
     try:
-        from construction_os.database.namespace_migration import migrate_legacy_namespace_if_needed
+        from construction_os.database.namespace_migration import (
+            migrate_legacy_namespace_if_needed,
+        )
 
         await migrate_legacy_namespace_if_needed()
     except Exception as e:
@@ -364,6 +371,7 @@ app.include_router(podcasts.router, prefix="/api", tags=["podcasts"])
 app.include_router(episode_profiles.router, prefix="/api", tags=["episode-profiles"])
 app.include_router(speaker_profiles.router, prefix="/api", tags=["speaker-profiles"])
 app.include_router(chat.router, prefix="/api", tags=["chat"])
+app.include_router(chat_queue.router, prefix="/api", tags=["chat-queue"])
 app.include_router(source_chat.router, prefix="/api", tags=["source-chat"])
 app.include_router(credentials.router, prefix="/api", tags=["credentials"])
 app.include_router(languages.router, prefix="/api", tags=["languages"])

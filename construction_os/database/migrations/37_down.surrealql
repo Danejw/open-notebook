@@ -1,0 +1,7 @@
+-- Rollback Migration 37: remove repaired chat_queue fields
+REMOVE INDEX IF EXISTS idx_chat_queue_scheduling ON TABLE chat_queue;
+REMOVE FIELD IF EXISTS next_position ON TABLE chat_queue;
+REMOVE FIELD IF EXISTS scheduling_token ON TABLE chat_queue;
+REMOVE FIELD IF EXISTS scheduling_expires_at ON TABLE chat_queue;
+REMOVE FIELD IF EXISTS iteration_token ON TABLE chat_queue_item;
+RETURN true;

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/utils/error-handler'
@@ -30,6 +30,8 @@ import {
   NoteResponse
 } from '@/lib/types/api'
 import type { ContextSelections } from '@/lib/types/project-context'
+import { useChatQueue } from '@/lib/hooks/useChatQueue'
+import { mergeActiveQueueMessages } from '@/lib/utils/chat-queue-messages'
 
 interface UseProjectChatParams {
   projectId: string
@@ -73,8 +75,11 @@ export function useProjectChat({
   const streamRafRef = useRef<number | null>(null)
 
   const sessionsQueryKey = QUERY_KEYS.projectChatSessions(projectId, guestKey)
-  const sessionQueryKey = (sessionId: string) =>
-    QUERY_KEYS.projectChatSession(sessionId, guestKey)
+  const sessionQueryKey = useCallback(
+    (sessionId: string) =>
+      QUERY_KEYS.projectChatSession(sessionId, guestKey),
+    [guestKey]
+  )
 
   const flushStreamingContent = useCallback(() => {
     streamRafRef.current = null
@@ -121,6 +126,15 @@ export function useProjectChat({
     queryKey: sessionQueryKey(currentSessionId!),
     queryFn: () => chatApi.getSession(currentSessionId!, guestKey),
     enabled: !!projectId && !!currentSessionId && (!sharedMode || !!guestKey),
+  })
+
+  const chatQueue = useChatQueue(sharedMode ? null : currentSessionId, {
+    historyQueryKeys: currentSessionId
+      ? [sessionQueryKey(currentSessionId)]
+      : [],
+    onCompletion: () => {
+      void refetchCurrentSession()
+    },
   })
 
   // Update messages when current session changes
@@ -176,7 +190,7 @@ export function useProjectChat({
       queryKey: sessionQueryKey(firstSession.id),
       queryFn: () => chatApi.getSession(firstSession.id, guestKey),
     })
-  }, [sessions, queryClient, guestKey])
+  }, [sessions, queryClient, guestKey, sessionQueryKey])
 
   // Create session mutation
   const createSessionMutation = useMutation({
@@ -490,6 +504,12 @@ export function useProjectChat({
       setStreamStatus(null)
       setActivityLog([])
       setLiveMcpToolCalls([])
+      // Start deferred queue items now that the live turn released the session.
+      try {
+        await chatQueue.ensureRunner()
+      } catch (ensureError) {
+        console.error('Error ensuring chat queue runner:', ensureError)
+      }
     }
   }, [
     projectId,
@@ -507,6 +527,7 @@ export function useProjectChat({
     flushStreamingContent,
     refetchCurrentSession,
     queryClient,
+    chatQueue,
     t,
     guestKey,
     sharedMode,
@@ -519,6 +540,124 @@ export function useProjectChat({
     }
     await sendMessage(content.trim(), modelOverride, messageId)
   }, [sendMessage])
+
+  const enqueueMessage = useCallback(
+    async (
+      message: string,
+      options: {
+        modelOverride?: string
+        loopCount: number
+        scheduleRunner?: boolean
+      }
+    ) => {
+      if (sharedMode) {
+        await sendMessage(message, options.modelOverride)
+        return
+      }
+
+      try {
+        let sessionId = currentSessionId
+        if (!sessionId) {
+          const defaultTitle =
+            message.length > 30 ? `${message.substring(0, 30)}...` : message
+          const newSession = await chatApi.createSession({
+            project_id: projectId,
+            title: defaultTitle,
+            model_override: pendingModelOverride ?? undefined,
+            skill_ids: selectedSkillIds,
+            html_template_id: selectedHtmlTemplateId,
+          })
+          sessionId = newSession.id
+          setCurrentSessionId(sessionId)
+          setPendingModelOverride(null)
+          setPendingSkillIds(null)
+          setPendingHtmlTemplateId(undefined)
+          await queryClient.invalidateQueries({ queryKey: sessionsQueryKey })
+        }
+
+        await chatQueue.enqueueForSession(sessionId, {
+          prompt: message,
+          loop_count: options.loopCount,
+          schedule_runner: options.scheduleRunner,
+          model_id:
+            options.modelOverride ??
+            currentSession?.model_override ??
+            pendingModelOverride ??
+            undefined,
+          skill_ids: selectedSkillIds,
+          tool_ids: selectedMcpToolIds,
+          html_template_id: selectedHtmlTemplateId,
+          artifact_id: activeArtifactId ?? undefined,
+          context_config: buildContextConfig(),
+        })
+      } catch (err: unknown) {
+        const error = err as {
+          response?: { data?: { detail?: string } }
+          message?: string
+        }
+        console.error('Error enqueueing message:', error)
+        toast.error(
+          getApiErrorMessage(
+            error.response?.data?.detail || error.message || error,
+            (key) => t(key),
+            'apiErrors.failedToSendMessage'
+          )
+        )
+        throw err
+      }
+    },
+    [
+      activeArtifactId,
+      buildContextConfig,
+      chatQueue,
+      currentSession?.model_override,
+      currentSessionId,
+      pendingModelOverride,
+      projectId,
+      queryClient,
+      selectedHtmlTemplateId,
+      selectedMcpToolIds,
+      selectedSkillIds,
+      sendMessage,
+      sessionsQueryKey,
+      sharedMode,
+      t,
+    ]
+  )
+
+  const queueMessages = useMemo(
+    () => mergeActiveQueueMessages(messages, chatQueue.queue),
+    [chatQueue.queue, messages]
+  )
+  const queueCurrentItem =
+    chatQueue.queue?.current_item ??
+    chatQueue.queue?.items.find((item) => item.status === 'running')
+  const queueHasWork = Boolean(
+    chatQueue.queue?.items.some(
+      (item) =>
+        item.status === 'pending' ||
+        item.status === 'running' ||
+        item.status === 'failed'
+    )
+  )
+  const queueStreamStatus =
+    typeof queueCurrentItem?.stream_progress?.message === 'string'
+      ? queueCurrentItem.stream_progress.message
+      : streamStatus
+  const queueActivityLog = Array.isArray(
+    queueCurrentItem?.stream_activity?.events
+  )
+    ? queueCurrentItem.stream_activity.events
+        .map((event) =>
+          event &&
+          typeof event === 'object' &&
+          'message' in event &&
+          typeof event.message === 'string'
+            ? event.message
+            : null
+        )
+        .filter((event): event is string => event !== null)
+    : activityLog
 
   // Switch session
   const switchSession = useCallback((sessionId: string) => {
@@ -596,7 +735,15 @@ export function useProjectChat({
     } else {
       setPendingSkillIds(ids)
     }
-  }, [currentSessionId, guestKey, queryClient, sessionsQueryKey, sharedMode, t])
+  }, [
+    currentSessionId,
+    guestKey,
+    queryClient,
+    sessionQueryKey,
+    sessionsQueryKey,
+    sharedMode,
+    t,
+  ])
 
   const setSelectedHtmlTemplateId = useCallback((id: string | null) => {
     if (sharedMode) {
@@ -627,7 +774,15 @@ export function useProjectChat({
     } else {
       setPendingHtmlTemplateId(id)
     }
-  }, [currentSessionId, guestKey, queryClient, sessionsQueryKey, sharedMode, t])
+  }, [
+    currentSessionId,
+    guestKey,
+    queryClient,
+    sessionQueryKey,
+    sessionsQueryKey,
+    sharedMode,
+    t,
+  ])
 
   const setSelectedMcpToolIds = useCallback((ids: string[]) => {
     if (sharedMode) {
@@ -652,10 +807,12 @@ export function useProjectChat({
     sessions,
     currentSession: currentSession || sessions.find(s => s.id === currentSessionId),
     currentSessionId,
-    messages,
-    isSending,
-    streamStatus,
-    activityLog,
+    messages: sharedMode ? messages : queueMessages,
+    isSending: sharedMode
+      ? isSending
+      : isSending || Boolean(queueCurrentItem),
+    streamStatus: sharedMode ? streamStatus : queueStreamStatus,
+    activityLog: sharedMode ? activityLog : queueActivityLog,
     loadingSessions,
     tokenCount,
     charCount,
@@ -664,6 +821,10 @@ export function useProjectChat({
     selectedHtmlTemplateId,
     selectedMcpToolIds,
     liveMcpToolCalls,
+    queue: sharedMode ? undefined : chatQueue.queue,
+    queueHasWork,
+    queueStreamError: chatQueue.streamError,
+    isDirectSending: isSending,
 
     // Actions
     createSession,
@@ -671,7 +832,14 @@ export function useProjectChat({
     deleteSession,
     switchSession,
     sendMessage,
+    enqueueMessage,
     editAndResend,
+    pauseQueue: chatQueue.pause,
+    resumeQueue: chatQueue.resume,
+    editQueueItem: chatQueue.editItem,
+    deleteQueueItem: chatQueue.deleteItem,
+    retryQueueItem: chatQueue.retryItem,
+    reorderQueue: chatQueue.reorder,
     setModelOverride,
     setSelectedSkillIds,
     setSelectedHtmlTemplateId,

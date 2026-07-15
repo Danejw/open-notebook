@@ -26,6 +26,19 @@ export const apiClient = axios.create({
   withCredentials: false,
 })
 
+/**
+ * Clears rejected credentials and redirects the browser to sign in.
+ */
+export function handleUnauthorizedResponse(): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+  localStorage.removeItem('auth-storage')
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login'
+  }
+}
+
 // Request interceptor to add base URL and auth header
 apiClient.interceptors.request.use(async (config) => {
   // Set the base URL dynamically from runtime config
@@ -64,11 +77,7 @@ apiClient.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Clear auth and redirect to login
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('auth-storage')
-        window.location.href = '/login'
-      }
+      handleUnauthorizedResponse()
     }
     return Promise.reject(error)
   }

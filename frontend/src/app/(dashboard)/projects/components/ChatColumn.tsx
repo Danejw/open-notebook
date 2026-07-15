@@ -119,13 +119,23 @@ export function ChatColumn({
         contextType="project"
         messages={chat.messages}
         isStreaming={chat.isSending}
+        isDirectStreaming={chat.isDirectSending}
         streamStatus={chat.streamStatus}
         activityLog={chat.activityLog}
         contextIndicators={null}
         onSendMessage={(message, modelOverride) => chat.sendMessage(message, modelOverride)}
+        onEnqueueMessage={chat.enqueueMessage}
         onEditMessage={(messageId, content, modelOverride) =>
           chat.editAndResend(messageId, content, modelOverride)
         }
+        historyEditDisabled={chat.queueHasWork}
+        queue={chat.queue}
+        onPauseQueue={chat.pauseQueue}
+        onResumeQueue={chat.resumeQueue}
+        onEditQueueItem={chat.editQueueItem}
+        onDeleteQueueItem={chat.deleteQueueItem}
+        onRetryQueueItem={chat.retryQueueItem}
+        onReorderQueue={chat.reorderQueue}
         modelOverride={chat.currentSession?.model_override ?? chat.pendingModelOverride ?? undefined}
         onModelChange={(model) => chat.setModelOverride(model ?? null)}
         sessions={chat.sessions}

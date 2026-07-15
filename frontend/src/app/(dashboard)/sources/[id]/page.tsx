@@ -57,10 +57,19 @@ export default function SourceDetailPage() {
           <ChatPanel
             messages={chat.messages}
             isStreaming={chat.isStreaming}
+            isDirectStreaming={chat.isDirectSending}
             streamStatus={chat.streamStatus}
             activityLog={chat.activityLog}
             contextIndicators={chat.contextIndicators}
             onSendMessage={(message, model) => chat.sendMessage(message, model)}
+            onEnqueueMessage={chat.enqueueMessage}
+            queue={chat.queue}
+            onPauseQueue={chat.pauseQueue}
+            onResumeQueue={chat.resumeQueue}
+            onEditQueueItem={chat.editQueueItem}
+            onDeleteQueueItem={chat.deleteQueueItem}
+            onRetryQueueItem={chat.retryQueueItem}
+            onReorderQueue={chat.reorderQueue}
             modelOverride={chat.currentSession?.model_override}
             onModelChange={(model) => {
               if (chat.currentSessionId) {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/utils/error-handler'
@@ -29,6 +29,8 @@ import {
   CreateSourceChatSessionRequest,
   UpdateSourceChatSessionRequest
 } from '@/lib/types/api'
+import { useChatQueue } from '@/lib/hooks/useChatQueue'
+import { mergeActiveQueueMessages } from '@/lib/utils/chat-queue-messages'
 
 export function useSourceChat(sourceId: string) {
   const { t } = useTranslation()
@@ -85,16 +87,25 @@ export function useSourceChat(sourceId: string) {
 
   // Fetch sessions
   const { data: sessions = [], isLoading: loadingSessions, refetch: refetchSessions } = useQuery<SourceChatSession[]>({
-    queryKey: ['sourceChatSessions', sourceId],
+    queryKey: QUERY_KEYS.sourceChatSessions(sourceId),
     queryFn: () => sourceChatApi.listSessions(sourceId),
     enabled: !!sourceId
   })
 
   // Fetch current session with messages
   const { data: currentSession, refetch: refetchCurrentSession } = useQuery({
-    queryKey: ['sourceChatSession', sourceId, currentSessionId],
+    queryKey: QUERY_KEYS.sourceChatSession(sourceId, currentSessionId!),
     queryFn: () => sourceChatApi.getSession(sourceId, currentSessionId!),
     enabled: !!sourceId && !!currentSessionId
+  })
+
+  const chatQueue = useChatQueue(currentSessionId, {
+    historyQueryKeys: currentSessionId
+      ? [QUERY_KEYS.sourceChatSession(sourceId, currentSessionId)]
+      : [],
+    onCompletion: () => {
+      void refetchCurrentSession()
+    },
   })
 
   // Update messages when session changes
@@ -141,7 +152,7 @@ export function useSourceChat(sourceId: string) {
     if (!firstSession || !sourceId) return
 
     void queryClient.prefetchQuery({
-      queryKey: ['sourceChatSession', sourceId, firstSession.id],
+      queryKey: QUERY_KEYS.sourceChatSession(sourceId, firstSession.id),
       queryFn: () => sourceChatApi.getSession(sourceId, firstSession.id),
     })
   }, [sessions, sourceId, queryClient])
@@ -151,7 +162,7 @@ export function useSourceChat(sourceId: string) {
     mutationFn: (data: Omit<CreateSourceChatSessionRequest, 'source_id'>) => 
       sourceChatApi.createSession(sourceId, data),
     onSuccess: (newSession) => {
-      queryClient.invalidateQueries({ queryKey: ['sourceChatSessions', sourceId] })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sourceChatSessions(sourceId) })
       setCurrentSessionId(newSession.id)
       toast.success(t('chat.sessionCreated'))
     },
@@ -166,8 +177,8 @@ export function useSourceChat(sourceId: string) {
     mutationFn: ({ sessionId, data }: { sessionId: string, data: UpdateSourceChatSessionRequest }) =>
       sourceChatApi.updateSession(sourceId, sessionId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sourceChatSessions', sourceId] })
-      queryClient.invalidateQueries({ queryKey: ['sourceChatSession', sourceId, currentSessionId] })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sourceChatSessions(sourceId) })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sourceChatSession(sourceId, currentSessionId!) })
       toast.success(t('chat.sessionUpdated'))
     },
     onError: (err: unknown) => {
@@ -181,7 +192,7 @@ export function useSourceChat(sourceId: string) {
     mutationFn: (sessionId: string) => 
       sourceChatApi.deleteSession(sourceId, sessionId),
     onSuccess: (_, deletedId) => {
-      queryClient.invalidateQueries({ queryKey: ['sourceChatSessions', sourceId] })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sourceChatSessions(sourceId) })
       if (currentSessionId === deletedId) {
         setCurrentSessionId(null)
         setMessages([])
@@ -211,7 +222,7 @@ export function useSourceChat(sourceId: string) {
         setCurrentSessionId(sessionId)
         setPendingSkillIds(null)
         setPendingHtmlTemplateId(undefined)
-        queryClient.invalidateQueries({ queryKey: ['sourceChatSessions', sourceId] })
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sourceChatSessions(sourceId) })
       } catch (err: unknown) {
         const error = err as { response?: { data?: { detail?: string } }, message?: string };
         console.error('Failed to create chat session:', error)
@@ -372,8 +383,13 @@ export function useSourceChat(sourceId: string) {
       if (abortControllerRef.current === abortController) {
         abortControllerRef.current = null
       }
+      try {
+        await chatQueue.ensureRunner()
+      } catch (ensureError) {
+        console.error('Error ensuring chat queue runner:', ensureError)
+      }
     }
-  }, [sourceId, currentSessionId, selectedSkillIds, selectedMcpToolIds, selectedHtmlTemplateId, refetchCurrentSession, queryClient, t, appendStreamingDelta, flushStreamingContent, clearStreamingBuffers])
+  }, [sourceId, currentSessionId, selectedSkillIds, selectedMcpToolIds, selectedHtmlTemplateId, refetchCurrentSession, queryClient, chatQueue, t, appendStreamingDelta, flushStreamingContent, clearStreamingBuffers])
 
   // Cancel streaming
   const cancelStreaming = useCallback(() => {
@@ -382,6 +398,99 @@ export function useSourceChat(sourceId: string) {
       setIsStreaming(false)
     }
   }, [])
+
+  const enqueueMessage = useCallback(
+    async (
+      message: string,
+      options: {
+        modelOverride?: string
+        loopCount: number
+        scheduleRunner?: boolean
+      }
+    ) => {
+      try {
+        let sessionId = currentSessionId
+        if (!sessionId) {
+          const defaultTitle =
+            message.length > 30 ? `${message.substring(0, 30)}...` : message
+          const newSession = await sourceChatApi.createSession(sourceId, {
+            title: defaultTitle,
+            skill_ids: selectedSkillIds,
+            html_template_id: selectedHtmlTemplateId,
+          })
+          sessionId = newSession.id
+          setCurrentSessionId(sessionId)
+          setPendingSkillIds(null)
+          setPendingHtmlTemplateId(undefined)
+          await queryClient.invalidateQueries({
+            queryKey: QUERY_KEYS.sourceChatSessions(sourceId),
+          })
+        }
+
+        await chatQueue.enqueueForSession(sessionId, {
+          prompt: message,
+          loop_count: options.loopCount,
+          schedule_runner: options.scheduleRunner,
+          model_id:
+            options.modelOverride ?? currentSession?.model_override ?? undefined,
+          skill_ids: selectedSkillIds,
+          tool_ids: selectedMcpToolIds,
+          html_template_id: selectedHtmlTemplateId,
+        })
+      } catch (err: unknown) {
+        const error = err as {
+          response?: { data?: { detail?: string } }
+          message?: string
+        }
+        console.error('Error enqueueing message:', error)
+        toast.error(
+          getApiErrorMessage(
+            error.response?.data?.detail || error.message || error,
+            (key) => t(key),
+            'apiErrors.failedToSendMessage'
+          )
+        )
+        throw err
+      }
+    },
+    [
+      chatQueue,
+      currentSession?.model_override,
+      currentSessionId,
+      queryClient,
+      selectedHtmlTemplateId,
+      selectedMcpToolIds,
+      selectedSkillIds,
+      sourceId,
+      t,
+    ]
+  )
+
+  const queueMessages = useMemo(
+    () => mergeActiveQueueMessages(messages, chatQueue.queue),
+    [chatQueue.queue, messages]
+  )
+  const queueCurrentItem =
+    chatQueue.queue?.current_item ??
+    chatQueue.queue?.items.find((item) => item.status === 'running')
+  const queueStreamStatus =
+    typeof queueCurrentItem?.stream_progress?.message === 'string'
+      ? queueCurrentItem.stream_progress.message
+      : streamStatus
+  const queueActivityLog = Array.isArray(
+    queueCurrentItem?.stream_activity?.events
+  )
+    ? queueCurrentItem.stream_activity.events
+        .map((event) =>
+          event &&
+          typeof event === 'object' &&
+          'message' in event &&
+          typeof event.message === 'string'
+            ? event.message
+            : null
+        )
+        .filter((event): event is string => event !== null)
+    : activityLog
 
   // Switch session
   const switchSession = useCallback((sessionId: string) => {
@@ -421,9 +530,9 @@ export function useSourceChat(sourceId: string) {
       void (async () => {
         try {
           await sourceChatApi.updateSession(sourceId, currentSessionId, { skill_ids: ids })
-          queryClient.invalidateQueries({ queryKey: ['sourceChatSessions', sourceId] })
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sourceChatSessions(sourceId) })
           queryClient.invalidateQueries({
-            queryKey: ['sourceChatSession', sourceId, currentSessionId],
+            queryKey: QUERY_KEYS.sourceChatSession(sourceId, currentSessionId),
           })
         } catch (err: unknown) {
           const error = err as { response?: { data?: { detail?: string } }, message?: string }
@@ -444,9 +553,9 @@ export function useSourceChat(sourceId: string) {
           await sourceChatApi.updateSession(sourceId, currentSessionId, {
             html_template_id: id,
           })
-          queryClient.invalidateQueries({ queryKey: ['sourceChatSessions', sourceId] })
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sourceChatSessions(sourceId) })
           queryClient.invalidateQueries({
-            queryKey: ['sourceChatSession', sourceId, currentSessionId],
+            queryKey: QUERY_KEYS.sourceChatSession(sourceId, currentSessionId),
           })
         } catch (err: unknown) {
           const error = err as { response?: { data?: { detail?: string } }, message?: string }
@@ -468,16 +577,24 @@ export function useSourceChat(sourceId: string) {
     sessions,
     currentSession: sessions.find(s => s.id === currentSessionId) || currentSession,
     currentSessionId,
-    messages,
-    isStreaming,
-    streamStatus,
-    activityLog,
+    messages: queueMessages,
+    isStreaming: isStreaming || Boolean(queueCurrentItem),
+    isDirectSending: isStreaming,
+    streamStatus: queueStreamStatus,
+    activityLog: queueActivityLog,
     contextIndicators,
     loadingSessions,
     selectedSkillIds,
     selectedHtmlTemplateId,
     selectedMcpToolIds,
     liveMcpToolCalls,
+    queue: chatQueue.queue,
+    queueHasWork: Boolean(
+      chatQueue.queue?.items.some(
+        (item) => item.status === 'pending' || item.status === 'running'
+      )
+    ),
+    queueStreamError: chatQueue.streamError,
     
     // Actions
     createSession,
@@ -485,7 +602,14 @@ export function useSourceChat(sourceId: string) {
     deleteSession,
     switchSession,
     sendMessage,
+    enqueueMessage,
     cancelStreaming,
+    pauseQueue: chatQueue.pause,
+    resumeQueue: chatQueue.resume,
+    editQueueItem: chatQueue.editItem,
+    deleteQueueItem: chatQueue.deleteItem,
+    retryQueueItem: chatQueue.retryItem,
+    reorderQueue: chatQueue.reorder,
     refetchSessions,
     setSelectedSkillIds,
     setSelectedHtmlTemplateId,

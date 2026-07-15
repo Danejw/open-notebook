@@ -7,6 +7,11 @@ from loguru import logger
 from pydantic import BaseModel, Field
 
 from api import ag_ui_agents
+from api.chat_queue_service import (
+    ChatQueueConflictError,
+    ChatQueueNotFoundError,
+    chat_queue_service,
+)
 from construction_os.database.repository import ensure_record_id, repo_query
 from construction_os.domain.html_document import HtmlTemplate
 from construction_os.domain.project import ChatSession, Source
@@ -440,11 +445,18 @@ async def delete_source_chat_session(
                 status_code=404, detail="Session not found for this source"
             )
 
-        await session.delete()
+        try:
+            await chat_queue_service.delete_session(full_session_id)
+        except ChatQueueConflictError as e:
+            raise HTTPException(status_code=409, detail=str(e)) from e
+        except ChatQueueNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
 
         return SuccessResponse(
             success=True, message="Source chat session deleted successfully"
         )
+    except HTTPException:
+        raise
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Source or session not found")
     except Exception as e:

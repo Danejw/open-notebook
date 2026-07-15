@@ -36,6 +36,7 @@ class SourceChatState(TypedDict):
     skills_context: Optional[str]
     skill_ids: Optional[list]
     mcp_tool_ids: Optional[list]
+    strict_mcp_tools: bool
     session_id: Optional[str]
     html_template_id: Optional[str]
     html_template: Optional[dict]
@@ -238,7 +239,9 @@ def generating(state: SourceChatState, config: RunnableConfig) -> dict:
         insights = state.get("insights") or []
         prompt_data = {
             "source": source.model_dump() if source else None,
-            "insights": [insight.model_dump() for insight in insights] if insights else [],
+            "insights": [insight.model_dump() for insight in insights]
+            if insights
+            else [],
             "context": state.get("context"),
             "context_indicators": state.get("context_indicators"),
             "skills_context": state.get("skills_context"),
@@ -267,6 +270,7 @@ def generating(state: SourceChatState, config: RunnableConfig) -> dict:
                 session_id=str(session_id or ""),
                 message_id=assistant_message_id,
                 config=config,
+                strict_mcp_tools=bool(state.get("strict_mcp_tools")),
             )
         )
 
@@ -301,7 +305,12 @@ source_chat_state.add_edge("generating", END)
 source_chat_graph = source_chat_state.compile(checkpointer=MemorySaver())
 
 
+def compile_graph(checkpointer: BaseCheckpointSaver):
+    """Compile an isolated source-chat graph with the supplied checkpointer."""
+    return source_chat_state.compile(checkpointer=checkpointer)
+
+
 def bind_checkpointer(checkpointer: BaseCheckpointSaver) -> None:
     """Recompile the source chat graph with the process-wide async checkpointer."""
     global source_chat_graph
-    source_chat_graph = source_chat_state.compile(checkpointer=checkpointer)
+    source_chat_graph = compile_graph(checkpointer)

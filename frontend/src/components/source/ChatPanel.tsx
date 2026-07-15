@@ -12,7 +12,7 @@ import {
   SourceChatContextIndicator,
   BaseChatSession
 } from '@/lib/types/api'
-import { ModelSelector } from './ModelSelector'
+import { ModelSelector } from '@/components/source/ModelSelector'
 import { SkillPicker } from '@/components/skills/SkillPicker'
 import { ToolPicker } from '@/components/mcp/ToolPicker'
 import { TemplatePicker } from '@/components/templates/TemplatePicker'
@@ -28,8 +28,8 @@ import { ContextIndicator } from '@/components/common/ContextIndicator'
 import { AgentActivityStatus } from '@/components/common/AgentActivityStatus'
 import { SessionManager } from '@/components/source/SessionManager'
 import { useModalManager } from '@/lib/hooks/use-modal-manager'
-import { toast } from 'sonner'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
   ColumnHeader,
@@ -46,6 +46,15 @@ import {
 import { ChatSuggestionPills } from '@/components/source/ChatSuggestionPills'
 import { useChatSuggestions } from '@/lib/hooks/useChatSuggestions'
 import { useChatUiStore } from '@/lib/stores/chat-ui-store'
+import {
+  ChatQueuePanel,
+  type ChatQueuePanelProps,
+} from '@/components/source/ChatQueuePanel'
+import type {
+  ChatQueueItemUpdatePayload,
+  ChatQueueResponse,
+} from '@/lib/types/chat-queue'
+import { shouldDeferChatToQueue } from '@/lib/types/chat-queue'
 
 interface ProjectContextStats {
   sourcesInsights: number
@@ -58,11 +67,26 @@ interface ProjectContextStats {
 interface ChatPanelProps {
   messages: SourceChatMessage[]
   isStreaming: boolean
+  /**
+   * True only while a live AG-UI turn (not a queue drain) owns the session.
+   * Used to defer queue runner scheduling until that turn ends.
+   */
+  isDirectStreaming?: boolean
   streamStatus?: string | null
   activityLog?: string[]
   contextIndicators: SourceChatContextIndicator | null
   onSendMessage: (message: string, modelOverride?: string) => void
+  onEnqueueMessage?: (
+    message: string,
+    options: {
+      modelOverride?: string
+      loopCount: number
+      scheduleRunner?: boolean
+    }
+  ) => void | Promise<unknown>
   onEditMessage?: (messageId: string, content: string, modelOverride?: string) => void
+  historyEditDisabled?: boolean
+  composerDisabled?: boolean
   modelOverride?: string
   onModelChange?: (model?: string) => void
   // Session management props
@@ -103,16 +127,30 @@ interface ChatPanelProps {
    * `immersive` — full-bleed shared/chat surfaces with roomier header & message spacing.
    */
   variant?: 'column' | 'immersive'
+  queue?: ChatQueueResponse
+  onPauseQueue?: ChatQueuePanelProps['onPause']
+  onResumeQueue?: ChatQueuePanelProps['onResume']
+  onEditQueueItem?: (
+    itemId: string,
+    payload: ChatQueueItemUpdatePayload
+  ) => void | Promise<unknown>
+  onDeleteQueueItem?: ChatQueuePanelProps['onDeleteItem']
+  onRetryQueueItem?: ChatQueuePanelProps['onRetryItem']
+  onReorderQueue?: ChatQueuePanelProps['onReorder']
 }
 
 export function ChatPanel({
   messages,
   isStreaming,
+  isDirectStreaming: _isDirectStreaming = false,
   streamStatus,
   activityLog = [],
   contextIndicators,
   onSendMessage,
+  onEnqueueMessage,
   onEditMessage,
+  historyEditDisabled,
+  composerDisabled = false,
   modelOverride,
   onModelChange,
   sessions = [],
@@ -142,6 +180,13 @@ export function ChatPanel({
   autoSendArtifactKey = 0,
   headerActions,
   variant = 'column',
+  queue,
+  onPauseQueue,
+  onResumeQueue,
+  onEditQueueItem,
+  onDeleteQueueItem,
+  onRetryQueueItem,
+  onReorderQueue,
 }: ChatPanelProps) {
   const { t } = useTranslation()
   const chatInputId = useId()
@@ -170,6 +215,11 @@ export function ChatPanel({
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState('')
   const { openModal } = useModalManager()
+  const queueMode = Boolean(onEnqueueMessage)
+  const deferToQueue = shouldDeferChatToQueue(isStreaming, queue)
+  // Queue mode keeps the composer open so users can stack messages while a turn runs.
+  const composerBusy = !queueMode && (composerDisabled || isStreaming)
+  const historyEditLocked = historyEditDisabled ?? isStreaming
 
   const suggestionsCollapsed = useChatUiStore((s) => s.suggestionsCollapsed)
   const setSuggestionsCollapsed = useChatUiStore((s) => s.setSuggestionsCollapsed)
@@ -189,15 +239,44 @@ export function ChatPanel({
     guestKey,
   })
 
+  const submitMessage = useCallback(
+    async (message: string) => {
+      if (onEnqueueMessage && deferToQueue) {
+        await onEnqueueMessage(message, {
+          loopCount: 1,
+          modelOverride,
+          // Never schedule a competing drain while any turn owns the session
+          // (live AG-UI or an in-flight queue claim). The active drain loop
+          // claims the next pending item; live turns hand off via ensureRunner.
+          scheduleRunner: !isStreaming,
+        })
+        return
+      }
+      onSendMessage(message, modelOverride)
+    },
+    [
+      deferToQueue,
+      isStreaming,
+      modelOverride,
+      onEnqueueMessage,
+      onSendMessage,
+    ]
+  )
+
   useEffect(() => {
     if (!activeArtifact) {
       prefilledArtifactRef.current = null
       return
     }
-    if (autoSendArtifactKey > 0 && autoSentArtifactRef.current !== autoSendArtifactKey && !isStreaming) {
+    if (
+      autoSendArtifactKey > 0 &&
+      autoSentArtifactRef.current !== autoSendArtifactKey &&
+      !composerBusy
+    ) {
       autoSentArtifactRef.current = autoSendArtifactKey
-      onSendMessage(buildArtifactTriggerMessage(activeArtifact.title), modelOverride)
-      setInput('')
+      void submitMessage(buildArtifactTriggerMessage(activeArtifact.title))
+        .then(() => setInput(''))
+        .catch(() => undefined)
       prefilledArtifactRef.current = activeArtifact.id
       return
     }
@@ -205,7 +284,12 @@ export function ChatPanel({
       setInput(buildArtifactTriggerMessage(activeArtifact.title))
       prefilledArtifactRef.current = activeArtifact.id
     }
-  }, [activeArtifact, autoSendArtifactKey, isStreaming, modelOverride, onSendMessage])
+  }, [
+    activeArtifact,
+    autoSendArtifactKey,
+    composerBusy,
+    submitMessage,
+  ])
 
   const handleReferenceClick = useCallback(
     (type: string, id: string) => {
@@ -222,11 +306,11 @@ export function ChatPanel({
 
   const startEditingMessage = useCallback(
     (messageId: string, content: string) => {
-      if (isStreaming || !onEditMessage) return
+      if (historyEditLocked || !onEditMessage) return
       setEditingMessageId(messageId)
       setEditDraft(content)
     },
-    [isStreaming, onEditMessage]
+    [historyEditLocked, onEditMessage]
   )
 
   const cancelEditingMessage = useCallback(() => {
@@ -235,11 +319,22 @@ export function ChatPanel({
   }, [])
 
   const submitEditedMessage = useCallback(() => {
-    if (!editingMessageId || !editDraft.trim() || isStreaming || !onEditMessage) return
+    if (
+      !editingMessageId ||
+      !editDraft.trim() ||
+      historyEditLocked ||
+      !onEditMessage
+    ) return
     onEditMessage(editingMessageId, editDraft.trim(), modelOverride)
     setEditingMessageId(null)
     setEditDraft('')
-  }, [editDraft, editingMessageId, isStreaming, modelOverride, onEditMessage])
+  }, [
+    editDraft,
+    editingMessageId,
+    historyEditLocked,
+    modelOverride,
+    onEditMessage,
+  ])
 
   const handleEditKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -261,28 +356,34 @@ export function ChatPanel({
       ? [...messages].reverse().find((m) => m.type === 'ai')?.id
       : undefined
 
-  const handleSend = () => {
-    if (input.trim() && !isStreaming) {
+  const handleSend = async () => {
+    if (input.trim() && !composerBusy) {
       recordManualSend()
-      onSendMessage(input.trim(), modelOverride)
-      setInput('')
+      const message = input.trim()
+      try {
+        await submitMessage(message)
+        setInput('')
+      } catch {
+        // Keep the draft; enqueueMessage already toasted the failure.
+      }
     }
   }
 
   const handleSuggestionSelect = useCallback(
     (suggestion: string) => {
-      if (isStreaming || !suggestion.trim()) return
+      if (composerBusy || !suggestion.trim()) return
       recordSuggestionUsed()
-      onSendMessage(suggestion.trim(), modelOverride)
-      setInput('')
+      void submitMessage(suggestion.trim())
+        .then(() => setInput(''))
+        .catch(() => undefined)
     },
-    [isStreaming, modelOverride, onSendMessage, recordSuggestionUsed]
+    [composerBusy, recordSuggestionUsed, submitMessage]
   )
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      handleSend()
+      void handleSend()
     }
   }
 
@@ -407,6 +508,24 @@ export function ChatPanel({
             }
           />
 
+          {queue &&
+          onPauseQueue &&
+          onResumeQueue &&
+          onEditQueueItem &&
+          onDeleteQueueItem &&
+          onRetryQueueItem &&
+          onReorderQueue ? (
+            <ChatQueuePanel
+              queue={queue}
+              onPause={onPauseQueue}
+              onResume={onResumeQueue}
+              onEditItem={onEditQueueItem}
+              onDeleteItem={onDeleteQueueItem}
+              onRetryItem={onRetryQueueItem}
+              onReorder={onReorderQueue}
+            />
+          ) : null}
+
           {/* Source-chat context counts (compact inline meta) */}
           {contextIndicators && (
             <div className={cn(columnFooterClassName, 'flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground')}>
@@ -454,13 +573,13 @@ export function ChatPanel({
             )}
           >
             {!input.trim() &&
-            !isStreaming &&
+            !composerBusy &&
             enableSuggestions &&
             (!suggestionsCollapsed || messages.length === 0) ? (
               <ChatSuggestionPills
                 suggestions={suggestions}
                 isLoading={suggestionsLoading}
-                disabled={isStreaming}
+                disabled={composerBusy}
                 collapsed={suggestionsCollapsed}
                 onCollapsedChange={setSuggestionsCollapsed}
                 onSelect={handleSuggestionSelect}
@@ -471,28 +590,28 @@ export function ChatPanel({
                 <ModelSelector
                   currentModel={modelOverride}
                   onModelChange={onModelChange}
-                  disabled={isStreaming}
+                  disabled={composerBusy}
                 />
               )}
               {onSkillIdsChange && (
                 <SkillPicker
                   selectedSkillIds={selectedSkillIds ?? []}
                   onChange={onSkillIdsChange}
-                  disabled={isStreaming}
+                  disabled={composerBusy}
                 />
               )}
               {onHtmlTemplateIdChange && (
                 <TemplatePicker
                   selectedTemplateId={selectedHtmlTemplateId ?? null}
                   onChange={onHtmlTemplateIdChange}
-                  disabled={isStreaming}
+                  disabled={composerBusy}
                 />
               )}
               {onMcpToolIdsChange && (
                 <ToolPicker
                   selectedToolIds={selectedMcpToolIds ?? []}
                   onChange={onMcpToolIdsChange}
-                  disabled={isStreaming}
+                  disabled={composerBusy}
                 />
               )}
               <Textarea
@@ -507,7 +626,8 @@ export function ChatPanel({
                     ? `${t('chat.artifactSendPlaceholder')} (${keyHint})`
                     : t('chat.sendPlaceholder')
                 }
-                disabled={isStreaming}
+                aria-label="chat-message"
+                disabled={composerBusy}
                 className={cn(
                   'max-h-[88px] flex-1 resize-none text-sm min-w-0',
                   isImmersive
@@ -517,15 +637,16 @@ export function ChatPanel({
                 rows={1}
               />
               <Button
-                onClick={handleSend}
-                disabled={!input.trim() || isStreaming}
+                onClick={() => void handleSend()}
+                aria-label={t('chat.send')}
+                disabled={!input.trim() || composerBusy}
                 size="icon"
                 className={cn(
                   'flex-shrink-0',
                   isImmersive ? 'h-11 w-11 rounded-xl' : 'h-8 w-8'
                 )}
               >
-                {isStreaming ? (
+                {composerBusy ? (
                   <InlineSkeleton />
                 ) : (
                   <Send className="h-4 w-4" />

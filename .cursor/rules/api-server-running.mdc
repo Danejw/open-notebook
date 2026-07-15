@@ -1,0 +1,42 @@
+---
+description: Always keep the Construction OS API server (port 5055) running during local work
+alwaysApply: true
+---
+
+# API server must be running
+
+Before testing chat, queue, sources, or any API-backed UI change, confirm the API is healthy on `http://127.0.0.1:5055`.
+
+## Check
+
+```powershell
+Invoke-WebRequest "http://127.0.0.1:5055/health" -TimeoutSec 5 -UseBasicParsing
+```
+
+Healthy = HTTP 200. Timeout or connection refused = start/restart.
+
+## Start / restart
+
+From the repo root:
+
+```powershell
+# Stop stale run_api / uvicorn processes binding 5055 if needed, then:
+$env:API_RELOAD = 'false'
+.\.venv\Scripts\python.exe run_api.py
+```
+
+Prefer `API_RELOAD=false` after fixing command modules (e.g. chat queue) so workers/API pick up a clean import.
+
+## Chat queue / async jobs
+
+If pending queue items or embeddings sit idle, also ensure the surreal-commands worker is running:
+
+```powershell
+$env:PYTHONUTF8 = '1'
+.\.venv\Scripts\python.exe -m surreal_commands.cli.worker --import-modules commands
+```
+
+## Do not
+
+- Tell the user to restart the API when you can check and start it yourself
+- Assume a process listening on 5055 is healthy — probe `/health`

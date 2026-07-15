@@ -1,0 +1,6 @@
+-- Rollback Migration 36: remove persistent chat queues and their items
+DELETE chat_queue_item;
+DELETE chat_queue;
+REMOVE TABLE IF EXISTS chat_queue_item;
+REMOVE TABLE IF EXISTS chat_queue;
+RETURN true;

@@ -10,6 +10,10 @@ from construction_os.domain.mcp import McpConnection, McpTool
 from construction_os.mcp.limits import MAX_SELECTED_TOOLS
 
 
+class McpToolSelectionError(ValueError):
+    """Raised when a strict selected-tool allowlist cannot be built exactly."""
+
+
 @dataclass
 class AllowlistedTool:
     """Authorized tool entry for one chat turn."""
@@ -48,31 +52,61 @@ def make_runtime_name(connection_id: str, tool_name: str) -> str:
     return f"mcp__{short}__{safe_tool}"
 
 
-async def build_allowlist(tool_ids: list[str] | None) -> RuntimeAllowlist:
+async def build_allowlist(
+    tool_ids: list[str] | None,
+    *,
+    strict_selected_tools: bool = False,
+) -> RuntimeAllowlist:
     """
-    Reload selected tool ids, drop missing/unavailable, mark non-read as
-    non-executable. Browser ids are a request only.
+    Reload selected tool IDs and construct the executable runtime allowlist.
+
+    Strict queue execution rejects every missing, unavailable, disconnected, or
+    non-read selection instead of silently omitting it.
     """
     if not tool_ids:
         return RuntimeAllowlist()
 
-    unique_ids = list(dict.fromkeys(tool_ids))[:MAX_SELECTED_TOOLS]
+    unique_ids = list(dict.fromkeys(tool_ids))
+    if len(unique_ids) > MAX_SELECTED_TOOLS:
+        if strict_selected_tools:
+            raise McpToolSelectionError(
+                f"Selected tools exceed the limit of {MAX_SELECTED_TOOLS}"
+            )
+        unique_ids = unique_ids[:MAX_SELECTED_TOOLS]
     entries: list[AllowlistedTool] = []
 
     for tool_id in unique_ids:
         try:
             tool = await McpTool.get(tool_id)
-        except Exception:
+        except Exception as exc:
+            if strict_selected_tools:
+                raise McpToolSelectionError(
+                    f"Selected tool '{tool_id}' no longer exists"
+                ) from exc
             continue
         if not tool.available:
+            if strict_selected_tools:
+                raise McpToolSelectionError(f"Selected tool '{tool_id}' is unavailable")
             continue
         try:
             connection = await McpConnection.get(str(tool.connection))
-        except Exception:
+        except Exception as exc:
+            if strict_selected_tools:
+                raise McpToolSelectionError(
+                    f"Connection for selected tool '{tool_id}' no longer exists"
+                ) from exc
+            continue
+        if connection.status != "connected":
+            if strict_selected_tools:
+                raise McpToolSelectionError(
+                    f"Connection for selected tool '{tool_id}' is unavailable"
+                )
             continue
 
         runtime_name = make_runtime_name(str(connection.id), tool.name)
         executable = tool.risk_level == "read"
+        if strict_selected_tools and not executable:
+            raise McpToolSelectionError(f"Selected tool '{tool_id}' is not read-only")
         entries.append(
             AllowlistedTool(
                 tool=tool,

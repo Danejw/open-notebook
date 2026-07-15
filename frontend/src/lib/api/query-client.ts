@@ -28,12 +28,15 @@ export const QUERY_KEYS = {
     ['sources', 'all', sortBy, sortOrder] as const,
   source: (id: string) => ['sources', id] as const,
   settings: ['settings'] as const,
-  sourceChatSessions: (sourceId: string) => ['source-chat', sourceId, 'sessions'] as const,
-  sourceChatSession: (sourceId: string, sessionId: string) => ['source-chat', sourceId, 'sessions', sessionId] as const,
+  sourceChatSessions: (sourceId: string) =>
+    ['sourceChatSessions', sourceId] as const,
+  sourceChatSession: (sourceId: string, sessionId: string) =>
+    ['sourceChatSession', sourceId, sessionId] as const,
   projectChatSessions: (projectId: string, guestKey?: string | null) =>
     ['project-chat', projectId, 'sessions', guestKey ?? 'owner'] as const,
   projectChatSession: (sessionId: string, guestKey?: string | null) =>
     ['project-chat', 'sessions', sessionId, guestKey ?? 'owner'] as const,
+  chatQueue: (sessionId: string) => ['chat-queue', sessionId] as const,
   podcastEpisodes: ['podcasts', 'episodes'] as const,
   podcastEpisode: (episodeId: string) => ['podcasts', 'episodes', episodeId] as const,
   episodeProfiles: ['podcasts', 'episode-profiles'] as const,

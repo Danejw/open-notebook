@@ -1,0 +1,92 @@
+-- Migration 36: persistent, per-session chat execution queue
+DEFINE TABLE IF NOT EXISTS chat_queue SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS chat_session ON TABLE chat_queue TYPE record<chat_session>;
+DEFINE FIELD IF NOT EXISTS status ON TABLE chat_queue TYPE string DEFAULT 'active'
+    ASSERT $value IN ['active', 'paused'];
+DEFINE FIELD IF NOT EXISTS revision ON TABLE chat_queue TYPE int DEFAULT 0
+    ASSERT $value >= 0;
+DEFINE FIELD IF NOT EXISTS next_position ON TABLE chat_queue TYPE int DEFAULT 10
+    ASSERT $value >= 0;
+DEFINE FIELD IF NOT EXISTS runner_state ON TABLE chat_queue TYPE string DEFAULT 'idle'
+    ASSERT $value IN ['idle', 'scheduled', 'running'];
+DEFINE FIELD IF NOT EXISTS runner_command_id ON TABLE chat_queue TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS scheduling_token ON TABLE chat_queue TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS scheduling_expires_at ON TABLE chat_queue TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS lease_owner ON TABLE chat_queue TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS lease_expires_at ON TABLE chat_queue TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS created ON TABLE chat_queue TYPE datetime
+    DEFAULT time::now() VALUE $before OR time::now();
+DEFINE FIELD IF NOT EXISTS updated ON TABLE chat_queue TYPE datetime
+    DEFAULT time::now() VALUE time::now();
+
+DEFINE INDEX IF NOT EXISTS idx_chat_queue_session
+    ON TABLE chat_queue FIELDS chat_session UNIQUE;
+DEFINE INDEX IF NOT EXISTS idx_chat_queue_status
+    ON TABLE chat_queue FIELDS status;
+DEFINE INDEX IF NOT EXISTS idx_chat_queue_lease
+    ON TABLE chat_queue FIELDS lease_expires_at;
+DEFINE INDEX IF NOT EXISTS idx_chat_queue_scheduling
+    ON TABLE chat_queue FIELDS scheduling_expires_at;
+
+DEFINE TABLE IF NOT EXISTS chat_queue_item SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS queue_id ON TABLE chat_queue_item TYPE record<chat_queue>;
+DEFINE FIELD IF NOT EXISTS chat_session ON TABLE chat_queue_item TYPE record<chat_session>;
+DEFINE FIELD IF NOT EXISTS client_request_id ON TABLE chat_queue_item TYPE string;
+DEFINE FIELD IF NOT EXISTS run_id ON TABLE chat_queue_item TYPE string;
+DEFINE FIELD IF NOT EXISTS position ON TABLE chat_queue_item TYPE int
+    ASSERT $value >= 0;
+DEFINE FIELD IF NOT EXISTS status ON TABLE chat_queue_item TYPE string DEFAULT 'pending'
+    ASSERT $value IN ['pending', 'running', 'completed', 'failed', 'cancelled'];
+DEFINE FIELD IF NOT EXISTS visible ON TABLE chat_queue_item TYPE bool DEFAULT true;
+DEFINE FIELD IF NOT EXISTS prompt ON TABLE chat_queue_item TYPE string
+    ASSERT string::len(string::trim($value)) > 0
+        AND string::len($value) <= 100000;
+DEFINE FIELD IF NOT EXISTS loop_count ON TABLE chat_queue_item TYPE int DEFAULT 1
+    ASSERT $value >= 1 AND $value <= 10;
+DEFINE FIELD IF NOT EXISTS current_loop ON TABLE chat_queue_item TYPE int DEFAULT 0
+    ASSERT $value >= 0 AND $value <= 10;
+DEFINE FIELD IF NOT EXISTS iteration_token ON TABLE chat_queue_item TYPE option<string>;
+
+-- Immutable enqueue-time selectors used by the worker, including model,
+-- skills, tools, template, artifact, and context configuration.
+DEFINE FIELD IF NOT EXISTS execution_snapshot ON TABLE chat_queue_item
+    FLEXIBLE TYPE object DEFAULT {};
+
+-- Worker command state is separate from the stable logical run identifier.
+DEFINE FIELD IF NOT EXISTS runner_command_id ON TABLE chat_queue_item TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS runner_state ON TABLE chat_queue_item TYPE string DEFAULT 'idle'
+    ASSERT $value IN ['idle', 'scheduled', 'running', 'completed', 'failed'];
+
+-- Reconnectable stream snapshots. Every persisted change increments revision.
+DEFINE FIELD IF NOT EXISTS stream_revision ON TABLE chat_queue_item TYPE int DEFAULT 0
+    ASSERT $value >= 0;
+DEFINE FIELD IF NOT EXISTS stream_content ON TABLE chat_queue_item TYPE string DEFAULT '';
+DEFINE FIELD IF NOT EXISTS stream_progress ON TABLE chat_queue_item
+    FLEXIBLE TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS stream_activity ON TABLE chat_queue_item
+    FLEXIBLE TYPE option<object>;
+
+DEFINE FIELD IF NOT EXISTS error_type ON TABLE chat_queue_item TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS error_message ON TABLE chat_queue_item TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS error_details ON TABLE chat_queue_item
+    FLEXIBLE TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS started_at ON TABLE chat_queue_item TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS completed_at ON TABLE chat_queue_item TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS failed_at ON TABLE chat_queue_item TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS created ON TABLE chat_queue_item TYPE datetime
+    DEFAULT time::now() VALUE $before OR time::now();
+DEFINE FIELD IF NOT EXISTS updated ON TABLE chat_queue_item TYPE datetime
+    DEFAULT time::now() VALUE time::now();
+
+DEFINE INDEX IF NOT EXISTS idx_chat_queue_item_request
+    ON TABLE chat_queue_item FIELDS chat_session, client_request_id UNIQUE;
+DEFINE INDEX IF NOT EXISTS idx_chat_queue_item_run
+    ON TABLE chat_queue_item FIELDS run_id UNIQUE;
+DEFINE INDEX IF NOT EXISTS idx_chat_queue_item_position
+    ON TABLE chat_queue_item FIELDS queue_id, position UNIQUE;
+DEFINE INDEX IF NOT EXISTS idx_chat_queue_item_claim
+    ON TABLE chat_queue_item FIELDS queue_id, status, position;
+DEFINE INDEX IF NOT EXISTS idx_chat_queue_item_visible
+    ON TABLE chat_queue_item FIELDS queue_id, visible, position;
+
+RETURN true;

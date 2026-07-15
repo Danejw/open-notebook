@@ -22,6 +22,7 @@ async def generate_with_mcp_tools(
     session_id: str,
     message_id: Optional[str] = None,
     config: Optional[RunnableConfig] = None,
+    strict_mcp_tools: bool = False,
 ) -> AIMessage:
     """
     Invoke the chat model, optionally binding MCP tools and running a bounded loop.
@@ -29,7 +30,10 @@ async def generate_with_mcp_tools(
     `provision_model` should be an async callable matching provision_langchain_model.
     """
     model = await provision_model(str(payload), model_id, "chat", max_tokens=8192)
-    allowlist = await build_allowlist(mcp_tool_ids)
+    allowlist = await build_allowlist(
+        mcp_tool_ids,
+        strict_selected_tools=strict_mcp_tools,
+    )
     guard = DuplicateCallGuard()
     tools = build_langchain_tools(
         allowlist,
@@ -102,8 +106,10 @@ async def generate_with_mcp_tools(
                 )
             )
     else:
-        if tools and ai_message is not None and (
-            getattr(ai_message, "tool_calls", None) or []
+        if (
+            tools
+            and ai_message is not None
+            and (getattr(ai_message, "tool_calls", None) or [])
         ):
             plain = await provision_model(
                 str(working), model_id, "chat", max_tokens=8192

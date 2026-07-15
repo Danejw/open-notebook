@@ -238,6 +238,42 @@ docker stats
 
 ---
 
+## Queued Messages Stay on "Pending"
+
+**Symptom:** Messages appear in the chat queue but do not start.
+
+**Cause:** The `surreal-commands` worker is not running or has not been
+restarted since the chat queue command was installed.
+
+**Solutions:**
+
+```bash
+# Local development
+uv run --env-file .env surreal-commands-worker --import-modules commands
+
+# Docker
+docker compose restart
+docker compose logs -f
+```
+
+The queue is persistent: pending messages remain in SurrealDB and start when
+the worker becomes available. Restart an already-running development worker
+after upgrading so it registers `drain_chat_queue`.
+
+If a worker stops during a response, Construction OS uses a lease and the
+LangGraph checkpoint to avoid replaying a completed turn. Ambiguous
+recoveries are marked failed and pause the queue instead of risking duplicate
+messages. Review the failed item, retry or delete it, and resume the queue.
+
+For repeated worker failures:
+
+1. Verify SurrealDB is reachable.
+2. Verify `LANGGRAPH_CHECKPOINT_FILE` points to writable persistent storage.
+3. Reduce `SURREAL_COMMANDS_MAX_TASKS` if the host is resource constrained.
+4. Check worker logs for the queue item and chat session IDs.
+
+---
+
 ## Chat Doesn't Remember History
 
 **Symptom:** Each message treated as separate, no context between questions

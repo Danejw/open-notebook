@@ -17,10 +17,16 @@ from construction_os.domain.artifact import DefaultPrompts
 from construction_os.domain.project import Project
 from construction_os.exceptions import ConstructionOSError
 from construction_os.graphs.chat_context import build_relevance_context
-from construction_os.graphs.chat_intent import latest_user_message, needs_project_context
+from construction_os.graphs.chat_intent import (
+    latest_user_message,
+    needs_project_context,
+)
 from construction_os.graphs.progress import emit_agent_progress
 from construction_os.mcp.chat_loop import generate_with_mcp_tools
-from construction_os.skills.loader import format_skills_context, load_one_skill_md
+from construction_os.skills.loader import (
+    format_skills_context,
+    load_one_skill_md,
+)
 from construction_os.utils import clean_thinking_content
 from construction_os.utils.error_classifier import classify_error
 from construction_os.utils.text_utils import extract_text_content
@@ -37,6 +43,7 @@ class ThreadState(TypedDict):
     skills_context: Optional[str]
     skill_ids: Optional[list]
     mcp_tool_ids: Optional[list]
+    strict_mcp_tools: bool
     session_id: Optional[str]
     html_template_id: Optional[str]
     html_template: Optional[dict]
@@ -125,7 +132,9 @@ def _context_counts(context: Optional[str | dict], formatted: Optional[str]) -> 
     }
 
 
-def route_from_start(state: ThreadState) -> Literal["loading_skills", "retrieving_context"]:
+def route_from_start(
+    state: ThreadState,
+) -> Literal["loading_skills", "retrieving_context"]:
     if state.get("skill_ids"):
         return "loading_skills"
     return "retrieving_context"
@@ -196,8 +205,10 @@ def retrieving_context(state: ThreadState, config: RunnableConfig) -> dict:
         user_text = latest_user_message(messages)
 
         # Casual / no-evidence turns: skip corpus dump entirely.
-        if context_config and project_id and not needs_project_context(
-            user_text, messages
+        if (
+            context_config
+            and project_id
+            and not needs_project_context(user_text, messages)
         ):
             detail = {
                 "sourceCount": 0,
@@ -257,10 +268,10 @@ def generating(state: ThreadState, config: RunnableConfig) -> dict:
         if prompt_data.get("artifact") and not prompt_data.get("artifact_instructions"):
             default_prompts: DefaultPrompts = _run_async(DefaultPrompts.get_instance())  # type: ignore[assignment]
             if default_prompts.artifact_instructions:
-                prompt_data["artifact_instructions"] = default_prompts.artifact_instructions
-        system_prompt = Prompter(prompt_template="chat/system").render(
-            data=prompt_data
-        )  # type: ignore[arg-type]
+                prompt_data["artifact_instructions"] = (
+                    default_prompts.artifact_instructions
+                )
+        system_prompt = Prompter(prompt_template="chat/system").render(data=prompt_data)  # type: ignore[arg-type]
         payload = [SystemMessage(content=system_prompt)] + list(
             state.get("messages", [])
         )
@@ -281,6 +292,7 @@ def generating(state: ThreadState, config: RunnableConfig) -> dict:
                 session_id=str(session_id or ""),
                 message_id=assistant_message_id,
                 config=config,
+                strict_mcp_tools=bool(state.get("strict_mcp_tools")),
             )
         )
 
@@ -316,7 +328,12 @@ agent_state.add_edge("generating", END)
 graph = agent_state.compile(checkpointer=MemorySaver())
 
 
+def compile_graph(checkpointer: BaseCheckpointSaver):
+    """Compile an isolated project-chat graph with the supplied checkpointer."""
+    return agent_state.compile(checkpointer=checkpointer)
+
+
 def bind_checkpointer(checkpointer: BaseCheckpointSaver) -> None:
     """Recompile the chat graph with the process-wide async checkpointer."""
     global graph
-    graph = agent_state.compile(checkpointer=checkpointer)
+    graph = compile_graph(checkpointer)

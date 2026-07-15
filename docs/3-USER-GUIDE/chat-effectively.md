@@ -21,6 +21,38 @@ That's it! But doing it *well* requires understanding how context works.
 
 ---
 
+## Queueing Multiple Messages
+
+When the chat is idle, sending works like normal: the message goes straight to
+the API and streams a response. The **Message queue** only appears when you
+send another prompt while a response is still running (or while items are
+already waiting). Those messages stay queued and then run automatically in
+order from top to bottom (first queued runs first) once the current response
+finishes—unless you pause the queue.
+
+- Expand **Message queue** to review prompts that have not started yet. When a
+  prompt begins, it leaves the queue and streams in the chat like a normal send.
+- Drag pending prompts to change their order.
+- Edit or remove a pending prompt before it starts.
+- When editing a queued prompt, set **Runs** from 1 to 10 to repeat it. Each
+  repeat sees the response from the previous repeat.
+- **Pause queue** lets the current response finish, then stops before the next
+  prompt. You can still add, edit, reorder, or remove pending prompts while
+  paused. Queues start in play/auto-run mode — pause only when you need to edit.
+- **Resume queue** starts the next waiting prompt when nothing is currently
+  running. If a prompt failed, you can retry it from the queue panel.
+- If a prompt fails, it stays in the queue for retry or delete. Later pending
+  prompts keep running automatically while the queue is in play mode.
+
+The queue is stored on the server. It continues while you visit another page
+or close the browser, provided the Construction OS command worker is running.
+Returning to the same chat restores its queue and any in-progress response.
+Each chat session has an independent queue.
+
+> Shared guest chats do not support persistent queues.
+
+---
+
 ## Context Management: The Key to Good Chat
 
 Context controls **what the AI is allowed to see**. This is your most important control.

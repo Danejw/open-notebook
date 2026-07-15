@@ -7,8 +7,13 @@ Importing this package registers ObjectModel subclasses for polymorphic get().
 
 from construction_os.domain.artifact import Artifact, DefaultPrompts
 from construction_os.domain.base import ObjectModel, RecordModel
+from construction_os.domain.chat_queue import (
+    ChatQueue,
+    ChatQueueItem,
+    ChatQueueRepository,
+    RunnerFinalizationResult,
+)
 from construction_os.domain.html_document import Document, HtmlTemplate
-from construction_os.domain.media_asset import MediaAsset
 from construction_os.domain.knowledge_graph import (
     KgClaim,
     KgEntity,
@@ -16,6 +21,7 @@ from construction_os.domain.knowledge_graph import (
     KgMention,
     KgRelation,
 )
+from construction_os.domain.media_asset import MediaAsset
 from construction_os.domain.project import (
     Asset,
     ChatSession,
@@ -32,6 +38,10 @@ __all__ = [
     "Artifact",
     "Asset",
     "ChatSession",
+    "ChatQueue",
+    "ChatQueueItem",
+    "ChatQueueRepository",
+    "RunnerFinalizationResult",
     "DefaultPrompts",
     "Document",
     "HtmlTemplate",

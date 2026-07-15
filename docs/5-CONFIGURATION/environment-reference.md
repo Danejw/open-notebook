@@ -9,7 +9,7 @@ Comprehensive list of all environment variables available in Construction OS.
 | Variable | Required? | Default | Description |
 |----------|-----------|---------|-------------|
 | `API_URL` | No | Auto-detected | URL where frontend reaches API (e.g., http://localhost:5055) |
-| `INTERNAL_API_URL` | No | http://localhost:5055 | Internal API URL for Next.js server-side proxying |
+| `INTERNAL_API_URL` | No | http://localhost:5055 | Internal API URL for Next.js server-side proxying, including reconnectable chat queue streams |
 | `API_CLIENT_TIMEOUT` | No | 300 | Client timeout in seconds (how long to wait for API response) |
 | `CONSTRUCTION_OS_PASSWORD` | No | None | Password to protect Construction OS instance |
 | `CONSTRUCTION_OS_ENCRYPTION_KEY` | **Yes** | None | Secret string to encrypt credentials stored in database (any string works). **Required** for the credential system. Supports Docker secrets via `_FILE` suffix. |
@@ -47,7 +47,20 @@ Comprehensive list of all environment variables available in Construction OS.
 
 | Variable | Required? | Default | Description |
 |----------|-----------|---------|-------------|
-| `SURREAL_COMMANDS_MAX_TASKS` | No | 5 | Maximum concurrent database tasks |
+| `SURREAL_COMMANDS_MAX_TASKS` | No | 5 | Maximum concurrent worker tasks. Separate chat sessions may drain concurrently, but each session runs one queued message at a time. |
+
+---
+
+## Chat Queue and Checkpoints
+
+| Variable | Required? | Default | Description |
+|----------|-----------|---------|-------------|
+| `LANGGRAPH_CHECKPOINT_FILE` | No | `./data/sqlite-db/checkpoints.sqlite` | Persistent SQLite checkpoint file used for conversation history and crash-safe chat queue recovery. The API and worker must use the same durable file. |
+
+Queued chat execution also requires the `surreal-commands` worker. The queue
+itself is stored in SurrealDB; the checkpoint file records LangGraph turns so
+a retried worker can recover without duplicating a response. Keep both stores
+on persistent volumes in production.
 
 ---
 

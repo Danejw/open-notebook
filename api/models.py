@@ -32,9 +32,7 @@ class ProjectResponse(BaseModel):
 # Search models
 class SearchRequest(BaseModel):
     query: str = Field(..., description="Search query")
-    type: Literal["text", "vector", "hybrid"] = Field(
-        "text", description="Search type"
-    )
+    type: Literal["text", "vector", "hybrid"] = Field("text", description="Search type")
     limit: int = Field(100, description="Maximum number of results", ge=1, le=1000)
     search_sources: bool = Field(True, description="Include sources in search")
     search_notes: bool = Field(True, description="Include notes in search")
@@ -123,9 +121,7 @@ class ProviderAvailabilityResponse(BaseModel):
 class ArtifactCreate(BaseModel):
     name: str = Field(..., description="Artifact name")
     title: str = Field(..., description="Display title for the Artifact")
-    description: str = Field(
-        ..., description="Description of what this Artifact does"
-    )
+    description: str = Field(..., description="Description of what this Artifact does")
     prompt: str = Field(..., description="The Artifact prompt")
     apply_default: bool = Field(
         False, description="Whether to apply this Artifact by default"
@@ -138,9 +134,7 @@ class ArtifactCreate(BaseModel):
 
 class ArtifactUpdate(BaseModel):
     name: Optional[str] = Field(None, description="Artifact name")
-    title: Optional[str] = Field(
-        None, description="Display title for the Artifact"
-    )
+    title: Optional[str] = Field(None, description="Display title for the Artifact")
     description: Optional[str] = Field(
         None, description="Description of what this Artifact does"
     )
@@ -169,9 +163,7 @@ class ArtifactResponse(BaseModel):
 class ArtifactExecuteRequest(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
-    artifact_id: str = Field(
-        ..., description="ID of the Artifact to execute"
-    )
+    artifact_id: str = Field(..., description="ID of the Artifact to execute")
     input_text: str = Field(..., description="Text to transform")
     model_id: str = Field(..., description="Model ID to use for the Artifact")
 
@@ -186,31 +178,29 @@ class ArtifactExecuteResponse(BaseModel):
 
 # Default Prompt API models
 class DefaultPromptResponse(BaseModel):
-    artifact_instructions: str = Field(
-        ..., description="Default Artifact instructions"
-    )
+    artifact_instructions: str = Field(..., description="Default Artifact instructions")
 
 
 class DefaultPromptUpdate(BaseModel):
-    artifact_instructions: str = Field(
-        ..., description="Default Artifact instructions"
-    )
+    artifact_instructions: str = Field(..., description="Default Artifact instructions")
 
 
 # Notes API models
 class NoteCreate(BaseModel):
     title: Optional[str] = Field(None, description="Note title")
     content: str = Field(..., description="Note content")
-    note_type: Optional[str] = Field("human", description="Type of artifact-backed note (human, ai, note, artifact)")
-    project_id: Optional[str] = Field(
-        None, description="Project ID to add the note to"
+    note_type: Optional[str] = Field(
+        "human", description="Type of artifact-backed note (human, ai, note, artifact)"
     )
+    project_id: Optional[str] = Field(None, description="Project ID to add the note to")
 
 
 class NoteUpdate(BaseModel):
     title: Optional[str] = Field(None, description="Note title")
     content: Optional[str] = Field(None, description="Note content")
-    note_type: Optional[str] = Field(None, description="Type of artifact-backed note (human, ai, note, artifact)")
+    note_type: Optional[str] = Field(
+        None, description="Type of artifact-backed note (human, ai, note, artifact)"
+    )
 
 
 class NoteResponse(BaseModel):
@@ -546,12 +536,8 @@ class SetApiKeyRequest(BaseModel):
     base_url: Optional[str] = Field(
         None, description="Base URL for URL-based providers (Ollama, OpenAI-compatible)"
     )
-    endpoint: Optional[str] = Field(
-        None, description="Endpoint URL for Azure OpenAI"
-    )
-    api_version: Optional[str] = Field(
-        None, description="API version for Azure OpenAI"
-    )
+    endpoint: Optional[str] = Field(None, description="Endpoint URL for Azure OpenAI")
+    api_version: Optional[str] = Field(None, description="API version for Azure OpenAI")
     endpoint_llm: Optional[str] = Field(
         None, description="Service-specific endpoint for LLM (Azure)"
     )
@@ -818,7 +804,9 @@ class HtmlTemplateResponse(BaseModel):
 
 class DocumentCreate(BaseModel):
     template_id: str = Field(..., description="HtmlTemplate id to copy from")
-    title: Optional[str] = Field(None, description="Document title; defaults to template name")
+    title: Optional[str] = Field(
+        None, description="Document title; defaults to template name"
+    )
     scenario_label: str = Field("Base", description="Scenario label")
     html_body: Optional[str] = Field(
         None,
@@ -878,3 +866,219 @@ class MediaAssetResponse(BaseModel):
     created: str
     updated: str
     file_url: str = Field(..., description="Authenticated API path to fetch the file")
+
+
+# --- Persistent per-session chat queue ---
+
+ChatQueueStatus = Literal["active", "paused"]
+ChatQueueRunnerState = Literal["idle", "scheduled", "running"]
+ChatQueueItemStatus = Literal["pending", "running", "completed", "failed", "cancelled"]
+ChatQueueItemRunnerState = Literal[
+    "idle", "scheduled", "running", "completed", "failed"
+]
+
+
+class ChatQueueExecutionSnapshot(BaseModel):
+    """Immutable model and selector inputs captured when an item is enqueued."""
+
+    model_config = ConfigDict(protected_namespaces=(), extra="forbid")
+
+    model_id: Optional[str] = None
+    skill_ids: Optional[List[str]] = Field(default_factory=list)
+    tool_ids: Optional[List[str]] = Field(default_factory=list)
+    html_template_id: Optional[str] = None
+    artifact_id: Optional[str] = None
+    context_config: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    forwarded_props: Optional[Dict[str, Any]] = Field(default_factory=dict)
+
+
+class ChatQueueItemEnqueueRequest(BaseModel):
+    """Request to idempotently enqueue a persistent chat prompt."""
+
+    model_config = ConfigDict(protected_namespaces=())
+
+    client_request_id: str = Field(min_length=1, max_length=200)
+    prompt: str = Field(min_length=1, max_length=100_000)
+    loop_count: int = Field(default=1, ge=1, le=10)
+    model_id: Optional[str] = None
+    skill_ids: Optional[List[str]] = None
+    tool_ids: List[str] = Field(default_factory=list)
+    html_template_id: Optional[str] = None
+    artifact_id: Optional[str] = None
+    context_config: Dict[str, Any] = Field(default_factory=dict)
+    forwarded_props: Dict[str, Any] = Field(default_factory=dict)
+    # When False, persist the item but do not schedule drain_chat_queue yet.
+    # Use while a live AG-UI turn is in progress for the same session, then
+    # call GET queue / resume to start the runner after that turn ends.
+    schedule_runner: bool = True
+
+    @field_validator("client_request_id", "prompt", mode="before")
+    @classmethod
+    def trim_required_text(cls, value: Any) -> Any:
+        """Trim stable request IDs and prompts before length validation."""
+        return value.strip() if isinstance(value, str) else value
+
+    def to_execution_snapshot(
+        self,
+        *,
+        default_model_id: Optional[str] = None,
+        default_skill_ids: Optional[List[str]] = None,
+        default_html_template_id: Optional[str] = None,
+    ) -> ChatQueueExecutionSnapshot:
+        """Resolve omitted session selectors into one immutable execution snapshot."""
+        supplied = self.model_fields_set
+        model_id = self.model_id if "model_id" in supplied else default_model_id
+        skill_ids = (
+            list(self.skill_ids or [])
+            if "skill_ids" in supplied
+            else list(default_skill_ids or [])
+        )
+        html_template_id = (
+            self.html_template_id
+            if "html_template_id" in supplied
+            else default_html_template_id
+        )
+        return ChatQueueExecutionSnapshot(
+            model_id=model_id,
+            skill_ids=skill_ids,
+            tool_ids=self.tool_ids,
+            html_template_id=html_template_id,
+            artifact_id=self.artifact_id,
+            context_config=self.context_config,
+            forwarded_props=self.forwarded_props,
+        )
+
+
+class ChatQueueItemUpdateRequest(BaseModel):
+    """Mutable fields accepted while an item is pending or failed."""
+
+    model_config = ConfigDict(protected_namespaces=())
+
+    prompt: Optional[str] = Field(default=None, min_length=1, max_length=100_000)
+    loop_count: Optional[int] = Field(default=None, ge=1, le=10)
+    model_id: Optional[str] = None
+    skill_ids: Optional[List[str]] = None
+    tool_ids: Optional[List[str]] = None
+    html_template_id: Optional[str] = None
+    artifact_id: Optional[str] = None
+    context_config: Optional[Dict[str, Any]] = None
+    forwarded_props: Optional[Dict[str, Any]] = None
+
+    @field_validator("prompt", mode="before")
+    @classmethod
+    def trim_optional_prompt(cls, value: Any) -> Any:
+        """Trim prompt updates before non-empty and length validation."""
+        return value.strip() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def require_update(self) -> "ChatQueueItemUpdateRequest":
+        """Require at least one explicitly supplied update field."""
+        if not self.model_fields_set:
+            raise ValueError("At least one queue item field must be provided")
+        for field_name in ("prompt", "loop_count"):
+            if (
+                field_name in self.model_fields_set
+                and getattr(self, field_name) is None
+            ):
+                raise ValueError(f"{field_name} cannot be null")
+        return self
+
+    def selector_patch(self) -> Dict[str, Any]:
+        """Return only selector fields explicitly supplied by the caller."""
+        selector_fields = {
+            "model_id",
+            "skill_ids",
+            "tool_ids",
+            "html_template_id",
+            "artifact_id",
+            "context_config",
+            "forwarded_props",
+        }
+        return {
+            field_name: getattr(self, field_name)
+            for field_name in self.model_fields_set
+            if field_name in selector_fields
+        }
+
+
+class ChatQueueStateUpdateRequest(BaseModel):
+    """Request to pause or resume one session queue."""
+
+    status: ChatQueueStatus
+
+
+class ChatQueueReorderRequest(BaseModel):
+    """Optimistic exact-set reorder request for all pending items."""
+
+    item_ids: List[str]
+    expected_revision: int = Field(ge=0)
+
+    @field_validator("item_ids")
+    @classmethod
+    def reject_duplicate_item_ids(cls, value: List[str]) -> List[str]:
+        """Reject duplicate IDs before attempting an exact-set reorder."""
+        if len(value) != len(set(value)):
+            raise ValueError("item_ids cannot contain duplicates")
+        return value
+
+
+class ChatQueueItemResponse(BaseModel):
+    """Persisted queue item, including reconnectable execution state."""
+
+    model_config = ConfigDict(protected_namespaces=())
+
+    id: str
+    queue_id: str
+    chat_session: str
+    client_request_id: str
+    run_id: str
+    position: int
+    status: ChatQueueItemStatus
+    visible: bool
+    prompt: str
+    loop_count: int
+    current_loop: int
+    iteration_token: Optional[str] = None
+    execution_snapshot: ChatQueueExecutionSnapshot
+    runner_command_id: Optional[str] = None
+    runner_state: ChatQueueItemRunnerState
+    stream_revision: int
+    stream_content: str
+    stream_progress: Optional[Dict[str, Any]] = None
+    stream_activity: Optional[Dict[str, Any]] = None
+    error_type: Optional[str] = None
+    error_message: Optional[str] = None
+    error_details: Optional[Dict[str, Any]] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    failed_at: Optional[datetime] = None
+    created: datetime
+    updated: datetime
+
+
+class ChatQueueResponse(BaseModel):
+    """Queue state and its ordered visible items."""
+
+    model_config = ConfigDict(protected_namespaces=())
+
+    id: str
+    chat_session: str
+    status: ChatQueueStatus
+    revision: int
+    runner_state: ChatQueueRunnerState
+    runner_command_id: Optional[str] = None
+    lease_owner: Optional[str] = None
+    lease_expires_at: Optional[datetime] = None
+    items: List[ChatQueueItemResponse] = Field(default_factory=list)
+    current_item: Optional[ChatQueueItemResponse] = None
+    created: datetime
+    updated: datetime
+
+
+class ChatQueueStreamResponse(BaseModel):
+    """Revisioned queue snapshot used to hydrate reconnecting SSE clients."""
+
+    event: Literal["snapshot", "item", "queue", "heartbeat"]
+    revision: int = Field(ge=0)
+    queue: Optional[ChatQueueResponse] = None
+    item: Optional[ChatQueueItemResponse] = None

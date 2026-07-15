@@ -9,6 +9,11 @@ from loguru import logger
 from pydantic import BaseModel, Field
 
 from api import ag_ui_agents
+from api.chat_queue_service import (
+    ChatQueueConflictError,
+    ChatQueueNotFoundError,
+    chat_queue_service,
+)
 from construction_os.ai.provision import provision_langchain_model
 from construction_os.database.repository import ensure_record_id, repo_query
 from construction_os.domain.artifact import Artifact
@@ -23,7 +28,10 @@ from construction_os.utils.graph_utils import (
     truncate_messages_from_id,
 )
 from construction_os.utils.html_media import expand_image_tokens
-from construction_os.utils.text_utils import clean_thinking_content, extract_text_content
+from construction_os.utils.text_utils import (
+    clean_thinking_content,
+    extract_text_content,
+)
 
 router = APIRouter()
 
@@ -547,7 +555,12 @@ async def delete_session(
 
         _assert_session_guest_access(session, guest_key)
 
-        await session.delete()
+        try:
+            await chat_queue_service.delete_session(full_session_id)
+        except ChatQueueConflictError as e:
+            raise HTTPException(status_code=409, detail=str(e)) from e
+        except ChatQueueNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
 
         return SuccessResponse(success=True, message="Session deleted successfully")
     except HTTPException:

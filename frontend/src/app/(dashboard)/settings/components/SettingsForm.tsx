@@ -1,6 +1,6 @@
 'use client'
 
-import { useForm, Controller } from 'react-hook-form'
+import { useForm, Controller, Control } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -23,6 +23,78 @@ const settingsSchema = z.object({
 })
 
 type SettingsFormData = z.infer<typeof settingsSchema>
+
+interface SelectOption {
+  value: string
+  label: string
+}
+
+interface SettingSelectFieldProps {
+  name: string
+  labelId: string
+  label: string
+  fieldName: keyof SettingsFormData
+  options: SelectOption[]
+  helpText: string
+  placeholder: string
+  control: Control<SettingsFormData>
+  isLoading: boolean
+  expanded: boolean
+  onToggleExpand: () => void
+}
+
+function SettingSelectField({
+  labelId,
+  label,
+  fieldName,
+  options,
+  helpText,
+  placeholder,
+  control,
+  isLoading,
+  expanded,
+  onToggleExpand,
+}: SettingSelectFieldProps) {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-3">
+      <Label htmlFor={labelId}>{label}</Label>
+      <Controller
+        name={fieldName}
+        control={control}
+        render={({ field }) => (
+          <Select
+            key={field.value}
+            name={field.name}
+            value={field.value || ''}
+            onValueChange={field.onChange}
+            disabled={field.disabled || isLoading}
+          >
+            <SelectTrigger id={labelId} className="w-full">
+              <SelectValue placeholder={placeholder} />
+            </SelectTrigger>
+            <SelectContent>
+              {options.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      />
+      <Collapsible open={expanded} onOpenChange={onToggleExpand}>
+        <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ChevronDownIcon className={`h-4 w-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+          {t('settings.helpMeChoose')}
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-2 text-sm text-muted-foreground space-y-2">
+          <p>{helpText}</p>
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
+  )
+}
 
 export function SettingsForm() {
   const { t } = useTranslation()
@@ -99,76 +171,41 @@ export function SettingsForm() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="space-y-3">
-            <Label htmlFor="doc_engine">{t('settings.docEngine')}</Label>
-            <Controller
-              name="default_content_processing_engine_doc"
-              control={control}
-              render={({ field }) => (
-                  <Select
-                    key={field.value}
-                    name={field.name}
-                    value={field.value || ''}
-                    onValueChange={field.onChange}
-                    disabled={field.disabled || isLoading}
-                  >
-                      <SelectTrigger id="doc_engine" className="w-full">
-                        <SelectValue placeholder={t('settings.docEnginePlaceholder')} />
-                      </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="auto">{t('settings.autoRecommended')}</SelectItem>
-                      <SelectItem value="docling">{t('settings.docling')}</SelectItem>
-                      <SelectItem value="simple">{t('settings.simple')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-              )}
-            />
-            <Collapsible open={expandedSections.doc} onOpenChange={() => toggleSection('doc')}>
-              <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                <ChevronDownIcon className={`h-4 w-4 transition-transform ${expandedSections.doc ? 'rotate-180' : ''}`} />
-                {t('settings.helpMeChoose')}
-              </CollapsibleTrigger>
-              <CollapsibleContent className="mt-2 text-sm text-muted-foreground space-y-2">
-                <p>{t('settings.docHelp')}</p>
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
-          
-          <div className="space-y-3">
-            <Label htmlFor="url_engine">{t('settings.urlEngine')}</Label>
-            <Controller
-              name="default_content_processing_engine_url"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  key={field.value}
-                  name={field.name}
-                  value={field.value || ''}
-                  onValueChange={field.onChange}
-                  disabled={field.disabled || isLoading}
-                >
-                  <SelectTrigger id="url_engine" className="w-full">
-                    <SelectValue placeholder={t('settings.urlEnginePlaceholder')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="auto">{t('settings.autoRecommended')}</SelectItem>
-                    <SelectItem value="firecrawl">{t('settings.firecrawl')}</SelectItem>
-                    <SelectItem value="jina">{t('settings.jina')}</SelectItem>
-                    <SelectItem value="simple">{t('settings.simple')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            />
-             <Collapsible open={expandedSections.url} onOpenChange={() => toggleSection('url')}>
-              <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                <ChevronDownIcon className={`h-4 w-4 transition-transform ${expandedSections.url ? 'rotate-180' : ''}`} />
-                {t('settings.helpMeChoose')}
-              </CollapsibleTrigger>
-              <CollapsibleContent className="mt-2 text-sm text-muted-foreground space-y-2">
-                <p>{t('settings.urlHelp')}</p>
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
+          <SettingSelectField
+            name="doc"
+            labelId="doc_engine"
+            label={t('settings.docEngine')}
+            fieldName="default_content_processing_engine_doc"
+            options={[
+              { value: 'auto', label: t('settings.autoRecommended') },
+              { value: 'docling', label: t('settings.docling') },
+              { value: 'simple', label: t('settings.simple') },
+            ]}
+            helpText={t('settings.docHelp')}
+            placeholder={t('settings.docEnginePlaceholder')}
+            control={control}
+            isLoading={isLoading}
+            expanded={expandedSections.doc}
+            onToggleExpand={() => toggleSection('doc')}
+          />
+          <SettingSelectField
+            name="url"
+            labelId="url_engine"
+            label={t('settings.urlEngine')}
+            fieldName="default_content_processing_engine_url"
+            options={[
+              { value: 'auto', label: t('settings.autoRecommended') },
+              { value: 'firecrawl', label: t('settings.firecrawl') },
+              { value: 'jina', label: t('settings.jina') },
+              { value: 'simple', label: t('settings.simple') },
+            ]}
+            helpText={t('settings.urlHelp')}
+            placeholder={t('settings.urlEnginePlaceholder')}
+            control={control}
+            isLoading={isLoading}
+            expanded={expandedSections.url}
+            onToggleExpand={() => toggleSection('url')}
+          />
         </CardContent>
       </Card>
 
@@ -180,40 +217,23 @@ export function SettingsForm() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-           <div className="space-y-3">
-            <Label htmlFor="embedding">{t('settings.defaultEmbeddingOption')}</Label>
-            <Controller
-              name="default_embedding_option"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  key={field.value}
-                  name={field.name}
-                  value={field.value || ''}
-                  onValueChange={field.onChange}
-                  disabled={field.disabled || isLoading}
-                >
-                  <SelectTrigger id="embedding" className="w-full">
-                    <SelectValue placeholder={t('settings.embeddingOptionPlaceholder')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ask">{t('settings.ask')}</SelectItem>
-                    <SelectItem value="always">{t('settings.always')}</SelectItem>
-                    <SelectItem value="never">{t('settings.never')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            />
-             <Collapsible open={expandedSections.embedding} onOpenChange={() => toggleSection('embedding')}>
-              <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                <ChevronDownIcon className={`h-4 w-4 transition-transform ${expandedSections.embedding ? 'rotate-180' : ''}`} />
-                {t('settings.helpMeChoose')}
-              </CollapsibleTrigger>
-              <CollapsibleContent className="mt-2 text-sm text-muted-foreground space-y-2">
-                <p>{t('settings.embeddingHelp')}</p>
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
+          <SettingSelectField
+            name="embedding"
+            labelId="embedding"
+            label={t('settings.defaultEmbeddingOption')}
+            fieldName="default_embedding_option"
+            options={[
+              { value: 'ask', label: t('settings.ask') },
+              { value: 'always', label: t('settings.always') },
+              { value: 'never', label: t('settings.never') },
+            ]}
+            helpText={t('settings.embeddingHelp')}
+            placeholder={t('settings.embeddingOptionPlaceholder')}
+            control={control}
+            isLoading={isLoading}
+            expanded={expandedSections.embedding}
+            onToggleExpand={() => toggleSection('embedding')}
+          />
         </CardContent>
       </Card>
 
@@ -225,39 +245,22 @@ export function SettingsForm() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-           <div className="space-y-3">
-            <Label htmlFor="auto_delete">{t('settings.autoDeleteFiles')}</Label>
-            <Controller
-              name="auto_delete_files"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  key={field.value}
-                  name={field.name}
-                  value={field.value || ''}
-                  onValueChange={field.onChange}
-                  disabled={field.disabled || isLoading}
-                >
-                  <SelectTrigger id="auto_delete" className="w-full">
-                    <SelectValue placeholder={t('settings.autoDeletePlaceholder')} />
-                  </SelectTrigger>
-                   <SelectContent>
-                    <SelectItem value="yes">{t('common.yes')}</SelectItem>
-                    <SelectItem value="no">{t('common.no')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            />
-             <Collapsible open={expandedSections.files} onOpenChange={() => toggleSection('files')}>
-              <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                <ChevronDownIcon className={`h-4 w-4 transition-transform ${expandedSections.files ? 'rotate-180' : ''}`} />
-                {t('settings.helpMeChoose')}
-              </CollapsibleTrigger>
-              <CollapsibleContent className="mt-2 text-sm text-muted-foreground space-y-2">
-                <p>{t('settings.filesHelp')}</p>
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
+          <SettingSelectField
+            name="files"
+            labelId="auto_delete"
+            label={t('settings.autoDeleteFiles')}
+            fieldName="auto_delete_files"
+            options={[
+              { value: 'yes', label: t('common.yes') },
+              { value: 'no', label: t('common.no') },
+            ]}
+            helpText={t('settings.filesHelp')}
+            placeholder={t('settings.autoDeletePlaceholder')}
+            control={control}
+            isLoading={isLoading}
+            expanded={expandedSections.files}
+            onToggleExpand={() => toggleSection('files')}
+          />
         </CardContent>
       </Card>
 

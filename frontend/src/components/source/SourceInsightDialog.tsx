@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, dialogLargeContentClassName } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { FileText, Database } from 'lucide-react'
@@ -82,40 +83,38 @@ export function SourceInsightDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex flex-col">
+      <DialogContent className={cn(dialogLargeContentClassName, 'flex flex-col')}>
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between gap-2">
-            <span>{t('sources.sourceInsight')}</span>
-            <div className="flex items-center gap-2">
-              {displayInsight?.insight_type && (
-                <Badge variant="outline" className="text-xs uppercase">
-                  {displayInsight.insight_type}
-                </Badge>
-              )}
-              {sourceId && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleViewSource}
-                  className="gap-1"
-                >
-                  <FileText className="h-3 w-3" />
-                  {t('sources.viewSource')}
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void handleIngest()}
-                disabled={ingestAsSource.isPending || isLoading}
-                className="gap-1"
-              >
-                <Database className="h-3 w-3" />
-                {t('sources.ingestAsSource')}
-              </Button>
-            </div>
-          </DialogTitle>
+          <DialogTitle>{t('sources.sourceInsight')}</DialogTitle>
         </DialogHeader>
+        <div className="flex flex-wrap items-center gap-1 px-1">
+          {displayInsight?.insight_type && (
+            <Badge variant="outline" className="h-5 text-[10px] uppercase">
+              {displayInsight.insight_type}
+            </Badge>
+          )}
+          {sourceId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleViewSource}
+              className="h-7 gap-1"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              {t('sources.viewSource')}
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void handleIngest()}
+            disabled={ingestAsSource.isPending || isLoading}
+            className="h-7 gap-1"
+          >
+            <Database className="h-3.5 w-3.5" />
+            {t('sources.ingestAsSource')}
+          </Button>
+        </div>
 
         {showDeleteConfirm ? (
           <div className="flex flex-col items-center justify-center py-8 gap-4">

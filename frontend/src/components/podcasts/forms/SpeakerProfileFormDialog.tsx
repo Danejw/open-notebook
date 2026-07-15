@@ -15,7 +15,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -154,19 +153,16 @@ export function SpeakerProfileFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-y-auto">
+      <DialogContent className="max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? t('podcasts.editSpeakerProfile') : t('podcasts.createSpeakerProfile')}
           </DialogTitle>
-          <DialogDescription>
-            {t('podcasts.speakerProfileFormDesc')}
-          </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pt-2">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 px-1 py-1">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-1.5">
               <Label htmlFor="name">{t('podcasts.profileName')} *</Label>
               <Input id="name" placeholder={t('podcasts.profileNamePlaceholder')} {...register('name')} />
               {errors.name ? (

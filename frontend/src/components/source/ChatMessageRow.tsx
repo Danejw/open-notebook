@@ -9,7 +9,12 @@ import { ChatToolCall } from '@/lib/types/mcp'
 import { ToolCallCard } from '@/components/mcp/ToolCallCard'
 import { MessageActions } from '@/components/source/MessageActions'
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
-import { convertReferencesToCompactMarkdown, createCompactReferenceLinkComponent } from '@/lib/utils/source-references'
+import { TemplateHtmlPreview } from '@/components/templates/TemplateHtmlPreview'
+import {
+  convertReferencesToCompactMarkdown,
+  createCompactReferenceLinkComponent,
+} from '@/lib/utils/source-references'
+import { extractHtmlFromChatContent } from '@/lib/utils/extract-html-from-chat'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { cn } from '@/lib/utils'
 
@@ -23,6 +28,7 @@ export interface ChatMessageRowProps {
   isStreaming: boolean
   projectId?: string
   noteSaveTitle?: string
+  htmlTemplateId?: string | null
   toolCalls?: ChatToolCall[]
   canEdit: boolean
   editLocked: boolean
@@ -42,6 +48,7 @@ function ChatMessageRowImpl({
   isStreaming,
   projectId,
   noteSaveTitle,
+  htmlTemplateId,
   toolCalls = EMPTY_TOOL_CALLS,
   canEdit,
   editLocked,
@@ -53,6 +60,16 @@ function ChatMessageRowImpl({
   onEditKeyDown,
 }: ChatMessageRowProps) {
   const { t } = useTranslation()
+  const extractedHtml =
+    message.type === 'ai' && !isStreamingThisMessage
+      ? extractHtmlFromChatContent(message.content)
+      : null
+  const showTemplatePreview = Boolean(extractedHtml)
+  const showTemplateMissing =
+    message.type === 'ai' &&
+    Boolean(htmlTemplateId) &&
+    !isStreamingThisMessage &&
+    !extractedHtml
 
   return (
     <div
@@ -61,8 +78,8 @@ function ChatMessageRowImpl({
     >
       <div
         className={cn(
-          'flex max-w-[88%] flex-col gap-0.5',
-          message.type === 'human' ? 'items-end' : 'items-start'
+          'flex flex-col gap-0.5',
+          message.type === 'human' ? 'max-w-[88%] items-end' : 'w-full max-w-[min(100%,52rem)] items-start'
         )}
       >
         {message.type === 'human' && isEditing ? (
@@ -99,22 +116,45 @@ function ChatMessageRowImpl({
           </div>
         ) : (
           <>
-            <div
-              className={cn(
-                'rounded-lg px-3 py-1.5',
-                message.type === 'human' ? 'bg-primary text-primary-foreground' : 'bg-muted'
-              )}
-            >
-              {message.type === 'ai' ? (
-                <AIMessageContent
-                  content={message.content}
-                  isStreaming={isStreamingThisMessage}
-                  onReferenceClick={onReferenceClick}
-                />
-              ) : (
-                <p className="whitespace-pre-wrap break-words text-sm">{message.content}</p>
-              )}
-            </div>
+            {showTemplatePreview && extractedHtml ? (
+              <div className="w-full space-y-2 rounded-lg border bg-background p-2">
+                <p className="px-1 text-xs text-muted-foreground">
+                  {t('chat.templateStructuredOutput')}
+                </p>
+                <TemplateHtmlPreview html={extractedHtml} />
+              </div>
+            ) : showTemplateMissing ? (
+              <div className="w-full space-y-2 rounded-lg border border-dashed p-3">
+                <p className="text-sm font-medium">{t('chat.templateOutputMissing')}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t('chat.templateOutputMissingHint')}
+                </p>
+                <div className="rounded-md bg-muted px-3 py-1.5">
+                  <AIMessageContent
+                    content={message.content}
+                    isStreaming={false}
+                    onReferenceClick={onReferenceClick}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div
+                className={cn(
+                  'rounded-lg px-3 py-1.5',
+                  message.type === 'human' ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                )}
+              >
+                {message.type === 'ai' ? (
+                  <AIMessageContent
+                    content={message.content}
+                    isStreaming={isStreamingThisMessage}
+                    onReferenceClick={onReferenceClick}
+                  />
+                ) : (
+                  <p className="whitespace-pre-wrap break-words text-sm">{message.content}</p>
+                )}
+              </div>
+            )}
             {message.type === 'human' && canEdit && (
               <div className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                 <Button
@@ -137,6 +177,7 @@ function ChatMessageRowImpl({
                   content={message.content}
                   projectId={projectId}
                   noteTitle={noteSaveTitle}
+                  htmlTemplateId={htmlTemplateId}
                 />
               </div>
             )}
@@ -170,6 +211,7 @@ function areChatMessageRowPropsEqual(prev: ChatMessageRowProps, next: ChatMessag
   if (prev.isStreamingThisMessage !== next.isStreamingThisMessage) return false
   if (prev.isStreaming !== next.isStreaming) return false
   if (prev.projectId !== next.projectId) return false
+  if (prev.htmlTemplateId !== next.htmlTemplateId) return false
   if (prev.canEdit !== next.canEdit) return false
   if (prev.editLocked !== next.editLocked) return false
   if (!toolCallsEqual(prev.toolCalls ?? EMPTY_TOOL_CALLS, next.toolCalls ?? EMPTY_TOOL_CALLS)) {

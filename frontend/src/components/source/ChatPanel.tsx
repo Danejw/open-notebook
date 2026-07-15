@@ -15,6 +15,7 @@ import {
 import { ModelSelector } from './ModelSelector'
 import { SkillPicker } from '@/components/skills/SkillPicker'
 import { ToolPicker } from '@/components/mcp/ToolPicker'
+import { TemplatePicker } from '@/components/templates/TemplatePicker'
 import { ToolCallCard } from '@/components/mcp/ToolCallCard'
 import { ChatMessageList } from '@/components/source/ChatMessageList'
 import { useMcpSessionToolCalls } from '@/lib/hooks/use-mcp'
@@ -85,6 +86,8 @@ interface ChatPanelProps {
   enableSuggestions?: boolean
   selectedSkillIds?: string[]
   onSkillIdsChange?: (ids: string[]) => void
+  selectedHtmlTemplateId?: string | null
+  onHtmlTemplateIdChange?: (id: string | null) => void
   // MCP tools selection (transient per message)
   selectedMcpToolIds?: string[]
   onMcpToolIdsChange?: (ids: string[]) => void
@@ -128,6 +131,8 @@ export function ChatPanel({
   enableSuggestions = true,
   selectedSkillIds,
   onSkillIdsChange,
+  selectedHtmlTemplateId,
+  onHtmlTemplateIdChange,
   selectedMcpToolIds,
   onMcpToolIdsChange,
   liveMcpToolCalls = [],
@@ -355,6 +360,7 @@ export function ChatPanel({
             editDraft={editDraft}
             projectId={projectId}
             noteSaveTitle={noteSaveTitle}
+            htmlTemplateId={selectedHtmlTemplateId ?? null}
             toolCallsByMessageId={toolCallsByMessageId}
             canEdit={Boolean(onEditMessage)}
             editLocked={editingMessageId !== null}
@@ -472,6 +478,13 @@ export function ChatPanel({
                 <SkillPicker
                   selectedSkillIds={selectedSkillIds ?? []}
                   onChange={onSkillIdsChange}
+                  disabled={isStreaming}
+                />
+              )}
+              {onHtmlTemplateIdChange && (
+                <TemplatePicker
+                  selectedTemplateId={selectedHtmlTemplateId ?? null}
+                  onChange={onHtmlTemplateIdChange}
                   disabled={isStreaming}
                 />
               )}

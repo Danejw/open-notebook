@@ -2,9 +2,10 @@
 
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, dialogLargeContentClassName } from '@/components/ui/dialog'
 import { SourceDetailSkeleton } from '@/components/common/LoadingSkeletons'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { cn } from '@/lib/utils'
 
 const SourceDetailContent = dynamic(
   () =>
@@ -54,7 +55,7 @@ export function SourceDialog({ open, onOpenChange, sourceId }: SourceDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex flex-col p-0">
+      <DialogContent className={cn(dialogLargeContentClassName, 'flex flex-col p-0')}>
         {/* Accessibility title (hidden visually but read by screen readers) */}
         <DialogTitle className="sr-only">{t('sources.detailsTitle')}</DialogTitle>
 

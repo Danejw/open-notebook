@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Copy, Download, Save } from 'lucide-react'
-import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
+import { Copy, Download, Pencil, Save, Trash2 } from 'lucide-react'
+import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -17,6 +18,7 @@ import {
 } from '@/components/ui/dialog'
 import {
   useBidDocument,
+  useDeleteBidDocument,
   useDuplicateBidDocument,
   useExportBidDocumentPdf,
   useUpdateBidDocument,
@@ -34,6 +36,7 @@ export default function DocumentWorkspacePage() {
   const updateDocument = useUpdateBidDocument()
   const updateTemplate = useUpdateHtmlTemplate()
   const duplicateDocument = useDuplicateBidDocument()
+  const deleteDocument = useDeleteBidDocument()
   const exportPdf = useExportBidDocumentPdf()
 
   const [htmlBody, setHtmlBody] = useState('')
@@ -41,6 +44,8 @@ export default function DocumentWorkspacePage() {
   const [activeTab, setActiveTab] = useState('page')
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const [duplicateOpen, setDuplicateOpen] = useState(false)
+  const [renameOpen, setRenameOpen] = useState(false)
+  const [renameTitle, setRenameTitle] = useState('')
   const [scenarioLabel, setScenarioLabel] = useState('')
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
@@ -141,9 +146,31 @@ export default function DocumentWorkspacePage() {
     router.push(`/documents/${dup.id}`)
   }
 
+  const handleRename = async () => {
+    if (!document) return
+    const title = renameTitle.trim()
+    if (!title || title === document.title) {
+      setRenameOpen(false)
+      return
+    }
+    await updateDocument.mutateAsync({
+      id: documentId,
+      data: { title },
+    })
+    setRenameOpen(false)
+  }
+
+  const handleDelete = async () => {
+    if (!document) return
+    if (!window.confirm(t('documents.confirmDeleteDocument'))) return
+    const projectId = document.project_id
+    await deleteDocument.mutateAsync({ id: documentId, projectId })
+    router.push(`/projects/${projectId}`)
+  }
+
   if (isLoading || !document) {
     return (
-      <div className={`${pageContentClassName} py-8`}>
+      <div className="p-6 py-8">
         <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
       </div>
     )
@@ -151,13 +178,24 @@ export default function DocumentWorkspacePage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className={`${pageContentClassName} flex min-h-0 flex-1 flex-col gap-4 pb-4`}>
+      <div className="flex min-h-0 flex-1 flex-col gap-4 p-6 pb-4">
         <PageHeader
-          bordered
           title={document.title}
           description={`${t('documents.scenario')}: ${document.scenario_label}`}
           actions={
             <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1"
+                onClick={() => {
+                  setRenameTitle(document.title)
+                  setRenameOpen(true)
+                }}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                {t('documents.renameDocument')}
+              </Button>
               <Button
                 size="sm"
                 variant="outline"
@@ -179,6 +217,16 @@ export default function DocumentWorkspacePage() {
               >
                 <Download className="h-3.5 w-3.5" />
                 {t('documents.exportPdf')}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 gap-1 text-destructive"
+                disabled={deleteDocument.isPending}
+                onClick={() => void handleDelete()}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                {t('common.delete')}
               </Button>
             </div>
           }
@@ -302,6 +350,42 @@ export default function DocumentWorkspacePage() {
               {t('documents.createScenario')}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('documents.renameDocument')}</DialogTitle>
+          </DialogHeader>
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void handleRename()
+            }}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="document-rename-title">{t('common.title')}</Label>
+              <Input
+                id="document-rename-title"
+                value={renameTitle}
+                onChange={(e) => setRenameTitle(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setRenameOpen(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button
+                type="submit"
+                disabled={!renameTitle.trim() || updateDocument.isPending}
+              >
+                {t('common.save')}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

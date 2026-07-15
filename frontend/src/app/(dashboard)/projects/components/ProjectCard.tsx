@@ -59,7 +59,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
   return (
     <>
       <div
-        className="group flex cursor-pointer items-start gap-2 px-3 py-2 transition-colors hover:bg-muted/40"
+        className="group flex cursor-pointer items-start gap-2 px-3 py-1.5 transition-colors hover:bg-muted/40"
         onClick={handleCardClick}
       >
         <BookOpen className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />

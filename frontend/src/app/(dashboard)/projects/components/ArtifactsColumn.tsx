@@ -19,7 +19,7 @@ import { CompactListRowSkeleton } from '@/components/common/LoadingSkeletons'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ListSelectionBar } from '@/components/common/ListSelectionBar'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
@@ -428,32 +428,24 @@ export function ArtifactsColumn({
 
       <Dialog open={Boolean(viewingArtifact)} onOpenChange={(open) => !open && setViewingArtifact(null)}>
         <DialogContent className="flex h-[92vh] max-h-[92vh] max-w-5xl flex-col overflow-hidden p-0">
-          <div className="border-b px-6 py-4">
-            <DialogTitle className="text-xl">
+          <DialogHeader className="border-b">
+            <DialogTitle>
               {displayViewingNote?.title || t('sources.untitledNote')}
             </DialogTitle>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {displayViewingNote?.updated
-                ? formatDistanceToNow(new Date(displayViewingNote.updated), {
-                    addSuffix: true,
-                    locale: getDateLocale(language),
-                  })
-                : null}
-            </p>
-          </div>
-          <div className="flex-1 overflow-y-auto px-6 py-5">
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto px-1 py-1">
             {viewingNoteLoading ? (
               <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
             ) : (
               <MarkdownRenderer>{displayViewingNote?.content || ''}</MarkdownRenderer>
             )}
           </div>
-          <div className="flex justify-end gap-2 border-t px-6 py-3">
+          <DialogFooter className="border-t">
             {displayViewingNote?.note_type === 'artifact' ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button type="button" variant="outline">
-                    <Download className="mr-2 h-4 w-4" />
+                  <Button type="button" variant="outline" size="sm" className="h-7">
+                    <Download className="mr-1.5 h-3.5 w-3.5" />
                     {t('projects.export')}
                   </Button>
                 </DropdownMenuTrigger>
@@ -486,6 +478,8 @@ export function ArtifactsColumn({
               <Button
                 type="button"
                 variant="secondary"
+                size="sm"
+                className="h-7"
                 onClick={() => {
                   if (displayViewingNote) {
                     void handleIngestNote(displayViewingNote)
@@ -493,7 +487,7 @@ export function ArtifactsColumn({
                 }}
                 disabled={ingestAsSource.isPending}
               >
-                <Database className="mr-2 h-4 w-4" />
+                <Database className="mr-1.5 h-3.5 w-3.5" />
                 {t('sources.ingestAsSource')}
               </Button>
             ) : null}
@@ -501,6 +495,8 @@ export function ArtifactsColumn({
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
+                className="h-7"
                 onClick={() => {
                   setEditingNote(displayViewingNote)
                   setViewingArtifact(null)
@@ -509,10 +505,10 @@ export function ArtifactsColumn({
                 {t('common.edit')}
               </Button>
             ) : null}
-            <Button type="button" onClick={() => setViewingArtifact(null)}>
+            <Button type="button" size="sm" className="h-7" onClick={() => setViewingArtifact(null)}>
               {t('common.close')}
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

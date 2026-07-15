@@ -97,6 +97,19 @@ export const htmlDocumentsApi = {
     await apiClient.delete(`/documents/${id}`)
   },
 
+  renderPdfFromHtml: async (data: { html_body: string; title?: string }) => {
+    const response = await apiClient.post<Blob>('/documents/render.pdf', data, {
+      responseType: 'blob',
+    })
+    const filename =
+      parseFilenameFromDisposition(
+        response.headers?.['content-disposition'] as string | undefined
+      ) || `${sanitizeExportFilename(data.title || 'document')}.pdf`
+
+    triggerBlobDownload(response.data, filename)
+    return { filename }
+  },
+
   exportPdf: async (id: string) => {
     const response = await apiClient.get<Blob>(`/documents/${id}/export.pdf`, {
       responseType: 'blob',

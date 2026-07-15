@@ -39,6 +39,8 @@ export function useSourceChat(sourceId: string) {
   const [contextIndicators, setContextIndicators] = useState<SourceChatContextIndicator | null>(null)
   const [selectedSkillIds, setSelectedSkillIdsState] = useState<string[]>([])
   const [pendingSkillIds, setPendingSkillIds] = useState<string[] | null>(null)
+  const [selectedHtmlTemplateId, setSelectedHtmlTemplateIdState] = useState<string | null>(null)
+  const [pendingHtmlTemplateId, setPendingHtmlTemplateId] = useState<string | null | undefined>(undefined)
   const [selectedMcpToolIds, setSelectedMcpToolIdsState] = useState<string[]>([])
   const [streamStatus, setStreamStatus] = useState<string | null>(null)
   const [activityLog, setActivityLog] = useState<string[]>([])
@@ -102,20 +104,27 @@ export function useSourceChat(sourceId: string) {
     }
   }, [currentSession])
 
-  // Restore skill selection from the active session (or pending selection)
+  // Restore skill / template selection from the active session (or pending)
   useEffect(() => {
     if (!currentSessionId) {
       setSelectedSkillIdsState(pendingSkillIds ?? [])
+      setSelectedHtmlTemplateIdState(
+        pendingHtmlTemplateId === undefined ? null : pendingHtmlTemplateId
+      )
       return
     }
     // Active session owns selection; pending was only for pre-session picks
     if (pendingSkillIds !== null) {
       setPendingSkillIds(null)
     }
+    if (pendingHtmlTemplateId !== undefined) {
+      setPendingHtmlTemplateId(undefined)
+    }
     if (currentSession) {
       setSelectedSkillIdsState(currentSession.skill_ids ?? [])
+      setSelectedHtmlTemplateIdState(currentSession.html_template_id ?? null)
     }
-  }, [currentSession, currentSessionId, pendingSkillIds])
+  }, [currentSession, currentSessionId, pendingSkillIds, pendingHtmlTemplateId])
 
   // Auto-select most recent session when sessions are loaded
   useEffect(() => {
@@ -196,10 +205,12 @@ export function useSourceChat(sourceId: string) {
         const newSession = await sourceChatApi.createSession(sourceId, {
           title: defaultTitle,
           skill_ids: selectedSkillIds,
+          html_template_id: selectedHtmlTemplateId,
         })
         sessionId = newSession.id
         setCurrentSessionId(sessionId)
         setPendingSkillIds(null)
+        setPendingHtmlTemplateId(undefined)
         queryClient.invalidateQueries({ queryKey: ['sourceChatSessions', sourceId] })
       } catch (err: unknown) {
         const error = err as { response?: { data?: { detail?: string } }, message?: string };
@@ -236,6 +247,7 @@ export function useSourceChat(sourceId: string) {
           model_override: modelOverride,
           skill_ids: selectedSkillIds,
           mcp_tool_ids: selectedMcpToolIds,
+          html_template_id: selectedHtmlTemplateId,
         },
         abortController.signal
       )
@@ -361,7 +373,7 @@ export function useSourceChat(sourceId: string) {
         abortControllerRef.current = null
       }
     }
-  }, [sourceId, currentSessionId, selectedSkillIds, selectedMcpToolIds, refetchCurrentSession, queryClient, t, appendStreamingDelta, flushStreamingContent, clearStreamingBuffers])
+  }, [sourceId, currentSessionId, selectedSkillIds, selectedMcpToolIds, selectedHtmlTemplateId, refetchCurrentSession, queryClient, t, appendStreamingDelta, flushStreamingContent, clearStreamingBuffers])
 
   // Cancel streaming
   const cancelStreaming = useCallback(() => {
@@ -374,6 +386,7 @@ export function useSourceChat(sourceId: string) {
   // Switch session
   const switchSession = useCallback((sessionId: string) => {
     setPendingSkillIds(null)
+    setPendingHtmlTemplateId(undefined)
     setCurrentSessionId(sessionId)
     setContextIndicators(null)
   }, [])
@@ -381,11 +394,16 @@ export function useSourceChat(sourceId: string) {
   // Create session
   const createSession = useCallback((data: Omit<CreateSourceChatSessionRequest, 'source_id'>) => {
     setPendingSkillIds(null)
+    setPendingHtmlTemplateId(undefined)
     return createSessionMutation.mutate({
       ...data,
       skill_ids: data.skill_ids ?? selectedSkillIds,
+      html_template_id:
+        data.html_template_id !== undefined
+          ? data.html_template_id
+          : selectedHtmlTemplateId,
     })
-  }, [createSessionMutation, selectedSkillIds])
+  }, [createSessionMutation, selectedSkillIds, selectedHtmlTemplateId])
 
   // Update session
   const updateSession = useCallback((sessionId: string, data: UpdateSourceChatSessionRequest) => {
@@ -418,6 +436,29 @@ export function useSourceChat(sourceId: string) {
     }
   }, [currentSessionId, sourceId, queryClient, t])
 
+  const setSelectedHtmlTemplateId = useCallback((id: string | null) => {
+    setSelectedHtmlTemplateIdState(id)
+    if (currentSessionId) {
+      void (async () => {
+        try {
+          await sourceChatApi.updateSession(sourceId, currentSessionId, {
+            html_template_id: id,
+          })
+          queryClient.invalidateQueries({ queryKey: ['sourceChatSessions', sourceId] })
+          queryClient.invalidateQueries({
+            queryKey: ['sourceChatSession', sourceId, currentSessionId],
+          })
+        } catch (err: unknown) {
+          const error = err as { response?: { data?: { detail?: string } }, message?: string }
+          toast.error(getApiErrorMessage(error.response?.data?.detail || error.message, (key) => t(key), 'apiErrors.failedToUpdateSession'))
+        }
+      })()
+      setPendingHtmlTemplateId(undefined)
+    } else {
+      setPendingHtmlTemplateId(id)
+    }
+  }, [currentSessionId, sourceId, queryClient, t])
+
   const setSelectedMcpToolIds = useCallback((ids: string[]) => {
     setSelectedMcpToolIdsState(ids)
   }, [])
@@ -434,6 +475,7 @@ export function useSourceChat(sourceId: string) {
     contextIndicators,
     loadingSessions,
     selectedSkillIds,
+    selectedHtmlTemplateId,
     selectedMcpToolIds,
     liveMcpToolCalls,
     
@@ -446,6 +488,7 @@ export function useSourceChat(sourceId: string) {
     cancelStreaming,
     refetchSessions,
     setSelectedSkillIds,
+    setSelectedHtmlTemplateId,
     setSelectedMcpToolIds,
   }
 }

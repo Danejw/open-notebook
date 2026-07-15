@@ -63,6 +63,8 @@ export function useProjectChat({
   const [pendingModelOverride, setPendingModelOverride] = useState<string | null>(null)
   const [selectedSkillIds, setSelectedSkillIdsState] = useState<string[]>([])
   const [pendingSkillIds, setPendingSkillIds] = useState<string[] | null>(null)
+  const [selectedHtmlTemplateId, setSelectedHtmlTemplateIdState] = useState<string | null>(null)
+  const [pendingHtmlTemplateId, setPendingHtmlTemplateId] = useState<string | null | undefined>(undefined)
   const [selectedMcpToolIds, setSelectedMcpToolIdsState] = useState<string[]>([])
   const [streamStatus, setStreamStatus] = useState<string | null>(null)
   const [activityLog, setActivityLog] = useState<string[]>([])
@@ -128,25 +130,33 @@ export function useProjectChat({
     }
   }, [currentSession])
 
-  // Restore skill selection from the active session (or pending selection)
+  // Restore skill / template selection from the active session (or pending)
   useEffect(() => {
     if (sharedMode) {
       setSelectedSkillIdsState([])
       setSelectedMcpToolIdsState([])
+      setSelectedHtmlTemplateIdState(null)
       return
     }
     if (!currentSessionId) {
       setSelectedSkillIdsState(pendingSkillIds ?? [])
+      setSelectedHtmlTemplateIdState(
+        pendingHtmlTemplateId === undefined ? null : pendingHtmlTemplateId
+      )
       return
     }
     // Active session owns selection; pending was only for pre-session picks
     if (pendingSkillIds !== null) {
       setPendingSkillIds(null)
     }
+    if (pendingHtmlTemplateId !== undefined) {
+      setPendingHtmlTemplateId(undefined)
+    }
     if (currentSession) {
       setSelectedSkillIdsState(currentSession.skill_ids ?? [])
+      setSelectedHtmlTemplateIdState(currentSession.html_template_id ?? null)
     }
-  }, [currentSession, currentSessionId, pendingSkillIds, sharedMode])
+  }, [currentSession, currentSessionId, pendingSkillIds, pendingHtmlTemplateId, sharedMode])
 
   // Auto-select most recent session when sessions are loaded
   useEffect(() => {
@@ -172,7 +182,9 @@ export function useProjectChat({
   const createSessionMutation = useMutation({
     mutationFn: (data: CreateProjectChatSessionRequest) =>
       chatApi.createSession(
-        sharedMode ? { ...data, skill_ids: [], model_override: undefined } : data,
+        sharedMode
+          ? { ...data, skill_ids: [], model_override: undefined, html_template_id: null }
+          : data,
         guestKey
       ),
     onSuccess: (newSession) => {
@@ -295,6 +307,7 @@ export function useProjectChat({
           title: defaultTitle,
           model_override: sharedMode ? undefined : (pendingModelOverride ?? undefined),
           skill_ids: sharedMode ? [] : selectedSkillIds,
+          html_template_id: sharedMode ? null : selectedHtmlTemplateId,
           guest_key: guestKey ?? undefined,
         }, guestKey)
         sessionId = newSession.id
@@ -302,6 +315,7 @@ export function useProjectChat({
         // Clear pending overrides now that they're applied to the session
         setPendingModelOverride(null)
         setPendingSkillIds(null)
+        setPendingHtmlTemplateId(undefined)
         queryClient.invalidateQueries({
           queryKey: sessionsQueryKey,
         })
@@ -349,6 +363,7 @@ export function useProjectChat({
           : (modelOverride ?? (currentSession?.model_override ?? undefined)),
         skill_ids: sharedMode ? [] : selectedSkillIds,
         mcp_tool_ids: sharedMode ? [] : selectedMcpToolIds,
+        html_template_id: sharedMode ? null : selectedHtmlTemplateId,
         edit_message_id: editMessageId,
         artifact_id: sharedMode ? undefined : (activeArtifactId ?? undefined),
       }, guestKey)
@@ -483,6 +498,7 @@ export function useProjectChat({
     pendingModelOverride,
     selectedSkillIds,
     selectedMcpToolIds,
+    selectedHtmlTemplateId,
     activeArtifactId,
     messages,
     buildContext,
@@ -507,19 +523,22 @@ export function useProjectChat({
   // Switch session
   const switchSession = useCallback((sessionId: string) => {
     setPendingSkillIds(null)
+    setPendingHtmlTemplateId(undefined)
     setCurrentSessionId(sessionId)
   }, [])
 
   // Create session
   const createSession = useCallback((title?: string) => {
     setPendingSkillIds(null)
+    setPendingHtmlTemplateId(undefined)
     return createSessionMutation.mutate({
       project_id: projectId,
       title,
       skill_ids: sharedMode ? [] : selectedSkillIds,
+      html_template_id: sharedMode ? null : selectedHtmlTemplateId,
       guest_key: guestKey ?? undefined,
     })
-  }, [createSessionMutation, projectId, selectedSkillIds, sharedMode, guestKey])
+  }, [createSessionMutation, projectId, selectedSkillIds, selectedHtmlTemplateId, sharedMode, guestKey])
 
   // Update session
   const updateSession = useCallback((sessionId: string, data: UpdateProjectChatSessionRequest) => {
@@ -579,6 +598,37 @@ export function useProjectChat({
     }
   }, [currentSessionId, guestKey, queryClient, sessionsQueryKey, sharedMode, t])
 
+  const setSelectedHtmlTemplateId = useCallback((id: string | null) => {
+    if (sharedMode) {
+      setSelectedHtmlTemplateIdState(null)
+      return
+    }
+    setSelectedHtmlTemplateIdState(id)
+    if (currentSessionId) {
+      void (async () => {
+        try {
+          await chatApi.updateSession(
+            currentSessionId,
+            { html_template_id: id },
+            guestKey
+          )
+          queryClient.invalidateQueries({
+            queryKey: sessionsQueryKey,
+          })
+          queryClient.invalidateQueries({
+            queryKey: sessionQueryKey(currentSessionId),
+          })
+        } catch (err: unknown) {
+          const error = err as { response?: { data?: { detail?: string } }, message?: string }
+          toast.error(getApiErrorMessage(error.response?.data?.detail || error.message, (key) => t(key), 'apiErrors.failedToUpdateSession'))
+        }
+      })()
+      setPendingHtmlTemplateId(undefined)
+    } else {
+      setPendingHtmlTemplateId(id)
+    }
+  }, [currentSessionId, guestKey, queryClient, sessionsQueryKey, sharedMode, t])
+
   const setSelectedMcpToolIds = useCallback((ids: string[]) => {
     if (sharedMode) {
       setSelectedMcpToolIdsState([])
@@ -611,6 +661,7 @@ export function useProjectChat({
     charCount,
     pendingModelOverride,
     selectedSkillIds,
+    selectedHtmlTemplateId,
     selectedMcpToolIds,
     liveMcpToolCalls,
 
@@ -623,6 +674,7 @@ export function useProjectChat({
     editAndResend,
     setModelOverride,
     setSelectedSkillIds,
+    setSelectedHtmlTemplateId,
     setSelectedMcpToolIds,
     refetchSessions
   }

@@ -35,6 +35,35 @@ When a user asks you a question, analyze both the source content and the availab
 When a skill's SKILL.md references supporting files (for example under references/, scripts/, or assets/), tell the user which relative path you need. Follow each skill's instructions carefully when the user task matches its description.
 {% endif %}
 
+{% if html_template %}
+# HTML BID TEMPLATE (STRUCTURED OUTPUT) — PRIMARY MODE
+
+A branded HTML template is active. Your response **must** be structured output that fills this template.
+Do **not** answer as a normal chat message or markdown essay.
+
+**Template name:** {{ html_template.name }}
+**Category:** {{ html_template.category }}
+
+## Rules
+- Preserve the template structure, CSS, and tags exactly (including `@page`, `break-before` / `break-after` / `break-inside`, and other print/pagination rules).
+- Fill every `<span>…</span>` with values grounded in the source CONTEXT (and the user request).
+- Do not invent unsupported facts.
+- Do not redesign layout or invent new major sections; content fills existing spans/cells/lists.
+- If data is missing, leave the span empty or put a short placeholder like "TBD" inside the span — still return the full HTML.
+- For PDF multi-page output: keep natural document flow. Do not wrap the whole document in a single fixed-height page shell. Prefer `break-inside: avoid` on rows/cards/table blocks when the template already uses that pattern; use existing page-break classes/sections when present. Do not strip print CSS.
+
+## Deliverable (required)
+Return **only** one fenced HTML block containing the complete filled document. No greeting, no summary, no bullet list outside the fence.
+
+```html
+…complete document…
+```
+
+## Template HTML
+
+{{ html_template.html_body }}
+{% endif %}
+
 # CITING INSTRUCTIONS
 
 When referencing information from the source or its insights, always include citations using the document IDs. This helps users track the specific content you're referencing.

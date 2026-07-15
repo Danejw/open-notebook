@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
+import { PageHeader, pageContentClassName, pageSectionGapClassName } from '@/components/layout/PageHeader'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DefaultPromptEditor } from './components/DefaultPromptEditor'
@@ -24,48 +25,46 @@ export default function ArtifactsPage() {
   }
 
   return (
-          <div className="flex-1 overflow-y-auto">
-        <div className={`${pageContentClassName} space-y-6`}>
-          <PageHeader
-            bordered
-            title={t('artifacts.title')}
-            description={t('artifacts.desc')}
-            actions={
-              <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => refetch()} aria-label={t('common.refresh')}>
-                <RefreshCw className="h-3.5 w-3.5" />
-              </Button>
-            }
-          />
+    <div className="flex-1 overflow-y-auto">
+      <div className={cn(pageContentClassName, pageSectionGapClassName)}>
+        <PageHeader
+          title={t('artifacts.title')}
+          actions={
+            <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => refetch()} aria-label={t('common.refresh')}>
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+          }
+        />
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="max-w-5xl space-y-4">
-            <TabsList aria-label={t('common.accessibility.artifactViews')} className="h-8 w-full max-w-md">
-              <TabsTrigger value="artifacts" className="gap-1.5 text-xs">
-                <Wand2 className="h-3.5 w-3.5" />
-                {t('artifacts.title')}
-              </TabsTrigger>
-              <TabsTrigger value="playground" className="gap-1.5 text-xs">
-                <Play className="h-3.5 w-3.5" />
-                {t('artifacts.playground')}
-              </TabsTrigger>
-            </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className={cn('max-w-5xl', pageSectionGapClassName)}>
+          <TabsList aria-label={t('common.accessibility.artifactViews')} className="h-8 w-full max-w-md">
+            <TabsTrigger value="artifacts" className="gap-1.5 text-xs">
+              <Wand2 className="h-3.5 w-3.5" />
+              {t('artifacts.title')}
+            </TabsTrigger>
+            <TabsTrigger value="playground" className="gap-1.5 text-xs">
+              <Play className="h-3.5 w-3.5" />
+              {t('artifacts.playground')}
+            </TabsTrigger>
+          </TabsList>
 
-            <TabsContent value="artifacts" className="space-y-3 mt-0">
-              <DefaultPromptEditor />
-              <ArtifactsList
-                artifacts={artifacts}
-                isLoading={isLoading}
-                onPlayground={handlePlayground}
-              />
-            </TabsContent>
+          <TabsContent value="artifacts" className="mt-0 space-y-3">
+            <DefaultPromptEditor />
+            <ArtifactsList
+              artifacts={artifacts}
+              isLoading={isLoading}
+              onPlayground={handlePlayground}
+            />
+          </TabsContent>
 
-            <TabsContent value="playground" className="mt-0">
-              <ArtifactPlayground
-                artifacts={artifacts}
-                selectedArtifact={selectedArtifact}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
+          <TabsContent value="playground" className="mt-0">
+            <ArtifactPlayground
+              artifacts={artifacts}
+              selectedArtifact={selectedArtifact}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
+    </div>
   )
 }

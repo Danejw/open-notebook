@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, dialogLargeContentClassName } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useCreateNote, useUpdateNote, useNote } from '@/lib/hooks/use-notes'
 import { QUERY_KEYS } from '@/lib/api/query-client'
@@ -119,21 +119,24 @@ export function NoteEditorDialog({ open, onOpenChange, projectId, note }: NoteEd
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className={cn(
-          "overflow-hidden p-0",
-          isEditorFullscreen && "!max-w-screen !max-h-screen !w-screen !h-screen border-none"
-      )}>
+      <DialogContent
+        className={cn(
+          dialogLargeContentClassName,
+          'overflow-hidden p-0',
+          isEditorFullscreen && '!max-w-screen !max-h-screen !w-screen !h-screen border-none'
+        )}
+      >
         <DialogTitle className="sr-only">
           {isEditing ? t('sources.editNote') : t('sources.createNote')}
         </DialogTitle>
-        <form onSubmit={handleSubmit(onSubmit)} className="flex h-full flex-col min-w-0">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex h-full min-w-0 flex-col">
           {isEditing && noteLoading ? (
-            <div className="flex-1 flex items-center justify-center py-10">
+            <div className="flex flex-1 items-center justify-center py-10">
               <span className="text-sm text-muted-foreground">{t('common.loading')}</span>
             </div>
           ) : (
             <>
-              <div className="border-b px-6 py-4">
+              <DialogHeader className="border-b">
                 <InlineEdit
                   id="note-title"
                   name="title"
@@ -141,15 +144,17 @@ export function NoteEditorDialog({ open, onOpenChange, projectId, note }: NoteEd
                   onSave={(value) => setValue('title', value || '')}
                   placeholder={t('sources.addTitle')}
                   emptyText={t('sources.untitledNote')}
-                  className="text-xl font-semibold"
-                  inputClassName="text-xl font-semibold"
+                  className="text-base font-semibold leading-snug"
+                  inputClassName="text-base font-semibold leading-snug"
                 />
-              </div>
+              </DialogHeader>
 
-              <div className={cn(
-                  "flex-1 overflow-y-auto",
-                  !isEditorFullscreen && "px-6 py-4")
-              }>
+              <div
+                className={cn(
+                  'min-h-0 flex-1 overflow-y-auto px-1 py-1',
+                  isEditorFullscreen && 'px-0 py-0'
+                )}
+              >
                 <Controller
                   control={control}
                   name="content"
@@ -162,25 +167,27 @@ export function NoteEditorDialog({ open, onOpenChange, projectId, note }: NoteEd
                       height={420}
                       placeholder={t('sources.writeNotePlaceholder')}
                       className={cn(
-                          "w-full h-full min-h-[420px] overflow-hidden [&_.w-md-editor]:!static [&_.w-md-editor]:!w-full [&_.w-md-editor]:!h-full [&_.w-md-editor-content]:overflow-y-auto",
-                          !isEditorFullscreen && "rounded-md border"
+                        'h-full min-h-[420px] w-full overflow-hidden [&_.w-md-editor]:!static [&_.w-md-editor]:!h-full [&_.w-md-editor]:!w-full [&_.w-md-editor-content]:overflow-y-auto',
+                        !isEditorFullscreen && 'rounded-md border'
                       )}
                     />
                   )}
                 />
                 {errors.content && (
-                  <p className="text-sm text-red-600 mt-1">{errors.content.message}</p>
+                  <p className="mt-1 text-xs text-red-600">{errors.content.message}</p>
                 )}
               </div>
             </>
           )}
 
-          <div className="border-t px-6 py-4 flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={handleClose}>
+          <DialogFooter className="border-t">
+            <Button type="button" variant="outline" size="sm" className="h-7" onClick={handleClose}>
               {t('common.cancel')}
             </Button>
             <Button
               type="submit"
+              size="sm"
+              className="h-7"
               disabled={isSaving || (isEditing && noteLoading)}
             >
               {isSaving
@@ -189,7 +196,7 @@ export function NoteEditorDialog({ open, onOpenChange, projectId, note }: NoteEd
                   ? t('sources.saveNote')
                   : t('sources.createNoteBtn')}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

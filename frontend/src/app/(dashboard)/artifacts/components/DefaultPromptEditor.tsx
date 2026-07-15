@@ -30,7 +30,7 @@ export function DefaultPromptEditor() {
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <div className="overflow-hidden rounded-md border">
-        <CollapsibleTrigger className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-muted/50">
+        <CollapsibleTrigger className="flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-muted/50">
           <Settings className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold leading-none">{t('artifacts.defaultPrompt')}</p>

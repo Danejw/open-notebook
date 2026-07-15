@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect, useId } from 'react'
 import { useForm } from 'react-hook-form'
-import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
+import { PageHeader, pageContentClassName, pageSectionGapClassName } from '@/components/layout/PageHeader'
 import { InlineSkeleton, ListRowsSkeleton, SettingsFormSkeleton } from '@/components/common/LoadingSkeletons'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -1372,8 +1372,8 @@ export default function ApiKeysPage() {
 
   if (isLoading) {
     return (
-              <div className={`${pageContentClassName} space-y-6`}>
-          <PageHeader bordered title={t('apiKeys.title')} description={t('apiKeys.desc')} />
+              <div className={`${pageContentClassName} ${pageSectionGapClassName}`}>
+          <PageHeader title={t('apiKeys.title')} />
           <SettingsFormSkeleton />
         </div>
     )
@@ -1381,12 +1381,9 @@ export default function ApiKeysPage() {
 
   return (
           <div className="flex-1 overflow-y-auto">
-        <div className={`${pageContentClassName} space-y-6`}>
+        <div className={`${pageContentClassName} ${pageSectionGapClassName}`}>
           <PageHeader
-            bordered
-            icon={Key}
             title={t('apiKeys.title')}
-            description={t('apiKeys.description')}
           />
 
           {/* Encryption warning */}

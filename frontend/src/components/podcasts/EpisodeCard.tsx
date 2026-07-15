@@ -25,10 +25,11 @@ import { Card, CardContent } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  dialogBodyClassName,
+  dialogLargeContentClassName,
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -229,8 +230,8 @@ export function EpisodeCard({ episode, onDelete, deleting, onRetry, retrying }: 
 
   return (
     <Card className="shadow-sm">
-      <CardContent className="space-y-4 p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <CardContent className="space-y-3 p-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-base font-semibold text-foreground">
@@ -250,26 +251,26 @@ export function EpisodeCard({ episode, onDelete, deleting, onRetry, retrying }: 
                   <InfoIcon className="mr-2 h-4 w-4" /> {t('podcasts.details')}
                 </Button>
               </DialogTrigger>
-              <DialogContent className="overflow-hidden">
+              <DialogContent className={cn(dialogLargeContentClassName, 'overflow-hidden')}>
                 <DialogHeader>
                   <DialogTitle>{episode.name}</DialogTitle>
-                  <DialogDescription>
+                </DialogHeader>
+                <div className={cn(dialogBodyClassName, 'space-y-3')}>
+                  <p className="text-[11px] text-muted-foreground">
                     {episode.episode_profile?.name || t('common.unknown')}
                     {createdLabel ? ` • ${createdLabel}` : ''}
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 overflow-hidden">
+                  </p>
                   {audioSrc ? (
                     <audio controls preload="none" src={audioSrc} className="w-full" />
                   ) : audioError ? (
-                    <p className="text-sm text-destructive">{audioError}</p>
+                    <p className="text-xs text-destructive">{audioError}</p>
                   ) : null}
 
-                  <Tabs defaultValue="summary" className="h-[60vh] flex flex-col">
-                    <TabsList className="grid w-full grid-cols-3">
-                      <TabsTrigger value="summary">{t('podcasts.summaryTab')}</TabsTrigger>
-                      <TabsTrigger value="outline">{t('podcasts.outlineTab')}</TabsTrigger>
-                      <TabsTrigger value="transcript">{t('podcasts.transcriptTab')}</TabsTrigger>
+                  <Tabs defaultValue="summary" className="flex h-[60vh] flex-col">
+                    <TabsList className="grid h-8 w-full grid-cols-3">
+                      <TabsTrigger value="summary" className="text-xs">{t('podcasts.summaryTab')}</TabsTrigger>
+                      <TabsTrigger value="outline" className="text-xs">{t('podcasts.outlineTab')}</TabsTrigger>
+                      <TabsTrigger value="transcript" className="text-xs">{t('podcasts.transcriptTab')}</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="summary" className="flex-1 overflow-hidden">

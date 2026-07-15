@@ -131,10 +131,10 @@ export function RebuildEmbeddings() {
           {t('advanced.rebuildEmbeddingsDesc')}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-3">
         {/* Configuration Form */}
         {!isRebuildActive && (
-          <div className="space-y-6">
+          <div className="space-y-3">
             <div className="space-y-3">
               <Label htmlFor="mode">{t('advanced.rebuild.mode')}</Label>
               <Select value={mode} onValueChange={(value) => setMode(value as 'existing' | 'all')}>

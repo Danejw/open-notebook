@@ -4,10 +4,10 @@ import { useState } from 'react'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  dialogBodyClassName,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { CheckboxList } from '@/components/ui/checkbox-list'
@@ -75,15 +75,12 @@ export function SaveToProjectsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t('searchPage.saveToProjects')}</DialogTitle>
-          <DialogDescription>
-            {t('searchPage.selectProject')}
-          </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4">
+        <div className={dialogBodyClassName}>
           {isLoading ? (
             <PickerDialogSkeleton rows={4} />
           ) : (
@@ -97,10 +94,12 @@ export function SaveToProjectsDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" size="sm" className="h-7" onClick={() => onOpenChange(false)}>
             {t('common.cancel')}
           </Button>
           <Button
+            size="sm"
+            className="h-7"
             onClick={handleSave}
             disabled={selectedProjectIds.length === 0 || createNote.isPending}
           >

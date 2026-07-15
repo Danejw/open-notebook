@@ -5,11 +5,12 @@ import { Upload } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  dialogBodyClassName,
 } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -101,14 +102,13 @@ export function SkillImportDialog({ open, onOpenChange }: SkillImportDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-y-auto">
+      <DialogContent className="max-w-lg overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{t('skills.importTitle')}</DialogTitle>
-          <DialogDescription>{t('skills.importDesc')}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
+        <div className={cn(dialogBodyClassName, 'space-y-3')}>
+          <div className="space-y-1.5">
             <Label htmlFor={fileInputId}>{t('skills.uploadZip')}</Label>
             <Input
               id={fileInputId}

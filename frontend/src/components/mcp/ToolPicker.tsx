@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -111,29 +110,25 @@ export function ToolPicker({ selectedToolIds, onChange, disabled = false }: Tool
           <Wrench className={cn('h-4 w-4', selectedCount > 0 && 'text-primary')} />
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Wrench className="h-4 w-4" />
-            {t('tools.pickerTitle')}
-          </DialogTitle>
-          <DialogDescription>{t('tools.pickerDesc')}</DialogDescription>
+          <DialogTitle>{t('tools.pickerTitle')}</DialogTitle>
         </DialogHeader>
 
-        <div className="max-h-80 space-y-4 overflow-y-auto py-2">
+        <div className="max-h-80 space-y-3 overflow-y-auto px-1 py-1">
           {isLoading ? (
             <PickerDialogSkeleton rows={5} />
           ) : groupedTools.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">
+            <p className="py-4 text-center text-xs text-muted-foreground">
               {t('tools.pickerEmpty')}
             </p>
           ) : (
             groupedTools.map((group) => (
-              <div key={group.connectionName} className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <div key={group.connectionName} className="space-y-1.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   {group.connectionName}
                 </p>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {group.tools.map((tool) => {
                     const selectable = isToolSelectable(tool)
                     const checked = draftIds.includes(tool.id)
@@ -142,7 +137,7 @@ export function ToolPicker({ selectedToolIds, onChange, disabled = false }: Tool
                       <div
                         key={tool.id}
                         className={cn(
-                          'flex items-start gap-3 rounded-md border p-3',
+                          'flex items-start gap-2 rounded-md border px-2 py-1.5',
                           !selectable && 'opacity-60'
                         )}
                       >

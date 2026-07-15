@@ -77,6 +77,11 @@ COPY . /app/
 # Copy pre-downloaded tiktoken encoding from builder (outside /data/ — volume-mount safe)
 COPY --from=backend-builder /app/tiktoken-cache /app/tiktoken-cache
 
+# Chromium for exact HTML→PDF export of branded bid documents (no CSS rewrite)
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN /app/.venv/bin/playwright install --with-deps chromium \
+ && rm -rf /var/lib/apt/lists/*
+
 # Copy built frontend from standalone output
 COPY --from=frontend-builder /app/frontend/.next/standalone /app/frontend/
 COPY --from=frontend-builder /app/frontend/.next/static /app/frontend/.next/static

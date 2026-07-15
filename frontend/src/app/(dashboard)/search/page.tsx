@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
+import { PageHeader, pageContentClassName, pageSectionGapClassName } from '@/components/layout/PageHeader'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -200,32 +200,33 @@ export default function SearchPage() {
 
   return (
           <div className={`flex-1 overflow-y-auto ${pageContentClassName}`}>
-        <PageHeader bordered className="mb-6" title={t('searchPage.askAndSearch')} />
+        <div className={pageSectionGapClassName}>
+        <PageHeader title={t('searchPage.askAndSearch')} />
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'ask' | 'search')} className="w-full space-y-6">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('searchPage.chooseAMode')}</p>
-            <TabsList aria-label={t('common.accessibility.searchKB')} className="w-full max-w-xl">
-              <TabsTrigger value="ask">
-                <MessageCircleQuestion className="h-4 w-4" />
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'ask' | 'search')} className={`w-full ${pageSectionGapClassName}`}>
+          <div className="space-y-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t('searchPage.chooseAMode')}</p>
+            <TabsList aria-label={t('common.accessibility.searchKB')} className="h-8 w-full max-w-xl">
+              <TabsTrigger value="ask" className="gap-1.5 text-xs">
+                <MessageCircleQuestion className="h-3.5 w-3.5" />
                 {t('searchPage.askBeta')}
               </TabsTrigger>
-              <TabsTrigger value="search">
-                <Search className="h-4 w-4" />
+              <TabsTrigger value="search" className="gap-1.5 text-xs">
+                <Search className="h-3.5 w-3.5" />
                 {t('searchPage.search')}
               </TabsTrigger>
             </TabsList>
           </div>
 
-          <TabsContent value="ask" className="mt-6">
+          <TabsContent value="ask" className="mt-0">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">{t('searchPage.askYourKb')}</CardTitle>
-                <p className="text-sm text-muted-foreground">
+                <CardTitle>{t('searchPage.askYourKb')}</CardTitle>
+                <p className="text-xs text-muted-foreground">
                   {t('searchPage.askYourKbDesc')}
                 </p>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3">
                 {/* Question Input */}
                 <div className="space-y-2">
                   <Label htmlFor="ask-question">{t('searchPage.question')}</Label>
@@ -380,15 +381,15 @@ export default function SearchPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="search" className="mt-6">
+          <TabsContent value="search" className="mt-0">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">{t('searchPage.search')}</CardTitle>
+                <CardTitle>{t('searchPage.search')}</CardTitle>
                 <p className="text-sm text-muted-foreground">
                   {t('searchPage.searchDesc')}
                 </p>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3">
                 {/* Search Input */}
                 <div className="space-y-2">
                   <Label htmlFor="search-query" className="sr-only">
@@ -425,7 +426,7 @@ export default function SearchPage() {
                 </div>
 
                 {/* Search Options */}
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {/* Search Type */}
                   <div className="space-y-2" role="group" aria-labelledby="search-type-label">
                     <span id="search-type-label" className="text-sm font-medium leading-none">{t('searchPage.searchType')}</span>
@@ -528,7 +529,7 @@ export default function SearchPage() {
 
                 {/* Search Results */}
                 {searchMutation.data && (
-                  <div className="mt-6 space-y-3">
+                  <div className="mt-3 space-y-3">
                     <div className="flex items-center justify-between">
                       <h3 className="text-sm font-medium">
                         {t('searchPage.resultsFound').replace('{count}', searchMutation.data.total_count.toString())}
@@ -618,6 +619,7 @@ export default function SearchPage() {
             </Card>
           </TabsContent>
         </Tabs>
+        </div>
       </div>
   )
 }

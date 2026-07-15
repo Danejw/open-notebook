@@ -15,12 +15,14 @@ import { PodcastGenerationRequest } from '@/lib/types/podcasts'
 import { QUERY_KEYS } from '@/lib/api/query-client'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { cn } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
+  dialogBodyClassName,
+  dialogLargeContentClassName,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -859,15 +861,12 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
         resetState()
       }
     }}>
-      <DialogContent className="overflow-hidden">
+      <DialogContent className={cn(dialogLargeContentClassName, 'overflow-hidden')}>
         <DialogHeader>
           <DialogTitle>{t('podcasts.generateEpisode')}</DialogTitle>
-          <DialogDescription>
-            {t('podcasts.generateEpisodeDesc')}
-          </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-6 md:grid-cols-[2fr_1fr] xl:grid-cols-[3fr_1fr]">
+        <div className={cn(dialogBodyClassName, 'grid gap-3 md:grid-cols-[2fr_1fr] xl:grid-cols-[3fr_1fr]')}>
           <ContentSelectionPanel
             projects={projects}
             isLoading={projectsQuery.isLoading}

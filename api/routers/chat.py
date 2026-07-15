@@ -12,6 +12,7 @@ from api import ag_ui_agents
 from construction_os.ai.provision import provision_langchain_model
 from construction_os.database.repository import ensure_record_id, repo_query
 from construction_os.domain.artifact import Artifact
+from construction_os.domain.html_document import HtmlTemplate
 from construction_os.domain.project import ChatSession, Project, Source
 from construction_os.exceptions import (
     NotFoundError,
@@ -65,6 +66,7 @@ def _session_response(
         message_count=message_count,
         model_override=getattr(session, "model_override", None),
         skill_ids=getattr(session, "skill_ids", None) or [],
+        html_template_id=getattr(session, "html_template_id", None),
         guest_key=_session_guest_key(session),
     )
 
@@ -79,6 +81,9 @@ class CreateSessionRequest(BaseModel):
     skill_ids: Optional[List[str]] = Field(
         None, description="Skill IDs selected for this session"
     )
+    html_template_id: Optional[str] = Field(
+        None, description="Optional HTML bid template for structured output"
+    )
     guest_key: Optional[str] = Field(
         None,
         description="Optional guest key for shared-chat private sessions",
@@ -92,6 +97,9 @@ class UpdateSessionRequest(BaseModel):
     )
     skill_ids: Optional[List[str]] = Field(
         None, description="Skill IDs selected for this session"
+    )
+    html_template_id: Optional[str] = Field(
+        None, description="Optional HTML bid template for structured output"
     )
 
 
@@ -116,6 +124,9 @@ class ChatSessionResponse(BaseModel):
     )
     skill_ids: Optional[List[str]] = Field(
         None, description="Skill IDs selected for this session"
+    )
+    html_template_id: Optional[str] = Field(
+        None, description="Optional HTML bid template for structured output"
     )
     guest_key: Optional[str] = Field(
         None, description="Guest key when this is a shared-chat session"
@@ -145,6 +156,10 @@ class ExecuteChatRequest(BaseModel):
     skill_ids: Optional[List[str]] = Field(
         None,
         description="Selected skill IDs; when omitted, session-stored skills are used",
+    )
+    html_template_id: Optional[str] = Field(
+        None,
+        description="HTML template id for structured output; when omitted, session value is used",
     )
     mcp_tool_ids: Optional[List[str]] = Field(
         None,
@@ -365,12 +380,14 @@ async def create_session(
             raise HTTPException(status_code=404, detail="Project not found")
 
         skill_ids: List[str] = [] if guest_key else list(request.skill_ids or [])
+        html_template_id = None if guest_key else request.html_template_id
 
         session = ChatSession(
             title=request.title
             or f"Chat Session {asyncio.get_event_loop().time():.0f}",
             model_override=None if guest_key else request.model_override,
             skill_ids=skill_ids,
+            html_template_id=html_template_id,
             guest_key=guest_key,
         )
         await session.save()
@@ -483,6 +500,9 @@ async def update_session(
             if "skill_ids" in update_data:
                 session.skill_ids = update_data["skill_ids"] or []
 
+            if "html_template_id" in update_data:
+                session.html_template_id = update_data["html_template_id"] or None
+
         await session.save()
 
         project_query = await repo_query(
@@ -578,6 +598,9 @@ async def execute_chat(
             model_override = None
             skill_ids: List[str] = []
             session.skill_ids = []
+            html_template_id = None
+            session.html_template_id = None
+            html_template_meta = None
             mcp_tool_ids: List[str] = []
             artifact_id = None
             artifact_meta = None
@@ -593,6 +616,27 @@ async def execute_chat(
                 session.skill_ids = skill_ids
             else:
                 skill_ids = list(getattr(session, "skill_ids", None) or [])
+
+            if request.html_template_id is not None:
+                html_template_id = request.html_template_id or None
+                session.html_template_id = html_template_id
+            else:
+                html_template_id = getattr(session, "html_template_id", None)
+
+            html_template_meta = None
+            if html_template_id:
+                try:
+                    tmpl = await HtmlTemplate.get(html_template_id)
+                    html_template_meta = {
+                        "id": tmpl.id,
+                        "name": tmpl.name,
+                        "category": tmpl.category,
+                        "html_body": tmpl.html_body,
+                    }
+                except NotFoundError:
+                    html_template_id = None
+                    session.html_template_id = None
+                    html_template_meta = None
 
             mcp_tool_ids = list(request.mcp_tool_ids or [])
             artifact_id = request.artifact_id
@@ -639,6 +683,8 @@ async def execute_chat(
                 "session_id": full_session_id,
                 "artifact_id": artifact_id if artifact_meta else None,
                 "artifact": artifact_meta,
+                "html_template_id": html_template_id if html_template_meta else None,
+                "html_template": html_template_meta,
             },
         )
 

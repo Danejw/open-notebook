@@ -46,11 +46,11 @@ function SourcesTableRowImpl({
 }: SourcesTableRowProps) {
   const icon =
     source.asset?.url ? (
-      <LinkIcon className="h-4 w-4" />
+      <LinkIcon className="h-3.5 w-3.5" />
     ) : source.asset?.file_path ? (
-      <Upload className="h-4 w-4" />
+      <Upload className="h-3.5 w-3.5" />
     ) : (
-      <AlignLeft className="h-4 w-4" />
+      <AlignLeft className="h-3.5 w-3.5" />
     )
 
   const typeLabel = source.asset?.url
@@ -71,44 +71,44 @@ function SourcesTableRowImpl({
         isSelected ? 'bg-accent' : 'hover:bg-muted/50'
       )}
     >
-      <td className="h-12 px-4">
+      <td className="h-9 px-3">
         <div className="flex items-center gap-2">
           {icon}
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-[11px]">
             {typeLabel}
           </Badge>
         </div>
       </td>
-      <td className="h-12 px-4">
+      <td className="h-9 px-3">
         <div className="flex flex-col overflow-hidden">
-          <span className="truncate font-medium">{source.title || untitledLabel}</span>
+          <span className="truncate text-sm font-medium leading-snug">{source.title || untitledLabel}</span>
           {source.asset?.url && (
-            <span className="truncate text-xs text-muted-foreground">{source.asset.url}</span>
+            <span className="truncate text-[11px] leading-tight text-muted-foreground">{source.asset.url}</span>
           )}
         </div>
       </td>
-      <td className="hidden h-12 px-4 text-sm text-muted-foreground sm:table-cell">
+      <td className="hidden h-9 px-3 text-xs text-muted-foreground sm:table-cell">
         {formatDistanceToNow(new Date(source.created), {
           addSuffix: true,
           locale: dateLocale,
         })}
       </td>
-      <td className="hidden h-12 px-4 text-center md:table-cell">
-        <span className="text-sm font-medium">{source.insights_count || 0}</span>
+      <td className="hidden h-9 px-3 text-center md:table-cell">
+        <span className="text-xs font-medium">{source.insights_count || 0}</span>
       </td>
-      <td className="hidden h-12 px-4 text-center lg:table-cell">
-        <Badge variant={source.embedded ? 'default' : 'secondary'} className="text-xs">
+      <td className="hidden h-9 px-3 text-center lg:table-cell">
+        <Badge variant={source.embedded ? 'default' : 'secondary'} className="text-[11px]">
           {source.embedded ? yesLabel : noLabel}
         </Badge>
       </td>
-      <td className="h-12 px-4 text-right">
+      <td className="h-9 px-3 text-right">
         <Button
           variant="ghost"
           size="icon"
           onClick={(e) => onDeleteClick(e, source)}
-          className="text-destructive hover:text-destructive"
+          className="h-7 w-7 text-destructive hover:text-destructive"
         >
-          <Trash2 className="h-4 w-4" />
+          <Trash2 className="h-3.5 w-3.5" />
         </Button>
       </td>
     </tr>

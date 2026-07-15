@@ -8,11 +8,11 @@ import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  dialogBodyClassName,
 } from '@/components/ui/dialog'
 import {
   Select,
@@ -24,6 +24,7 @@ import {
 import { useCreateMcpConnection } from '@/lib/hooks/use-mcp'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { McpAuthType } from '@/lib/types/mcp'
+import { cn } from '@/lib/utils'
 
 interface McpConnectionCreateDialogProps {
   trigger?: ReactNode
@@ -68,20 +69,19 @@ export function McpConnectionCreateDialog({ trigger }: McpConnectionCreateDialog
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger ?? (
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button size="sm" className="h-7 gap-1.5">
+            <Plus className="h-3.5 w-3.5" />
             {t('tools.addConnection')}
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t('tools.addConnection')}</DialogTitle>
-          <DialogDescription>{t('tools.addConnectionDesc')}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
+        <div className={cn(dialogBodyClassName, 'space-y-3')}>
+          <div className="space-y-1.5">
             <Label htmlFor={nameId}>{t('common.name')}</Label>
             <Input
               id={nameId}
@@ -90,7 +90,7 @@ export function McpConnectionCreateDialog({ trigger }: McpConnectionCreateDialog
               placeholder={t('tools.namePlaceholder')}
             />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label htmlFor={endpointId}>{t('tools.endpointUrl')}</Label>
             <Input
               id={endpointId}
@@ -99,7 +99,7 @@ export function McpConnectionCreateDialog({ trigger }: McpConnectionCreateDialog
               placeholder="https://example.com/mcp"
             />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label htmlFor={authTypeId}>{t('tools.authType')}</Label>
             <Select value={authType} onValueChange={(value: McpAuthType) => setAuthType(value)}>
               <SelectTrigger id={authTypeId}>
@@ -112,7 +112,7 @@ export function McpConnectionCreateDialog({ trigger }: McpConnectionCreateDialog
             </Select>
           </div>
           {authType === 'bearer' && (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor={tokenId}>{t('tools.bearerToken')}</Label>
               <Input
                 id={tokenId}
@@ -127,10 +127,12 @@ export function McpConnectionCreateDialog({ trigger }: McpConnectionCreateDialog
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button variant="outline" size="sm" className="h-7" onClick={() => setOpen(false)}>
             {t('common.cancel')}
           </Button>
           <Button
+            size="sm"
+            className="h-7"
             onClick={handleCreate}
             disabled={!name.trim() || !endpointUrl.trim() || createConnection.isPending}
           >

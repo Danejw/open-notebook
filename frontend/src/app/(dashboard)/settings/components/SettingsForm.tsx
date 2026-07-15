@@ -90,7 +90,7 @@ export function SettingsForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
       <Card>
         <CardHeader>
           <CardTitle>{t('settings.contentProcessing')}</CardTitle>
@@ -98,7 +98,7 @@ export function SettingsForm() {
             {t('settings.contentProcessingDesc')}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-3">
           <div className="space-y-3">
             <Label htmlFor="doc_engine">{t('settings.docEngine')}</Label>
             <Controller
@@ -179,7 +179,7 @@ export function SettingsForm() {
             {t('settings.embeddingAndSearchDesc')}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-3">
            <div className="space-y-3">
             <Label htmlFor="embedding">{t('settings.defaultEmbeddingOption')}</Label>
             <Controller
@@ -224,7 +224,7 @@ export function SettingsForm() {
             {t('settings.fileManagementDesc')}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-3">
            <div className="space-y-3">
             <Label htmlFor="auto_delete">{t('settings.autoDeleteFiles')}</Label>
             <Controller

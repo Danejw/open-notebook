@@ -37,6 +37,8 @@ class SourceChatState(TypedDict):
     skill_ids: Optional[list]
     mcp_tool_ids: Optional[list]
     session_id: Optional[str]
+    html_template_id: Optional[str]
+    html_template: Optional[dict]
 
 
 def _run_async(coro):
@@ -240,6 +242,7 @@ def generating(state: SourceChatState, config: RunnableConfig) -> dict:
             "context": state.get("context"),
             "context_indicators": state.get("context_indicators"),
             "skills_context": state.get("skills_context"),
+            "html_template": state.get("html_template"),
         }
         system_prompt = Prompter(prompt_template="source_chat/system").render(
             data=prompt_data

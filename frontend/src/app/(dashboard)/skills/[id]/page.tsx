@@ -249,7 +249,6 @@ export default function SkillDetailPage() {
       <div className="flex-1 overflow-y-auto">
         <div className="p-6 space-y-6 max-w-6xl">
           <PageHeader
-            bordered
             leading={
               <Button asChild variant="ghost" size="sm" className="-ml-1 mb-1 h-7 px-2 text-xs">
                 <Link href="/skills">

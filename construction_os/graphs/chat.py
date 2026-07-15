@@ -38,6 +38,8 @@ class ThreadState(TypedDict):
     skill_ids: Optional[list]
     mcp_tool_ids: Optional[list]
     session_id: Optional[str]
+    html_template_id: Optional[str]
+    html_template: Optional[dict]
     artifact_id: Optional[str]
     artifact: Optional[dict]
     artifact_instructions: Optional[str]

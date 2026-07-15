@@ -50,7 +50,7 @@ export function ArtifactsList({ artifacts, isLoading, onPlayground }: ArtifactsL
   return (
     <>
       <div className="overflow-hidden rounded-md border">
-        <div className="flex items-center justify-between border-b px-3 py-2">
+        <div className="flex items-center justify-between border-b px-3 py-1.5">
           <h2 className="text-sm font-semibold leading-none">{t('artifacts.listTitle')}</h2>
           <Button size="sm" className="h-7 text-xs" onClick={() => handleOpenEditor()}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />

@@ -9,7 +9,6 @@ import { toast } from 'sonner'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -462,21 +461,15 @@ export function AddSourceDialog({
 
     return (
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="h-auto max-h-[70vh] gap-[2px] p-[2px] [&>button]:right-[2px] [&>button]:top-[2px]" showCloseButton={true}>
-          <DialogHeader className="gap-[2px] p-[2px] pr-8">
+        <DialogContent className="max-h-[70vh]">
+          <DialogHeader>
             <DialogTitle>
               {batchProgress ? t('sources.processingFiles') : t('sources.statusProcessing')}
             </DialogTitle>
-            <DialogDescription>
-              {batchProgress
-                ? t('sources.processingBatchSources').replace('{count}', batchProgress.total.toString())
-                : t('sources.processingSource')
-              }
-            </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-[2px] p-[2px]">
-            <p className="text-sm text-muted-foreground">
+          <div className="space-y-3 px-1 py-1">
+            <p className="text-xs text-muted-foreground">
               {processingStatus?.message || t('common.processing')}
             </p>
 
@@ -533,8 +526,8 @@ export function AddSourceDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="h-auto max-h-[70vh] gap-[2px] p-[2px] [&>button]:right-[2px] [&>button]:top-[2px]">
-        <DialogHeader className="gap-[2px] p-[2px] pr-8">
+      <DialogContent className="max-h-[70vh]">
+        <DialogHeader>
           <DialogTitle>{t('sources.addNew')}</DialogTitle>
         </DialogHeader>
 

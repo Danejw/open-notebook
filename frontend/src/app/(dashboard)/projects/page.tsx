@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useDeferredValue, useEffect } from 'react'
 
-import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
+import { PageHeader, pageContentClassName, pageSectionGapClassName } from '@/components/layout/PageHeader'
 import { ProjectList } from './components/ProjectList'
 import { Button } from '@/components/ui/button'
 import { Plus, RefreshCw, LayoutGrid, List } from 'lucide-react'
@@ -65,12 +65,11 @@ export default function ProjectsPage() {
   return (
     <>
       <div className="flex-1 overflow-y-auto">
-        <div className={cn(pageContentClassName, 'space-y-6')}>
+        <div className={cn(pageContentClassName, pageSectionGapClassName)}>
         <PageHeader
-          bordered
           title={t('projects.title')}
           actions={
-            <>
+            <div className="flex items-center gap-1">
               <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => refetch()} aria-label={t('common.refresh')}>
                 <RefreshCw className="h-3.5 w-3.5" />
               </Button>
@@ -108,15 +107,15 @@ export default function ProjectsPage() {
                 aria-label={t('common.accessibility.searchProjects') || 'Search projects'}
                 className="h-7 w-full sm:w-48 text-xs"
               />
-              <Button size="sm" className="h-7 text-xs" onClick={() => setCreateDialogOpen(true)}>
-                <Plus className="h-3.5 w-3.5 mr-1.5" />
+              <Button size="sm" className="h-7 gap-1.5 text-xs" onClick={() => setCreateDialogOpen(true)}>
+                <Plus className="h-3.5 w-3.5" />
                 {t('projects.newProject')}
               </Button>
-            </>
+            </div>
           }
         />
         
-        <div className="space-y-4">
+        <div className="space-y-3">
           <ProjectList 
             projects={filteredActive} 
             isLoading={isLoading}

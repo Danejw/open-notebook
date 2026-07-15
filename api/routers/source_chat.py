@@ -8,10 +8,9 @@ from pydantic import BaseModel, Field
 
 from api import ag_ui_agents
 from construction_os.database.repository import ensure_record_id, repo_query
+from construction_os.domain.html_document import HtmlTemplate
 from construction_os.domain.project import ChatSession, Source
-from construction_os.exceptions import (
-    NotFoundError,
-)
+from construction_os.exceptions import NotFoundError
 from construction_os.graphs import source_chat as source_chat_module
 from construction_os.utils.graph_utils import get_session_message_count
 
@@ -28,6 +27,9 @@ class CreateSourceChatSessionRequest(BaseModel):
     skill_ids: Optional[List[str]] = Field(
         None, description="Skill IDs selected for this session"
     )
+    html_template_id: Optional[str] = Field(
+        None, description="Optional HTML bid template for structured output"
+    )
 
 class UpdateSourceChatSessionRequest(BaseModel):
     title: Optional[str] = Field(None, description="New session title")
@@ -36,6 +38,9 @@ class UpdateSourceChatSessionRequest(BaseModel):
     )
     skill_ids: Optional[List[str]] = Field(
         None, description="Skill IDs selected for this session"
+    )
+    html_template_id: Optional[str] = Field(
+        None, description="Optional HTML bid template for structured output"
     )
 
 class ChatMessage(BaseModel):
@@ -66,6 +71,9 @@ class SourceChatSessionResponse(BaseModel):
     skill_ids: Optional[List[str]] = Field(
         None, description="Skill IDs selected for this session"
     )
+    html_template_id: Optional[str] = Field(
+        None, description="Optional HTML bid template for structured output"
+    )
     created: str = Field(..., description="Creation timestamp")
     updated: str = Field(..., description="Last update timestamp")
     message_count: Optional[int] = Field(
@@ -88,6 +96,10 @@ class SendMessageRequest(BaseModel):
     skill_ids: Optional[List[str]] = Field(
         None,
         description="Selected skill IDs; when omitted, session-stored skills are used",
+    )
+    html_template_id: Optional[str] = Field(
+        None,
+        description="HTML template id for structured output; when omitted, session value is used",
     )
     mcp_tool_ids: Optional[List[str]] = Field(
         None,
@@ -121,6 +133,7 @@ async def create_source_chat_session(
             title=request.title or f"Source Chat {asyncio.get_event_loop().time():.0f}",
             model_override=request.model_override,
             skill_ids=request.skill_ids or [],
+            html_template_id=request.html_template_id,
         )
         await session.save()
 
@@ -133,6 +146,7 @@ async def create_source_chat_session(
             source_id=source_id,
             model_override=session.model_override,
             skill_ids=session.skill_ids or [],
+            html_template_id=getattr(session, "html_template_id", None),
             created=str(session.created),
             updated=str(session.updated),
             message_count=0,
@@ -190,6 +204,7 @@ async def get_source_chat_sessions(source_id: str = Path(..., description="Sourc
                             source_id=source_id,
                             model_override=session_data.get("model_override"),
                             skill_ids=session_data.get("skill_ids") or [],
+                            html_template_id=session_data.get("html_template_id"),
                             created=str(session_data.get("created")),
                             updated=str(session_data.get("updated")),
                             message_count=msg_count,
@@ -289,6 +304,7 @@ async def get_source_chat_session(
             source_id=source_id,
             model_override=getattr(session, "model_override", None),
             skill_ids=getattr(session, "skill_ids", None) or [],
+            html_template_id=getattr(session, "html_template_id", None),
             created=str(session.created),
             updated=str(session.updated),
             message_count=len(messages),
@@ -354,6 +370,8 @@ async def update_source_chat_session(
             session.model_override = request.model_override
         if request.skill_ids is not None:
             session.skill_ids = request.skill_ids or []
+        if request.html_template_id is not None:
+            session.html_template_id = request.html_template_id or None
 
         await session.save()
 
@@ -366,6 +384,7 @@ async def update_source_chat_session(
             source_id=source_id,
             model_override=getattr(session, "model_override", None),
             skill_ids=getattr(session, "skill_ids", None) or [],
+            html_template_id=getattr(session, "html_template_id", None),
             created=str(session.created),
             updated=str(session.updated),
             message_count=msg_count,
@@ -514,7 +533,28 @@ async def send_message_to_source_chat(
         else:
             skill_ids = list(getattr(session, "skill_ids", None) or [])
 
-        # Update session timestamp (and skill_ids if changed)
+        if request.html_template_id is not None:
+            html_template_id = request.html_template_id or None
+            session.html_template_id = html_template_id
+        else:
+            html_template_id = getattr(session, "html_template_id", None)
+
+        html_template_meta = None
+        if html_template_id:
+            try:
+                tmpl = await HtmlTemplate.get(html_template_id)
+                html_template_meta = {
+                    "id": tmpl.id,
+                    "name": tmpl.name,
+                    "category": tmpl.category,
+                    "html_body": tmpl.html_body,
+                }
+            except NotFoundError:
+                html_template_id = None
+                session.html_template_id = None
+                html_template_meta = None
+
+        # Update session timestamp (and skill_ids / html_template_id if changed)
         await session.save()
 
         # Skills + source context load inside the graph so AG-UI can stream steps.
@@ -529,6 +569,8 @@ async def send_message_to_source_chat(
                     "skill_ids": skill_ids,
                     "mcp_tool_ids": list(request.mcp_tool_ids or []),
                     "session_id": full_session_id,
+                    "html_template_id": html_template_id if html_template_meta else None,
+                    "html_template": html_template_meta,
                 },
             ),
             configurable={"model_id": model_override},

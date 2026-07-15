@@ -45,7 +45,7 @@ export function SkillsList({ skills, isLoading }: SkillsListProps) {
   return (
     <>
       <div className="overflow-hidden rounded-md border">
-        <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
+        <div className="flex items-center justify-between gap-2 border-b px-3 py-1.5">
           <h2 className="text-sm font-semibold leading-none">{t('skills.listTitle')}</h2>
           <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setImportOpen(true)}>
             <Upload className="mr-1.5 h-3.5 w-3.5" />

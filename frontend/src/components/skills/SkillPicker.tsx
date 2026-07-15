@@ -77,18 +77,16 @@ export function SkillPicker({ selectedSkillIds, onChange, disabled = false }: Sk
           <Sparkles className={cn('h-4 w-4', selectedCount > 0 && 'text-primary')} />
         </Button>
       </DialogTrigger>
-      <DialogContent className="h-auto max-h-[70vh] w-full max-w-md gap-0 overflow-hidden p-0 sm:max-w-md">
-        <DialogHeader className="space-y-0.5 border-b px-3 py-2">
-          <DialogTitle className="text-sm font-semibold leading-none">
-            {t('skills.pickerTitle')}
-          </DialogTitle>
+      <DialogContent className="max-h-[70vh] max-w-md gap-0 overflow-hidden p-0 sm:max-w-md">
+        <DialogHeader className="border-b">
+          <DialogTitle>{t('skills.pickerTitle')}</DialogTitle>
         </DialogHeader>
 
         <div className="max-h-64 overflow-y-auto hide-scrollbar">
           {isLoading ? (
             <PickerDialogSkeleton rows={4} />
           ) : activeSkills.length === 0 ? (
-            <p className="px-3 py-4 text-center text-xs text-muted-foreground">
+            <p className="px-1 py-4 text-center text-xs text-muted-foreground">
               {t('skills.pickerEmpty')}
             </p>
           ) : (
@@ -100,7 +98,7 @@ export function SkillPicker({ selectedSkillIds, onChange, disabled = false }: Sk
                   <label
                     key={skill.id}
                     htmlFor={checkboxId}
-                    className="flex cursor-pointer items-start gap-2 px-3 py-1.5 hover:bg-muted/50"
+                    className="flex cursor-pointer items-start gap-2 px-1 py-1.5 hover:bg-muted/50"
                   >
                     <Checkbox
                       id={checkboxId}
@@ -125,7 +123,7 @@ export function SkillPicker({ selectedSkillIds, onChange, disabled = false }: Sk
           )}
         </div>
 
-        <DialogFooter className="flex-row items-center gap-2 border-t px-3 py-2 sm:justify-between">
+        <DialogFooter className="flex-row items-center border-t sm:justify-between">
           <span className="text-[11px] text-muted-foreground">
             {draftCount > 0
               ? t('skills.pickerSelected').replace('{count}', draftCount.toString())

@@ -778,6 +778,10 @@ class DocumentCreate(BaseModel):
     template_id: str = Field(..., description="HtmlTemplate id to copy from")
     title: Optional[str] = Field(None, description="Document title; defaults to template name")
     scenario_label: str = Field("Base", description="Scenario label")
+    html_body: Optional[str] = Field(
+        None,
+        description="Optional filled HTML; when set, used instead of copying template body",
+    )
 
 
 class DocumentUpdate(BaseModel):
@@ -796,6 +800,11 @@ class DocumentUpdate(BaseModel):
 class DocumentDuplicateRequest(BaseModel):
     scenario_label: str = Field(..., description="Label for the new scenario copy")
     title: Optional[str] = None
+
+
+class DocumentPdfRenderRequest(BaseModel):
+    html_body: str = Field(..., description="Full HTML document to render as PDF")
+    title: Optional[str] = Field(None, description="Used for the download filename")
 
 
 class DocumentResponse(BaseModel):

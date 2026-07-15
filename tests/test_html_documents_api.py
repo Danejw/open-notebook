@@ -96,6 +96,37 @@ class TestHtmlDocumentsApi:
         assert data["html_body"] == SAMPLE_HTML
         mock_doc.save.assert_awaited()
 
+    @patch("api.routers.html_documents.HtmlTemplate")
+    @patch("api.routers.html_documents.Project")
+    @patch("api.routers.html_documents.Document")
+    def test_create_document_with_filled_html_body(
+        self, mock_doc_cls, mock_project_cls, mock_template_cls, client
+    ):
+        filled = SAMPLE_HTML.replace("Carpentry", "Mechanical").replace(
+            "$12,000", "$9,500"
+        )
+        mock_project_cls.get = AsyncMock(return_value=MagicMock())
+        mock_template_cls.get = AsyncMock(return_value=_mock_template())
+        mock_doc = _mock_document(html_body=filled, scenario_label="Chat")
+        mock_doc_cls.return_value = mock_doc
+
+        response = client.post(
+            "/api/projects/project:p1/documents",
+            json={
+                "template_id": "html_template:t1",
+                "scenario_label": "Chat",
+                "html_body": filled,
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["scenario_label"] == "Chat"
+        assert "Mechanical" in response.json()["html_body"]
+        # Constructor should receive the filled body, not the template copy
+        call_kwargs = mock_doc_cls.call_args.kwargs
+        assert call_kwargs["html_body"] == filled
+        assert call_kwargs["scenario_label"] == "Chat"
+        mock_doc.save.assert_awaited()
+
     @patch("api.routers.html_documents.Document")
     def test_patch_span_updates(self, mock_doc_cls, client):
         mock_doc = _mock_document()
@@ -154,6 +185,26 @@ class TestHtmlDocumentsApi:
         assert response.headers["content-type"] == "application/pdf"
         assert response.content.startswith(b"%PDF")
         mock_render.assert_called_once()
+
+    @patch("api.routers.html_documents.render_html_pdf")
+    def test_render_pdf_from_html(self, mock_render, client):
+        mock_render.return_value = b"%PDF-1.4 chat"
+
+        response = client.post(
+            "/api/documents/render.pdf",
+            json={"html_body": SAMPLE_HTML, "title": "Chat Bid"},
+        )
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/pdf"
+        assert response.content.startswith(b"%PDF")
+        mock_render.assert_called_once_with(SAMPLE_HTML)
+
+    def test_render_pdf_rejects_non_html(self, client):
+        response = client.post(
+            "/api/documents/render.pdf",
+            json={"html_body": "not html", "title": "Bad"},
+        )
+        assert response.status_code == 400
 
     @patch("api.routers.html_documents.Document")
     def test_get_document_not_found(self, mock_doc_cls, client):

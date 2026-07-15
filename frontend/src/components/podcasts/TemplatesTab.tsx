@@ -35,7 +35,7 @@ export function TemplatesTab() {
   }, [episodeProfiles, speakerProfiles])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <div className="space-y-1">
         <h2 className="text-xl font-semibold">{t('podcasts.templatesWorkspaceTitle')}</h2>
         <p className="text-sm text-muted-foreground">
@@ -115,12 +115,12 @@ export function TemplatesTab() {
       ) : null}
 
       {isLoading ? (
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-3 lg:grid-cols-2">
           <PanelSkeleton />
           <PanelSkeleton />
         </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-3 lg:grid-cols-2">
           <SpeakerProfilesPanel
             speakerProfiles={speakerProfiles}
             usage={usage}

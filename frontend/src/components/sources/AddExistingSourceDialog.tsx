@@ -2,15 +2,16 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useDebounce } from 'use-debounce'
-import { Search, Link2, FileText, Link as LinkIcon, Upload } from 'lucide-react'
+import { Search, FileText, Link as LinkIcon, Upload } from 'lucide-react'
 import { InlineSkeleton, PickerDialogSkeleton } from '@/components/common/LoadingSkeletons'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  dialogBodyClassName,
+  dialogLargeContentClassName,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,6 +23,7 @@ import { sourcesApi } from '@/lib/api/sources'
 import { useSources, useAddSourcesToProject } from '@/lib/hooks/use-sources'
 import { SourceListResponse } from '@/lib/types/api'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { cn } from '@/lib/utils'
 
 interface AddExistingSourceDialogProps {
   open: boolean
@@ -183,26 +185,20 @@ export function AddExistingSourceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-hidden flex flex-col">
+      <DialogContent className={cn(dialogLargeContentClassName, 'flex flex-col overflow-hidden')}>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Link2 className="h-5 w-5" />
-            {t('sources.addExistingTitle')}
-          </DialogTitle>
-          <DialogDescription>
-            {t('sources.addExistingDesc')}
-          </DialogDescription>
+          <DialogTitle>{t('sources.addExistingTitle')}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+        <div className={cn(dialogBodyClassName, 'flex flex-col space-y-3')}>
           {/* Search Input */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder={t('sources.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="h-7 pl-9 text-xs"
             />
             {isSearching && (
               <InlineSkeleton className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2" />

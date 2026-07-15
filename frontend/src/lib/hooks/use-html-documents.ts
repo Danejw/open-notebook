@@ -12,12 +12,13 @@ import type {
   UpdateHtmlTemplateRequest,
 } from '@/lib/types/html-documents'
 
-export function useHtmlTemplates() {
+export function useHtmlTemplates(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: QUERY_KEYS.htmlTemplates,
     queryFn: () => htmlDocumentsApi.listTemplates(),
     staleTime: 0,
     refetchOnMount: true,
+    enabled: options?.enabled ?? true,
   })
 }
 
@@ -42,7 +43,7 @@ export function useCreateHtmlTemplate() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.htmlTemplates })
       toast({
         title: t('common.success'),
-        description: t('documents.templateCreateSuccess'),
+        description: t('templates.templateCreateSuccess'),
       })
     },
     onError: (error: unknown) => {
@@ -70,7 +71,7 @@ export function useUpdateHtmlTemplate() {
       })
       toast({
         title: t('common.success'),
-        description: t('documents.templateUpdateSuccess'),
+        description: t('templates.templateUpdateSuccess'),
       })
     },
     onError: (error: unknown) => {
@@ -94,7 +95,7 @@ export function useDeleteHtmlTemplate() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.htmlTemplates })
       toast({
         title: t('common.success'),
-        description: t('documents.templateDeleteSuccess'),
+        description: t('templates.templateDeleteSuccess'),
       })
     },
     onError: (error: unknown) => {
@@ -203,6 +204,39 @@ export function useDuplicateBidDocument() {
       toast({
         title: t('common.success'),
         description: t('documents.duplicateSuccess'),
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('common.error'),
+        description: getApiErrorMessage(error, (key) => t(key)),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function useDeleteBidDocument() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      projectId,
+    }: {
+      id: string
+      projectId: string
+    }) => htmlDocumentsApi.deleteDocument(id).then(() => ({ id, projectId })),
+    onSuccess: ({ id, projectId }) => {
+      queryClient.removeQueries({ queryKey: QUERY_KEYS.bidDocument(id) })
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.projectDocuments(projectId),
+      })
+      toast({
+        title: t('common.success'),
+        description: t('documents.deleteSuccess'),
       })
     },
     onError: (error: unknown) => {

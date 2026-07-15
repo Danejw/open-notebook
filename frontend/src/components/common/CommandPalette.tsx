@@ -40,7 +40,7 @@ const getNavigationItems = (t: TFunction) => [
   { name: t('navigation.askAndSearch'), href: '/search', icon: Search, keywords: ['find', 'query'] },
   { name: t('navigation.podcasts'), href: '/podcasts', icon: Mic, keywords: ['audio', 'episodes', 'generate'] },
   { name: t('navigation.artifacts'), href: '/artifacts', icon: Shuffle, keywords: ['prompts', 'templates', 'actions', 'manage'] },
-  { name: t('navigation.documents'), href: '/documents', icon: FileCode2, keywords: ['bid', 'html', 'pdf', 'estimate', 'proposal'] },
+  { name: t('navigation.templates'), href: '/templates', icon: FileCode2, keywords: ['bid', 'html', 'pdf', 'estimate', 'proposal', 'template', 'documents'] },
   { name: t('navigation.models'), href: '/settings/api-keys', icon: Bot, keywords: ['ai', 'llm', 'providers', 'openai', 'anthropic'] },
   { name: t('navigation.settings'), href: '/settings', icon: Settings, keywords: ['preferences', 'config', 'options'] },
   { name: t('navigation.advanced'), href: '/advanced', icon: Wrench, keywords: ['debug', 'system', 'tools'] },

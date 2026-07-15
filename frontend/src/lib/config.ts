@@ -53,6 +53,23 @@ export async function getConfig(): Promise<AppConfig> {
   return await configPromise
 }
 
+/** Abort hung config fetches so ConnectionGuard cannot stay on skeletons forever. */
+const CONFIG_FETCH_TIMEOUT_MS = 8_000
+
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  timeoutMs = CONFIG_FETCH_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(input, { ...init, signal: controller.signal })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /**
  * Fetch configuration from the API or use defaults.
  */
@@ -77,7 +94,7 @@ async function fetchConfig(): Promise<AppConfig> {
   const runtimeConfigPromise = (async (): Promise<string | null> => {
     try {
       if (isDev) console.log('🔧 [Config] Fetching runtime config from /config...')
-      const runtimeResponse = await fetch('/config', { cache: 'no-store' })
+      const runtimeResponse = await fetchWithTimeout('/config', { cache: 'no-store' })
       if (runtimeResponse.ok) {
         const runtimeData = await runtimeResponse.json()
         const url = runtimeData.apiUrl
@@ -95,7 +112,9 @@ async function fetchConfig(): Promise<AppConfig> {
   const backendConfigPromise = (async (): Promise<BackendConfigResponse | null> => {
     try {
       if (isDev) console.log('🔧 [Config] Fetching backend config from:', `${initialBase}/api/config`)
-      const response = await fetch(`${initialBase}/api/config`, { cache: 'no-store' })
+      const response = await fetchWithTimeout(`${initialBase}/api/config`, {
+        cache: 'no-store',
+      })
       if (response.ok) {
         return (await response.json()) as BackendConfigResponse
       }
@@ -124,7 +143,9 @@ async function fetchConfig(): Promise<AppConfig> {
   // If runtime base differs from initial, refetch backend config once
   if (!data && baseUrl !== initialBase) {
     try {
-      const response = await fetch(`${baseUrl}/api/config`, { cache: 'no-store' })
+      const response = await fetchWithTimeout(`${baseUrl}/api/config`, {
+        cache: 'no-store',
+      })
       if (response.ok) {
         data = (await response.json()) as BackendConfigResponse
       } else {
@@ -137,7 +158,9 @@ async function fetchConfig(): Promise<AppConfig> {
 
   if (!data) {
     try {
-      const response = await fetch(`${baseUrl}/api/config`, { cache: 'no-store' })
+      const response = await fetchWithTimeout(`${baseUrl}/api/config`, {
+        cache: 'no-store',
+      })
       if (response.ok) {
         data = (await response.json()) as BackendConfigResponse
       } else {

@@ -1,0 +1,3 @@
+-- Remove html_template_id from chat_session
+REMOVE FIELD IF EXISTS html_template_id ON TABLE chat_session;
+RETURN true;

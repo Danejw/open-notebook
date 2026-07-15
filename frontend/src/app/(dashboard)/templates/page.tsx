@@ -1,0 +1,248 @@
+'use client'
+
+import { useRef, useState } from 'react'
+import { FileCode2, Pencil, RefreshCw, Trash2, Upload } from 'lucide-react'
+import { PageHeader, pageContentClassName, pageSectionGapClassName } from '@/components/layout/PageHeader'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { TemplateHtmlPreview } from '@/components/templates/TemplateHtmlPreview'
+import {
+  useCreateHtmlTemplate,
+  useDeleteHtmlTemplate,
+  useHtmlTemplates,
+  useUpdateHtmlTemplate,
+} from '@/lib/hooks/use-html-documents'
+import { useTranslation } from '@/lib/hooks/use-translation'
+import type { HtmlTemplate } from '@/lib/types/html-documents'
+
+export default function TemplatesPage() {
+  const { t } = useTranslation()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const { data: templates = [], isLoading, refetch } = useHtmlTemplates()
+  const createTemplate = useCreateHtmlTemplate()
+  const updateTemplate = useUpdateHtmlTemplate()
+  const deleteTemplate = useDeleteHtmlTemplate()
+
+  const [uploading, setUploading] = useState(false)
+  const [renaming, setRenaming] = useState<HtmlTemplate | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const [deleting, setDeleting] = useState<HtmlTemplate | null>(null)
+
+  const handleUpload = async (file: File | undefined) => {
+    if (!file) return
+    setUploading(true)
+    try {
+      const html_body = await file.text()
+      const name = file.name.replace(/\.html?$/i, '') || t('templates.untitledTemplate')
+      await createTemplate.mutateAsync({
+        name,
+        category: 'estimate',
+        html_body,
+      })
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const openRename = (template: HtmlTemplate) => {
+    setRenaming(template)
+    setRenameValue(template.name)
+  }
+
+  const handleRename = async () => {
+    if (!renaming) return
+    const name = renameValue.trim()
+    if (!name || name === renaming.name) {
+      setRenaming(null)
+      return
+    }
+    await updateTemplate.mutateAsync({
+      id: renaming.id,
+      data: { name },
+    })
+    setRenaming(null)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deleting) return
+    await deleteTemplate.mutateAsync(deleting.id)
+    setDeleting(null)
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto">
+      <div className={cn(pageContentClassName, pageSectionGapClassName)}>
+        <PageHeader
+          title={t('templates.title')}
+          actions={
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={() => refetch()}
+                aria-label={t('common.refresh')}
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".html,text/html"
+                className="hidden"
+                onChange={(e) => void handleUpload(e.target.files?.[0])}
+              />
+              <Button
+                size="sm"
+                className="h-7 gap-1.5"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-3.5 w-3.5" />
+                {t('templates.uploadTemplate')}
+              </Button>
+            </div>
+          }
+        />
+
+        {isLoading ? (
+          <p className="text-xs text-muted-foreground">{t('common.loading')}</p>
+        ) : templates.length === 0 ? (
+          <div className="rounded-md border border-dashed px-3 py-6 text-center">
+            <FileCode2 className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">{t('templates.emptyTemplates')}</p>
+          </div>
+        ) : (
+          <ul className="divide-y rounded-md border">
+            {templates.map((template) => (
+              <li
+                key={template.id}
+                className="group flex items-center gap-2 px-3 py-1.5"
+              >
+                <FileCode2
+                  className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                  aria-hidden
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm leading-snug">{template.name}</p>
+                  <p className="truncate text-[11px] leading-tight text-muted-foreground">
+                    {template.category}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-0.5 opacity-70 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0"
+                    aria-label={t('templates.renameTemplate')}
+                    onClick={() => openRename(template)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 text-destructive"
+                    aria-label={t('common.delete')}
+                    onClick={() => setDeleting(template)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <details className="rounded-md border border-dashed text-xs">
+          <summary className="cursor-pointer select-none px-3 py-1.5 font-medium">
+            {t('templates.printChecklistTitle')}
+          </summary>
+          <div className="space-y-1 border-t border-dashed px-3 py-2 text-muted-foreground">
+            <p>{t('templates.printChecklistIntro')}</p>
+            <ul className="list-disc space-y-0.5 pl-4">
+              <li>{t('templates.printChecklistFlow')}</li>
+              <li>{t('templates.printChecklistPage')}</li>
+              <li>{t('templates.printChecklistAvoid')}</li>
+              <li>{t('templates.printChecklistBreak')}</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+
+      <Dialog
+        open={Boolean(renaming)}
+        onOpenChange={(open) => {
+          if (!open) setRenaming(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t('templates.renameTemplate')}</DialogTitle>
+          </DialogHeader>
+          <form
+            className="space-y-3 px-1 py-1"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void handleRename()
+            }}
+          >
+            <div className="space-y-1.5">
+              <Label htmlFor="template-rename-name">{t('common.name')}</Label>
+              <Input
+                id="template-rename-name"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                autoFocus
+              />
+            </div>
+            {renaming?.html_body ? (
+              <TemplateHtmlPreview
+                html={renaming.html_body}
+                title={renaming.name}
+                maxHeightPx={360}
+              />
+            ) : null}
+            <DialogFooter>
+              <Button type="button" variant="outline" size="sm" className="h-7" onClick={() => setRenaming(null)}>
+                {t('common.cancel')}
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                className="h-7"
+                disabled={!renameValue.trim() || updateTemplate.isPending}
+              >
+                {t('common.save')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={Boolean(deleting)}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null)
+        }}
+        title={t('common.delete')}
+        description={t('templates.confirmDeleteTemplate')}
+        confirmText={t('common.delete')}
+        confirmVariant="destructive"
+        onConfirm={() => void handleDeleteConfirm()}
+        isLoading={deleteTemplate.isPending}
+      />
+    </div>
+  )
+}

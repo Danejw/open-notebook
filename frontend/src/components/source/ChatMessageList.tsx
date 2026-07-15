@@ -18,6 +18,7 @@ export interface ChatMessageListProps {
   editDraft: string
   projectId?: string
   noteSaveTitle?: string
+  htmlTemplateId?: string | null
   toolCallsByMessageId: Map<string, ChatToolCall[]>
   canEdit: boolean
   editLocked: boolean
@@ -43,6 +44,7 @@ export function ChatMessageList({
   editDraft,
   projectId,
   noteSaveTitle,
+  htmlTemplateId,
   toolCallsByMessageId,
   canEdit,
   editLocked,
@@ -96,6 +98,7 @@ export function ChatMessageList({
     isStreaming,
     projectId,
     noteSaveTitle,
+    htmlTemplateId,
     toolCalls: toolCallsByMessageId.get(message.id),
     canEdit,
     editLocked,

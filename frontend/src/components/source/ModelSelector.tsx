@@ -13,13 +13,12 @@ import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { Settings2, Sparkles } from 'lucide-react'
+import { Settings2 } from 'lucide-react'
 import { useModelDefaults, useModels } from '@/lib/hooks/use-models'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { InlineSkeleton, PickerDialogSkeleton, SelectMenuSkeleton } from '@/components/common/LoadingSkeletons'
@@ -96,18 +95,12 @@ export function ModelSelector({
           </span>
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5" />
-            {t('common.modelConfiguration')}
-          </DialogTitle>
-          <DialogDescription>
-            {t('artifacts.overrideModelDesc')}
-          </DialogDescription>
+          <DialogTitle>{t('common.modelConfiguration')}</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
+        <div className="grid gap-3 px-1 py-1">
+          <div className="grid gap-1.5">
             <Label htmlFor="model">{t('common.model')}</Label>
             <Select value={selectedModel} onValueChange={setSelectedModel}>
               <SelectTrigger id="model">

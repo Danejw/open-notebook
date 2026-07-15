@@ -82,7 +82,7 @@ export function EpisodesTab() {
   const emptyState = !isLoading && episodes.length === 0
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
           <h2 className="text-xl font-semibold">{t('podcasts.overviewTitle')}</h2>

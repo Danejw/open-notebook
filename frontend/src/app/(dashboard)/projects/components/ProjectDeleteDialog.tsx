@@ -76,7 +76,7 @@ export function ProjectDeleteDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        <div className="py-4 space-y-3">
+        <div className="space-y-3 px-1 py-1">
           {isLoadingPreview ? (
             <div className="space-y-2">
               <Skeleton className="h-4 w-full" />

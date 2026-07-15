@@ -37,6 +37,8 @@ export interface CreateBidDocumentRequest {
   template_id: string
   title?: string
   scenario_label?: string
+  /** When set, used instead of copying the template body (e.g. chat fill). */
+  html_body?: string
 }
 
 export interface UpdateBidDocumentRequest {

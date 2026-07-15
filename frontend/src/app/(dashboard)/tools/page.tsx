@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { Wrench, RefreshCw } from 'lucide-react'
-import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
+import { PageHeader, pageContentClassName, pageSectionGapClassName } from '@/components/layout/PageHeader'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
@@ -28,14 +29,11 @@ export default function ToolsPage() {
   return (
     <>
       <div className="flex-1 overflow-y-auto">
-        <div className={`${pageContentClassName} space-y-6`}>
+        <div className={cn(pageContentClassName, pageSectionGapClassName)}>
           <PageHeader
-            bordered
-            icon={Wrench}
             title={t('tools.title')}
-            description={t('tools.desc')}
             actions={
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <Button
                   variant="outline"
                   size="sm"
@@ -61,9 +59,11 @@ export default function ToolsPage() {
                 action={<McpConnectionCreateDialog />}
               />
             ) : (
-              <div className="space-y-3">
-                <h2 className="text-base font-semibold">{t('tools.listTitle')}</h2>
-                <div className="divide-y rounded-md border px-3">
+              <div className="overflow-hidden rounded-md border">
+                <div className="flex items-center justify-between gap-2 border-b px-3 py-1.5">
+                  <h2 className="text-sm font-semibold leading-none">{t('tools.listTitle')}</h2>
+                </div>
+                <div className="divide-y px-3">
                   {connections.map((connection) => (
                     <McpConnectionCard
                       key={connection.id}

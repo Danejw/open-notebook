@@ -7,6 +7,31 @@ import { useTranslation } from "@/lib/hooks/use-translation"
 
 import { cn } from "@/lib/utils"
 
+/** Shared compact dialog shell — matches page content density (`p-1`) */
+export const dialogContentClassName =
+  "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:pointer-events-none fixed top-[50%] left-[50%] z-50 flex w-full max-w-lg max-h-[85vh] h-auto translate-x-[-50%] translate-y-[-50%] flex-col gap-0.5 overflow-hidden rounded-lg border p-1 shadow-lg duration-200"
+
+/** Large editor / workspace dialogs that need the old 70vh shell */
+export const dialogLargeContentClassName =
+  "h-[70vh] max-h-[70vh] w-[70vw] max-w-[70vw]"
+
+/** Header row — aligns with PageHeader title spacing */
+export const dialogHeaderClassName =
+  "flex flex-shrink-0 flex-col gap-0.5 px-1 py-0.5 text-left"
+
+/** Title — same weight/size as PageHeader h1 */
+export const dialogTitleClassName =
+  "text-base font-semibold leading-snug"
+
+export const dialogDescriptionClassName =
+  "text-[11px] leading-snug text-muted-foreground"
+
+export const dialogFooterClassName =
+  "flex flex-shrink-0 flex-col-reverse gap-1 px-1 py-0.5 sm:flex-row sm:justify-end"
+
+export const dialogBodyClassName =
+  "min-h-0 flex-1 overflow-y-auto px-1 py-1"
+
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
@@ -62,10 +87,7 @@ const DialogContent = ({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         aria-describedby={undefined}
-        className={cn(
-          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:pointer-events-none fixed top-[50%] left-[50%] z-50 flex w-[70vw] max-w-[70vw] h-[70vh] max-h-[70vh] translate-x-[-50%] translate-y-[-50%] flex-col gap-0.5 rounded-lg border p-0.5 shadow-lg duration-200 overflow-hidden",
-          className
-        )}
+        className={cn(dialogContentClassName, className)}
         {...props}
       >
         {children}
@@ -84,7 +106,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-0.5 text-center sm:text-left", className)}
+      className={cn(dialogHeaderClassName, "pr-8", className)}
       {...props}
     />
   )
@@ -94,10 +116,7 @@ function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-footer"
-      className={cn(
-        "flex flex-col-reverse gap-0.5 sm:flex-row sm:justify-end",
-        className
-      )}
+      className={cn(dialogFooterClassName, className)}
       {...props}
     />
   )
@@ -110,7 +129,7 @@ function DialogTitle({
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("text-sm leading-none font-semibold", className)}
+      className={cn(dialogTitleClassName, className)}
       {...props}
     />
   )
@@ -123,7 +142,7 @@ function DialogDescription({
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn("text-muted-foreground text-[11px]", className)}
+      className={cn(dialogDescriptionClassName, className)}
       {...props}
     />
   )

@@ -71,15 +71,17 @@ export function SpeakerProfilesPanel({
   )
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">{t('podcasts.speakerProfilesTitle')}</h2>
-          <p className="text-sm text-muted-foreground">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold leading-snug">{t('podcasts.speakerProfilesTitle')}</h2>
+          <p className="text-xs text-muted-foreground">
             {t('podcasts.speakerProfilesDesc')}
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>{t('podcasts.createSpeaker')}</Button>
+        <Button size="sm" className="h-7 shrink-0 text-xs" onClick={() => setCreateOpen(true)}>
+          {t('podcasts.createSpeaker')}
+        </Button>
       </div>
 
       {sortedProfiles.length === 0 ? (

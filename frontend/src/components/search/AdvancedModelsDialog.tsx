@@ -4,14 +4,15 @@ import { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  dialogBodyClassName,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { ModelSelector } from '@/components/common/ModelSelector'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { cn } from '@/lib/utils'
 
 interface AdvancedModelsDialogProps {
   open: boolean
@@ -39,7 +40,6 @@ export function AdvancedModelsDialog({
   const [answerModel, setAnswerModel] = useState(defaultModels.answer)
   const [finalAnswerModel, setFinalAnswerModel] = useState(defaultModels.finalAnswer)
 
-  // Update local state when defaultModels change
   useEffect(() => {
     setStrategyModel(defaultModels.strategy)
     setAnswerModel(defaultModels.answer)
@@ -57,15 +57,12 @@ export function AdvancedModelsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t('searchPage.advancedModelTitle')}</DialogTitle>
-          <DialogDescription>
-            {t('searchPage.advancedModelDesc')}
-          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className={cn(dialogBodyClassName, 'space-y-3')}>
           <ModelSelector
             label={t('searchPage.strategyModel')}
             modelType="language"
@@ -92,10 +89,10 @@ export function AdvancedModelsDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" size="sm" className="h-7" onClick={() => onOpenChange(false)}>
             {t('common.cancel')}
           </Button>
-          <Button onClick={handleSave}>
+          <Button size="sm" className="h-7" onClick={handleSave}>
             {t('searchPage.saveChanges')}
           </Button>
         </DialogFooter>

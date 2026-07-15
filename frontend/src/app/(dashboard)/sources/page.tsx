@@ -7,7 +7,7 @@ import { SourceListResponse } from '@/lib/types/api'
 import { TableLoadMoreSkeleton } from '@/components/common/LoadingSkeletons'
 import { EmptyState } from '@/components/common/EmptyState'
 import { SourcesTableSkeleton } from '@/components/layout/SourcesTableSkeleton'
-import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
+import { PageHeader, pageContentClassName, pageSectionGapClassName } from '@/components/layout/PageHeader'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { SourcesTableRow } from '@/components/sources/SourcesTableRow'
 import { FileText, ArrowUpDown } from 'lucide-react'
@@ -23,7 +23,7 @@ import {
 } from '@/lib/hooks/use-sources'
 
 const VIRTUALIZE_THRESHOLD = 50
-const ROW_HEIGHT_ESTIMATE = 48
+const ROW_HEIGHT_ESTIMATE = 36
 
 export default function SourcesPage() {
   const { t, language } = useTranslation()
@@ -230,44 +230,38 @@ export default function SourcesPage() {
 
   if (showInitialSkeleton) {
     return (
-              <div className={`flex h-full w-full max-w-none flex-col ${pageContentClassName}`}>
-          <PageHeader
-            bordered
-            className="mb-6"
-            title={t('sources.allSources')}
-            description={t('sources.allSourcesDesc')}
-          />
-          <SourcesTableSkeleton />
-        </div>
+      <div className={cn('flex h-full w-full max-w-none flex-col', pageContentClassName, pageSectionGapClassName)}>
+        <PageHeader
+          title={t('sources.allSources')}
+        />
+        <SourcesTableSkeleton />
+      </div>
     )
   }
 
   if (error && sources.length === 0) {
     return (
-              <div className="flex h-full items-center justify-center">
-          <p className="text-red-500">{t('sources.failedToLoad')}</p>
-        </div>
+      <div className="flex h-full items-center justify-center">
+        <p className="text-red-500">{t('sources.failedToLoad')}</p>
+      </div>
     )
   }
 
   if (!isLoading && sources.length === 0) {
     return (
-              <EmptyState
-          icon={FileText}
-          title={t('sources.noSourcesYet')}
-          description={t('sources.allSourcesDescShort')}
-        />
+      <EmptyState
+        icon={FileText}
+        title={t('sources.noSourcesYet')}
+        description={t('sources.allSourcesDescShort')}
+      />
     )
   }
 
   return (
     <>
-      <div className={`flex h-full w-full max-w-none flex-col ${pageContentClassName}`}>
+      <div className={cn('flex h-full w-full max-w-none flex-col', pageContentClassName, pageSectionGapClassName)}>
         <PageHeader
-          bordered
-          className="mb-6"
           title={t('sources.allSources')}
-          description={t('sources.allSourcesDesc')}
         />
 
         <div ref={scrollContainerRef} className="flex-1 overflow-auto rounded-md border">
@@ -286,38 +280,38 @@ export default function SourcesPage() {
             </colgroup>
             <thead className="sticky top-0 z-10 bg-background">
               <tr className="border-b bg-muted/50">
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                <th className="h-8 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
                   {t('common.type')}
                 </th>
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                <th className="h-8 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
                   {t('common.title')}
                 </th>
-                <th className="hidden h-12 px-4 text-left align-middle font-medium text-muted-foreground sm:table-cell">
+                <th className="hidden h-8 px-3 text-left align-middle text-xs font-medium text-muted-foreground sm:table-cell">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => toggleSort('created')}
-                    className="h-8 px-2 hover:bg-muted"
+                    className="h-7 px-1.5 text-xs hover:bg-muted"
                   >
                     {t('common.created_label')}
                     <ArrowUpDown
                       className={cn(
-                        'ml-2 h-3 w-3',
+                        'ml-1.5 h-3 w-3',
                         sortBy === 'created' ? 'opacity-100' : 'opacity-30'
                       )}
                     />
                     {sortBy === 'created' && (
-                      <span className="ml-1 text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                      <span className="ml-1 text-[11px]">{sortOrder === 'asc' ? '↑' : '↓'}</span>
                     )}
                   </Button>
                 </th>
-                <th className="hidden h-12 px-4 text-center align-middle font-medium text-muted-foreground md:table-cell">
+                <th className="hidden h-8 px-3 text-center align-middle text-xs font-medium text-muted-foreground md:table-cell">
                   {t('sources.insights')}
                 </th>
-                <th className="hidden h-12 px-4 text-center align-middle font-medium text-muted-foreground lg:table-cell">
+                <th className="hidden h-8 px-3 text-center align-middle text-xs font-medium text-muted-foreground lg:table-cell">
                   {t('sources.embedded')}
                 </th>
-                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">
+                <th className="h-8 px-3 text-right align-middle text-xs font-medium text-muted-foreground">
                   {t('common.actions')}
                 </th>
               </tr>

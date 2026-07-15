@@ -69,6 +69,8 @@ export default function SourceDetailPage() {
             }}
             selectedSkillIds={chat.selectedSkillIds}
             onSkillIdsChange={chat.setSelectedSkillIds}
+            selectedHtmlTemplateId={chat.selectedHtmlTemplateId}
+            onHtmlTemplateIdChange={chat.setSelectedHtmlTemplateId}
             selectedMcpToolIds={chat.selectedMcpToolIds}
             onMcpToolIdsChange={chat.setSelectedMcpToolIds}
             liveMcpToolCalls={chat.liveMcpToolCalls}

@@ -32,9 +32,9 @@ export function SystemInfo() {
 
   if (isLoading) {
     return (
-      <Card className="p-6">
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">{t('advanced.systemInfo')}</h2>
+      <Card className="p-3">
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold">{t('advanced.systemInfo')}</h2>
           <div className="text-sm text-muted-foreground">{t('common.loading')}</div>
         </div>
       </Card>
@@ -42,9 +42,9 @@ export function SystemInfo() {
   }
 
   return (
-    <Card className="p-6">
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold">{t('advanced.systemInfo')}</h2>
+    <Card className="p-3">
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold">{t('advanced.systemInfo')}</h2>
 
         <div className="space-y-3">
           {/* Current Version */}

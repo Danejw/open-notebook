@@ -51,6 +51,35 @@ You are generating a structured project artifact: **{{ artifact.title }}**
 Follow the template format exactly. Ground every claim in the CONTEXT below. Cite document IDs. Flag missing information explicitly.
 {% endif %}
 
+{% if html_template %}
+# HTML BID TEMPLATE (STRUCTURED OUTPUT) — PRIMARY MODE
+
+A branded HTML template is active. Your response **must** be structured output that fills this template.
+Do **not** answer as a normal chat message or markdown essay.
+
+**Template name:** {{ html_template.name }}
+**Category:** {{ html_template.category }}
+
+## Rules
+- Preserve the template structure, CSS, and tags exactly (including `@page`, `break-before` / `break-after` / `break-inside`, and other print/pagination rules).
+- Fill every `<span>…</span>` with values grounded in CONTEXT (and the user request).
+- Do not invent document IDs or unsupported facts.
+- Do not redesign layout or invent new major sections; content fills existing spans/cells/lists.
+- If data is missing, leave the span empty or put a short placeholder like "TBD" inside the span — still return the full HTML.
+- For PDF multi-page output: keep natural document flow. Do not wrap the whole document in a single fixed-height page shell. Prefer `break-inside: avoid` on rows/cards/table blocks when the template already uses that pattern; use existing page-break classes/sections when present. Do not strip print CSS.
+
+## Deliverable (required)
+Return **only** one fenced HTML block containing the complete filled document. No greeting, no summary, no bullet list outside the fence.
+
+```html
+…complete document…
+```
+
+## Template HTML
+
+{{ html_template.html_body }}
+{% endif %}
+
 # CITING INSTRUCTIONS
 
 If your answer is based off of any item in the context, it's very important that your response contains references to the searched documents so the user can follow-up and read more about the topic. The way you do that is by adding the id of the specific document in between brackets like this: [document_id].

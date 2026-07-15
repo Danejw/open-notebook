@@ -92,6 +92,11 @@ COPY . /app
 # Copy pre-downloaded tiktoken encoding from builder (outside /data/ — volume-mount safe)
 COPY --from=builder /app/tiktoken-cache /app/tiktoken-cache
 
+# Chromium for exact HTML→PDF export of branded bid documents (no CSS rewrite)
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN /app/.venv/bin/playwright install --with-deps chromium \
+ && rm -rf /var/lib/apt/lists/*
+
 # Ensure uv uses the existing venv without attempting network operations
 ENV UV_NO_SYNC=1
 ENV VIRTUAL_ENV=/app/.venv

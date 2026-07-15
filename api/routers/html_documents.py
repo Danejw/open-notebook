@@ -1,5 +1,6 @@
 """API routes for HTML-native bid templates and documents."""
 
+import asyncio
 from typing import List
 
 from fastapi import APIRouter, HTTPException, Response
@@ -8,6 +9,7 @@ from loguru import logger
 from api.models import (
     DocumentCreate,
     DocumentDuplicateRequest,
+    DocumentPdfRenderRequest,
     DocumentResponse,
     DocumentUpdate,
     HtmlTemplateCreate,
@@ -179,7 +181,7 @@ async def create_project_document(project_id: str, data: DocumentCreate):
             template_id=template.id,
             title=(data.title or template.name).strip() or template.name,
             scenario_label=data.scenario_label.strip() or "Base",
-            html_body=template.html_body,
+            html_body=(data.html_body if data.html_body is not None else template.html_body),
         )
         await document.save()
         return _document_response(document)
@@ -272,12 +274,34 @@ async def preview_document(document_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/documents/render.pdf")
+async def render_html_as_pdf(data: DocumentPdfRenderRequest):
+    """Render arbitrary HTML (e.g. chat template output) as a PDF download."""
+    try:
+        if not _looks_like_html(data.html_body):
+            raise InvalidInputError("html_body must be valid HTML content")
+        pdf_bytes = await asyncio.to_thread(render_html_pdf, data.html_body)
+        filename = export_pdf_filename(data.title or "document")
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except InvalidInputError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error rendering HTML PDF: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/documents/{document_id}/export.pdf")
 async def export_document_pdf(document_id: str):
     """Export the current document HTML as PDF."""
     try:
         document = await Document.get(document_id)
-        pdf_bytes = render_html_pdf(document.html_body)
+        pdf_bytes = await asyncio.to_thread(render_html_pdf, document.html_body)
         filename = export_pdf_filename(document.title)
         return Response(
             content=pdf_bytes,

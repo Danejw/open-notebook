@@ -8,7 +8,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Check, X } from 'lucide-react'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { ModelTestResult } from '@/lib/types/models'
 
@@ -29,24 +28,19 @@ export function ModelTestResultDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {result.success ? (
-              <Check className="h-5 w-5 text-emerald-500" />
-            ) : (
-              <X className="h-5 w-5 text-destructive" />
-            )}
+          <DialogTitle>
             {result.success ? t('models.testModelSuccess') : t('models.testModelFailed')}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">{modelName}</p>
+        <div className="space-y-3 px-1 py-1">
+          <p className="text-xs text-muted-foreground">{modelName}</p>
           <p className="text-sm">{result.message}</p>
 
           {result.details && (
-            <pre className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-60 whitespace-pre-wrap break-words">
+            <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted p-2 text-[11px]">
               {result.details}
             </pre>
           )}

@@ -139,6 +139,8 @@ export function ChatColumn({
         projectId={projectId}
         selectedSkillIds={chat.selectedSkillIds}
         onSkillIdsChange={chat.setSelectedSkillIds}
+        selectedHtmlTemplateId={chat.selectedHtmlTemplateId}
+        onHtmlTemplateIdChange={chat.setSelectedHtmlTemplateId}
         selectedMcpToolIds={chat.selectedMcpToolIds}
         onMcpToolIdsChange={chat.setSelectedMcpToolIds}
         liveMcpToolCalls={chat.liveMcpToolCalls}

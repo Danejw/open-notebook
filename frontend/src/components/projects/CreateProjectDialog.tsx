@@ -8,10 +8,10 @@ import { z } from 'zod'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  dialogBodyClassName,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,6 +19,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { useCreateProject } from '@/lib/hooks/use-projects'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { cn } from '@/lib/utils'
 
 const createProjectSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -65,16 +66,13 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t('projects.createNew')}</DialogTitle>
-          <DialogDescription>
-            {t('projects.createNewDesc')}
-          </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
+        <form onSubmit={handleSubmit(onSubmit)} className={cn(dialogBodyClassName, 'space-y-3')}>
+          <div className="space-y-1.5">
             <Label htmlFor="project-name">{t('common.name')} *</Label>
             <Input
               id="project-name"
@@ -83,25 +81,25 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
               autoComplete="off"
             />
             {errors.name && (
-              <p className="text-sm text-destructive">{errors.name.message}</p>
+              <p className="text-xs text-destructive">{errors.name.message}</p>
             )}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label htmlFor="project-description">{t('common.description')}</Label>
             <Textarea
               id="project-description"
               {...register('description')}
               placeholder={t('projects.descPlaceholder')}
-              rows={4}
+              rows={3}
             />
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button type="button" variant="outline" onClick={closeDialog}>
+          <DialogFooter>
+            <Button type="button" variant="outline" size="sm" className="h-7" onClick={closeDialog}>
               {t('common.cancel')}
             </Button>
-            <Button type="submit" disabled={!isValid || createProject.isPending}>
+            <Button type="submit" size="sm" className="h-7" disabled={!isValid || createProject.isPending}>
               {createProject.isPending ? t('common.creating') : t('projects.createNew')}
             </Button>
           </DialogFooter>

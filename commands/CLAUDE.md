@@ -7,15 +7,12 @@
 ### Embedding Commands
 
 - **`embed_note_command`**: Embeds a single note using unified embedding pipeline with content-type aware processing. Uses MARKDOWN content type detection. Retry: 5 attempts, exponential jitter 1-60s.
-- **`embed_insight_command`**: Embeds a single source insight. Uses MARKDOWN content type. Retry: 5 attempts, exponential jitter 1-60s.
 - **`embed_source_command`**: Embeds a source by chunking full_text with content-type aware splitters (HTML, Markdown, plain), then batch embedding all chunks (batches of 50 with per-batch retry). Retry: 5 attempts, exponential jitter 1-60s.
-- **`create_insight_command`**: Creates a source insight with automatic retry on transaction conflicts. Creates the DB record, then submits `embed_insight` command (fire-and-forget). Retry: 5 attempts, exponential jitter 1-60s. Used by `Source.add_insight()`.
-- **`rebuild_embeddings_command`**: Submits individual embed_* commands for all sources/notes/insights. Returns immediately; actual embedding happens async. No retry (coordinator only).
+- **`rebuild_embeddings_command`**: Submits individual embed_* commands for all sources/notes. Returns immediately; actual embedding happens async. No retry (coordinator only).
 
 ### Other Commands
 
-- **`process_source_command`**: Ingests content through `source_graph`, creates embeddings (optional), and generates insights from artifacts. Retries on transaction conflicts (exp. jitter, max 15×, 1-120s). Permanent failures (`ValueError`, e.g. unextractable content) are **re-raised** so the job is marked `failed` (and the source becomes retryable from the UI) rather than completing with a failure payload.
-- **`run_artifact_command`**: Runs an artifact on an existing source to generate an insight. Executes the artifact graph (LLM call) then creates insight via `create_insight_command`. Used by `POST /sources/{id}/insights` API endpoint. Retry: 5 attempts, exponential jitter 1-60s.
+- **`process_source_command`**: Ingests content through `source_graph` and creates embeddings (optional). Artifact IDs are accepted for API compatibility but ignored (source insights removed). Retries on transaction conflicts (exp. jitter, max 15×, 1-120s). Permanent failures (`ValueError`, e.g. unextractable content) are **re-raised** so the job is marked `failed` (and the source becomes retryable from the UI) rather than completing with a failure payload.
 - **`generate_podcast_command`**: Creates podcasts via podcast-creator library. Resolves model registry references and credentials for all profiles before invoking podcast-creator. Validates that outline_llm, transcript_llm, and voice_model are configured.
 - **`process_text_command`** (example): Test fixture for text operations (uppercase, lowercase, reverse, word_count).
 - **`analyze_data_command`** (example): Test fixture for numeric aggregations.
@@ -28,7 +25,7 @@
 - **Fire-and-forget embedding**: Domain models submit embed_* commands via `submit_command()` without waiting. Commands process asynchronously.
 - **Content-type aware chunking**: `embed_source_command` uses `chunk_text()` with automatic content type detection (HTML, Markdown, plain text) for optimal text splitting. Default: 1500 char chunks with 225 char overlap.
 - **Batch embedding**: `embed_source_command` uses `generate_embeddings()` which automatically batches texts (default 50) with per-batch retry to avoid exceeding provider payload limits.
-- **Mean pooling for large content**: `embed_note_command` and `embed_insight_command` use `generate_embedding()` which handles content larger than chunk size via mean pooling.
+- **Mean pooling for large content**: `embed_note_command` uses `generate_embedding()` which handles content larger than chunk size via mean pooling.
 - **Model dumping**: Recursive `full_model_dump()` utility converts Pydantic models → dicts for DB/API responses.
 - **Logging**: Uses `loguru.logger` throughout; logs execution start/end and key metrics (processing time, counts).
 - **Time tracking**: All commands measure `start_time` → `processing_time` for monitoring.
@@ -36,7 +33,7 @@
 ## Dependencies
 
 **External**: `surreal_commands` (command decorator, job queue, submit_command), `loguru`, `pydantic`, `podcast_creator`
-**Internal**: `construction_os.domain.project` (Source, Note, SourceInsight), `construction_os.domain.artifact` (Artifact), `construction_os.utils.chunking` (chunk_text, detect_content_type), `construction_os.utils.embedding` (generate_embedding, generate_embeddings), `construction_os.database.repository` (repo_query, repo_insert)
+**Internal**: `construction_os.domain.project` (Source, Note), `construction_os.domain.artifact` (Artifact), `construction_os.utils.chunking` (chunk_text, detect_content_type), `construction_os.utils.embedding` (generate_embedding, generate_embeddings), `construction_os.database.repository` (repo_query, repo_insert)
 
 ## Quirks & Edge Cases
 
@@ -57,12 +54,10 @@
 async def process_source_command(input_data: SourceProcessingInput) -> SourceProcessingOutput:
     start_time = time.time()
     try:
-        artifacts = [await Artifact.get(id) for id in input_data.artifacts]
         source = await Source.get(input_data.source_id)
         result = await source_graph.ainvoke({
             "content_state": input_data.content_state,
             "project_ids": input_data.project_ids,
-            "apply_artifacts": artifacts,
             "embed": input_data.embed,
             "source_id": input_data.source_id,
         })

@@ -5,7 +5,7 @@ LangGraph-based workflow orchestration for content processing, chat interactions
 ## Key Components
 
 - **`chat.py`**: Conversational agent with message history, project context, and model override support
-- **`source_chat.py`**: Source-focused chat with ContextBuilder for insights/content injection and context tracking
+- **`source_chat.py`**: Source-focused chat with ContextBuilder for content injection and context tracking
 - **`ask.py`**: Multi-search strategy agent (generates search terms, retrieves results, synthesizes answers)
 - **`source.py`**: Content ingestion pipeline (extract → save → apply artifacts with content-core)
 - **`artifact.py`**: Single-node artifact executor with prompt templating via ai_prompter
@@ -43,7 +43,7 @@ except Exception as e:
 
 - **Async loop gymnastics**: ThreadPoolExecutor workaround needed because LangGraph invokes sync nodes but we call async functions; fragile if event loop state changes
 - **`clean_thinking_content()` ubiquitous**: Strips `<think>...</think>` tags from model responses (handles extended thinking models)
-- **source_chat.py builds context twice**: ContextBuilder runs during node execution to fetch source/insights; rebuilds list from context_data (inefficient but safe)
+- **source_chat.py builds context twice**: ContextBuilder runs during node execution to fetch source content; rebuilds list from context_data (inefficient but safe)
 - **source.py embedding is async**: `source.vectorize()` returns job command ID; not awaited (fire-and-forget)
 - **artifact.py nullable source**: Accepts `input_text` or `source.full_text` (falls back to second if first missing)
 - **ask.py hard-coded vector_search**: No fallback to text search despite commented code suggesting it was planned
@@ -57,7 +57,7 @@ except Exception as e:
 - `content_core`: `extract_content()` for file/URL processing
 - `construction_os.ai.provision`: `provision_langchain_model()` (async factory with fallback logic)
 - `construction_os.utils.error_classifier`: `classify_error()` for user-friendly LLM error messages
-- `construction_os.domain.project`: Domain models (Source, Note, SourceInsight, vector_search)
+- `construction_os.domain.project`: Domain models (Source, Note, vector_search)
 - `construction_os.domain.artifact`: Artifact model for artifact graph and source fan-out
 - `loguru`: Logging
 

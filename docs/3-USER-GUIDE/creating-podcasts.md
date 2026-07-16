@@ -61,7 +61,7 @@ Select which to include:
 What to include:
 - Primary sources: Always include
 - Supporting sources: Usually include
-- Notes: Include your analysis/insights
+- Notes: Include your analysis and findings
 - Everything: Can overload podcast
 
 Recommended: 3-5 sources per podcast
@@ -355,7 +355,7 @@ Single source analysis → Academic Presentation
 Comparing two approaches → Debate Format
   "Pros and cons of different methods"
 
-Multiple sources + insights → Panel Discussion
+Multiple sources + notes → Panel Discussion
   "Different experts discussing topic"
 
 Narrative exploration → Expert Interview

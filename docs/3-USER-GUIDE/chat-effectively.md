@@ -233,7 +233,7 @@ Result: Deeper thinking, comparison, critique
 "What's the common theme across all three papers?"
 "If we combine these approaches, what would we get?"
 
-Result: Cross-source insights, connections
+Result: Cross-source findings, connections
 ```
 
 **Actionable Questions**
@@ -493,7 +493,7 @@ For deep analysis: Sonnet/Opus worth the cost
 - Use powerful model
 - Focused context (main source only)
 - Detailed questions
-- Result: Higher cost, deep insights
+- Result: Higher cost, deeper analysis
 
 **Synthesis budget**
 - Use powerful model for final synthesis
@@ -547,7 +547,7 @@ For deep analysis: Sonnet/Opus worth the cost
 - [ ] Save good responses as notes
 - [ ] Archive conversation if you're done
 - [ ] Organize notes for future reference
-- [ ] Use insights in other features (Ask, Artifacts, Podcasts)
+- [ ] Reuse saved notes in other features (Ask, Artifacts, Podcasts)
 
 ---
 

@@ -31,10 +31,10 @@
 
 - 📄 **Upload Content**: PDFs, web links, audio, video, text
 - 🤖 **Chat with AI**: Ask questions about your documents with citations
-- 📝 **Generate Notes**: AI creates summaries and insights
+- 📝 **Generate Notes**: AI creates summaries and structured extracts
 - 🎙️ **Create Podcasts**: Turn research into professional audio content
 - 🔍 **Search**: Full-text and semantic search across all content
-- ⚙️ **Transform**: Extract insights, analyze themes, create summaries
+- ⚙️ **Artifacts**: Summarize, analyze themes, and produce structured outputs
 
 ## Why Construction OS?
 

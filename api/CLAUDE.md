@@ -24,7 +24,7 @@ FastAPI application serving three architectural layers: routes (HTTP endpoints),
 - `chat_service.py`: Invokes chat graph with messages, context
 - `podcast_service.py`: Orchestrates outline + transcript generation
 - `sources_service.py`: Content ingestion, vectorization, metadata
-- `notes_service.py`: Note creation, linking to sources/insights
+- `notes_service.py`: Note creation, linking to projects/sources
 - `artifacts_service.py`: Applies Artifacts to content
 - `models_service.py`: Manages AI provider/model configuration
 - `episode_profiles_service.py`: Manages podcast speaker/episode profiles
@@ -44,8 +44,7 @@ FastAPI application serving three architectural layers: routes (HTTP endpoints),
 - **artifacts_service.py**: Applies Artifacts via artifact.py graph
 - **models_service.py**: Manages ModelManager config (AI provider overrides)
 - **episode_profiles_service.py**: CRUD for EpisodeProfile and SpeakerProfile models
-- **insights_service.py**: Generates and retrieves source insights
-- **notes_service.py**: Creates notes linked to sources/insights
+- **notes_service.py**: Creates notes linked to projects/sources
 - **project_service.py**: Project CRUD via API client
 
 ### Models (Schemas)
@@ -64,7 +63,6 @@ FastAPI application serving three architectural layers: routes (HTTP endpoints),
 - **routers/sources.py**: POST /sources, GET /sources/{id}, DELETE /sources/{id}
 - **routers/models.py**: GET /models, POST /models/config
 - **routers/credentials.py**: CRUD + test + discover + migrate for credential management
-- **routers/insights.py**: GET /sources/{source_id}/insights
 - **routers/auth.py**: POST /auth/password (password-based auth)
 - **routers/languages.py**: GET /languages (available podcast languages via pycountry+babel)
 - **routers/commands.py**: GET /commands/{command_id} (job status tracking)
@@ -86,7 +84,7 @@ FastAPI application serving three architectural layers: routes (HTTP endpoints),
 - `pydantic`: Validation models with Field, field_validator
 - `construction_os.graphs`: chat, ask, source_chat, source, artifact graphs
 - `construction_os.database`: SurrealDB repository functions (repo_query, repo_create, repo_upsert)
-- `construction_os.domain`: Project, Artifact, Source, Note, SourceInsight models
+- `construction_os.domain`: Project, Artifact, Source, Note models
 - `construction_os.ai.provision`: provision_langchain_model() factory
 - `ai_prompter`: Prompter for template rendering
 - `content_core`: extract_content() for file/URL processing

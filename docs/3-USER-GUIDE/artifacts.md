@@ -16,7 +16,7 @@ Artifacts are reusable prompt templates for construction workflows (bid scope, t
 7. Save the response as a project note
 ```
 
-Artifact templates are managed under **Manage → Artifacts** (`/artifacts`). The standalone artifact executor and source-level insight generation remain available for single-source batch workflows.
+Artifact templates are managed under **Manage → Artifacts** (`/artifacts`). You can also test a template in the playground (`POST /artifacts/execute`); primary use is still project chat with save-as-note.
 
 ---
 
@@ -30,13 +30,13 @@ Artifact templates are managed under **Manage → Artifacts** (`/artifacts`). Th
 
 ---
 
-## Legacy: Batch processing on sources
+## Playground: Test a template on sample text
 
-Artifacts can still apply the same analysis to individual sources (generating source insights). Instead of asking the same question repeatedly, define a template and run it per source.
+Use **Manage → Artifacts** playground to run a template on pasted text. Output is returned immediately — save useful results as a project note from chat when you want them in the knowledge base.
 
 ---
 
-## When to Use Artifacts (source-level)
+## When to Use Artifacts (repeatable templates)
 
 | Use Artifacts When | Use Chat Instead When |
 |-------------------------|----------------------|
@@ -61,14 +61,14 @@ Artifacts can still apply the same analysis to individual sources (generating so
 
 ---
 
-## Quick Start: Source-level artifact (legacy)
+## Quick Start: Test in the playground
 
 ```
-1. Go to your project
-2. Open Manage → Artifacts to review templates
-3. Open a source and run an artifact from source detail
-4. Wait for processing
-5. Insight appears on the source
+1. Go to Manage → Artifacts
+2. Open a template (or create one)
+3. Paste sample text in the playground
+4. Run the artifact and review the output
+5. For project work, run the same template from project chat and save as a note
 ```
 
 ---
@@ -104,7 +104,7 @@ Best for: Academic papers, research review
 ### Takeaways
 
 ```
-What it does: Extracts actionable insights
+What it does: Extracts actionable takeaways
 Output: What you should do with this information
 Best for: Business documents, practical guides
 ```

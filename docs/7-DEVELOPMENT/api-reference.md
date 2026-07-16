@@ -66,9 +66,9 @@ Instead of memorizing endpoints, use the interactive API docs:
 - `POST /search` - Full-text or vector search
 - `POST /ask` - Ask a question (search + synthesize)
 
-**Artifacts** - Custom prompts for extracting insights
-- `GET/POST /artifacts` - Create custom extraction rules
-- `POST /sources/{id}/insights` - Apply artifact to source
+**Artifacts** - Custom prompt templates for structured analysis
+- `GET/POST /artifacts` - List and create artifact templates
+- `POST /artifacts/execute` - Run an artifact on input text (returns output; save as a note separately)
 
 **Models** - Configure AI providers
 - `GET /models` - Available models

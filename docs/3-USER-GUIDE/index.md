@@ -33,7 +33,7 @@ Creating, organizing, and using notes (both manual and AI-generated).
 **Quick links:**
 - Create a manual note
 - Save AI responses as notes
-- Apply artifacts to generate insights
+- Run artifact templates in chat; save results as notes
 - Organize with tags and naming
 - Use notes across your project
 
@@ -76,7 +76,7 @@ Two search modes: text-based (keyword) and vector-based (semantic). Know when to
 ---
 
 ### 6. [Artifacts](artifacts.md)
-Batch-process sources with predefined templates. Extract the same insights from multiple documents.
+Batch-run reusable prompt templates in project chat. Produce consistent structured outputs across documents.
 
 **Quick links:**
 - Built-in artifact templates
@@ -157,10 +157,10 @@ Task: "I need to add or change my AI provider API keys"
 - Ask a simple question: "What are the main points?"
 - See AI respond with citations
 
-**Step 4: Save Insight as Note (2 min)**
+**Step 4: Save Response as Note (2 min)**
 - Good response? Click "Save as Note"
 - Name it something useful ("Main points from source X")
-- Now you have a captured insight
+- Now you have a captured finding in your notes
 
 **Step 5: Explore More (6 min)**
 - Add another source

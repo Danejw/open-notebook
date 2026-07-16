@@ -408,7 +408,7 @@ Once you've added sources, you can:
 
 - **Chat** → Ask questions (see [Chat Effectively](chat-effectively.md))
 - **Search** → Find specific content (see [Search Effectively](search.md))
-- **Artifacts** → Extract structured insights (see [Artifacts](artifacts.md))
+- **Artifacts** → Run structured templates in chat (see [Artifacts](artifacts.md))
 - **Ask** → Get comprehensive answers (see [Search Effectively](search.md))
 - **Podcasts** → Turn into audio (see [Creating Podcasts](creating-podcasts.md))
 

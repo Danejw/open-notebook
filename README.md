@@ -234,11 +234,11 @@ Thanks to the [Esperanto](https://github.com/lfnovo/esperanto) library, we suppo
 - **🎙️ Professional Podcast Generation**: Advanced multi-speaker podcasts with Episode Profiles
 - **🔍 Intelligent Search**: Full-text and vector search across all your content
 - **💬 Context-Aware Chat**: AI conversations powered by your research materials
-- **📝 AI-Assisted Notes**: Generate insights or write notes manually
+- **📝 AI-Assisted Notes**: Generate summaries or write notes manually
 
 ### Advanced Features
 - **⚡ Reasoning Model Support**: Full support for thinking models like DeepSeek-R1 and Qwen3
-- **🔧 Content Artifacts**: Powerful customizable actions to summarize and extract insights
+- **🔧 Content Artifacts**: Powerful customizable actions to summarize and extract structured outputs
 - **🌐 Comprehensive REST API**: Full programmatic access for custom integrations [![API Docs](https://img.shields.io/badge/API-Documentation-blue?style=flat-square)](http://localhost:5055/docs)
 - **🔐 Optional Password Protection**: Secure public deployments with authentication
 - **📊 Fine-Grained Context Control**: Choose exactly what to share with AI models

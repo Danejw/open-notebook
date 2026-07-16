@@ -107,19 +107,12 @@ You: [Get back one comprehensive answer]
 6. You save the response as a project note
 ```
 
-**Legacy flow (single source):**
-```
-1. You define an artifact (or choose a preset)
-2. You apply it to ONE source at a time
-3. Result stored as a source insight
-```
-
-**Context management:** Project chat uses your selected sources/notes. Single-source artifacts only see that source's text.
+**Context management:** Project chat uses your selected sources/notes.
 
 **Best for:**
-- Structured deliverables grounded in the full project (chat path)
-- Repeatable per-source extraction (legacy insight path)
-- Construction templates: bid scope, takeoffs, schedule, compliance
+- Structured deliverables grounded in the full project
+- Repeatable templates: bid scope, takeoffs, schedule, compliance
+- Saving consistent outputs as notes
 
 ---
 
@@ -140,8 +133,8 @@ What are you trying to do?
 ├─→ "I need to compare these sources or get a comprehensive answer"
 │   └─→ USE: ASK
 │
-├─→ "I want to extract the same info from each source (one at a time)"
-│   └─→ USE: ARTIFACTS (apply to each source)
+├─→ "I want the same structured extract across many sources"
+│   └─→ USE: ARTIFACTS (run template in chat; save each result as a note)
 │
 └─→ "I just want to read and search"
     └─→ USE: Search (text or vector)
@@ -156,10 +149,10 @@ What are you trying to do?
 |--------|------|-----|-----------------|
 | **What's it for?** | Conversational exploration | Comprehensive Q&A | Template-based extraction |
 | **# of questions** | Multiple (conversational) | One | One template per source |
-| **Context control** | Manual (you choose) | Automatic (system searches) | One source at a time |
-| **Conversational?** | Yes (follow-ups work) | No (one question only) | No (single operation) |
-| **Output** | Natural conversation | Natural answer | Structured note |
-| **Time** | Quick (back-and-forth) | Longer (comprehensive) | Per source |
+| **Context control** | Manual (you choose) | Automatic (system searches) | Selected project context |
+| **Conversational?** | Yes (follow-ups work) | No (one question only) | Via chat (template + follow-ups) |
+| **Output** | Natural conversation | Natural answer | Structured response → note |
+| **Time** | Quick (back-and-forth) | Longer (comprehensive) | Per template run |
 | **Best when** | Exploring & uncertain | Need full picture | Want consistent format |
 | **Model speed** | Any | Fast preferred | Any |
 
@@ -174,9 +167,8 @@ Goal: Write literature review from 15 papers
 
 Step 1: ARTIFACTS
   - Define: "Extract abstract, methodology, findings, relevance"
-  - Apply to paper 1 → get structured note
-  - Apply to paper 2 → get structured note
-  - ... repeat for all 15 papers
+  - Run template in project chat for each paper (or batch via notes workflow)
+  - Save each response as a note
   - Result: 15 structured notes with consistent format
 
 Step 2: Read the notes
@@ -187,8 +179,8 @@ Step 3: CHAT or ASK
   - Ask: "What are the common methodologies across these papers?"
 
 Step 4: Write your review
-  - Use the artifacts as foundation
-  - Use chat/ask insights for structure
+  - Use the artifact notes as foundation
+  - Use chat/ask answers for structure
 ```
 
 ### Example 2: Product Research
@@ -208,8 +200,8 @@ Step 3: CHAT
 
 Step 4: ARTIFACTS (optional)
   - Define: "Extract: pain point, frequency, who mentioned it"
-  - Apply to each interview (one by one)
-  - Get structured data for analysis
+  - Run on each interview via project chat
+  - Save structured notes for analysis
 ```
 
 ### Example 3: Policy Analysis

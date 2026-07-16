@@ -11,6 +11,14 @@ import {
   useTestMcpConnection,
 } from '@/lib/hooks/use-mcp'
 import { cn } from '@/lib/utils'
+import {
+  CompactListRow,
+  CompactListRowActions,
+  CompactListRowContent,
+  CompactListRowMeta,
+  CompactListRowTitle,
+  CompactListRowTitleRow,
+} from '@/components/common/CompactListRow'
 
 interface McpConnectionCardProps {
   connection: McpConnection
@@ -43,23 +51,20 @@ export function McpConnectionCard({ connection, onDelete }: McpConnectionCardPro
       : t('tools.authNone')
 
   return (
-    <div className="group flex items-start gap-2 py-1.5">
-      <div className="min-w-0 flex-1 space-y-0.5">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Link
-            href={`/tools/${connection.id}`}
-            className="text-sm font-medium truncate hover:underline"
-          >
+    <CompactListRow align="start" className="px-0">
+      <CompactListRowContent className="space-y-0.5">
+        <CompactListRowTitleRow className="flex-wrap gap-1.5">
+          <CompactListRowTitle href={`/tools/${connection.id}`}>
             {connection.name}
-          </Link>
+          </CompactListRowTitle>
           {connection.status !== 'connected' && (
             <Badge variant={statusBadgeVariant(connection.status)} className="h-4 px-1 text-[10px]">
               {t(`tools.status.${connection.status}`, connection.status)}
             </Badge>
           )}
-        </div>
-        <p className="text-[11px] text-muted-foreground truncate">{connection.endpoint_url}</p>
-        <p className="text-[11px] text-muted-foreground">
+        </CompactListRowTitleRow>
+        <CompactListRowMeta>{connection.endpoint_url}</CompactListRowMeta>
+        <CompactListRowMeta>
           {t('tools.toolCount').replace('{count}', String(toolCount))} · {authLabel}
           {connection.last_synced_at && (
             <>
@@ -68,13 +73,13 @@ export function McpConnectionCard({ connection, onDelete }: McpConnectionCardPro
               {new Date(connection.last_synced_at).toLocaleDateString()}
             </>
           )}
-        </p>
+        </CompactListRowMeta>
         {connection.last_error && (
-          <p className="text-[11px] text-destructive line-clamp-1">{connection.last_error}</p>
+          <p className="line-clamp-1 text-[11px] text-destructive">{connection.last_error}</p>
         )}
-      </div>
+      </CompactListRowContent>
 
-      <div className="flex flex-shrink-0 items-center gap-0.5">
+      <CompactListRowActions>
         <Button
           variant="ghost"
           size="icon"
@@ -115,7 +120,7 @@ export function McpConnectionCard({ connection, onDelete }: McpConnectionCardPro
         >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
-      </div>
-    </div>
+      </CompactListRowActions>
+    </CompactListRow>
   )
 }

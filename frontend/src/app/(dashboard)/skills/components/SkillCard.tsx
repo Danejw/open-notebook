@@ -1,10 +1,17 @@
 'use client'
 
-import Link from 'next/link'
 import { Archive, Sparkles } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Skill } from '@/lib/types/skills'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import {
+  CompactListRow,
+  CompactListRowContent,
+  CompactListRowIcon,
+  CompactListRowMeta,
+  CompactListRowTitle,
+  CompactListRowTitleRow,
+} from '@/components/common/CompactListRow'
 
 interface SkillCardProps {
   skill: Skill
@@ -28,30 +35,30 @@ export function SkillCard({ skill }: SkillCardProps) {
   }
 
   return (
-    <Link href={`/skills/${skill.id}`} className="block">
-      <div className="group flex items-center gap-2 px-3 py-1.5 transition-colors hover:bg-muted/40">
-        <Sparkles className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-sm font-medium">{skill.name}</span>
-            {skill.archived ? (
-              <Badge variant="outline" className="h-5 shrink-0 gap-1 px-1.5 text-[10px]">
-                <Archive className="h-3 w-3" />
-                {t('skills.archived')}
-              </Badge>
-            ) : null}
-          </div>
-          <p className="truncate text-[11px] text-muted-foreground">
-            {skill.description ? (
-              <>
-                <span>{skill.description}</span>
-                <span aria-hidden> · </span>
-              </>
-            ) : null}
-            {metaParts.join(' · ')}
-          </p>
-        </div>
-      </div>
-    </Link>
+    <CompactListRow href={`/skills/${skill.id}`}>
+      <CompactListRowIcon>
+        <Sparkles aria-hidden />
+      </CompactListRowIcon>
+      <CompactListRowContent>
+        <CompactListRowTitleRow className="gap-2">
+          <CompactListRowTitle>{skill.name}</CompactListRowTitle>
+          {skill.archived ? (
+            <Badge variant="outline" className="h-5 shrink-0 gap-1 px-1.5 text-[10px]">
+              <Archive className="h-3 w-3" />
+              {t('skills.archived')}
+            </Badge>
+          ) : null}
+        </CompactListRowTitleRow>
+        <CompactListRowMeta>
+          {skill.description ? (
+            <>
+              <span>{skill.description}</span>
+              <span aria-hidden> · </span>
+            </>
+          ) : null}
+          {metaParts.join(' · ')}
+        </CompactListRowMeta>
+      </CompactListRowContent>
+    </CompactListRow>
   )
 }

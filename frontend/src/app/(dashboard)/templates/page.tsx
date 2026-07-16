@@ -21,7 +21,15 @@ import {
 } from '@/lib/hooks/use-html-documents'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import type { HtmlTemplate } from '@/lib/types/html-documents'
-import { listActionTriggerClassName } from '@/lib/utils/list-action-trigger'
+import {
+  CompactListRow,
+  CompactListRowActions,
+  CompactListRowContent,
+  CompactListRowIcon,
+  CompactListRowMeta,
+  CompactListRowTitle,
+  CompactListRowTitleRow,
+} from '@/components/common/CompactListRow'
 
 export default function TemplatesPage() {
   const { t } = useTranslation()
@@ -113,21 +121,17 @@ export default function TemplatesPage() {
         ) : (
           <ul className="divide-y rounded-md border">
             {templates.map((template) => (
-              <li
-                key={template.id}
-                className="group flex items-center gap-2 px-3 py-1.5"
-              >
-                <FileCode2
-                  className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-                  aria-hidden
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm leading-snug">{template.name}</p>
-                  <p className="truncate text-[11px] leading-tight text-muted-foreground">
-                    {template.category}
-                  </p>
-                </div>
-                <div className={cn('flex shrink-0 items-center gap-0.5', listActionTriggerClassName)}>
+              <CompactListRow key={template.id} as="li" hover={false}>
+                <CompactListRowIcon>
+                  <FileCode2 aria-hidden />
+                </CompactListRowIcon>
+                <CompactListRowContent>
+                  <CompactListRowTitleRow>
+                    <CompactListRowTitle className="leading-snug">{template.name}</CompactListRowTitle>
+                  </CompactListRowTitleRow>
+                  <CompactListRowMeta className="leading-tight">{template.category}</CompactListRowMeta>
+                </CompactListRowContent>
+                <CompactListRowActions>
                   <Button
                     size="sm"
                     variant="ghost"
@@ -146,8 +150,8 @@ export default function TemplatesPage() {
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
-                </div>
-              </li>
+                </CompactListRowActions>
+              </CompactListRow>
             ))}
           </ul>
         )}

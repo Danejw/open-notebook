@@ -90,22 +90,24 @@ export function CollectionImportDialog({
           <DialogTitle>{t('collections.importTitle')}</DialogTitle>
         </DialogHeader>
         <div className={dialogBodyClassName}>
-          <div className="space-y-3">
-            <Label htmlFor={fileInputId}>{t('collections.uploadZip')}</Label>
-            <Input
-              id={fileInputId}
-              ref={fileInputRef}
-              type="file"
-              accept=".zip"
-              onChange={handleFileChange}
-            />
+          <div className="space-y-1.5">
+            <div className="space-y-0.5">
+              <Label htmlFor={fileInputId}>{t('collections.uploadZip')}</Label>
+              <Input
+                id={fileInputId}
+                ref={fileInputRef}
+                type="file"
+                accept=".zip"
+                onChange={handleFileChange}
+              />
+            </div>
             {importPreview.isPending ? (
               <p className="text-sm text-muted-foreground">{t('collections.importReviewing')}</p>
             ) : null}
             {preview?.errors.length ? (
-              <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+              <div className="rounded-md border border-destructive/40 bg-destructive/5 p-1.5 text-sm text-destructive">
                 <p className="font-medium">{t('collections.importErrors')}</p>
-                <ul className="mt-1 list-disc pl-4">
+                <ul className="mt-0.5 list-disc pl-4 text-[11px]">
                   {preview.errors.map((error) => (
                     <li key={error}>{error}</li>
                   ))}
@@ -114,7 +116,7 @@ export function CollectionImportDialog({
             ) : null}
             {preview && preview.errors.length === 0 ? (
               <>
-                <div className="space-y-2">
+                <div className="space-y-0.5">
                   <Label htmlFor="import-name">{t('common.name')}</Label>
                   <Input
                     id="import-name"
@@ -122,7 +124,7 @@ export function CollectionImportDialog({
                     onChange={(e) => setName(e.target.value)}
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-0.5">
                   <Label htmlFor="import-description">{t('common.description')}</Label>
                   <Textarea
                     id="import-description"
@@ -131,7 +133,7 @@ export function CollectionImportDialog({
                     rows={3}
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[11px] text-muted-foreground">
                   {t('collections.importItems').replace(
                     '{count}',
                     preview.items.length.toString()

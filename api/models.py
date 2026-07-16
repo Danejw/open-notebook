@@ -35,7 +35,12 @@ class SearchRequest(BaseModel):
     type: Literal["text", "vector", "hybrid"] = Field("text", description="Search type")
     limit: int = Field(100, description="Maximum number of results", ge=1, le=1000)
     search_sources: bool = Field(True, description="Include sources in search")
-    search_notes: bool = Field(True, description="Include notes in search")
+    search_artifacts: Optional[bool] = Field(
+        None, description="Include project artifacts in search (canonical)"
+    )
+    search_notes: bool = Field(
+        True, description="Deprecated alias for search_artifacts"
+    )
     minimum_score: float = Field(
         0.2, description="Minimum score for vector search", ge=0, le=1
     )
@@ -43,6 +48,11 @@ class SearchRequest(BaseModel):
         None,
         description="Optional project scope; when set, only project members are searched",
     )
+
+    def resolve_search_artifacts(self) -> bool:
+        if self.search_artifacts is not None:
+            return self.search_artifacts
+        return self.search_notes
 
 
 class SearchResponse(BaseModel):
@@ -204,6 +214,14 @@ class ArtifactExecuteResponse(BaseModel):
     model_id: str = Field(..., description="Model ID used")
 
 
+# Canonical names for the global prompt library (table `artifact`, IDs `artifact:…`)
+ArtifactTemplateCreate = ArtifactCreate
+ArtifactTemplateUpdate = ArtifactUpdate
+ArtifactTemplateResponse = ArtifactResponse
+ArtifactTemplateExecuteRequest = ArtifactExecuteRequest
+ArtifactTemplateExecuteResponse = ArtifactExecuteResponse
+
+
 # Default Prompt API models
 class DefaultPromptResponse(BaseModel):
     artifact_instructions: str = Field(..., description="Default Artifact instructions")
@@ -213,32 +231,61 @@ class DefaultPromptUpdate(BaseModel):
     artifact_instructions: str = Field(..., description="Default Artifact instructions")
 
 
-# Notes API models
-class NoteCreate(BaseModel):
-    title: Optional[str] = Field(None, description="Note title")
-    content: str = Field(..., description="Note content")
-    note_type: Optional[str] = Field(
-        "human", description="Type of artifact-backed note (human, ai, note, artifact)"
+# Project Artifacts API models (persisted project outputs; table `note`)
+class ProjectArtifactCreate(BaseModel):
+    title: Optional[str] = Field(None, description="Artifact title")
+    content: str = Field(..., description="Artifact content")
+    artifact_kind: Optional[str] = Field(
+        None,
+        description="Provenance kind: manual, ai, or generated",
     )
-    project_id: Optional[str] = Field(None, description="Project ID to add the note to")
-
-
-class NoteUpdate(BaseModel):
-    title: Optional[str] = Field(None, description="Note title")
-    content: Optional[str] = Field(None, description="Note content")
     note_type: Optional[str] = Field(
-        None, description="Type of artifact-backed note (human, ai, note, artifact)"
+        None,
+        description="Deprecated alias for artifact_kind (legacy values accepted)",
+    )
+    project_id: Optional[str] = Field(
+        None, description="Project ID to add the artifact to"
     )
 
 
-class NoteResponse(BaseModel):
+class ProjectArtifactUpdate(BaseModel):
+    title: Optional[str] = Field(None, description="Artifact title")
+    content: Optional[str] = Field(None, description="Artifact content")
+    artifact_kind: Optional[str] = Field(
+        None, description="Provenance kind: manual, ai, or generated"
+    )
+    note_type: Optional[str] = Field(
+        None, description="Deprecated alias for artifact_kind"
+    )
+
+
+class ProjectArtifactResponse(BaseModel):
     id: str
     title: Optional[str]
     content: Optional[str]
-    note_type: Optional[str]
+    artifact_kind: Optional[str]
+    note_type: Optional[str] = Field(
+        None, description="Deprecated alias mirroring artifact_kind"
+    )
     created: str
     updated: str
     command_id: Optional[str] = None
+
+
+# Legacy aliases
+class NoteCreate(ProjectArtifactCreate):
+    note_type: Optional[str] = Field(
+        "manual",
+        description="Deprecated — use artifact_kind (manual, ai, generated)",
+    )
+
+
+class NoteUpdate(ProjectArtifactUpdate):
+    pass
+
+
+class NoteResponse(ProjectArtifactResponse):
+    pass
 
 
 # Embedding API models
@@ -274,7 +321,17 @@ class RebuildRequest(BaseModel):
         description="Rebuild mode: 'existing' only re-embeds items with embeddings, 'all' embeds everything",
     )
     include_sources: bool = Field(True, description="Include sources in rebuild")
-    include_notes: bool = Field(True, description="Include notes in rebuild")
+    include_artifacts: Optional[bool] = Field(
+        None, description="Include project artifacts in rebuild (canonical)"
+    )
+    include_notes: bool = Field(
+        True, description="Deprecated alias for include_artifacts"
+    )
+
+    def resolve_include_artifacts(self) -> bool:
+        if self.include_artifacts is not None:
+            return self.include_artifacts
+        return self.include_notes
 
 
 class RebuildResponse(BaseModel):
@@ -448,9 +505,18 @@ class ContextConfig(BaseModel):
     sources: Dict[str, str] = Field(
         default_factory=dict, description="Source inclusion config {source_id: level}"
     )
-    notes: Dict[str, str] = Field(
-        default_factory=dict, description="Note inclusion config {note_id: level}"
+    artifacts: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Project artifact inclusion config {artifact_id: level}",
     )
+    notes: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Deprecated alias for artifacts {note_id: level}",
+    )
+
+    def resolved_artifacts(self) -> Dict[str, str]:
+        """Merge legacy notes with canonical artifacts (artifacts win on conflict)."""
+        return {**self.notes, **self.artifacts}
 
 
 class ContextRequest(BaseModel):

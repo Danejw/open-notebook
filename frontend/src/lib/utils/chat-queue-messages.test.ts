@@ -23,6 +23,7 @@ function item(): ChatQueueItemResponse {
     execution_snapshot: {
       model_id: null,
       skill_ids: [],
+      collection_ids: [],
       tool_ids: [],
       html_template_id: null,
       artifact_id: null,

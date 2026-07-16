@@ -10,13 +10,13 @@ Artifacts are reusable prompt templates for construction workflows (bid scope, t
 1. Open the sidebar Projects section
 2. Expand a project and click an artifact template
 3. Project chat opens with the template active
-4. Select sources/notes for context (or use defaults)
+4. Select sources and project artifacts for context (or use defaults)
 5. Send the prefilled message (edit if needed)
 6. Review the grounded response with citations
-7. Save the response as a project note
+7. Save the response as a project artifact
 ```
 
-Artifact templates are managed under **Manage → Artifacts** (`/artifacts`). You can also test a template in the playground (`POST /artifacts/execute`); primary use is still project chat with save-as-note.
+Artifact templates are managed under **Manage → Artifacts** (`/artifact-templates`; legacy `/artifacts`). You can also test a template in the playground (`POST /artifact-templates/execute`); primary use is still project chat with save-as-artifact.
 
 ---
 
@@ -26,13 +26,13 @@ Artifact templates are managed under **Manage → Artifacts** (`/artifacts`). Yo
 |-------------------------------------|------------------------|
 | Structured output from a known template | Exploratory conversation |
 | Cross-document project analysis | Quick one-off questions |
-| Saving repeatable deliverables as notes | Iterating without a fixed format |
+| Saving repeatable deliverables as project artifacts | Iterating without a fixed format |
 
 ---
 
 ## Playground: Test a template on sample text
 
-Use **Manage → Artifacts** playground to run a template on pasted text. Output is returned immediately — save useful results as a project note from chat when you want them in the knowledge base.
+Use **Manage → Artifacts** playground to run a template on pasted text. Output is returned immediately — save useful results as a project artifact from chat when you want them in the knowledge base.
 
 ---
 
@@ -43,7 +43,7 @@ Use **Manage → Artifacts** playground to run a template on pasted text. Output
 | Same analysis on many sources | One-off questions |
 | Consistent output format needed | Exploratory conversation |
 | Batch processing | Follow-up questions needed |
-| Creating structured notes | Context changes between questions |
+| Creating structured project artifacts | Context changes between questions |
 
 **Example**: You have 10 papers and want a summary of each. Artifact does it in one operation.
 
@@ -56,7 +56,7 @@ Use **Manage → Artifacts** playground to run a template on pasted text. Output
 2. Click a template (e.g., "Bid Scope Summary")
 3. In project chat, confirm context selections include relevant sources
 4. Send the message
-5. Click Save on the AI response to create a project note
+5. Click Save on the AI response to create a project artifact
 ```
 
 ---
@@ -68,7 +68,7 @@ Use **Manage → Artifacts** playground to run a template on pasted text. Output
 2. Open a template (or create one)
 3. Paste sample text in the playground
 4. Run the artifact and review the output
-5. For project work, run the same template from project chat and save as a note
+5. For project work, run the same template from project chat and save as a project artifact
 ```
 
 ---
@@ -181,7 +181,7 @@ Bad: "Summarize this"
 2. Select "Transform"
 3. Choose artifact template
 4. Click "Apply"
-5. Note appears when done
+5. Project artifact appears when done
 ```
 
 ### To Multiple Sources (Batch)
@@ -192,7 +192,7 @@ Bad: "Summarize this"
 3. Check multiple sources
 4. Click "Apply to Selected"
 5. Processing runs in parallel
-6. One note per source created
+6. One project artifact per source created
 ```
 
 ### Processing Time
@@ -326,12 +326,12 @@ Built-in artifacts appear first, then custom ones alphabetically.
 
 ### Where Results Go
 
-- Each source produces one note
-- Notes appear in your project's Notes panel
-- Notes are tagged with artifact name
+- Each source produces one project artifact
+- Artifacts appear in your project's Artifacts panel
+- Artifacts are tagged with template name
 - Original source is linked
 
-### Note Naming
+### Artifact naming
 
 ```
 Default: "[Artifact Name] - [Source Title]"
@@ -341,7 +341,7 @@ Example: "Summary - Research Paper 2025.pdf"
 ### Editing Output
 
 ```
-1. Click the generated note
+1. Click the generated project artifact
 2. Click "Edit"
 3. Refine the content
 4. Save
@@ -387,7 +387,7 @@ Example: "Summary - Research Paper 2025.pdf"
 
 ### Inconsistent Format
 
-**Problem**: Each note looks different
+**Problem**: Each project artifact looks different
 **Solution**: Add clear formatting instructions to prompt
 
 ### Too Long/Short
@@ -411,7 +411,7 @@ Example: "Summary - Research Paper 2025.pdf"
 |---------|----------------|------|-----|
 | **Input** | Predefined template | Your questions | Your question |
 | **Scope** | One source at a time | Selected sources | Auto-searched |
-| **Output** | Structured note | Conversation | Comprehensive answer |
+| **Output** | Structured project artifact | Conversation | Comprehensive answer |
 | **Best for** | Batch processing | Exploration | One-shot answers |
 | **Follow-up** | Run again | Ask more | New query |
 
@@ -426,7 +426,7 @@ How to use:
 1. Define template (or use built-in)
 2. Select sources
 3. Apply artifact
-4. Get structured notes
+4. Get structured project artifacts
 
 When to use:
 - Same analysis on many sources

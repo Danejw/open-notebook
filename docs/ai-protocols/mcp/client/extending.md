@@ -5,7 +5,7 @@ How the in-app MCP client works today, and how to extend it **without rebuilding
 **Role:** Construction OS → remote MCP servers (client)  
 **Not:** Cos MCP server for Claude/VS Code — see [mcp-integration.md](../../../5-CONFIGURATION/mcp-integration.md)
 
-Related: [architecture.md](./architecture.md) · [authorization.md](./authorization.md) · [AG-UI mcp_tool_call](../../agui/custom-events.md)
+Related: [architecture.md](./architecture.md) · [authorization.md](./authorization.md) · [AG-UI mcp_tool_call](../../agui/custom-events.md) · [Native tools](../../tools/extending.md)
 
 ---
 

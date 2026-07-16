@@ -17,16 +17,18 @@ from construction_os.domain.artifact import DefaultPrompts
 from construction_os.domain.project import Project
 from construction_os.exceptions import ConstructionOSError
 from construction_os.graphs.chat_context import build_relevance_context
+from construction_os.capabilities.models import CapabilityRuntimeContext
 from construction_os.graphs.chat_intent import (
     latest_user_message,
     needs_project_context,
+    requests_project_artifact_save,
 )
 from construction_os.graphs.progress import emit_agent_progress
 from construction_os.graphs.a2ui_emit import (
     format_a2ui_agent_catalog,
     is_a2ui_chat_enabled,
 )
-from construction_os.mcp.chat_loop import generate_with_mcp_tools
+from construction_os.tool_runtime.chat_loop import generate_with_tools
 from construction_os.collections.loader import (
     format_collections_context,
     load_one_collection_block,
@@ -55,6 +57,7 @@ class ThreadState(TypedDict):
     mcp_tool_ids: Optional[list]
     strict_mcp_tools: bool
     session_id: Optional[str]
+    is_guest: bool
     html_template_id: Optional[str]
     html_template: Optional[dict]
     artifact_id: Optional[str]
@@ -345,8 +348,34 @@ def generating(state: ThreadState, config: RunnableConfig) -> dict:
         )
         assistant_message_id = str(uuid.uuid4())
 
+        project_id = state.get("project_id")
+        if not project_id and isinstance(state.get("project"), dict):
+            project_id = state["project"].get("id")
+        elif not project_id and state.get("project") is not None:
+            project_id = getattr(state.get("project"), "id", None)
+
+        user_text = latest_user_message(state.get("messages"))
+        is_guest = bool(state.get("is_guest"))
+        capability_context: CapabilityRuntimeContext | None = None
+        if project_id and session_id and not is_guest:
+            capability_context = CapabilityRuntimeContext(
+                project_id=str(project_id),
+                session_id=str(session_id),
+                message_id=assistant_message_id,
+                is_guest=False,
+                allow_project_artifact_save=requests_project_artifact_save(user_text),
+                enable_native_tools=True,
+                explicit_skill_ids=list(state.get("skill_ids") or []),
+                explicit_collection_ids=list(state.get("collection_ids") or []),
+                explicit_mcp_tool_ids=list(state.get("mcp_tool_ids") or []),
+                explicit_html_template_id=state.get("html_template_id"),
+                explicit_artifact_template_id=state.get("artifact_id"),
+                context_config=state.get("context_config"),
+                model_override=model_id,
+            )
+
         ai_message = _run_async(
-            generate_with_mcp_tools(
+            generate_with_tools(
                 provision_model=provision_langchain_model,
                 payload=payload,
                 model_id=model_id,
@@ -355,6 +384,7 @@ def generating(state: ThreadState, config: RunnableConfig) -> dict:
                 message_id=assistant_message_id,
                 config=config,
                 strict_mcp_tools=bool(state.get("strict_mcp_tools")),
+                capability_context=capability_context,
             )
         )
 

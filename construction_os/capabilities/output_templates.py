@@ -1,4 +1,4 @@
-"""list_templates / get_templates (HTML) capabilities."""
+"""list_output_templates / get_output_template (HTML) capabilities."""
 
 from __future__ import annotations
 
@@ -14,20 +14,20 @@ from construction_os.services.html_templates import (
 )
 
 
-class ListTemplatesInput(BaseModel):
+class ListOutputTemplatesInput(BaseModel):
     query: Optional[str] = None
     category: Optional[str] = None
 
 
-class ListTemplatesOutput(BaseModel):
+class ListOutputTemplatesOutput(BaseModel):
     templates: list[dict[str, Any]] = Field(default_factory=list)
 
 
-class GetTemplatesInput(BaseModel):
+class GetOutputTemplateInput(BaseModel):
     template_id: str
 
 
-class GetTemplatesOutput(BaseModel):
+class GetOutputTemplateOutput(BaseModel):
     template: dict[str, Any]
     note: str = (
         "Loaded for this turn only. Not persisted as a session HTML template "
@@ -35,12 +35,12 @@ class GetTemplatesOutput(BaseModel):
     )
 
 
-async def list_templates(
+async def list_output_templates(
     ctx: CapabilityRuntimeContext,
-    inputs: ListTemplatesInput | None = None,
-) -> ListTemplatesOutput:
+    inputs: ListOutputTemplatesInput | None = None,
+) -> ListOutputTemplatesOutput:
     await require_project_session(ctx)
-    filters = inputs or ListTemplatesInput()
+    filters = inputs or ListOutputTemplatesInput()
     catalog = await list_html_templates(include_body=False)
     out: list[dict[str, Any]] = []
     for item in catalog:
@@ -52,13 +52,13 @@ async def list_templates(
             if q not in hay:
                 continue
         out.append(item)
-    return ListTemplatesOutput(templates=out)
+    return ListOutputTemplatesOutput(templates=out)
 
 
-async def get_templates(
+async def get_output_template(
     ctx: CapabilityRuntimeContext,
-    inputs: GetTemplatesInput,
-) -> GetTemplatesOutput:
+    inputs: GetOutputTemplateInput,
+) -> GetOutputTemplateOutput:
     await require_project_session(ctx)
     template = await get_html_template(inputs.template_id, expand_for_chat=True)
-    return GetTemplatesOutput(template=template)
+    return GetOutputTemplateOutput(template=template)

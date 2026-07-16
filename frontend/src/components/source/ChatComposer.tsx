@@ -122,16 +122,17 @@ export function ChatComposer({
   const submitMessage = useCallback(
     async (message: string) => {
       if (onEnqueueMessage && deferToQueue) {
+        // Never schedule the worker runner — client drains via sendMessage.
         await onEnqueueMessage(message, {
           loopCount: 1,
           modelOverride,
-          scheduleRunner: !isStreaming,
+          scheduleRunner: false,
         })
         return
       }
       onSendMessage(message, modelOverride)
     },
-    [deferToQueue, isStreaming, modelOverride, onEnqueueMessage, onSendMessage]
+    [deferToQueue, modelOverride, onEnqueueMessage, onSendMessage]
   )
 
   // Prefill the trigger prompt when an artifact is selected; do not auto-send so

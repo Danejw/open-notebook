@@ -16,7 +16,12 @@ export function proxy(request: NextRequest) {
 
   if (pathname === '/transformations' || pathname.startsWith('/transformations/')) {
     const suffix = pathname.slice('/transformations'.length)
-    return NextResponse.redirect(new URL(`/artifacts${suffix}`, request.url))
+    return NextResponse.redirect(new URL(`/artifact-templates${suffix}`, request.url))
+  }
+
+  if (pathname === '/artifacts' || pathname.startsWith('/artifacts/')) {
+    const suffix = pathname.slice('/artifacts'.length)
+    return NextResponse.redirect(new URL(`/artifact-templates${suffix}`, request.url))
   }
 
   return NextResponse.next()

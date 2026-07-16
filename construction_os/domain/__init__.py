@@ -5,7 +5,7 @@ This module exports the core domain models used throughout the application.
 Importing this package registers ObjectModel subclasses for polymorphic get().
 """
 
-from construction_os.domain.artifact import Artifact, DefaultPrompts
+from construction_os.domain.artifact import Artifact, ArtifactTemplate, DefaultPrompts
 from construction_os.domain.collection import Collection, CollectionItem
 from construction_os.domain.base import ObjectModel, RecordModel
 from construction_os.domain.chat_queue import (
@@ -28,6 +28,7 @@ from construction_os.domain.project import (
     ChatSession,
     Note,
     Project,
+    ProjectArtifact,
     Source,
     SourceEmbedding,
     text_search,
@@ -36,6 +37,7 @@ from construction_os.domain.project import (
 
 __all__ = [
     "Artifact",
+    "ArtifactTemplate",
     "Asset",
     "ChatSession",
     "Collection",
@@ -56,6 +58,7 @@ __all__ = [
     "Note",
     "ObjectModel",
     "Project",
+    "ProjectArtifact",
     "RecordModel",
     "Source",
     "SourceEmbedding",

@@ -20,8 +20,12 @@ export const QUERY_KEYS = {
   artifacts: ['artifacts'] as const,
   artifact: (id: string) => ['artifacts', id] as const,
   artifactDefaultPrompt: ['artifacts', 'default-prompt'] as const,
-  notes: (projectId?: string) => ['notes', projectId] as const,
-  note: (id: string) => ['notes', id] as const,
+  projectArtifacts: (projectId?: string) => ['projectArtifacts', projectId] as const,
+  projectArtifact: (id: string) => ['projectArtifacts', id] as const,
+  /** @deprecated Use projectArtifacts */
+  notes: (projectId?: string) => ['projectArtifacts', projectId] as const,
+  /** @deprecated Use projectArtifact */
+  note: (id: string) => ['projectArtifacts', id] as const,
   sources: (projectId?: string) => ['sources', projectId] as const,
   sourcesInfinite: (projectId: string) => ['sources', 'infinite', projectId] as const,
   sourcesAllInfinite: (sortBy: string, sortOrder: string) =>

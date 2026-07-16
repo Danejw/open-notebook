@@ -40,10 +40,16 @@ def _ctx(**overrides) -> CapabilityRuntimeContext:
     return CapabilityRuntimeContext(**base)
 
 
-def test_all_thirteen_native_tools_registered():
+def test_all_fourteen_native_tools_registered():
     defs = list_native_tool_definitions()
-    assert len(defs) == 13
+    assert len(defs) == 14
     assert set(NATIVE_TOOL_NAMES) == {d.name for d in defs}
+    assert "list_output_templates" in NATIVE_TOOL_NAMES
+    assert "get_output_template" in NATIVE_TOOL_NAMES
+    assert "list_artifact_templates" in NATIVE_TOOL_NAMES
+    assert "get_artifact_template" in NATIVE_TOOL_NAMES
+    assert "list_templates" not in NATIVE_TOOL_NAMES
+    assert "get_templates" not in NATIVE_TOOL_NAMES
     for name in NATIVE_TOOL_NAMES:
         tool = get_native_tool_definition(name)
         assert tool is not None

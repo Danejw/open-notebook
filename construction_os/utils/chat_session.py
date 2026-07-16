@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from construction_os.database.repository import ensure_record_id, repo_query
-from construction_os.domain.artifact import Artifact
+from construction_os.domain.artifact import ArtifactTemplate
 from construction_os.domain.html_document import HtmlTemplate
 from construction_os.domain.project import ChatSession
 from construction_os.exceptions import NotFoundError
@@ -179,13 +179,13 @@ async def resolve_artifact_meta(
     """Load artifact meta for forwarded props; returns (None, None) when missing."""
     if not artifact_id:
         return None, None
-    artifact = await Artifact.get(artifact_id)
-    if not artifact:
+    artifact_template = await ArtifactTemplate.get(artifact_id)
+    if not artifact_template:
         return None, None
     return artifact_id, {
-        "id": artifact.id,
-        "name": artifact.name,
-        "title": artifact.title,
-        "description": artifact.description,
-        "prompt": artifact.prompt,
+        "id": artifact_template.id,
+        "name": artifact_template.name,
+        "title": artifact_template.title,
+        "description": artifact_template.description,
+        "prompt": artifact_template.prompt,
     }

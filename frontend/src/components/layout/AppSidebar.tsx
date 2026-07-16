@@ -78,7 +78,7 @@ const getManageNavigation = (t: TFunction): NavSection => ({
   title: t('navigation.manage'),
   items: [
     { name: t('navigation.sources'), href: '/sources', icon: FileText },
-    { name: t('navigation.artifacts'), href: '/artifacts', icon: Shuffle },
+    { name: t('navigation.artifacts'), href: '/artifact-templates', icon: Shuffle },
     { name: t('navigation.images'), href: '/images', icon: ImageIcon },
     { name: t('navigation.templates'), href: '/templates', icon: FileCode2 },
     { name: t('navigation.models'), href: '/settings/api-keys', icon: Bot },

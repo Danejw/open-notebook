@@ -21,6 +21,8 @@ type CommonChatPanelFields = Pick<
   | 'onDeleteQueueItem'
   | 'onRetryQueueItem'
   | 'onReorderQueue'
+  | 'queueStreamError'
+  | 'onRetryQueueStream'
   | 'selectedSkillIds'
   | 'onSkillIdsChange'
   | 'selectedCollectionIds'
@@ -49,6 +51,8 @@ type CommonChatRuntime = {
   deleteQueueItem: NonNullable<ChatPanelProps['onDeleteQueueItem']>
   retryQueueItem: NonNullable<ChatPanelProps['onRetryQueueItem']>
   reorderQueue: NonNullable<ChatPanelProps['onReorderQueue']>
+  queueStreamError?: ChatPanelProps['queueStreamError']
+  retryQueueStream?: ChatPanelProps['onRetryQueueStream']
   selectedSkillIds: NonNullable<ChatPanelProps['selectedSkillIds']>
   setSelectedSkillIds: NonNullable<ChatPanelProps['onSkillIdsChange']>
   selectedCollectionIds: NonNullable<ChatPanelProps['selectedCollectionIds']>
@@ -79,6 +83,8 @@ export function bindCommonChatPanelProps(chat: CommonChatRuntime): CommonChatPan
     onDeleteQueueItem: chat.deleteQueueItem,
     onRetryQueueItem: chat.retryQueueItem,
     onReorderQueue: chat.reorderQueue,
+    queueStreamError: chat.queueStreamError ?? null,
+    onRetryQueueStream: chat.retryQueueStream,
     selectedSkillIds: chat.selectedSkillIds,
     onSkillIdsChange: chat.setSelectedSkillIds,
     selectedCollectionIds: chat.selectedCollectionIds,

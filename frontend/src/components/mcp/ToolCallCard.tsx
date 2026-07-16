@@ -42,41 +42,48 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
 
-  const label = toolCall.connection_name
-    ? `${toolCall.connection_name} · ${toolCall.tool_name}`
-    : toolCall.tool_name
+  const isNative = toolCall.tool_source === 'native'
+  const label =
+    !isNative && toolCall.connection_name
+      ? `${toolCall.connection_name} · ${toolCall.tool_name}`
+      : toolCall.tool_name
 
   return (
-    <Card className="border-dashed bg-muted/30 shadow-none">
-      <CardHeader className="p-2 pb-0">
+    <Card className="border-dashed bg-muted/30 py-0 shadow-none">
+      <CardHeader className="px-2 py-1">
         <button
           type="button"
-          className="flex w-full items-start gap-2 text-left"
+          className="flex w-full items-center gap-2 text-left"
           onClick={() => setExpanded((prev) => !prev)}
         >
           {expanded ? (
-            <ChevronDown className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+            <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
           ) : (
-            <ChevronRight className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+            <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
           )}
-          <div className="min-w-0 flex-1 space-y-1">
+          <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5">
               <Wrench className="h-3 w-3 text-muted-foreground" />
               <span className="text-xs font-medium truncate">{label}</span>
               <Badge variant={statusBadgeVariant(toolCall.status)} className="h-4 px-1 text-[10px]">
                 {t(`tools.toolCallStatus.${toolCall.status}`, toolCall.status)}
               </Badge>
+              {isNative && (
+                <Badge variant="outline" className="h-4 px-1 text-[10px]">
+                  {t('tools.source.native', 'native')}
+                </Badge>
+              )}
+              {toolCall.performed_write && (
+                <Badge variant="outline" className="h-4 px-1 text-[10px]">
+                  {t('tools.performedWrite', 'wrote data')}
+                </Badge>
+              )}
               {toolCall.risk_level && (
                 <Badge variant="outline" className="h-4 px-1 text-[10px]">
                   {t(`tools.risk.${toolCall.risk_level}`, toolCall.risk_level)}
                 </Badge>
               )}
             </div>
-            {!expanded && toolCall.result_text && (
-              <p className="text-[11px] text-muted-foreground line-clamp-1">
-                {toolCall.result_text}
-              </p>
-            )}
           </div>
         </button>
       </CardHeader>

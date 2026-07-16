@@ -3,6 +3,7 @@
 import { FileText, StickyNote } from 'lucide-react'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { useTranslation } from '@/lib/hooks/use-translation'
 
 interface ContextIndicatorProps {
   sourcesFull: number
@@ -29,6 +30,7 @@ export function ContextIndicator({
   charCount,
   className
 }: ContextIndicatorProps) {
+  const { t } = useTranslation()
   const hasContext = sourcesFull > 0 || notesCount > 0
   const showTokens = tokenCount !== undefined && tokenCount > 0
   const showChars = !showTokens && charCount !== undefined && charCount > 0
@@ -36,7 +38,7 @@ export function ContextIndicator({
   if (!hasContext) {
     return (
       <div className={cn('flex-shrink-0 px-2 py-0.5 text-[11px] text-muted-foreground border-t', className)}>
-        No context selected — toggle sources or notes to include them.
+        {t('chat.contextNoneSelected')}
       </div>
     )
   }
@@ -56,10 +58,7 @@ export function ContextIndicator({
             </span>
           </TooltipTrigger>
           <TooltipContent className="max-w-xs">
-            <p>
-              Selected sources/notes are searched per message. Chat loads only
-              the most relevant excerpts each time.
-            </p>
+            <p>{t('chat.contextSearchPoolHelp')}</p>
           </TooltipContent>
         </Tooltip>
 
@@ -72,7 +71,7 @@ export function ContextIndicator({
               </span>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{sourcesFull} full source{sourcesFull !== 1 ? 's' : ''}</p>
+              <p>{t('chat.contextFullSources').replace('{count}', String(sourcesFull))}</p>
             </TooltipContent>
           </Tooltip>
         )}
@@ -86,7 +85,7 @@ export function ContextIndicator({
               </span>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{notesCount} full note{notesCount !== 1 ? 's' : ''}</p>
+              <p>{t('chat.contextFullArtifacts').replace('{count}', String(notesCount))}</p>
             </TooltipContent>
           </Tooltip>
         )}

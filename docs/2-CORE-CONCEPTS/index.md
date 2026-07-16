@@ -4,10 +4,10 @@ Before diving into how to use Construction OS, it's important to understand **ho
 
 ## The Five Mental Models
 
-### 1. [Projects, Sources, and Notes](projects-sources-notes.md)
-How Construction OS organizes your research. Understand the three-tier container structure and how information flows from raw materials to finished notes.
+### 1. [Projects, Sources, and Artifacts](projects-sources-artifacts.md)
+How Construction OS organizes your research. Understand the three-tier container structure and how information flows from raw materials to finished project artifacts.
 
-**Key idea**: A project is a scoped research container. Sources are inputs (PDFs, URLs, etc.). Notes are outputs (your analysis, AI-generated summaries, captured chat responses).
+**Key idea**: A project is a scoped research container. Sources are inputs (PDFs, URLs, etc.). Project artifacts are outputs (your analysis, AI-generated summaries, captured chat responses). Artifact templates are reusable prompts in the global library.
 
 ---
 

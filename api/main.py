@@ -14,6 +14,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from api.auth import PasswordAuthMiddleware
 from api.routers import (
+    artifact_templates,
     artifacts,
     auth,
     chat,
@@ -34,6 +35,7 @@ from api.routers import (
     models,
     notes,
     podcasts,
+    project_artifacts,
     projects,
     search,
     settings,
@@ -348,7 +350,13 @@ app.include_router(config.router, prefix="/api", tags=["config"])
 app.include_router(projects.router, prefix="/api", tags=["projects"])
 app.include_router(search.router, prefix="/api", tags=["search"])
 app.include_router(models.router, prefix="/api", tags=["models"])
+app.include_router(
+    artifact_templates.router, prefix="/api", tags=["artifact-templates"]
+)
 app.include_router(artifacts.router, prefix="/api", tags=["artifacts"])
+app.include_router(
+    project_artifacts.router, prefix="/api", tags=["project-artifacts"]
+)
 app.include_router(html_documents.router, prefix="/api", tags=["html-documents"])
 app.include_router(media.router, prefix="/api", tags=["media"])
 app.include_router(skills.router, prefix="/api", tags=["skills"])

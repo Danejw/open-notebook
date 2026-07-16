@@ -30,6 +30,15 @@ describe('useModalManager', () => {
     expect(result.current.isOpen).toBe(false)
   })
 
+  it('should read artifact modal state from URL params', () => {
+    vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams('modal=artifact&id=456') as any)
+    const { result } = renderHook(() => useModalManager())
+    
+    expect(result.current.modalType).toBe('artifact')
+    expect(result.current.modalId).toBe('456')
+    expect(result.current.isOpen).toBe(true)
+  })
+
   it('should read modal state from URL params', () => {
     vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams('modal=note&id=123') as any)
     const { result } = renderHook(() => useModalManager())

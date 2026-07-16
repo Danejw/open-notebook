@@ -36,6 +36,8 @@ export interface McpTool {
   last_discovered_at?: string | null
 }
 
+export type ToolSource = 'native' | 'mcp'
+
 export interface ChatToolCall {
   id: string
   session_id: string
@@ -50,7 +52,14 @@ export interface ChatToolCall {
   result_text?: string | null
   status: string
   error?: string | null
+  tool_source?: ToolSource | null
+  performed_write?: boolean
+  error_category?: string | null
+  started_at?: string | null
+  completed_at?: string | null
+  duration_ms?: number | null
   created?: string | null
+  updated?: string | null
 }
 
 export interface CreateMcpConnectionRequest {

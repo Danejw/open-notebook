@@ -85,6 +85,7 @@ export function RebuildEmbeddings() {
     const request: RebuildEmbeddingsRequest = {
       mode,
       include_sources: includeSources,
+      include_artifacts: includeNotes,
       include_notes: includeNotes,
     }
 

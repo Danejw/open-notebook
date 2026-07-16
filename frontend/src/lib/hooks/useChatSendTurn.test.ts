@@ -74,9 +74,6 @@ function makeHookOptions(
     queryClient: {
       invalidateQueries: vi.fn().mockResolvedValue(undefined),
     },
-    chatQueue: {
-      ensureRunner: vi.fn().mockResolvedValue(undefined),
-    },
     streaming,
     t,
     ensureSession: vi.fn().mockResolvedValue('session-1'),
@@ -210,5 +207,76 @@ describe('useChatSendTurn', () => {
     })
 
     expect(result.current.isSending).toBe(false)
+  })
+
+  it('calls onTurnComplete with the turn sessionId after the stream ends', async () => {
+    const onTurnComplete = vi.fn().mockResolvedValue(undefined)
+    const { result } = renderHook(() =>
+      useChatSendTurn<TestMessage>(
+        makeHookOptions({
+          onTurnComplete,
+          ensureSession: vi.fn().mockResolvedValue('session-turn-1'),
+        }),
+      ),
+    )
+
+    await act(async () => {
+      await result.current.sendMessage('Hello there')
+    })
+
+    expect(onTurnComplete).toHaveBeenCalledWith('session-turn-1')
+  })
+
+  it('calls onTurnComplete only after isSending is cleared', async () => {
+    let resolveStream: (() => void) | undefined
+    vi.mocked(readAgUiSseStream).mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveStream = resolve
+        }),
+    )
+
+    const onTurnComplete = vi.fn().mockResolvedValue(undefined)
+    const { result } = renderHook(() =>
+      useChatSendTurn<TestMessage>(makeHookOptions({ onTurnComplete })),
+    )
+
+    let sendPromise: Promise<void> | undefined
+    act(() => {
+      sendPromise = result.current.sendMessage('Hello there')
+    })
+
+    await waitFor(() => {
+      expect(result.current.isSending).toBe(true)
+    })
+    expect(onTurnComplete).not.toHaveBeenCalled()
+
+    await act(async () => {
+      resolveStream?.()
+      await sendPromise
+    })
+
+    expect(onTurnComplete).toHaveBeenCalledTimes(1)
+    expect(result.current.isSending).toBe(false)
+  })
+
+  it('toasts when onTurnComplete fails after the stream ends', async () => {
+    const onTurnComplete = vi
+      .fn()
+      .mockRejectedValue(new Error('Queue drain failed'))
+    const { result } = renderHook(() =>
+      useChatSendTurn<TestMessage>(
+        makeHookOptions({
+          onTurnComplete,
+        }),
+      ),
+    )
+
+    await act(async () => {
+      await result.current.sendMessage('Hello there')
+    })
+
+    expect(onTurnComplete).toHaveBeenCalledWith('session-1')
+    expect(toast.error).toHaveBeenCalled()
   })
 })

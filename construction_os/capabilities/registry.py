@@ -10,10 +10,10 @@ from construction_os.capabilities import (
     artifact_templates as artifact_templates_mod,
     collections as collections_mod,
     context as context_mod,
+    output_templates as output_templates_mod,
     project_artifacts as project_artifacts_mod,
     retrieval as retrieval_mod,
     skills as skills_mod,
-    templates as templates_mod,
     tools as tools_mod,
 )
 from construction_os.capabilities.models import CapabilityRuntimeContext
@@ -123,22 +123,24 @@ _REGISTRY: dict[str, RegisteredNativeTool] = {
         input_model=tools_mod.GetToolInput,
         handler=tools_mod.get_tool,
     ),
-    "list_templates": RegisteredNativeTool(
-        name="list_templates",
+    "list_output_templates": RegisteredNativeTool(
+        name="list_output_templates",
         description=(
-            "List available HTML templates (metadata only; no HTML body)."
+            "List available HTML / structured output templates "
+            "(metadata only; no HTML body)."
         ),
-        input_model=templates_mod.ListTemplatesInput,
-        handler=templates_mod.list_templates,
+        input_model=output_templates_mod.ListOutputTemplatesInput,
+        handler=output_templates_mod.list_output_templates,
     ),
-    "get_templates": RegisteredNativeTool(
-        name="get_templates",
+    "get_output_template": RegisteredNativeTool(
+        name="get_output_template",
         description=(
-            "Retrieve one HTML template including body and structure metadata "
-            "for generating outputs. Does not set it as the session default."
+            "Retrieve one HTML / structured output template including body and "
+            "structure metadata for generating outputs. Does not set it as the "
+            "session default."
         ),
-        input_model=templates_mod.GetTemplatesInput,
-        handler=templates_mod.get_templates,
+        input_model=output_templates_mod.GetOutputTemplateInput,
+        handler=output_templates_mod.get_output_template,
     ),
     "list_artifact_templates": RegisteredNativeTool(
         name="list_artifact_templates",
@@ -149,6 +151,16 @@ _REGISTRY: dict[str, RegisteredNativeTool] = {
         ),
         input_model=artifact_templates_mod.ListArtifactTemplatesInput,
         handler=artifact_templates_mod.list_artifact_templates,
+    ),
+    "get_artifact_template": RegisteredNativeTool(
+        name="get_artifact_template",
+        description=(
+            "Load one artifact template including its prompt and default "
+            "skill/collection/MCP/output-template attachments. Does not execute "
+            "or persist the template as a session default."
+        ),
+        input_model=artifact_templates_mod.GetArtifactTemplateInput,
+        handler=artifact_templates_mod.get_artifact_template,
     ),
     "run_artifact_template": RegisteredNativeTool(
         name="run_artifact_template",

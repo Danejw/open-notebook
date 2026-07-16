@@ -4,6 +4,9 @@ export interface SearchRequest {
   type: 'text' | 'vector' | 'hybrid'
   limit: number
   search_sources: boolean
+  /** Canonical: include project artifacts in search */
+  search_artifacts?: boolean
+  /** @deprecated Prefer search_artifacts */
   search_notes: boolean
   minimum_score: number
   project_id?: string

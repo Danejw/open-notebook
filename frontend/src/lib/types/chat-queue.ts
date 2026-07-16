@@ -97,25 +97,13 @@ export type ChatQueueEnqueueInput = Omit<
 
 /**
  * True when a new composer submit should go to the queue instead of live AG-UI.
- * Idle sessions send directly; queue only while a turn is in flight or waiting.
+ * Only defer while a message turn is currently running; idle always sends normally.
  */
 export function shouldDeferChatToQueue(
   isStreaming: boolean,
-  queue: ChatQueueResponse | null | undefined
+  _queue?: ChatQueueResponse | null
 ): boolean {
-  if (isStreaming) {
-    return true
-  }
-  if (!queue) {
-    return false
-  }
-  return queue.items.some(
-    (item) =>
-      item.visible &&
-      (item.status === 'pending' ||
-        item.status === 'running' ||
-        item.status === 'failed')
-  )
+  return isStreaming
 }
 
 export interface ChatQueueItemUpdatePayload {

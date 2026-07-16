@@ -9,14 +9,18 @@ export interface ProjectResponse {
   note_count: number
 }
 
-export interface NoteResponse {
+export interface ProjectArtifactResponse {
   id: string
   title: string | null
   content: string | null
+  artifact_kind: string | null
   note_type: string | null
   created: string
   updated: string
 }
+
+/** @deprecated Use ProjectArtifactResponse */
+export type NoteResponse = ProjectArtifactResponse
 
 export interface SourceProcessingFailure {
   stage: 'embedding' | 'knowledge_graph'
@@ -121,12 +125,16 @@ export interface ProjectDeleteResponse {
   unlinked_sources: number
 }
 
-export interface CreateNoteRequest {
+export interface CreateProjectArtifactRequest {
   title?: string
   content: string
+  artifact_kind?: string
   note_type?: string
   project_id?: string
 }
+
+/** @deprecated Use CreateProjectArtifactRequest */
+export type CreateNoteRequest = CreateProjectArtifactRequest
 
 export interface CreateSourceRequest {
   // Single-project convenience field.
@@ -146,11 +154,15 @@ export interface CreateSourceRequest {
   async_processing?: boolean
 }
 
-export interface UpdateNoteRequest {
+export interface UpdateProjectArtifactRequest {
   title?: string
   content?: string
+  artifact_kind?: string
   note_type?: string
 }
+
+/** @deprecated Use UpdateProjectArtifactRequest */
+export type UpdateNoteRequest = UpdateProjectArtifactRequest
 
 export interface UpdateSourceRequest {
   title?: string
@@ -280,6 +292,8 @@ export interface SendProjectChatMessageRequest {
   }
   context_config?: {
     sources: Record<string, string>
+    artifacts?: Record<string, string>
+    /** @deprecated Prefer artifacts */
     notes: Record<string, string>
   }
   model_override?: string
@@ -295,6 +309,8 @@ export interface BuildContextRequest {
   project_id: string
   context_config: {
     sources: Record<string, string>
+    artifacts?: Record<string, string>
+    /** @deprecated Prefer artifacts */
     notes: Record<string, string>
   }
 }

@@ -7,12 +7,13 @@ from loguru import logger
 from api.command_service import CommandService
 from api.models import SourceResponse
 from construction_os.database.repository import ensure_record_id, repo_query
-from construction_os.domain.project import Note, Project, Source
+from construction_os.domain.project import Project, Source
+from construction_os.domain.project_artifact import INGESTABLE_KINDS, ProjectArtifact
 from construction_os.exceptions import InvalidInputError, NotFoundError
 
 
 async def get_note_project_ids(note_id: str) -> List[str]:
-    """Return project IDs linked to a note via project_note edges."""
+    """Return project IDs linked to a project artifact via project_note edges."""
     result = await repo_query(
         "SELECT out FROM project_note WHERE in = $note_id",
         {"note_id": ensure_record_id(note_id)},
@@ -114,18 +115,18 @@ async def promote_note_to_source(
     embed: bool = True,
     artifact_ids: Optional[List[str]] = None,
 ) -> SourceResponse:
-    note = await Note.get(note_id)
-    if not note:
-        raise NotFoundError("Note not found")
+    artifact = await ProjectArtifact.get(note_id)
+    if not artifact:
+        raise NotFoundError("Project artifact not found")
 
-    if note.note_type not in ("artifact", "ai"):
+    if artifact.artifact_kind not in INGESTABLE_KINDS:
         raise InvalidInputError(
-            "Only artifact or AI notes can be ingested as sources"
+            "Only generated or AI project artifacts can be ingested as sources"
         )
 
-    content = note.content or ""
+    content = artifact.content or ""
     if not content.strip():
-        raise InvalidInputError("Note has no content to ingest")
+        raise InvalidInputError("Project artifact has no content to ingest")
 
     project_ids: List[str] = []
     if project_id:
@@ -135,10 +136,10 @@ async def promote_note_to_source(
 
     if not project_ids:
         raise InvalidInputError(
-            "project_id is required when the note is not linked to a project"
+            "project_id is required when the artifact is not linked to a project"
         )
 
-    title = note.title or "Untitled artifact"
+    title = artifact.title or "Untitled artifact"
     return await promote_text_to_source(
         content=content,
         title=title,

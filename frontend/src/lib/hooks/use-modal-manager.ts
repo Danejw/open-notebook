@@ -2,27 +2,35 @@
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 
-export type ModalType = 'source' | 'note'
+export type ModalType = 'source' | 'note' | 'artifact'
+
+function normalizeModalType(raw: string | null): ModalType | null {
+  if (raw === 'source') return 'source'
+  if (raw === 'note' || raw === 'artifact') return raw
+  return null
+}
+
+export function isArtifactModalType(type: ModalType | null): boolean {
+  return type === 'note' || type === 'artifact'
+}
 
 export function useModalManager() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const pathname = usePathname()
 
-  // Read current modal state from URL params
-  const modalType = searchParams?.get('modal') as ModalType | null
+  const modalType = normalizeModalType(searchParams?.get('modal') ?? null)
   const modalId = searchParams?.get('id')
 
   /**
    * Open a modal by updating URL params without navigation
-   * @param type - Type of modal to open (source, note)
+   * @param type - Type of modal to open (source, note, artifact)
    * @param id - ID of the content to display
    */
   const openModal = (type: ModalType, id: string) => {
     const params = new URLSearchParams(searchParams?.toString() || '')
     params.set('modal', type)
     params.set('id', id)
-    // Use scroll: false to prevent page from scrolling when modal state changes
     router.push(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
@@ -41,6 +49,6 @@ export function useModalManager() {
     modalId,
     openModal,
     closeModal,
-    isOpen: !!modalType && !!modalId
+    isOpen: !!modalType && !!modalId,
   }
 }

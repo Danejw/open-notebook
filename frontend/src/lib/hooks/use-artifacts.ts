@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { artifactsApi } from '@/lib/api/artifacts'
+import { artifactTemplatesApi } from '@/lib/api/artifact-templates'
 import { QUERY_KEYS } from '@/lib/api/query-client'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -13,7 +13,7 @@ import {
 export function useArtifacts() {
   return useQuery({
     queryKey: QUERY_KEYS.artifacts,
-    queryFn: () => artifactsApi.list(),
+    queryFn: () => artifactTemplatesApi.list(),
     staleTime: 0,
     refetchOnMount: true,
   })
@@ -23,7 +23,7 @@ export function useArtifact(id?: string, options?: { enabled?: boolean }) {
   const artifactId = id ?? ''
   return useQuery({
     queryKey: QUERY_KEYS.artifact(artifactId),
-    queryFn: () => artifactsApi.get(artifactId),
+    queryFn: () => artifactTemplatesApi.get(artifactId),
     enabled: !!artifactId && (options?.enabled ?? true),
   })
 }
@@ -34,7 +34,7 @@ export function useCreateArtifact() {
   const { t } = useTranslation()
 
   return useMutation({
-    mutationFn: (data: CreateArtifactRequest) => artifactsApi.create(data),
+    mutationFn: (data: CreateArtifactRequest) => artifactTemplatesApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.artifacts })
       toast({
@@ -59,7 +59,7 @@ export function useUpdateArtifact() {
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateArtifactRequest }) =>
-      artifactsApi.update(id, data),
+      artifactTemplatesApi.update(id, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.artifacts })
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.artifact(id) })
@@ -84,7 +84,7 @@ export function useDeleteArtifact() {
   const { t } = useTranslation()
 
   return useMutation({
-    mutationFn: (id: string) => artifactsApi.delete(id),
+    mutationFn: (id: string) => artifactTemplatesApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.artifacts })
       toast({
@@ -107,7 +107,7 @@ export function useExecuteArtifact() {
   const { t } = useTranslation()
 
   return useMutation({
-    mutationFn: (data: ExecuteArtifactRequest) => artifactsApi.execute(data),
+    mutationFn: (data: ExecuteArtifactRequest) => artifactTemplatesApi.execute(data),
     onError: (error: unknown) => {
       toast({
         title: t('common.error'),
@@ -121,7 +121,7 @@ export function useExecuteArtifact() {
 export function useDefaultPrompt() {
   return useQuery({
     queryKey: QUERY_KEYS.artifactDefaultPrompt,
-    queryFn: () => artifactsApi.getDefaultPrompt(),
+    queryFn: () => artifactTemplatesApi.getDefaultPrompt(),
   })
 }
 
@@ -131,7 +131,8 @@ export function useUpdateDefaultPrompt() {
   const { t } = useTranslation()
 
   return useMutation({
-    mutationFn: (prompt: { artifact_instructions: string }) => artifactsApi.updateDefaultPrompt(prompt),
+    mutationFn: (prompt: { artifact_instructions: string }) =>
+      artifactTemplatesApi.updateDefaultPrompt(prompt),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.artifactDefaultPrompt })
       toast({

@@ -1,11 +1,11 @@
-"""Tests for promotion endpoints (ingest text, note → source)."""
+"""Tests for promotion endpoints (ingest text, project artifact → source)."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
-from construction_os.domain.project import Note, Source
+from construction_os.domain.project import ProjectArtifact, Source
 
 
 @pytest.fixture
@@ -67,12 +67,12 @@ class TestIngestTextSource:
         assert response.status_code == 422 or response.status_code == 400
 
 
-class TestPromoteNoteToSource:
+class TestPromoteArtifactToSource:
     @pytest.mark.asyncio
     @patch("api.promotion_service.CommandService.submit_command_job", new_callable=AsyncMock)
     @patch("api.promotion_service._validate_projects", new_callable=AsyncMock)
     @patch("api.promotion_service.get_note_project_ids", new_callable=AsyncMock)
-    async def test_note_promotion(
+    async def test_generated_artifact_promotion(
         self,
         mock_get_projects,
         mock_validate_projects,
@@ -82,27 +82,27 @@ class TestPromoteNoteToSource:
         mock_get_projects.return_value = ["project:1"]
         mock_submit.return_value = "command:456"
 
-        note = Note(
+        artifact = ProjectArtifact(
             title="Takeoff",
             content="Quantity list",
-            note_type="artifact",
+            note_type="generated",
         )
-        note.id = "note:abc"
-        note.created = "2026-01-01"
-        note.updated = "2026-01-01"
+        artifact.id = "note:abc"
+        artifact.created = "2026-01-01"
+        artifact.updated = "2026-01-01"
 
         saved_sources = []
 
         async def capture_save(self_source):
             saved_sources.append(self_source)
             if not self_source.id:
-                self_source.id = "source:from-note"
+                self_source.id = "source:from-artifact"
 
-        with patch.object(Note, "get", new_callable=AsyncMock, return_value=note):
+        with patch.object(ProjectArtifact, "get", new_callable=AsyncMock, return_value=artifact):
             with patch.object(Source, "save", autospec=True, side_effect=capture_save):
                 with patch.object(Source, "add_to_project", new_callable=AsyncMock):
                     response = client.post(
-                        "/api/notes/note:abc/ingest-as-source",
+                        "/api/project-artifacts/note:abc/ingest-as-source",
                         json={"embed": True, "artifacts": []},
                     )
 
@@ -111,15 +111,83 @@ class TestPromoteNoteToSource:
         mock_submit.assert_awaited_once()
 
     @pytest.mark.asyncio
-    @patch.object(Note, "get", new_callable=AsyncMock)
-    async def test_note_promotion_rejects_human_type(self, mock_get, client):
-        note = Note(title="Human note", content="Notes", note_type="human")
-        note.id = "note:human"
-        mock_get.return_value = note
+    @patch("api.promotion_service.CommandService.submit_command_job", new_callable=AsyncMock)
+    @patch("api.promotion_service._validate_projects", new_callable=AsyncMock)
+    @patch("api.promotion_service.get_note_project_ids", new_callable=AsyncMock)
+    async def test_ai_artifact_promotion(
+        self,
+        mock_get_projects,
+        mock_validate_projects,
+        mock_submit,
+        client,
+    ):
+        mock_get_projects.return_value = ["project:1"]
+        mock_submit.return_value = "command:789"
+
+        artifact = ProjectArtifact(
+            title="Chat capture",
+            content="Saved from chat",
+            note_type="ai",
+        )
+        artifact.id = "note:ai"
+        artifact.created = "2026-01-01"
+        artifact.updated = "2026-01-01"
+
+        with patch.object(ProjectArtifact, "get", new_callable=AsyncMock, return_value=artifact):
+            with patch.object(Source, "save", new_callable=AsyncMock):
+                with patch.object(Source, "add_to_project", new_callable=AsyncMock):
+                    response = client.post(
+                        "/api/project-artifacts/note:ai/ingest-as-source",
+                        json={"embed": True},
+                    )
+
+        assert response.status_code == 200
+        mock_submit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    @patch.object(ProjectArtifact, "get", new_callable=AsyncMock)
+    async def test_artifact_promotion_rejects_manual_kind(self, mock_get, client):
+        artifact = ProjectArtifact(title="Manual artifact", content="Notes", note_type="manual")
+        artifact.id = "note:manual"
+        mock_get.return_value = artifact
 
         response = client.post(
-            "/api/notes/note:human/ingest-as-source",
+            "/api/project-artifacts/note:manual/ingest-as-source",
             json={"project_id": "project:1"},
         )
 
         assert response.status_code == 400
+
+    @pytest.mark.asyncio
+    @patch("api.promotion_service.CommandService.submit_command_job", new_callable=AsyncMock)
+    @patch("api.promotion_service._validate_projects", new_callable=AsyncMock)
+    @patch("api.promotion_service.get_note_project_ids", new_callable=AsyncMock)
+    async def test_notes_alias_promotion_smoke(
+        self,
+        mock_get_projects,
+        mock_validate_projects,
+        mock_submit,
+        client,
+    ):
+        """Deprecated /notes ingest-as-source alias still works for generated artifacts."""
+        mock_get_projects.return_value = ["project:1"]
+        mock_submit.return_value = "command:alias"
+
+        artifact = ProjectArtifact(
+            title="Generated",
+            content="Body",
+            note_type="generated",
+        )
+        artifact.id = "note:alias"
+        artifact.created = "2026-01-01"
+        artifact.updated = "2026-01-01"
+
+        with patch.object(ProjectArtifact, "get", new_callable=AsyncMock, return_value=artifact):
+            with patch.object(Source, "save", new_callable=AsyncMock):
+                with patch.object(Source, "add_to_project", new_callable=AsyncMock):
+                    response = client.post(
+                        "/api/notes/note:alias/ingest-as-source",
+                        json={"embed": True},
+                    )
+
+        assert response.status_code == 200

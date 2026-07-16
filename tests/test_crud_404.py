@@ -63,28 +63,41 @@ async def test_remove_source_missing_project_returns_404(mock_get, client):
     assert client.delete("/api/projects/project:gone/sources/source:1").status_code == 404
 
 
-# --- notes ------------------------------------------------------------------
+# --- project artifacts ------------------------------------------------------
 
 
 @pytest.mark.asyncio
-@patch("api.routers.notes.Note.get", new_callable=AsyncMock)
-async def test_get_note_missing_returns_404(mock_get, client):
+@patch("api.routers.project_artifacts.ProjectArtifact.get", new_callable=AsyncMock)
+async def test_get_project_artifact_missing_returns_404(mock_get, client):
+    mock_get.side_effect = _nf
+    assert client.get("/api/project-artifacts/note:gone").status_code == 404
+
+
+@pytest.mark.asyncio
+@patch("api.routers.project_artifacts.ProjectArtifact.get", new_callable=AsyncMock)
+async def test_update_project_artifact_missing_returns_404(mock_get, client):
+    mock_get.side_effect = _nf
+    assert (
+        client.put("/api/project-artifacts/note:gone", json={"content": "x"}).status_code
+        == 404
+    )
+
+
+@pytest.mark.asyncio
+@patch("api.routers.project_artifacts.ProjectArtifact.get", new_callable=AsyncMock)
+async def test_delete_project_artifact_missing_returns_404(mock_get, client):
+    mock_get.side_effect = _nf
+    assert client.delete("/api/project-artifacts/note:gone").status_code == 404
+
+
+# --- notes (deprecated aliases) ---------------------------------------------
+
+
+@pytest.mark.asyncio
+@patch("api.routers.project_artifacts.ProjectArtifact.get", new_callable=AsyncMock)
+async def test_get_note_alias_missing_returns_404(mock_get, client):
     mock_get.side_effect = _nf
     assert client.get("/api/notes/note:gone").status_code == 404
-
-
-@pytest.mark.asyncio
-@patch("api.routers.notes.Note.get", new_callable=AsyncMock)
-async def test_update_note_missing_returns_404(mock_get, client):
-    mock_get.side_effect = _nf
-    assert client.put("/api/notes/note:gone", json={"content": "x"}).status_code == 404
-
-
-@pytest.mark.asyncio
-@patch("api.routers.notes.Note.get", new_callable=AsyncMock)
-async def test_delete_note_missing_returns_404(mock_get, client):
-    mock_get.side_effect = _nf
-    assert client.delete("/api/notes/note:gone").status_code == 404
 
 
 # --- models -----------------------------------------------------------------

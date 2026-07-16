@@ -33,10 +33,17 @@ def eligible_source_ids(context_config: Optional[dict]) -> Set[str]:
 
 
 def eligible_note_ids(context_config: Optional[dict]) -> Set[str]:
-    """Note IDs marked for full content inclusion."""
-    notes = (context_config or {}).get("notes") or {}
+    """Project artifact IDs marked for full content inclusion.
+
+    Accepts both canonical ``artifacts`` and legacy ``notes`` maps
+    (and ``artifact_ids`` / ``note_ids`` lists used by the queue runner).
+    """
+    cfg = context_config or {}
+    notes = cfg.get("notes") or {}
+    artifacts = cfg.get("artifacts") or {}
+    merged: Dict[str, Any] = {**notes, **artifacts}
     eligible: Set[str] = set()
-    for note_id, status in notes.items():
+    for note_id, status in merged.items():
         if not is_note_included(status):
             continue
         nid = str(note_id)
@@ -44,6 +51,10 @@ def eligible_note_ids(context_config: Optional[dict]) -> Set[str]:
             nid = f"note:{nid}"
         eligible.add(nid)
     return eligible
+
+
+# Alias for clearer call sites
+eligible_artifact_ids = eligible_note_ids
 
 
 def _normalize_id(value: Optional[str]) -> str:
@@ -115,7 +126,7 @@ async def _load_note_blocks(note_ids: Sequence[str]) -> List[str]:
                 continue
             ctx = note.get_context(context_size="long")
             content = str(ctx.get("content") or ctx)
-            title = ctx.get("title") or getattr(note, "title", None) or "Note"
+            title = ctx.get("title") or getattr(note, "title", None) or "Artifact"
             blocks.append(
                 f"- id: {note.id}\n  title: {title}\n  excerpt: {str(content)[:SNIPPET_MAX_CHARS]}"
             )
@@ -208,7 +219,7 @@ async def build_relevance_context(
     if source_blocks:
         sections.append("## Sources\n" + "\n\n".join(source_blocks))
     if note_blocks:
-        sections.append("## Notes\n" + "\n\n".join(note_blocks))
+        sections.append("## Artifacts\n" + "\n\n".join(note_blocks))
 
     formatted, tokens = _trim_to_budget(sections, max_tokens)
 

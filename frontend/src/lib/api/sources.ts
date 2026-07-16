@@ -115,7 +115,7 @@ export const sourcesApi = {
 
   ingestNoteAsSource: async (noteId: string, data: PromoteToSourceRequest = {}) => {
     const response = await apiClient.post<SourceResponse>(
-      `/notes/${noteId}/ingest-as-source`,
+      `/project-artifacts/${noteId}/ingest-as-source`,
       data
     )
     return response.data

@@ -9,7 +9,7 @@ Construction OS reusable assets today:
 | Skills | `skill` + `skill_file` | YAML in `SKILL.md` | `ChatSession.skill_ids` | No |
 | Tools | `mcp_connection` + `mcp_tool` | None | `mcp_tool_ids` on request | No |
 | Templates | `html_template` | DB fields | `html_template_id` on session | No |
-| Artifacts | `artifact` | DB prompt fields | Via artifact bar | No |
+| Artifacts | `artifact` (Artifact templates) | DB prompt fields | Via artifact bar | No |
 
 **No** Collections, Concepts, Project Brains entities, unified context picker, or artifact provenance for skills/tools exist today.
 

@@ -4,6 +4,7 @@ import { Archive, Library } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Collection } from '@/lib/types/collections'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { shouldShowCollectionStatus } from './collection-status'
 import {
   CompactListRow,
   CompactListRowContent,
@@ -20,11 +21,6 @@ interface CollectionCardProps {
   onSelectToggle?: () => void
 }
 
-function shouldShowStatus(status: string): boolean {
-  const normalized = status.trim().toLowerCase()
-  return normalized !== '' && normalized !== 'active'
-}
-
 export function CollectionCard({
   collection,
   selectionMode = false,
@@ -33,7 +29,7 @@ export function CollectionCard({
   const { t } = useTranslation()
 
   const metaParts: string[] = []
-  if (shouldShowStatus(collection.status)) {
+  if (shouldShowCollectionStatus(collection.status)) {
     metaParts.push(collection.status)
   }
   metaParts.push(

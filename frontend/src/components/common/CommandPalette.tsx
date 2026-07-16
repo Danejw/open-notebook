@@ -40,7 +40,7 @@ const getNavigationItems = (t: TFunction) => [
   { name: t('navigation.sources'), href: '/sources', icon: FileText, keywords: ['files', 'documents', 'upload'] },
   { name: t('navigation.askAndSearch'), href: '/search', icon: Search, keywords: ['find', 'query'] },
   { name: t('navigation.podcasts'), href: '/podcasts', icon: Mic, keywords: ['audio', 'episodes', 'generate'] },
-  { name: t('navigation.artifacts'), href: '/artifacts', icon: Shuffle, keywords: ['prompts', 'templates', 'actions', 'manage'] },
+  { name: t('navigation.artifacts'), href: '/artifact-templates', icon: Shuffle, keywords: ['prompts', 'templates', 'actions', 'manage'] },
   { name: t('navigation.images'), href: '/images', icon: Image, keywords: ['logo', 'media', 'picture', 'upload', 'library', 'brand'] },
   { name: t('navigation.templates'), href: '/templates', icon: FileCode2, keywords: ['bid', 'html', 'pdf', 'estimate', 'proposal', 'template', 'documents'] },
   { name: t('navigation.models'), href: '/settings/api-keys', icon: Bot, keywords: ['ai', 'llm', 'providers', 'openai', 'anthropic'] },

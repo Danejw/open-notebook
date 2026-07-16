@@ -1,6 +1,13 @@
 'use client'
 
-import { useState, useCallback, useMemo, type RefObject } from 'react'
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  type RefObject,
+} from 'react'
 import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -26,6 +33,38 @@ import { ensureChatSessionForMessage } from '@/lib/hooks/chat-session-utils'
 import type { ChatStreamMessage } from '@/lib/hooks/chat-sse-handlers'
 import type { ChatStreamingBufferReturn } from '@/lib/hooks/useChatStreamingBuffer'
 import type { ChatQueueEnqueueInput } from '@/lib/types/chat-queue'
+
+/** True when an idle active queue has visible pending work ready for client drain. */
+export function shouldRecoverIdleChatQueue(
+  queue:
+    | {
+        status: string
+        items: Array<{ visible: boolean; status: string }>
+      }
+    | null
+    | undefined,
+  isDirectSending: boolean
+): boolean {
+  if (isDirectSending || !queue) {
+    return false
+  }
+  if (queue.status !== 'active') {
+    return false
+  }
+  return queue.items.some(
+    (item) => item.visible && item.status === 'pending'
+  )
+}
+
+/** Next pending FIFO item for client-side sendMessage drain. */
+export function getNextPendingQueueItem<
+  T extends { visible: boolean; status: string; position: number },
+>(items: T[]): T | null {
+  const pending = items
+    .filter((item) => item.visible && item.status === 'pending')
+    .sort((left, right) => left.position - right.position)
+  return pending[0] ?? null
+}
 
 export interface ChatRuntimeDataSource<TSession extends { id: string }> {
   sessionsQueryKey: QueryKey
@@ -385,12 +424,68 @@ export function useChatRuntime<
     ]
   )
 
+  const sendMessageRef = useRef<
+    ((message: string, modelOverride?: string) => Promise<void>) | null
+  >(null)
+  const isSendingRef = useRef(false)
+  const drainInFlightRef = useRef(false)
+  const afterTurnRef = useRef<((sessionId: string) => Promise<void>) | null>(
+    null
+  )
+
+  const drainNextQueuedMessage = useCallback(async () => {
+    const queue = chatQueue.queue
+    if (!queue || queue.status !== 'active') {
+      return
+    }
+    if (isSendingRef.current || drainInFlightRef.current) {
+      return
+    }
+    const next = getNextPendingQueueItem(queue.items)
+    if (!next) {
+      return
+    }
+    const send = sendMessageRef.current
+    if (!send) {
+      return
+    }
+
+    drainInFlightRef.current = true
+    try {
+      // Claim before send so a second drain cannot pick the same item.
+      await chatQueue.deleteItem(next.id)
+    } catch (drainError: unknown) {
+      drainInFlightRef.current = false
+      console.error('Error claiming next queued chat message:', drainError)
+      const error = drainError as {
+        response?: { data?: { detail?: string } }
+        message?: string
+      }
+      toast.error(
+        getApiErrorMessage(
+          error.response?.data?.detail || error.message || error,
+          (key) => t(key),
+          'apiErrors.failedToSendMessage'
+        )
+      )
+      return
+    }
+    drainInFlightRef.current = false
+
+    const modelOverride = next.execution_snapshot.model_id ?? undefined
+    // sendMessage's onTurnComplete will chain the next pending item after this turn.
+    await send(next.prompt, modelOverride || undefined)
+  }, [chatQueue, t])
+
+  afterTurnRef.current = async () => {
+    await drainNextQueuedMessage()
+  }
+
   const { sendMessage, isSending, cancelSending } = useChatSendTurn<TMessage>({
     messages,
     setMessages,
     refetchCurrentSession,
     queryClient,
-    chatQueue,
     streaming,
     t,
     ensureSession,
@@ -401,9 +496,62 @@ export function useChatRuntime<
     onSendFinally: sendTurnLifecycle?.onSendFinally
       ? (sessionId) => sendTurnLifecycle.onSendFinally?.(streaming, sessionId)
       : undefined,
+    onTurnComplete: async (sessionId) => {
+      await afterTurnRef.current?.(sessionId)
+    },
     getAbortSignal: sendTurnLifecycle?.getAbortSignal,
     ...sendTurn,
   })
+
+  sendMessageRef.current = sendMessage
+  isSendingRef.current = isSending
+
+  const idleRecoveryKeyRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    const sessionId = effectiveQueueSessionId
+    const queue = chatQueue.queue
+    if (!sessionId || !shouldRecoverIdleChatQueue(queue, isSending)) {
+      if (!shouldRecoverIdleChatQueue(queue, isSending)) {
+        idleRecoveryKeyRef.current = null
+      }
+      return
+    }
+
+    const pendingIds = queue!.items
+      .filter((item) => item.visible && item.status === 'pending')
+      .map((item) => item.id)
+      .sort()
+      .join(',')
+    const recoveryKey = `${sessionId}:${queue!.revision}:${pendingIds}`
+    if (idleRecoveryKeyRef.current === recoveryKey) {
+      return
+    }
+    idleRecoveryKeyRef.current = recoveryKey
+
+    void drainNextQueuedMessage().catch(() => {
+      idleRecoveryKeyRef.current = null
+    })
+  }, [
+    chatQueue.queue,
+    drainNextQueuedMessage,
+    effectiveQueueSessionId,
+    isSending,
+  ])
+
+  const pauseQueue = useCallback(async () => {
+    await chatQueue.pause()
+  }, [chatQueue])
+
+  const resumeQueue = useCallback(async () => {
+    await chatQueue.resume()
+    await drainNextQueuedMessage()
+  }, [chatQueue, drainNextQueuedMessage])
+
+  const retryQueueStream = useCallback(() => {
+    chatQueue.restartStream()
+    void drainNextQueuedMessage()
+  }, [chatQueue, drainNextQueuedMessage])
 
   const ensureSessionForEnqueue = useCallback(
     async (message: string): Promise<string> => {
@@ -518,6 +666,11 @@ export function useChatRuntime<
     enqueueMessage,
     chatQueue,
     queueHasWork,
+    queueStreamError: chatQueue.streamError,
+    retryQueueStream,
+    pauseQueue,
+    resumeQueue,
+    drainNextQueuedMessage,
     presentationView,
     ensureSession,
     queryClient,

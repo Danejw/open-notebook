@@ -90,6 +90,12 @@ def public_tool_call(row: Mapping[str, Any]) -> dict[str, Any]:
         "result_text": row.get("result_text"),
         "status": row.get("status"),
         "error": row.get("error"),
+        "tool_source": row.get("tool_source") or "mcp",
+        "performed_write": bool(row.get("performed_write") or False),
+        "error_category": row.get("error_category"),
+        "started_at": row.get("started_at"),
+        "completed_at": row.get("completed_at"),
+        "duration_ms": row.get("duration_ms"),
         "created": row.get("created"),
         "updated": row.get("updated"),
     }

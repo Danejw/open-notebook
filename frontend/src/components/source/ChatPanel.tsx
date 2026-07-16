@@ -95,6 +95,8 @@ export interface ChatPanelProps {
   onDeleteQueueItem?: ChatQueuePanelProps['onDeleteItem']
   onRetryQueueItem?: ChatQueuePanelProps['onRetryItem']
   onReorderQueue?: ChatQueuePanelProps['onReorder']
+  queueStreamError?: Error | null
+  onRetryQueueStream?: () => void
 }
 
 export function ChatPanel({
@@ -146,6 +148,8 @@ export function ChatPanel({
   onDeleteQueueItem,
   onRetryQueueItem,
   onReorderQueue,
+  queueStreamError = null,
+  onRetryQueueStream,
 }: ChatPanelProps) {
   const { t } = useTranslation()
   const isImmersive = variant === 'immersive'
@@ -213,6 +217,8 @@ export function ChatPanel({
             onDeleteItem={onDeleteQueueItem!}
             onRetryItem={onRetryQueueItem!}
             onReorder={onReorderQueue!}
+            streamError={queueStreamError}
+            onRetryStream={onRetryQueueStream}
           />
         ) : null}
 

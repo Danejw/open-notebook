@@ -4,7 +4,7 @@ This file provides architectural guidance for contributors working on Constructi
 
 ## Project Overview
 
-**Construction OS** is an open-source, privacy-focused alternative to Google Notebook LM. It's an AI-powered research assistant enabling users to upload multi-modal content (PDFs, audio, video, web pages), generate intelligent notes, search semantically, chat with AI models, and produce professional podcasts—all with complete control over data and choice of AI providers.
+**Construction OS** is an open-source, privacy-focused alternative to Google Notebook LM. It's an AI-powered research assistant enabling users to upload multi-modal content (PDFs, audio, video, web pages), generate project artifacts, search semantically, chat with AI models, and produce professional podcasts—all with complete control over data and choice of AI providers.
 
 **Key Values**: Privacy-first, multi-provider AI support, fully self-hosted option, open-source transparency.
 
@@ -17,7 +17,7 @@ This file provides architectural guidance for contributors working on Constructi
 │              Frontend (React/Next.js)                    │
 │              frontend/ @ port 3000                       │
 ├─────────────────────────────────────────────────────────┤
-│ - Projects, sources, notes, chat, podcasts, search UI  │
+│ - Projects, sources, project artifacts, chat, podcasts, search UI  │
 │ - Zustand state management, TanStack Query (React Query)│
 │ - Shadcn/ui component library with Tailwind CSS         │
 └────────────────────────┬────────────────────────────────┘
@@ -26,7 +26,7 @@ This file provides architectural guidance for contributors working on Constructi
 │              API (FastAPI)                              │
 │              api/ @ port 5055                           │
 ├─────────────────────────────────────────────────────────┤
-│ - REST endpoints for projects, sources, notes, chat    │
+│ - REST endpoints for projects, sources, project-artifacts, chat    │
 │ - LangGraph workflow orchestration                      │
 │ - Job queue for async operations (podcasts)             │
 │ - Multi-provider AI provisioning via Esperanto          │
@@ -36,8 +36,8 @@ This file provides architectural guidance for contributors working on Constructi
 │         Database (SurrealDB)                            │
 │         Graph database @ port 8000                      │
 ├─────────────────────────────────────────────────────────┤
-│ - Records: Project, Source, Note, ChatSession, Credential│
-│ - Relationships: source-to-project, note-to-source     │
+│ - Records: Project, Source, ProjectArtifact (table `note`), ChatSession, Credential│
+│ - Relationships: source-to-project, project_note (artifact-to-project)     │
 │ - Vector embeddings for semantic search                 │
 └─────────────────────────────────────────────────────────┘
 ```

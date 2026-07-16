@@ -50,6 +50,7 @@ function makeItem(
     execution_snapshot: {
       model_id: null,
       skill_ids: [],
+      collection_ids: [],
       tool_ids: [],
       html_template_id: null,
       artifact_id: null,
@@ -179,6 +180,28 @@ describe('chatQueueApi REST methods', () => {
 describe('queue response parsing', () => {
   it('accepts the complete backend response shape', () => {
     expect(parseChatQueueResponse(makeQueue())).toEqual(makeQueue())
+  })
+
+  it('accepts execution snapshots with collection_ids', () => {
+    const withCollections = makeItem({
+      execution_snapshot: {
+        model_id: null,
+        skill_ids: [],
+        collection_ids: ['collection:abc'],
+        tool_ids: [],
+        html_template_id: null,
+        artifact_id: null,
+        context_config: {},
+        forwarded_props: {},
+      },
+    })
+    const parsed = parseChatQueueResponse(makeQueue({ items: [withCollections] }))
+    expect(parsed.items[0]?.execution_snapshot.collection_ids).toEqual([
+      'collection:abc',
+    ])
+
+    const withEmpty = parseChatQueueResponse(makeQueue())
+    expect(withEmpty.items[0]?.execution_snapshot.collection_ids).toEqual([])
   })
 
   it('rejects unknown statuses and missing required fields', () => {

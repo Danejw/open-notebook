@@ -5,11 +5,11 @@ from typing import Any, ClassVar, Dict, List, Literal, Optional, Tuple, Union
 
 from loguru import logger
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from surreal_commands import submit_command
 from surrealdb import RecordID
 
 from construction_os.database.repository import ensure_record_id, repo_query
 from construction_os.domain.base import ObjectModel
+from construction_os.domain.project_artifact import Note, ProjectArtifact
 from construction_os.exceptions import DatabaseOperationError, InvalidInputError
 
 
@@ -68,6 +68,10 @@ class Project(ObjectModel):
             logger.exception(e)
             raise DatabaseOperationError(e)
 
+    async def get_artifacts(self, include_content: bool = False) -> List[ProjectArtifact]:
+        """Alias for get_notes — project artifacts are stored in the note table."""
+        return await self.get_notes(include_content=include_content)
+
     async def get_context(self) -> str:
         """
         Build long-form Project context for podcast and LLM workflows.
@@ -103,7 +107,7 @@ class Project(ObjectModel):
                 content = str(note_context).strip()
 
             if content:
-                context_blocks.append(f"## Note: {title}\n\n{content}")
+                context_blocks.append(f"## Artifact: {title}\n\n{content}")
 
         return "\n\n".join(context_blocks)
 
@@ -514,62 +518,6 @@ class Source(ObjectModel):
 
         # Call parent delete to remove database record
         return await super().delete()
-
-
-class Note(ObjectModel):
-    table_name: ClassVar[str] = "note"
-    title: Optional[str] = None
-    note_type: Optional[Literal["human", "ai", "note", "artifact"]] = None
-    content: Optional[str] = None
-
-    @field_validator("content")
-    @classmethod
-    def content_must_not_be_empty(cls, v):
-        if v is not None and not v.strip():
-            raise InvalidInputError("Note content cannot be empty")
-        return v
-
-    async def save(self) -> Optional[str]:
-        """
-        Save the note and submit embedding command.
-
-        Overrides ObjectModel.save() to submit an async embed_note command
-        after saving, instead of inline embedding.
-
-        Returns:
-            Optional[str]: The command_id if embedding was submitted, None otherwise
-        """
-        # Call parent save (without embedding)
-        await super().save()
-
-        # Submit embedding command (fire-and-forget) if note has content
-        if self.id and self.content and self.content.strip():
-            command_id = submit_command(
-                "construction_os",
-                "embed_note",
-                {"note_id": str(self.id)},
-            )
-            logger.debug(f"Submitted embed_note command {command_id} for {self.id}")
-            return command_id
-
-        return None
-
-    async def add_to_project(self, project_id: str) -> Any:
-        if not project_id:
-            raise InvalidInputError("Project ID must be provided")
-        return await self.relate("project_note", project_id)
-
-    def get_context(
-        self, context_size: Literal["short", "long"] = "short"
-    ) -> Dict[str, Any]:
-        if context_size == "long":
-            return dict(id=self.id, title=self.title, content=self.content)
-        else:
-            return dict(
-                id=self.id,
-                title=self.title,
-                content=self.content[:100] if self.content else None,
-            )
 
 
 class ChatSession(ObjectModel):

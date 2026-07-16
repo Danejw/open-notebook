@@ -1,7 +1,7 @@
 'use client'
 
 import { type MutableRefObject } from 'react'
-import { NoteResponse } from '@/lib/types/api'
+import { ProjectArtifactResponse } from '@/lib/types/api'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -21,23 +21,31 @@ import { useSelectableRow } from '@/lib/hooks/useSelectableRow'
 import { cn } from '@/lib/utils'
 import { listActionTriggerClassName } from '@/lib/utils/list-action-trigger'
 import { setArtifactDragData, clearArtifactDragData } from '@/lib/utils/artifact-drag'
+import {
+  isAiArtifact,
+  isGeneratedArtifact,
+  isManualArtifact,
+} from '@/lib/utils/project-artifact-kind'
 import type { TFunction } from 'i18next'
 
-function getNoteTypeInfo(noteType: string | null, t: TFunction) {
-  if (noteType === 'ai') {
+function getArtifactTypeInfo(
+  artifact: Pick<ProjectArtifactResponse, 'artifact_kind' | 'note_type'>,
+  t: TFunction
+) {
+  if (isAiArtifact(artifact)) {
     return { icon: Bot, label: t('common.aiGenerated') }
   }
-  if (noteType === 'artifact') {
+  if (isGeneratedArtifact(artifact)) {
     return { icon: Bot, label: t('navigation.artifact') }
   }
-  if (noteType === 'note') {
-    return { icon: FileText, label: t('common.note') }
+  if (isManualArtifact(artifact)) {
+    return { icon: FileText, label: t('navigation.artifact') }
   }
   return { icon: User, label: t('common.human') }
 }
 
 export interface ArtifactListRowProps {
-  note: NoteResponse
+  note: ProjectArtifactResponse
   t: TFunction
   selectionMode: boolean
   selected: boolean
@@ -79,9 +87,9 @@ export function ArtifactListRow({
   setDraggingNoteId,
   suppressClickRef,
 }: ArtifactListRowProps) {
-  const { icon: NoteTypeIcon, label: noteTypeLabel } = getNoteTypeInfo(note.note_type, t)
+  const { icon: NoteTypeIcon, label: noteTypeLabel } = getArtifactTypeInfo(note, t)
   const title = note.title || t('sources.untitledNote')
-  const isIngestibleArtifact = note.note_type === 'artifact'
+  const isIngestibleArtifact = isGeneratedArtifact(note)
   const isDraggingNote = draggingNoteId === note.id
 
   const { rowProps, selectedClassName } = useSelectableRow({
@@ -151,7 +159,7 @@ export function ArtifactListRow({
         <NoteTypeIcon
           className={cn(
             'h-3.5 w-3.5 shrink-0',
-            note.note_type === 'ai' || note.note_type === 'artifact'
+            isAiArtifact(note) || isGeneratedArtifact(note)
               ? 'text-primary'
               : 'text-muted-foreground'
           )}

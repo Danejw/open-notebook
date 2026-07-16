@@ -29,6 +29,7 @@ function makeItem(
     execution_snapshot: {
       model_id: null,
       skill_ids: null,
+      collection_ids: null,
       tool_ids: null,
       html_template_id: null,
       artifact_id: null,

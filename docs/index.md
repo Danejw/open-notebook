@@ -150,6 +150,7 @@ Welcome to Construction OS - a privacy-focused AI research assistant. This docum
 - Architecture? → [7-DEVELOPMENT - Architecture](7-DEVELOPMENT/architecture.md)
 - Contributing? → [7-DEVELOPMENT - Contributing](7-DEVELOPMENT/contributing.md)
 - API reference? → [7-DEVELOPMENT - API Reference](7-DEVELOPMENT/api-reference.md)
+- AI protocols (A2UI / AG-UI / MCP client / native tools)? → [ai-protocols](ai-protocols/index.md)
 
 ---
 

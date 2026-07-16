@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from typing import Any, Optional
 
 from loguru import logger
@@ -12,7 +10,6 @@ from langchain_core.runnables import RunnableConfig
 
 from construction_os.domain.mcp import ChatToolCall
 from construction_os.mcp.allowlist import AllowlistedTool, RuntimeAllowlist
-from construction_os.mcp.progress import emit_mcp_tool_call
 from construction_os.mcp.client import McpClient
 from construction_os.mcp.result_text import bound_error_message, mcp_result_to_text
 from construction_os.mcp.schema_validate import (
@@ -20,27 +17,19 @@ from construction_os.mcp.schema_validate import (
     validate_tool_arguments,
 )
 from construction_os.mcp.transport import McpTransportError
+from construction_os.tool_runtime.execution import (
+    DuplicateCallGuard,
+    begin_audit,
+    finalize_timing,
+    reject_unauthorized,
+    save_and_emit,
+)
 
-
-class DuplicateCallGuard:
-    """Prevent identical (runtime_name, args) calls within one chat turn."""
-
-    def __init__(self) -> None:
-        self._seen: set[str] = set()
-
-    @staticmethod
-    def _key(runtime_name: str, arguments: dict[str, Any]) -> str:
-        payload = json.dumps(arguments, sort_keys=True, default=str)
-        digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
-        return f"{runtime_name}:{digest}"
-
-    def check_and_record(self, runtime_name: str, arguments: dict[str, Any]) -> bool:
-        """Return True if this is a duplicate (already seen)."""
-        key = self._key(runtime_name, arguments)
-        if key in self._seen:
-            return True
-        self._seen.add(key)
-        return False
+__all__ = [
+    "DuplicateCallGuard",
+    "execute_allowlisted_tool",
+    "reject_unauthorized",
+]
 
 
 async def execute_allowlisted_tool(
@@ -58,34 +47,37 @@ async def execute_allowlisted_tool(
 
     Rejects non-executable / off-allowlist / invalid args without contacting MCP.
     """
+    del allowlist  # reserved for future cross-checks
     args = arguments if isinstance(arguments, dict) else {}
-    audit = ChatToolCall(
+    audit = begin_audit(
         session_id=session_id,
+        tool_name=entry.tool.name,
+        runtime_name=entry.runtime_name,
+        tool_source="mcp",
+        arguments=args,
         message_id=message_id,
         connection_id=str(entry.connection.id) if entry.connection.id else None,
         tool_id=str(entry.tool.id) if entry.tool.id else None,
-        tool_name=entry.tool.name,
         connection_name=entry.connection.name,
         risk_level=entry.tool.risk_level,
-        runtime_name=entry.runtime_name,
-        arguments=args,
-        status="requested",
+        performed_write=False,
     )
-    await audit.save()
-    emit_mcp_tool_call(audit, config)
+    await save_and_emit(audit, config)
 
     if not entry.executable or entry.tool.risk_level != "read":
         audit.status = "rejected"
         audit.error = "Tool is not executable (action/unknown tools require approval)"
-        await audit.save()
-        emit_mcp_tool_call(audit, config)
+        audit.error_category = "not_executable"
+        finalize_timing(audit)
+        await save_and_emit(audit, config)
         return audit
 
     if guard and guard.check_and_record(entry.runtime_name, args):
         audit.status = "rejected"
         audit.error = "Duplicate tool call with identical arguments in this turn"
-        await audit.save()
-        emit_mcp_tool_call(audit, config)
+        audit.error_category = "duplicate"
+        finalize_timing(audit)
+        await save_and_emit(audit, config)
         logger.info("MCP duplicate call rejected runtime={}", entry.runtime_name)
         return audit
 
@@ -94,13 +86,13 @@ async def execute_allowlisted_tool(
     except McpArgumentValidationError as exc:
         audit.status = "rejected"
         audit.error = bound_error_message(str(exc))
-        await audit.save()
-        emit_mcp_tool_call(audit, config)
+        audit.error_category = "validation"
+        finalize_timing(audit)
+        await save_and_emit(audit, config)
         return audit
 
     audit.status = "running"
-    await audit.save()
-    emit_mcp_tool_call(audit, config)
+    await save_and_emit(audit, config)
 
     client = McpClient(
         entry.connection.endpoint_url,
@@ -114,13 +106,14 @@ async def execute_allowlisted_tool(
         if isinstance(raw, dict) and raw.get("isError"):
             audit.status = "failed"
             audit.error = bound_error_message(audit.result_text or "MCP tool error")
+            audit.error_category = "mcp_error"
         else:
             audit.status = "succeeded"
             audit.error = None
-        await audit.save()
-        emit_mcp_tool_call(audit, config)
+        finalize_timing(audit)
+        await save_and_emit(audit, config)
         logger.info(
-            "MCP call status={} runtime={} duration_logged",
+            "MCP call status={} runtime={}",
             audit.status,
             entry.runtime_name,
         )
@@ -128,32 +121,8 @@ async def execute_allowlisted_tool(
     except (McpTransportError, Exception) as exc:
         audit.status = "failed"
         audit.error = bound_error_message(str(exc))
-        await audit.save()
-        emit_mcp_tool_call(audit, config)
+        audit.error_category = "transport"
+        finalize_timing(audit)
+        await save_and_emit(audit, config)
         logger.warning("MCP call failed runtime={}", entry.runtime_name)
         return audit
-
-
-async def reject_unauthorized(
-    *,
-    session_id: str,
-    runtime_name: str,
-    arguments: Any,
-    message_id: Optional[str] = None,
-    reason: str = "Tool is not in the authorized allowlist",
-    config: Optional[RunnableConfig] = None,
-) -> ChatToolCall:
-    """Record a rejected off-allowlist tool request without contacting MCP."""
-    audit = ChatToolCall(
-        session_id=session_id,
-        message_id=message_id,
-        tool_name=runtime_name,
-        runtime_name=runtime_name,
-        arguments=arguments if isinstance(arguments, dict) else {},
-        status="rejected",
-        error=bound_error_message(reason),
-    )
-    await audit.save()
-    emit_mcp_tool_call(audit, config)
-    logger.info("MCP unauthorized reject runtime={}", runtime_name)
-    return audit

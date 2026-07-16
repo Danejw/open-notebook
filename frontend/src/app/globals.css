@@ -140,11 +140,17 @@
   }
 
   html {
-    @apply antialiased;
+    @apply h-full antialiased;
   }
 
+  /*
+   * App shell is viewport-fixed; only nested panels scroll.
+   * Without this, flex/overflow quirks and scroll-chaining let the
+   * document scroll the entire shell (sidebar + chrome).
+   */
   body {
-    @apply bg-background text-foreground transition-colors;
+    @apply h-full overflow-hidden bg-background text-foreground transition-colors;
+    overscroll-behavior: none;
   }
 
   ::selection {

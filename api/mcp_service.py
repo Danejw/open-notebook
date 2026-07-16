@@ -214,6 +214,12 @@ async def list_session_tool_calls(session_id: str) -> List[ChatToolCallResponse]
             "result_text": c.result_text,
             "status": c.status,
             "error": c.error,
+            "tool_source": getattr(c, "tool_source", None) or "mcp",
+            "performed_write": bool(getattr(c, "performed_write", False)),
+            "error_category": getattr(c, "error_category", None),
+            "started_at": getattr(c, "started_at", None),
+            "completed_at": getattr(c, "completed_at", None),
+            "duration_ms": getattr(c, "duration_ms", None),
             "created": str(c.created) if c.created else None,
             "updated": str(c.updated) if c.updated else None,
         }))

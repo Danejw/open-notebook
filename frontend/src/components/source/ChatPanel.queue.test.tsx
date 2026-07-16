@@ -2,6 +2,7 @@
 import type { ComponentProps } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { ChatPanel } from '@/components/source/ChatPanel'
+import { makeChatQueue, makeQueueItem } from '@/lib/test-fixtures/chat-queue'
 import type { ChatQueueResponse } from '@/lib/types/chat-queue'
 
 vi.mock('@/components/source/ChatMessageList', () => ({
@@ -38,20 +39,10 @@ vi.mock('@/lib/stores/chat-ui-store', () => ({
     }),
 }))
 
-const emptyQueue: ChatQueueResponse = {
-  id: 'chat_queue:queue-1',
-  chat_session: 'chat_session:session-1',
-  status: 'active',
-  revision: 1,
-  runner_state: 'idle',
-  runner_command_id: null,
-  lease_owner: null,
-  lease_expires_at: null,
+const emptyQueue: ChatQueueResponse = makeChatQueue({
   items: [],
   current_item: null,
-  created: '2026-07-15T00:00:00Z',
-  updated: '2026-07-15T00:00:00Z',
-}
+})
 
 type EnqueueHandler = NonNullable<
   ComponentProps<typeof ChatPanel>['onEnqueueMessage']
@@ -179,7 +170,7 @@ describe('ChatPanel queue composer', () => {
     expect(onEnqueueMessage).not.toHaveBeenCalled()
   })
 
-  it('enqueues when idle if pending queue items already exist', async () => {
+  it('sends normally when idle even if pending queue items already exist', async () => {
     const onEnqueueMessage = vi.fn<EnqueueHandler>().mockResolvedValue(undefined)
     const onSendMessage = vi.fn()
     render(
@@ -192,43 +183,12 @@ describe('ChatPanel queue composer', () => {
         queue={{
           ...emptyQueue,
           items: [
-            {
+            makeQueueItem({
               id: 'chat_queue_item:pending',
-              queue_id: emptyQueue.id,
-              chat_session: emptyQueue.chat_session,
               client_request_id: 'req-1',
-              run_id: 'run-1',
-              position: 0,
-              status: 'pending',
-              visible: true,
               prompt: 'Waiting',
-              loop_count: 1,
-              current_loop: 0,
-              iteration_token: null,
-              execution_snapshot: {
-                model_id: null,
-                skill_ids: [],
-                tool_ids: [],
-                html_template_id: null,
-                artifact_id: null,
-                context_config: {},
-                forwarded_props: {},
-              },
-              runner_command_id: null,
-              runner_state: 'idle',
               stream_revision: 0,
-              stream_content: '',
-              stream_progress: null,
-              stream_activity: null,
-              error_type: null,
-              error_message: null,
-              error_details: null,
-              started_at: null,
-              completed_at: null,
-              failed_at: null,
-              created: '2026-07-15T00:00:00Z',
-              updated: '2026-07-15T00:00:00Z',
-            },
+            }),
           ],
         }}
       />
@@ -240,13 +200,9 @@ describe('ChatPanel queue composer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'chat.send' }))
 
     await waitFor(() =>
-      expect(onEnqueueMessage).toHaveBeenCalledWith('Add another', {
-        loopCount: 1,
-        modelOverride: undefined,
-        scheduleRunner: true,
-      })
+      expect(onSendMessage).toHaveBeenCalledWith('Add another', undefined)
     )
-    expect(onSendMessage).not.toHaveBeenCalled()
+    expect(onEnqueueMessage).not.toHaveBeenCalled()
   })
 
   it('preserves the legacy direct-send path when no queue is provided', () => {

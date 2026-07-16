@@ -12,7 +12,6 @@ import {
   type ChatStreamMessage,
 } from '@/lib/hooks/chat-sse-handlers'
 import type { ChatStreamingBufferReturn } from '@/lib/hooks/useChatStreamingBuffer'
-import type { useChatQueue } from '@/lib/hooks/useChatQueue'
 import {
   createOptimisticUserMessage,
   stripOptimisticMessages,
@@ -25,7 +24,6 @@ export interface UseChatSendTurnOptions<TMessage extends ChatStreamMessage> {
   setMessages: Dispatch<SetStateAction<TMessage[]>>
   refetchCurrentSession: () => Promise<unknown>
   queryClient: QueryClient
-  chatQueue: Pick<ReturnType<typeof useChatQueue>, 'ensureRunner'>
   streaming: ChatStreamingBufferReturn
   t: TFunction
 
@@ -50,20 +48,24 @@ export interface UseChatSendTurnOptions<TMessage extends ChatStreamMessage> {
   afterStreamSuccess?: (sessionId: string) => Promise<void>
   /** Extra finally cleanup (source chat flushes buffers). Receives sessionId when known. */
   onSendFinally?: (sessionId: string | undefined) => void | Promise<void>
+  /**
+   * After the live turn fully releases (isSending cleared), drain the next
+   * queued prompt via the same sendMessage path when provided.
+   */
+  onTurnComplete?: (sessionId: string) => void | Promise<void>
   /** When 'always', refetch session + MCP tool calls in finally (source chat). Default 'success'. */
   refetchAfterTurn?: 'success' | 'always'
 }
 
 /**
  * Shared send-turn orchestration: optimistic user message, SSE handler wiring,
- * error recovery, and deferred queue runner ensure.
+ * error recovery, and optional post-turn queue drain callback.
  */
 export function useChatSendTurn<TMessage extends ChatStreamMessage>({
   messages,
   setMessages,
   refetchCurrentSession,
   queryClient,
-  chatQueue,
   streaming,
   t,
   ensureSession,
@@ -74,6 +76,7 @@ export function useChatSendTurn<TMessage extends ChatStreamMessage>({
   beforeSend,
   afterStreamSuccess,
   onSendFinally,
+  onTurnComplete,
   refetchAfterTurn = 'success',
 }: UseChatSendTurnOptions<TMessage>) {
   const [isSending, setIsSending] = useState(false)
@@ -200,9 +203,20 @@ export function useChatSendTurn<TMessage extends ChatStreamMessage>({
         setActivityLog([])
         setLiveMcpToolCalls([])
         try {
-          await chatQueue.ensureRunner()
-        } catch (ensureError) {
-          console.error('Error ensuring chat queue runner:', ensureError)
+          await onTurnComplete?.(sessionId)
+        } catch (drainError: unknown) {
+          console.error('Error draining chat queue after turn:', drainError)
+          const error = drainError as {
+            response?: { data?: { detail?: string } }
+            message?: string
+          }
+          toast.error(
+            getApiErrorMessage(
+              error.response?.data?.detail || error.message || error,
+              (key) => t(key),
+              'apiErrors.failedToSendMessage'
+            )
+          )
         }
       }
     },
@@ -211,13 +225,13 @@ export function useChatSendTurn<TMessage extends ChatStreamMessage>({
       afterStreamSuccess,
       beforeSend,
       buildSendRequest,
-      chatQueue,
       clearStreamingBuffers,
       ensureSession,
       flushStreamingContent,
       getAbortSignal,
       messages,
       onSendFinally,
+      onTurnComplete,
       queryClient,
       refetchCurrentSession,
       setActivityLog,

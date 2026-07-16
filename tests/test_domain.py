@@ -18,8 +18,8 @@ from api.podcast_service import PodcastService
 from construction_os.ai.models import ModelManager
 from construction_os.domain.base import RecordModel
 from construction_os.domain.content_settings import ContentSettings
-from construction_os.domain.project import Asset, Note, Project, Source
-from construction_os.domain.artifact import Artifact
+from construction_os.domain.project import Asset, Note, Project, ProjectArtifact, Source
+from construction_os.domain.artifact import Artifact, ArtifactTemplate
 from construction_os.exceptions import InvalidInputError
 from construction_os.podcasts.models import EpisodeProfile, SpeakerProfile
 
@@ -141,14 +141,14 @@ class TestProjectDomain:
         assert "Project(id=" not in context
 
     @pytest.mark.asyncio
-    async def test_project_get_context_includes_note_content(self):
-        """Test Project context includes linked note content."""
+    async def test_project_get_context_includes_artifact_content(self):
+        """Test Project context includes linked project artifact content."""
         project = Project(id="project:test", name="Test", description="Test")
-        notes = [
-            Note(
+        artifacts = [
+            ProjectArtifact(
                 id="note:first",
-                title="Research Note",
-                content="Important Project note for the podcast.",
+                title="Research Artifact",
+                content="Important project artifact for the podcast.",
             )
         ]
         get_notes_calls = []
@@ -158,7 +158,7 @@ class TestProjectDomain:
 
         async def fake_get_notes(self, include_content=False):
             get_notes_calls.append(include_content)
-            return notes
+            return artifacts
 
         with (
             patch.object(Project, "get_sources", new=fake_get_sources),
@@ -167,8 +167,8 @@ class TestProjectDomain:
             context = await project.get_context()
 
         assert get_notes_calls == [True]
-        assert "## Note: Research Note" in context
-        assert "Important Project note for the podcast." in context
+        assert "## Artifact: Research Artifact" in context
+        assert "Important project artifact for the podcast." in context
 
     @pytest.mark.asyncio
     async def test_project_get_context_returns_empty_string_without_content(self):
@@ -348,43 +348,44 @@ class TestSourceDomain:
 
 
 # ============================================================================
-# TEST SUITE 5: Note Domain
+# TEST SUITE 5: Project Artifact Domain
 # ============================================================================
 
 
-class TestNoteDomain:
-    """Test suite for Note validation."""
+class TestProjectArtifactDomain:
+    """Test suite for ProjectArtifact validation (Note alias)."""
 
-    def test_note_content_validation(self):
+    def test_project_artifact_content_validation(self):
         """Test empty content is rejected."""
         # None content is allowed
-        note = Note(title="Test", content=None)
-        assert note.content is None
+        artifact = ProjectArtifact(title="Test", content=None)
+        assert artifact.content is None
 
         # Non-empty content is valid
-        note2 = Note(title="Test", content="Valid content")
-        assert note2.content == "Valid content"
+        artifact2 = ProjectArtifact(title="Test", content="Valid content")
+        assert artifact2.content == "Valid content"
 
         # Empty string should raise error
-        with pytest.raises(InvalidInputError, match="Note content cannot be empty"):
-            Note(title="Test", content="")
+        with pytest.raises(InvalidInputError, match="Project artifact content cannot be empty"):
+            ProjectArtifact(title="Test", content="")
 
         # Whitespace-only should raise error
-        with pytest.raises(InvalidInputError, match="Note content cannot be empty"):
-            Note(title="Test", content="   ")
+        with pytest.raises(InvalidInputError, match="Project artifact content cannot be empty"):
+            ProjectArtifact(title="Test", content="   ")
 
-    def test_note_content_for_embedding(self):
-        """Test notes can hold content for embedding.
+    def test_note_alias_matches_project_artifact(self):
+        """Note is a backward-compatible alias for ProjectArtifact."""
+        note = Note(title="Test", content="Alias content", note_type="manual")
+        assert note.artifact_kind == "manual"
+        assert isinstance(note, ProjectArtifact)
 
-        Note: Embedding is now handled via command submission in Note.save(),
-        not via needs_embedding() method. This test verifies basic content handling.
-        """
-        note = Note(title="Test", content="Test content")
-        assert note.content == "Test content"
+    def test_project_artifact_content_for_embedding(self):
+        """Artifacts can hold content for embedding via save()."""
+        artifact = ProjectArtifact(title="Test", content="Test content")
+        assert artifact.content == "Test content"
 
-        # Test with None content - valid, no embedding will be submitted
-        note2 = Note(title="Test", content=None)
-        assert note2.content is None
+        artifact2 = ProjectArtifact(title="Test", content=None)
+        assert artifact2.content is None
 
 
 # ============================================================================
@@ -516,12 +517,12 @@ class TestPodcastService:
 # ============================================================================
 
 
-class TestArtifactDomain:
-    """Test suite for Artifact domain model."""
+class TestArtifactTemplateDomain:
+    """Test suite for ArtifactTemplate (global prompt library)."""
 
-    def test_Artifact_creation(self):
-        """Test Artifact model creation."""
-        transform = Artifact(
+    def test_artifact_template_creation(self):
+        """Test ArtifactTemplate model creation."""
+        template = ArtifactTemplate(
             name="summarize",
             title="Summarize Content",
             description="Creates a summary",
@@ -529,8 +530,19 @@ class TestArtifactDomain:
             apply_default=True,
         )
 
-        assert transform.name == "summarize"
-        assert transform.apply_default is True
+        assert template.name == "summarize"
+        assert template.apply_default is True
+
+    def test_artifact_alias_matches_template(self):
+        """Artifact is a backward-compatible alias for ArtifactTemplate."""
+        template = Artifact(
+            name="scope",
+            title="Bid Scope",
+            description="Extract scope",
+            prompt="Scope: {content}",
+            apply_default=False,
+        )
+        assert isinstance(template, ArtifactTemplate)
 
 
 # ============================================================================

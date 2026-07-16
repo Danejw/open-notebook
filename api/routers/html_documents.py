@@ -18,6 +18,7 @@ from api.models import (
 )
 from construction_os.database.repository import repo_query
 from construction_os.domain.html_document import Document, HtmlTemplate
+from construction_os.services.html_templates import html_template_to_dict
 from construction_os.domain.project import Project
 from construction_os.exceptions import InvalidInputError, NotFoundError
 from construction_os.utils.html_pdf_export import render_html_pdf
@@ -40,13 +41,14 @@ def _looks_like_html(html_body: str) -> bool:
 
 
 def _template_response(template: HtmlTemplate) -> HtmlTemplateResponse:
+    data = html_template_to_dict(template, include_body=True)
     return HtmlTemplateResponse(
-        id=template.id or "",
-        name=template.name,
-        category=template.category,
-        html_body=template.html_body,
-        created=str(template.created),
-        updated=str(template.updated),
+        id=data["id"],
+        name=data["name"],
+        category=data["category"],
+        html_body=data["html_body"],
+        created=data["created"] or "",
+        updated=data["updated"] or "",
     )
 
 

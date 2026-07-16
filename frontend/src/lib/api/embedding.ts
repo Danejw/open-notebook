@@ -18,6 +18,9 @@ export interface EmbedContentResponse {
 export interface RebuildEmbeddingsRequest {
   mode: 'existing' | 'all'
   include_sources?: boolean
+  /** Canonical: include project artifacts */
+  include_artifacts?: boolean
+  /** @deprecated Prefer include_artifacts */
   include_notes?: boolean
 }
 

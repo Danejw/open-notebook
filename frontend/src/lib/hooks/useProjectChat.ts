@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { chatApi } from '@/lib/api/chat'
 import { QUERY_KEYS } from '@/lib/api/query-client'
 import {
@@ -41,6 +42,7 @@ export function useProjectChat({
   guestKey = null,
   sharedMode = false,
 }: UseProjectChatParams) {
+  const queryClient = useQueryClient()
   const [tokenCount, setTokenCount] = useState<number>(0)
   const [charCount, setCharCount] = useState<number>(0)
   const [pendingModelOverride, setPendingModelOverride] = useState<string | null>(
@@ -60,9 +62,11 @@ export function useProjectChat({
   const buildContextConfig = useCallback(() => {
     const context_config: {
       sources: Record<string, string>
+      artifacts: Record<string, string>
       notes: Record<string, string>
     } = {
       sources: {},
+      artifacts: {},
       notes: {},
     }
 
@@ -74,8 +78,10 @@ export function useProjectChat({
 
     notes.forEach((note) => {
       const mode = contextSelections.notes[note.id]
-      context_config.notes[note.id] =
-        mode === 'full' ? 'full content' : 'not in'
+      const inclusion = mode === 'full' ? 'full content' : 'not in'
+      context_config.artifacts[note.id] = inclusion
+      // Legacy dual-write for older API clients / sessions
+      context_config.notes[note.id] = inclusion
     })
 
     return context_config
@@ -178,6 +184,18 @@ export function useProjectChat({
       sseHandlerOptions: {
         flushOnTextMessageEnd: true,
         clearBuffersOnRunFinished: true,
+        onToolCallUpdate: (toolCall) => {
+          if (
+            toolCall.tool_source === 'native' &&
+            toolCall.performed_write &&
+            toolCall.status === 'succeeded' &&
+            toolCall.tool_name === 'save_project_artifact'
+          ) {
+            void queryClient.invalidateQueries({
+              queryKey: QUERY_KEYS.projectArtifacts(projectId),
+            })
+          }
+        },
       },
     },
     enqueue: {
@@ -238,6 +256,9 @@ export function useProjectChat({
     enqueueMessage,
     chatQueue,
     queueHasWork,
+    retryQueueStream,
+    pauseQueue,
+    resumeQueue,
     presentationView,
     clearPending,
   } = runtime
@@ -434,6 +455,7 @@ export function useProjectChat({
     queue: presentationView.queue,
     queueHasWork,
     queueStreamError: chatQueue.streamError,
+    retryQueueStream,
     isDirectSending: isSending,
     createSession,
     updateSession,
@@ -442,8 +464,8 @@ export function useProjectChat({
     sendMessage,
     enqueueMessage: enqueueMessageResolved,
     editAndResend,
-    pauseQueue: chatQueue.pause,
-    resumeQueue: chatQueue.resume,
+    pauseQueue,
+    resumeQueue,
     editQueueItem: chatQueue.editItem,
     deleteQueueItem: chatQueue.deleteItem,
     retryQueueItem: chatQueue.retryItem,

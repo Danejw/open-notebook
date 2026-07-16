@@ -34,7 +34,7 @@ async def search_knowledge_base(search_request: SearchRequest):
                 mode="hybrid",
                 limit=search_request.limit,
                 search_sources=search_request.search_sources,
-                search_notes=search_request.search_notes,
+                search_notes=search_request.resolve_search_artifacts(),
                 minimum_score=search_request.minimum_score,
             )
             results = bundle.to_search_results()
@@ -50,7 +50,7 @@ async def search_knowledge_base(search_request: SearchRequest):
                 keyword=search_request.query,
                 results=search_request.limit,
                 source=search_request.search_sources,
-                note=search_request.search_notes,
+                note=search_request.resolve_search_artifacts(),
                 minimum_score=search_request.minimum_score,
                 project_id=search_request.project_id,
             )
@@ -60,7 +60,7 @@ async def search_knowledge_base(search_request: SearchRequest):
                 keyword=search_request.query,
                 results=search_request.limit,
                 source=search_request.search_sources,
-                note=search_request.search_notes,
+                note=search_request.resolve_search_artifacts(),
                 project_id=search_request.project_id,
             )
 

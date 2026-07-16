@@ -20,6 +20,7 @@ const executionSnapshotSchema = z
   .object({
     model_id: z.string().nullable(),
     skill_ids: z.array(z.string()).nullable(),
+    collection_ids: z.array(z.string()).nullable(),
     tool_ids: z.array(z.string()).nullable(),
     html_template_id: z.string().nullable(),
     artifact_id: z.string().nullable(),

@@ -1,6 +1,6 @@
 # Domain Module
 
-Core data models for projects, sources, notes, artifacts, and settings with async SurrealDB persistence, auto-embedding, and relationship management.
+Core data models for projects, sources, project artifacts, artifact templates, and settings with async SurrealDB persistence, auto-embedding, and relationship management.
 
 ## Purpose
 
@@ -9,7 +9,7 @@ Two base classes support different persistence patterns: **ObjectModel** (mutabl
 ## Key Components
 
 ### base.py
-- **ObjectModel**: Base for projects, sources, notes, artifacts
+- **ObjectModel**: Base for projects, sources, project artifacts, artifact templates
   - `save()`: Create/update with auto-embedding for searchable content
   - `delete()`: Remove by ID
   - `relate(relationship, target_id)`: Create graph relationships (reference, project_note, refers_to)
@@ -24,9 +24,9 @@ Two base classes support different persistence patterns: **ObjectModel** (mutabl
 
 ### project.py
 - **Project**: Research project container (`table_name = "project"`)
-  - `get_sources()`, `get_notes()`, `get_chat_sessions()`: Navigate relationships
-  - `get_delete_preview()`: Returns counts of notes, exclusive sources, and shared sources that would be affected by deletion
-  - `delete(delete_exclusive_sources)`: Cascade deletion - always deletes notes, optionally deletes exclusive sources, always unlinks all sources
+  - `get_sources()`, `get_artifacts()` / `get_notes()` (alias), `get_chat_sessions()`: Navigate relationships
+  - `get_delete_preview()`: Returns counts of project artifacts, exclusive sources, and shared sources that would be affected by deletion
+  - `delete(delete_exclusive_sources)`: Cascade deletion - always deletes project artifacts, optionally deletes exclusive sources, always unlinks all sources
 
 - **Source**: Content item (file/URL)
   - `vectorize()`: Submit async embedding job (returns command_id, fire-and-forget)
@@ -34,9 +34,11 @@ Two base classes support different persistence patterns: **ObjectModel** (mutabl
   - `get_context()`: Returns summary for LLM context
   - `add_to_project()`: Link source to a project via `reference`
 
-- **Note**: Standalone or linked notes
+- **ProjectArtifact** (`project_artifact.py`): Persisted project output (`table_name = "note"`, IDs `note:…`)
+  - Kinds: `manual` | `ai` | `generated` (DB column `note_type`; API field `artifact_kind`)
   - `save()`: Submits `embed_note` command after save (fire-and-forget)
-  - `add_to_project()`: Link note to project via `project_note`
+  - `add_to_project()`: Link artifact to project via `project_note`
+  - **`Note`**: Backward-compatible alias for `ProjectArtifact`
 
 - **SourceEmbedding**: Chunk embedding model for sources
 - **ChatSession**: Conversation container with optional model_override
@@ -48,7 +50,8 @@ Two base classes support different persistence patterns: **ObjectModel** (mutabl
   - `vector_search()`: Semantic search via embeddings (default minimum_score=0.2)
 
 ### artifact.py
-- **Artifact**: Reusable prompts for content analysis (`table_name = "artifact"`)
+- **ArtifactTemplate**: Reusable prompt templates for content analysis (`table_name = "artifact"`)
+- **`Artifact`**: Backward-compatible alias for `ArtifactTemplate`
 - **DefaultPrompts**: Singleton with `artifact_instructions`
 
 ### content_settings.py
@@ -94,9 +97,9 @@ Two base classes support different persistence patterns: **ObjectModel** (mutabl
 - **Polymorphic resolution**: `ObjectModel.get()` fails if subclass not imported (call `import construction_os.domain` or use specific model class)
 - **RecordModel singleton**: __new__ returns existing instance; call `clear_instance()` in tests
 - **Source.command field**: Stored as RecordID; auto-parsed from strings via field_validator
-- **Text truncation**: `Note.get_context(short)` hardcodes 100-char limit
+- **Text truncation**: `ProjectArtifact.get_context(short)` hardcodes 100-char limit
 - **Auto-embedding behavior**:
-  - `Note.save()` → auto-submits `embed_note` command
+  - `ProjectArtifact.save()` → auto-submits `embed_note` command
   - `Source.save()` → does NOT auto-submit (must call `vectorize()` explicitly)
 - **Relationship strings**: Must match SurrealDB schema (reference, project_note, refers_to)
 

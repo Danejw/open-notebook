@@ -19,7 +19,7 @@ def test_eligible_source_ids_from_config():
     assert eligible_source_ids(config) == {"source:a", "source:b"}
 
 
-def test_eligible_note_ids_from_config():
+def test_eligible_note_ids_from_legacy_notes_config():
     config = {
         "notes": {
             "note:a": "full content",
@@ -27,6 +27,24 @@ def test_eligible_note_ids_from_config():
         }
     }
     assert eligible_note_ids(config) == {"note:a"}
+
+
+def test_eligible_note_ids_from_artifacts_config():
+    config = {
+        "artifacts": {
+            "note:b": "full content",
+            "c": "not in",
+        }
+    }
+    assert eligible_note_ids(config) == {"note:b"}
+
+
+def test_eligible_note_ids_merges_artifacts_and_notes():
+    config = {
+        "notes": {"note:legacy": "full content"},
+        "artifacts": {"note:canonical": "full content"},
+    }
+    assert eligible_note_ids(config) == {"note:legacy", "note:canonical"}
 
 
 def test_estimate_preview_tokens_empty_pool():

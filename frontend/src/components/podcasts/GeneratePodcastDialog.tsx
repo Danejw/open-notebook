@@ -8,8 +8,8 @@ import { useProjects } from '@/lib/hooks/use-projects'
 import { useEpisodeProfiles, useGeneratePodcast } from '@/lib/hooks/use-podcasts'
 import { chatApi } from '@/lib/api/chat'
 import { sourcesApi } from '@/lib/api/sources'
-import { notesApi } from '@/lib/api/notes'
-import { BuildContextRequest, NoteResponse, ProjectResponse, SourceListResponse } from '@/lib/types/api'
+import { projectArtifactsApi } from '@/lib/api/project-artifacts'
+import { BuildContextRequest, ProjectArtifactResponse, ProjectResponse, SourceListResponse } from '@/lib/types/api'
 import type { QueryClient } from '@tanstack/react-query'
 import { PodcastGenerationRequest } from '@/lib/types/podcasts'
 import { QUERY_KEYS } from '@/lib/api/query-client'
@@ -88,7 +88,7 @@ interface ContentSelectionPanelProps {
   setexpandedProjects: (projects: string[]) => void
   selections: Record<string, ProjectSelection>
   sourcesByProject: Record<string, SourceListResponse[]>
-  notesByProject: Record<string, NoteResponse[]>
+  notesByProject: Record<string, ProjectArtifactResponse[]>
   fetchingprojectIds: Set<string>
   handleProjectToggle: (projectId: string, checked: boolean | 'indeterminate') => void
   handleSourceModeChange: (projectId: string, sourceId: string, mode: SourceMode) => void
@@ -219,8 +219,8 @@ function ContentSelectionPanel({
                             queryFn: () => sourcesApi.list({ project_id: project.id }),
                           })
                           queryClient.prefetchQuery({
-                            queryKey: QUERY_KEYS.notes(project.id),
-                            queryFn: () => notesApi.list({ project_id: project.id }),
+                            queryKey: QUERY_KEYS.projectArtifacts(project.id),
+                            queryFn: () => projectArtifactsApi.list({ project_id: project.id }),
                           })
                         }}
                         onClick={(event) => event.stopPropagation()}
@@ -338,7 +338,7 @@ function ContentSelectionPanel({
                             </p>
                           ) : (
                             <div className="space-y-2">
-                              {notes.map((note: NoteResponse) => {
+                              {notes.map((note: ProjectArtifactResponse) => {
                                 const mode = selection?.notes?.[note.id] ?? 'off'
                                 return (
                                   <div
@@ -429,8 +429,8 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
 
   const notesQueries = useQueries({
     queries: projects.map((project) => ({
-      queryKey: QUERY_KEYS.notes(project.id),
-      queryFn: () => notesApi.list({ project_id: project.id }),
+      queryKey: QUERY_KEYS.projectArtifacts(project.id),
+      queryFn: () => projectArtifactsApi.list({ project_id: project.id }),
       enabled:
         open &&
         (expandedProjects.includes(project.id) || hasSelections(selections[project.id])),
@@ -445,8 +445,8 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
     return map
   }, [projects, sourcesQueries])
 
-  const notesByProject = useMemo<Record<string, NoteResponse[]>>(() => {
-    const map: Record<string, NoteResponse[]> = {}
+  const notesByProject = useMemo<Record<string, ProjectArtifactResponse[]>>(() => {
+    const map: Record<string, ProjectArtifactResponse[]> = {}
     projects.forEach((project, index) => {
       map[project.id] = notesQueries[index]?.data ?? []
     })

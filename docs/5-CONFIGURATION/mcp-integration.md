@@ -1,5 +1,9 @@
 # Model Context Protocol (MCP) Integration
 
+> **Two MCP roles in this repo**
+> - **Cos as MCP server** (this page): Claude Desktop / VS Code call into Construction OS.
+> - **Cos as MCP client** (in-app remote tools): study/extend docs at [docs/ai-protocols/mcp/client/](../ai-protocols/mcp/client/architecture.md).
+
 Construction OS can be seamlessly integrated into your AI workflows using the **Model Context Protocol (MCP)**, enabling direct access to your projects, sources, and chat functionality from AI assistants like Claude Desktop and VS Code extensions.
 
 ## What is MCP?
@@ -9,7 +13,7 @@ The [Model Context Protocol](https://modelcontextprotocol.io) is an open standar
 - 📚 **Access your projects** directly from Claude Desktop or VS Code
 - 🔍 **Search your research content** without leaving your AI assistant
 - 💬 **Create and manage chat sessions** with your research as context
-- 📝 **Generate notes** on-the-fly
+- 📝 **Generate project artifacts** on-the-fly
 - 🤖 **Automate workflows** using the full Construction OS API
 
 ## Quick Setup
@@ -103,12 +107,12 @@ Or with a domain:
 Once connected, you can ask Claude or your AI assistant to:
 
 - _"Search my research projects for information about [topic]"_
-- _"Create a new note summarizing the key points from our conversation"_
+- _"Create a new project artifact summarizing the key points from our conversation"_
 - _"List all my projects"_
 - _"Start a chat session about [specific source or topic]"_
 - _"What sources do I have in my [project name] project?"_
 - _"Add this PDF to my research project"_
-- _"Show me all notes in [project name]"_
+- _"Show me all project artifacts in [project name]"_
 
 The MCP server provides full access to Construction OS's capabilities, allowing you to manage your research seamlessly from within your AI assistant.
 
@@ -132,13 +136,15 @@ The Construction OS MCP server exposes these capabilities:
 - Update source metadata
 - Delete sources
 
-### Notes
+### Project Artifacts
 
-- List notes in a project
-- Get note details
-- Create new notes
-- Update notes
-- Delete notes
+- List project artifacts in a project
+- Get project artifact details
+- Create new project artifacts
+- Update project artifacts
+- Delete project artifacts
+
+> Legacy MCP tool names may still say "notes"; they operate on the same `note:…` records.
 
 ### Chat
 

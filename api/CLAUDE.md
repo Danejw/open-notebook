@@ -1,6 +1,6 @@
 # API Module
 
-FastAPI-based REST backend exposing services for projects, sources, notes, chat, podcasts, and AI model management.
+FastAPI-based REST backend exposing services for projects, sources, project artifacts, chat, podcasts, and AI model management.
 
 ## Purpose
 
@@ -29,7 +29,7 @@ FastAPI application serving three architectural layers: routes (HTTP endpoints),
 - `skills_service.py`: Chat skill definitions and retrieval
 - `mcp_service.py`: MCP server integration for tool use
 
-Routers for CRUD (projects, sources, notes, etc.) call domain models and repository functions directly — not HTTP wrapper services.
+Routers for CRUD (projects, sources, project-artifacts, etc.) call domain models and repository functions directly — not HTTP wrapper services.
 
 ## Component Catalog
 
@@ -54,17 +54,19 @@ Routers import domain models (`Project`, `Source`, `Note`, etc.) and LangGraph w
 
 ### Models (Schemas)
 - **models.py**: Pydantic schemas for request/response validation
-- Request bodies: ChatRequest, CreateNoteRequest, PodcastGenerationRequest, etc.
-- Response bodies: ChatResponse, NoteResponse, PodcastResponse, etc.
+- Request bodies: ChatRequest, ProjectArtifactCreate, PodcastGenerationRequest, etc.
+- Response bodies: ChatResponse, ProjectArtifactResponse, PodcastResponse, etc.
 - Custom validators for enum fields, file paths, model references
 
 ### Routers
 - **routers/projects.py**: CRUD /projects
-- **routers/artifacts.py**: CRUD /artifacts, execute, default-prompt
+- **routers/project_artifacts.py**: CRUD `/project-artifacts` (canonical)
+- **routers/notes.py**: Deprecated aliases — POST/GET/PUT/DELETE `/notes` → project-artifacts handlers
+- **routers/artifact_templates.py**: CRUD `/artifact-templates` (canonical)
+- **routers/artifacts.py**: Deprecated aliases to artifact-templates handlers
 - **routers/chat.py**: POST /chat
 - **routers/source_chat.py**: POST /source/{source_id}/chat
 - **routers/podcasts.py**: POST /podcasts, GET /podcasts/{id}, POST /podcasts/episodes/{id}/retry, etc.
-- **routers/notes.py**: POST /notes, GET /notes/{id}
 - **routers/sources.py**: POST /sources, GET /sources/{id}, DELETE /sources/{id}
 - **routers/models.py**: GET /models, POST /models/config
 - **routers/credentials.py**: CRUD + test + discover + migrate for credential management
@@ -90,7 +92,7 @@ Routers import domain models (`Project`, `Source`, `Note`, etc.) and LangGraph w
 - `pydantic`: Validation models with Field, field_validator
 - `construction_os.graphs`: chat, ask, source_chat, source, artifact graphs
 - `construction_os.database`: SurrealDB repository functions (repo_query, repo_create, repo_upsert)
-- `construction_os.domain`: Project, Artifact, Source, Note models
+- `construction_os.domain`: Project, ProjectArtifact, ArtifactTemplate, Source models (`Note` / `Artifact` are aliases)
 - `construction_os.ai.provision`: provision_langchain_model() factory
 - `ai_prompter`: Prompter for template rendering
 - `content_core`: extract_content() for file/URL processing

@@ -20,7 +20,7 @@ from loguru import logger
 from construction_os.ai.models import Model
 from construction_os.config import LANGGRAPH_CHECKPOINT_FILE
 from construction_os.database.repository import ensure_record_id, repo_query
-from construction_os.domain.artifact import Artifact
+from construction_os.domain.artifact import ArtifactTemplate
 from construction_os.domain.chat_queue import (
     ChatQueueItem,
     ChatQueueMutationError,
@@ -245,6 +245,9 @@ def _context_reference_ids(context_config: Dict[str, Any]) -> tuple[set[str], se
     for note_id in context_config.get("note_ids") or []:
         value = str(note_id)
         note_ids.add(value if value.startswith("note:") else f"note:{value}")
+    for artifact_id in context_config.get("artifact_ids") or []:
+        value = str(artifact_id)
+        note_ids.add(value if value.startswith("note:") else f"note:{value}")
     return source_ids, note_ids
 
 
@@ -288,6 +291,8 @@ class QueueExecutionResolver:
             "session_id": chat_session_id,
             "html_template_id": str(html_template_id) if html_template else None,
             "html_template": html_template,
+            # Queue execution is owner-scoped; guests cannot enqueue.
+            "is_guest": False,
         }
         if scope == "project":
             await self._validate_project_context(str(target.id), context_config)
@@ -412,13 +417,15 @@ class QueueExecutionResolver:
     ) -> Optional[Dict[str, Any]]:
         if not artifact_id:
             return None
-        artifact = await _required_resource(Artifact.get, str(artifact_id), "Artifact")
+        artifact_template = await _required_resource(
+            ArtifactTemplate.get, str(artifact_id), "Artifact template"
+        )
         return {
-            "id": str(artifact.id),
-            "name": artifact.name,
-            "title": artifact.title,
-            "description": artifact.description,
-            "prompt": artifact.prompt,
+            "id": str(artifact_template.id),
+            "name": artifact_template.name,
+            "title": artifact_template.title,
+            "description": artifact_template.description,
+            "prompt": artifact_template.prompt,
         }
 
     async def _validate_project_context(

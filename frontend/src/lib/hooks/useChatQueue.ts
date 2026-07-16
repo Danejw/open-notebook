@@ -822,31 +822,39 @@ export function useChatQueue(
   /**
    * Kick drain for an active queue after a live AG-UI turn releases the session.
    * Respects a manual pause — does not auto-resume paused queues.
+   *
+   * Prefer passing `targetSessionId` from the in-flight send turn so a newly
+   * created session is not lost when this hook still holds a stale/null id.
    */
-  const ensureRunner = useCallback(async () => {
-    if (!sessionId || !activeQueryKey) {
-      return
-    }
-    let current =
-      queryClient.getQueryData<ChatQueueResponse>(activeQueryKey)
-    if (!current) {
-      current = await chatQueueApi.get(sessionId)
-      queryClient.setQueryData(activeQueryKey, current)
-    }
-    if (current.status === 'paused') {
-      return
-    }
-    // resume() on an already-active queue force-schedules pending drain.
-    const queue = await chatQueueApi.resume(sessionId)
-    queryClient.setQueryData(
-      activeQueryKey,
-      (previous: ChatQueueResponse | undefined) =>
-        mergeChatQueueState(previous, {
-          kind: 'snapshot',
-          queue,
-        }) ?? queue
-    )
-  }, [activeQueryKey, queryClient, sessionId])
+  const ensureRunner = useCallback(
+    async (targetSessionId?: string) => {
+      const id = targetSessionId ?? sessionId
+      if (!id) {
+        return
+      }
+      const queryKeyForSession = QUERY_KEYS.chatQueue(id)
+      let current =
+        queryClient.getQueryData<ChatQueueResponse>(queryKeyForSession)
+      if (!current) {
+        current = await chatQueueApi.get(id)
+        queryClient.setQueryData(queryKeyForSession, current)
+      }
+      if (current.status === 'paused') {
+        return
+      }
+      // resume() on an already-active queue force-schedules pending drain.
+      const queue = await chatQueueApi.resume(id)
+      queryClient.setQueryData(
+        queryKeyForSession,
+        (previous: ChatQueueResponse | undefined) =>
+          mergeChatQueueState(previous, {
+            kind: 'snapshot',
+            queue,
+          }) ?? queue
+      )
+    },
+    [queryClient, sessionId]
+  )
 
   const actions = useMemo(
     () => ({

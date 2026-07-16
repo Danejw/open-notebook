@@ -5,7 +5,7 @@ from langgraph.graph import END, START, StateGraph
 from typing_extensions import TypedDict
 
 from construction_os.ai.provision import provision_langchain_model
-from construction_os.domain.artifact import Artifact, DefaultPrompts
+from construction_os.domain.artifact import ArtifactTemplate, DefaultPrompts
 from construction_os.domain.project import Source
 from construction_os.exceptions import ConstructionOSError
 from construction_os.utils import clean_thinking_content
@@ -16,7 +16,7 @@ from construction_os.utils.text_utils import extract_text_content
 class ArtifactState(TypedDict):
     input_text: str
     source: Source
-    artifact: Artifact
+    artifact: ArtifactTemplate
     output: str
 
 
@@ -25,12 +25,12 @@ async def run_artifact(state: dict, config: RunnableConfig) -> dict:
     source: Source = source_obj if isinstance(source_obj, Source) else None  # type: ignore[assignment]
     content = state.get("input_text")
     assert source or content, "No content to transform"
-    artifact: Artifact = state["artifact"]
+    artifact_template: ArtifactTemplate = state["artifact"]
 
     try:
         if not content:
             content = source.full_text
-        artifact_template_text = artifact.prompt
+        artifact_template_text = artifact_template.prompt
         default_prompts: DefaultPrompts = DefaultPrompts(artifact_instructions=None)
         if default_prompts.artifact_instructions:
             artifact_template_text = (

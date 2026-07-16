@@ -45,7 +45,8 @@ class ContextConfig:
     """Configuration for context building."""
 
     sources: Optional[Dict[str, str]] = None  # {source_id: inclusion_level}
-    notes: Optional[Dict[str, str]] = None  # {note_id: inclusion_level}
+    notes: Optional[Dict[str, str]] = None  # legacy {note_id: inclusion_level}
+    artifacts: Optional[Dict[str, str]] = None  # canonical {artifact_id: inclusion_level}
     include_notes: bool = True
     max_tokens: Optional[int] = None
     priority_weights: Optional[Dict[str, int]] = None  # {type: weight}
@@ -56,8 +57,14 @@ class ContextConfig:
             self.sources = {}
         if self.notes is None:
             self.notes = {}
+        if self.artifacts is None:
+            self.artifacts = {}
         if self.priority_weights is None:
-            self.priority_weights = {"source": 100, "note": 50}
+            self.priority_weights = {"source": 100, "note": 50, "artifact": 50}
+
+    def resolved_artifacts(self) -> Dict[str, str]:
+        """Merge legacy notes with canonical artifacts (artifacts win)."""
+        return {**(self.notes or {}), **(self.artifacts or {})}
 
 
 class ContextBuilder:
@@ -217,7 +224,7 @@ class ContextBuilder:
 
             # Process notes from context config or get all
             if self.include_notes:
-                config_notes = self.context_config.notes
+                config_notes = self.context_config.resolved_artifacts()
                 if config_notes:
                     for note_id, status in config_notes.items():
                         if is_note_included(status):

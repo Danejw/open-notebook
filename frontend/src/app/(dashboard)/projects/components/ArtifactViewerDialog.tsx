@@ -1,6 +1,7 @@
 'use client'
 
-import { NoteResponse } from '@/lib/types/api'
+import { ProjectArtifactResponse } from '@/lib/types/api'
+import { isGeneratedArtifact } from '@/lib/utils/project-artifact-kind'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -16,13 +17,13 @@ import type { TFunction } from 'i18next'
 export interface ArtifactViewerDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  displayNote: NoteResponse | null | undefined
+  displayNote: ProjectArtifactResponse | null | undefined
   isLoading: boolean
   t: TFunction
-  onExportPdf: (note: NoteResponse) => void
-  onExportMarkdown: (note: NoteResponse) => void
-  onIngest: (note: NoteResponse) => void
-  onEdit: (note: NoteResponse) => void
+  onExportPdf: (note: ProjectArtifactResponse) => void
+  onExportMarkdown: (note: ProjectArtifactResponse) => void
+  onIngest: (note: ProjectArtifactResponse) => void
+  onEdit: (note: ProjectArtifactResponse) => void
   exportPdfPending: boolean
   ingestPending: boolean
 }
@@ -56,7 +57,7 @@ export function ArtifactViewerDialog({
           )}
         </div>
         <DialogFooter className="border-t">
-          {displayNote?.note_type === 'artifact' ? (
+          {displayNote && isGeneratedArtifact(displayNote) ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button type="button" variant="outline" size="sm" className="h-7">
@@ -89,7 +90,7 @@ export function ArtifactViewerDialog({
               </DropdownMenuContent>
             </DropdownMenu>
           ) : null}
-          {displayNote?.note_type === 'artifact' ? (
+          {displayNote && isGeneratedArtifact(displayNote) ? (
             <Button
               type="button"
               variant="secondary"

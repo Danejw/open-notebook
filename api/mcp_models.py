@@ -71,5 +71,11 @@ class ChatToolCallResponse(BaseModel):
     result_text: Optional[str] = None
     status: str
     error: Optional[str] = None
+    tool_source: Optional[str] = "mcp"
+    performed_write: bool = False
+    error_category: Optional[str] = None
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    duration_ms: Optional[int] = None
     created: Optional[str] = None
     updated: Optional[str] = None

@@ -1,0 +1,34 @@
+---
+description: Treat implementation code as source of truth; docs may be outdated
+alwaysApply: true
+---
+
+# Code as Source of Truth
+
+Prefer the **implemented code** over docs, audits, summaries, CLAUDE.md notes, and comments when deciding how the system works.
+
+Docs and notes lag. Behavior, APIs, types, and schemas live in the repo.
+
+## Rules
+
+1. **Verify in code first** — Before implementing, debugging, or explaining behavior, inspect the relevant source (routers, services, domain models, hooks, components, migrations). Do not trust docs alone.
+2. **Docs are hints, not facts** — Use `docs/`, summaries, audits, and CLAUDE.md for orientation and intent. If they disagree with code, **code wins**.
+3. **Resolve conflicts toward code** — When a doc describes an old endpoint, model, or flow, follow the current implementation. Call out the doc mismatch only if updating docs is in scope.
+4. **Cite what you verified** — Base claims about APIs, types, and workflows on files you read, not on remembered or documented descriptions.
+
+## Do
+
+- Search and read implementation files before following a documented pattern
+- Match existing code structure, naming, and call sites even if docs suggest something else
+- Treat OpenAPI/runtime behavior and typed interfaces as stronger than prose
+
+## Do not
+
+- Implement from a doc/audit/summary without checking that the described code still exists
+- “Fix” working code to match outdated documentation
+- Assume CLAUDE.md or architecture notes reflect the current stack
+
+## Before finishing
+
+- [ ] Behavior claims were checked against current source
+- [ ] No change was made solely because a doc said so when code differed

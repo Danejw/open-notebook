@@ -58,6 +58,9 @@ export interface ChatQueuePanelProps {
   onDeleteItem: (itemId: string) => void | Promise<unknown>
   onRetryItem: (itemId: string) => void | Promise<unknown>
   onReorder: (itemIds: string[]) => void | Promise<unknown>
+  /** Queue SSE disconnect / parse failure — show retry affordance. */
+  streamError?: Error | null
+  onRetryStream?: () => void
   disabled?: boolean
 }
 
@@ -183,20 +186,20 @@ function QueueItemRow({
       style={style}
       data-testid="queue-item"
       className={cn(
-        'group/item relative px-1 py-1.5 text-xs',
+        'group/item relative px-2 py-1 text-xs',
         item.status === 'failed' && 'bg-destructive/5'
       )}
     >
       {isEditing ? (
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <Textarea
             aria-label={t('chat.queuePrompt')}
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
-            className="min-h-12 px-2 py-1.5 text-xs"
+            className="min-h-12 px-2 py-1 text-xs"
             disabled={disabled}
           />
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <span className="text-[11px] text-muted-foreground" aria-hidden>
               ×
             </span>
@@ -217,12 +220,12 @@ function QueueItemRow({
                   )
                 )
               }
-              className="h-7 w-12 px-1.5 text-xs"
+              className="h-6 w-12 px-1.5 text-xs"
               disabled={disabled}
             />
             <Button
               size="sm"
-              className="h-7 px-2 text-xs"
+              className="h-6 px-2 text-xs"
               onClick={saveEdit}
               disabled={disabled || !prompt.trim()}
             >
@@ -231,7 +234,7 @@ function QueueItemRow({
             <Button
               size="icon"
               variant="ghost"
-              className="h-7 w-7"
+              className="h-6 w-6"
               aria-label={t('common.cancel')}
               onClick={() => {
                 setPrompt(item.prompt)
@@ -244,12 +247,12 @@ function QueueItemRow({
           </div>
         </div>
       ) : (
-        <div className="flex items-start gap-1">
+        <div className="flex items-center gap-1">
           {sortable ? (
             <button
               type="button"
               aria-label={`${t('chat.queueDrag')} ${itemLabel}`}
-              className="mt-0.5 cursor-grab touch-none rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover/item:opacity-100 group-focus-within/item:opacity-100"
+              className="cursor-grab touch-none rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover/item:opacity-100 group-focus-within/item:opacity-100"
               disabled={disabled}
               {...sortableState.attributes}
               {...sortableState.listeners}
@@ -257,7 +260,7 @@ function QueueItemRow({
               <GripVertical className="h-3.5 w-3.5" />
             </button>
           ) : (
-            <span className="mt-0.5 w-[18px] shrink-0" aria-hidden />
+            <span className="w-[18px] shrink-0" aria-hidden />
           )}
           <div className="min-w-0 flex-1">
             <p className="line-clamp-2 break-words leading-snug">{item.prompt}</p>
@@ -300,7 +303,7 @@ function QueueItemRow({
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7"
+                className="h-6 w-6"
                 aria-label={`${t('chat.queueEdit')} ${itemLabel}`}
                 onClick={() => setIsEditing(true)}
                 disabled={disabled}
@@ -311,7 +314,7 @@ function QueueItemRow({
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-7 w-7"
+                  className="h-6 w-6"
                   aria-label={`${t('chat.queueRetry')} ${itemLabel}`}
                   onClick={() => void onRetryItem(item.id)}
                   disabled={disabled}
@@ -322,7 +325,7 @@ function QueueItemRow({
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7 text-destructive"
+                className="h-6 w-6 text-destructive"
                 aria-label={`${t('chat.queueDelete')} ${itemLabel}`}
                 onClick={() => onDeleteRequest(item)}
                 disabled={disabled}
@@ -348,6 +351,8 @@ export function ChatQueuePanel({
   onDeleteItem,
   onRetryItem,
   onReorder,
+  streamError = null,
+  onRetryStream,
   disabled = false,
 }: ChatQueuePanelProps) {
   const { t } = useTranslation()
@@ -387,15 +392,15 @@ export function ChatQueuePanel({
     setDeleteTarget(item)
   }
 
-  if (queuedCount === 0) {
+  if (queuedCount === 0 && !streamError) {
     return null
   }
 
   return (
     <>
       <Collapsible open={open} onOpenChange={setOpen}>
-        <div className="border-t border-border/60 bg-muted/10 px-1.5 py-1">
-          <div className="flex items-center gap-0.5">
+        <div className="shrink-0 border-t border-border/60 bg-muted/10 px-2 py-1">
+          <div className="flex items-center gap-1">
             <CollapsibleTrigger asChild>
               <Button
                 variant="ghost"
@@ -413,6 +418,19 @@ export function ChatQueuePanel({
                 </span>
               </Button>
             </CollapsibleTrigger>
+            {streamError && onRetryStream ? (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-6 w-6 shrink-0 text-destructive"
+                aria-label={t('common.retry')}
+                title={streamError.message || t('common.retry')}
+                onClick={() => onRetryStream()}
+                disabled={disabled}
+              >
+                <RotateCcw className="h-3 w-3" />
+              </Button>
+            ) : null}
             {queue.status === 'paused' ? (
               <Button
                 size="icon"
@@ -439,8 +457,16 @@ export function ChatQueuePanel({
               </Button>
             )}
           </div>
+          {streamError ? (
+            <p
+              className="px-1 pb-0.5 text-[11px] leading-snug text-destructive"
+              role="alert"
+            >
+              {streamError.message || t('common.retry')}
+            </p>
+          ) : null}
           <CollapsibleContent>
-            <div className="mt-0.5 max-h-48 divide-y divide-border/50 overflow-y-auto hide-scrollbar">
+            <div className="max-h-40 divide-y divide-border/50 overflow-y-auto hide-scrollbar">
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}

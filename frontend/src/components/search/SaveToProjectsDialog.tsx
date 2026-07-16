@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { CheckboxList } from '@/components/ui/checkbox-list'
 import { useProjects } from '@/lib/hooks/use-projects'
-import { useCreateNote } from '@/lib/hooks/use-notes'
+import { useCreateProjectArtifact } from '@/lib/hooks/use-project-artifacts'
 import { InlineSkeleton, PickerDialogSkeleton } from '@/components/common/LoadingSkeletons'
 import { toast } from 'sonner'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -33,7 +33,7 @@ export function SaveToProjectsDialog({
   const { t } = useTranslation()
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([])
   const { data: projects, isLoading } = useProjects(false)
-  const createNote = useCreateNote()
+  const createNote = useCreateProjectArtifact()
 
   const handleToggle = (projectId: string) => {
     setSelectedProjectIds(prev =>
@@ -54,7 +54,7 @@ export function SaveToProjectsDialog({
         await createNote.mutateAsync({
           title: question,
           content: answer,
-          note_type: 'ai',
+          artifact_kind: 'ai',
           project_id: projectId
         })
       }

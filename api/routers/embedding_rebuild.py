@@ -22,7 +22,7 @@ async def start_rebuild(request: RebuildRequest):
 
     - **mode**: "existing" (re-embed items with embeddings) or "all" (embed everything)
     - **include_sources**: Include sources in rebuild (default: true)
-    - **include_notes**: Include notes in rebuild (default: true)
+    - **include_artifacts** / **include_notes**: Include project artifacts (default: true)
 
     Returns command ID to track progress and estimated item count.
     """
@@ -31,6 +31,8 @@ async def start_rebuild(request: RebuildRequest):
 
         # Import commands to ensure they're registered
         import commands.embedding_commands  # noqa: F401
+
+        include_artifacts = request.resolve_include_artifacts()
 
         # Estimate total items (quick count query)
         # This is a rough estimate before the command runs
@@ -59,7 +61,7 @@ async def start_rebuild(request: RebuildRequest):
             elif result:
                 total_estimate += result[0] if isinstance(result[0], int) else 0
 
-        if request.include_notes:
+        if include_artifacts:
             if request.mode == "existing":
                 result = await repo_query(
                     "SELECT VALUE count() as count FROM note WHERE embedding != none AND array::len(embedding) > 0 GROUP ALL"
@@ -84,7 +86,8 @@ async def start_rebuild(request: RebuildRequest):
             {
                 "mode": request.mode,
                 "include_sources": request.include_sources,
-                "include_notes": request.include_notes,
+                "include_notes": include_artifacts,
+                "include_artifacts": include_artifacts,
             },
         )
 

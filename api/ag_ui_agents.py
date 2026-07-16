@@ -12,6 +12,8 @@ from loguru import logger
 
 from construction_os.graphs import ag_ui_runtime
 from construction_os.graphs.ag_ui_runtime import (
+    build_run_input,
+    build_user_message,
     iterate_agent_events,
 )
 from construction_os.utils.error_classifier import classify_error
@@ -19,6 +21,18 @@ from construction_os.utils.error_classifier import classify_error
 project_chat_agent = ag_ui_runtime.project_chat_agent
 source_chat_agent = ag_ui_runtime.source_chat_agent
 ask_agent = ag_ui_runtime.ask_agent
+
+__all__ = [
+    "ask_agent",
+    "ag_ui_streaming_response",
+    "build_run_input",
+    "build_user_message",
+    "iterate_agent_events",
+    "project_chat_agent",
+    "refresh_agents",
+    "source_chat_agent",
+    "stream_agent_events",
+]
 
 
 def refresh_agents() -> None:

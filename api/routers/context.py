@@ -78,8 +78,8 @@ async def get_project_context(project_id: str, context_request: ContextRequest):
                     logger.warning(f"Error processing source {source_id}: {str(e)}")
                     continue
 
-            # Process notes
-            for note_id, status in context_request.context_config.notes.items():
+            # Process project artifacts (canonical artifacts + legacy notes maps)
+            for note_id, status in context_request.context_config.resolved_artifacts().items():
                 if not is_note_included(status):
                     continue
                 status = normalize_inclusion_status(status)
@@ -97,7 +97,7 @@ async def get_project_context(project_id: str, context_request: ContextRequest):
                     context_data["note"].append(note_context)
                     total_content += str(note_context)
                 except Exception as e:
-                    logger.warning(f"Error processing note {note_id}: {str(e)}")
+                    logger.warning(f"Error processing artifact {note_id}: {str(e)}")
                     continue
         else:
             # Default behavior - include all sources and notes with short context

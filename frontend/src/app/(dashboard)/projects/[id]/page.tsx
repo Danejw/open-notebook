@@ -11,7 +11,8 @@ import { DashboardContentSkeleton } from '@/components/layout/DashboardContentSk
 import { PageError } from '@/components/common/PageError'
 import { useProject } from '@/lib/hooks/use-projects'
 import { useProjectSources } from '@/lib/hooks/use-sources'
-import { useNotes } from '@/lib/hooks/use-notes'
+import { useProjectArtifacts } from '@/lib/hooks/use-project-artifacts'
+import { isGeneratedArtifact } from '@/lib/utils/project-artifact-kind'
 import { useArtifacts } from '@/lib/hooks/use-artifacts'
 import { useProjectColumnsStore } from '@/lib/stores/project-columns-store'
 import { useIsDesktop } from '@/lib/hooks/use-media-query'
@@ -75,10 +76,9 @@ function ProjectPageContent() {
     isFetchingNextPage,
     fetchNextPage,
   } = useProjectSources(projectId)
-  const { data: notes, isLoading: notesLoading } = useNotes(projectId)
+  const { data: notes, isLoading: notesLoading } = useProjectArtifacts(projectId)
 
-  // Get collapse states for dynamic layout
-  const { sourcesCollapsed, notesCollapsed, chatCollapsed, setSources, setNotes, setChat } =
+  const { sourcesCollapsed, artifactsCollapsed, chatCollapsed, setSources, setArtifacts, setChat } =
     useProjectColumnsStore()
 
   // Detect desktop to avoid double-mounting ChatColumn
@@ -112,12 +112,12 @@ function ProjectPageContent() {
     if (!isDesktop) return
     const panel = notesPanelRef.current
     if (!panel) return
-    if (notesCollapsed && !panel.isCollapsed()) {
+    if (artifactsCollapsed && !panel.isCollapsed()) {
       panel.collapse()
-    } else if (!notesCollapsed && panel.isCollapsed()) {
+    } else if (!artifactsCollapsed && panel.isCollapsed()) {
       panel.expand()
     }
-  }, [isDesktop, notesCollapsed, notesPanelRef])
+  }, [isDesktop, artifactsCollapsed, notesPanelRef])
 
   useEffect(() => {
     if (!isDesktop) return
@@ -139,8 +139,8 @@ function ProjectPageContent() {
 
   const handleNotesPanelResize = () => {
     const isCollapsed = notesPanelRef.current?.isCollapsed() ?? false
-    if (useProjectColumnsStore.getState().notesCollapsed !== isCollapsed) {
-      setNotes(isCollapsed)
+    if (useProjectColumnsStore.getState().artifactsCollapsed !== isCollapsed) {
+      setArtifacts(isCollapsed)
     }
   }
 
@@ -158,7 +158,7 @@ function ProjectPageContent() {
 
   const handleNotesChatSeparatorPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!notesCollapsed || chatCollapsed) return
+      if (!artifactsCollapsed || chatCollapsed) return
 
       collapseChatDragRef.current = { startX: event.clientX, active: true }
 
@@ -183,7 +183,7 @@ function ProjectPageContent() {
       window.addEventListener('pointermove', onPointerMove)
       window.addEventListener('pointerup', onPointerUp)
     },
-    [notesCollapsed, chatCollapsed, chatPanelRef, setChat]
+    [artifactsCollapsed, chatCollapsed, chatPanelRef, setChat]
   )
 
   // Mobile tab state (Sources, Notes, or Chat)
@@ -196,7 +196,7 @@ function ProjectPageContent() {
   }, [artifactParam, artifacts])
 
   const hasIngestibleArtifacts = useMemo(
-    () => (notes ?? []).some((note) => note.note_type === 'artifact'),
+    () => (notes ?? []).some((note) => isGeneratedArtifact(note)),
     [notes]
   )
 
@@ -319,7 +319,8 @@ function ProjectPageContent() {
 
         <div
           className={cn(
-            'flex min-h-0 flex-1 flex-col overflow-x-auto',
+            // CSS pairs overflow-x:auto with overflow-y:auto unless y is set explicitly.
+            'flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-hidden',
             projectPageInsetClassName,
             projectPageStackGapClassName
           )}
@@ -351,7 +352,7 @@ function ProjectPageContent() {
               </div>
 
               {/* Mobile: Show only active tab */}
-              <div className="flex-1 overflow-hidden lg:hidden">
+              <div className="min-h-0 flex-1 overflow-hidden lg:hidden">
                 {mobileActiveTab === 'sources' && (
                   <SourcesColumn
                     sources={sources}
@@ -454,11 +455,11 @@ function ProjectPageContent() {
                 withHandle
                 // When Artifacts is collapsed, disable library resize so a rightward
                 // drag doesn't expand it. onPointerDown still collapses Chat.
-                disabled={notesCollapsed}
-                disableDoubleClick={notesCollapsed && !chatCollapsed}
+                disabled={artifactsCollapsed}
+                disableDoubleClick={artifactsCollapsed && !chatCollapsed}
                 onPointerDown={handleNotesChatSeparatorPointerDown}
                 style={
-                  notesCollapsed && !chatCollapsed
+                  artifactsCollapsed && !chatCollapsed
                     ? { cursor: 'col-resize' }
                     : undefined
                 }

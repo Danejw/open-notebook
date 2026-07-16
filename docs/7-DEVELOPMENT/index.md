@@ -36,6 +36,13 @@ Start with **[Contributing Guide](contributing.md)** for the workflow, then chec
 
 For deeper dives, check `/construction_os/` CLAUDE.md for component-specific guidance.
 
+Streaming / generative UI study notes — **[AI protocols](../ai-protocols/index.md)**:
+
+- **[AG-UI](../ai-protocols/agui/extending.md)** — agent ↔ frontend SSE protocol
+- **[A2UI](../ai-protocols/a2ui/extending.md)** — declarative chat surfaces over AG-UI CUSTOM
+- **[MCP client](../ai-protocols/mcp/client/extending.md)** — Cos as MCP client for remote tools in chat
+- **[Native tools](../ai-protocols/tools/extending.md)** — Cos capabilities bound into project chat (`native__*`)
+
 ---
 
 ### 👨‍🔧 I'm a Maintainer

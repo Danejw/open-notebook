@@ -196,7 +196,7 @@ class McpTool(ObjectModel):
 
 
 class ChatToolCall(ObjectModel):
-    """Audit record for an MCP tool execution attempt."""
+    """Audit record for a native or MCP tool execution attempt."""
 
     table_name: ClassVar[str] = "chat_tool_call"
     nullable_fields: ClassVar[set[str]] = {
@@ -211,6 +211,12 @@ class ChatToolCall(ObjectModel):
         "result_text",
         "error",
         "owner",
+        "tool_source",
+        "performed_write",
+        "started_at",
+        "completed_at",
+        "duration_ms",
+        "error_category",
     }
 
     session_id: str
@@ -227,6 +233,12 @@ class ChatToolCall(ObjectModel):
     status: str = "requested"
     error: Optional[str] = None
     owner: Optional[str] = None
+    tool_source: Optional[str] = "mcp"
+    performed_write: Optional[bool] = False
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    duration_ms: Optional[int] = None
+    error_category: Optional[str] = None
 
     @classmethod
     async def list_for_session(cls, session_id: str) -> List["ChatToolCall"]:

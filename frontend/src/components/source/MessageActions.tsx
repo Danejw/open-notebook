@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Copy, Check, Sparkles, FileCode2, Download } from 'lucide-react'
 import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
-import { useCreateNote } from '@/lib/hooks/use-notes'
+import { useCreateProjectArtifact } from '@/lib/hooks/use-project-artifacts'
 import { htmlDocumentsApi } from '@/lib/api/html-documents'
 import { extractHtmlFromChatContent } from '@/lib/utils/extract-html-from-chat'
 import { restoreTemplateMedia } from '@/lib/utils/restore-template-media'
@@ -33,7 +33,7 @@ export function MessageActions({
   const [copySuccess, setCopySuccess] = useState(false)
   const [savingDocument, setSavingDocument] = useState(false)
   const [exportingPdf, setExportingPdf] = useState(false)
-  const createNote = useCreateNote()
+  const createNote = useCreateProjectArtifact()
   const { data: htmlTemplate } = useHtmlTemplate(htmlTemplateId ?? undefined)
 
   const extractedRaw = extractHtmlFromChatContent(content)
@@ -62,7 +62,7 @@ export function MessageActions({
 
     createNote.mutate({
       content,
-      note_type: 'artifact',
+      artifact_kind: 'generated',
       project_id: projectId,
       title: noteTitle,
     })

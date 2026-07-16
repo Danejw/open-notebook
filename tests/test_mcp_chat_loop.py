@@ -50,13 +50,13 @@ async def test_generate_rejects_unauthorized_tool_name():
     provision = AsyncMock(return_value=mock_model)
 
     with patch(
-        "construction_os.mcp.chat_loop.build_allowlist",
+        "construction_os.tool_runtime.chat_loop.build_allowlist",
         new_callable=AsyncMock,
     ) as mock_allowlist, patch(
-        "construction_os.mcp.chat_loop.build_langchain_tools",
+        "construction_os.tool_runtime.chat_loop.build_langchain_tools",
         return_value=[],
     ), patch(
-        "construction_os.mcp.chat_loop.reject_unauthorized",
+        "construction_os.tool_runtime.chat_loop.reject_unauthorized",
         new_callable=AsyncMock,
     ) as mock_reject:
         mock_allowlist.return_value = MagicMock()

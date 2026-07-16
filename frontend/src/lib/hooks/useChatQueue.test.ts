@@ -15,6 +15,10 @@ import type {
   ChatQueueResponse,
   ChatQueueStreamEvent,
 } from '@/lib/types/chat-queue'
+import {
+  makeChatQueue,
+  makeQueueItem,
+} from '@/lib/test-fixtures/chat-queue'
 
 vi.mock('@/lib/api/chat-queue', async (importOriginal) => {
   const actual = await importOriginal<
@@ -41,44 +45,7 @@ const mockedQueueApi = vi.mocked(chatQueueApi)
 function makeItem(
   overrides: Partial<ChatQueueItemResponse> = {}
 ): ChatQueueItemResponse {
-  return {
-    id: 'chat_queue_item:item-1',
-    queue_id: 'chat_queue:queue-1',
-    chat_session: 'chat_session:session-1',
-    client_request_id: 'request-1',
-    run_id: 'run-1',
-    position: 0,
-    status: 'pending',
-    visible: true,
-    prompt: 'First prompt',
-    loop_count: 1,
-    current_loop: 0,
-    iteration_token: null,
-    execution_snapshot: {
-      model_id: null,
-      skill_ids: [],
-      tool_ids: [],
-      html_template_id: null,
-      artifact_id: null,
-      context_config: {},
-      forwarded_props: {},
-    },
-    runner_command_id: null,
-    runner_state: 'idle',
-    stream_revision: 1,
-    stream_content: '',
-    stream_progress: null,
-    stream_activity: null,
-    error_type: null,
-    error_message: null,
-    error_details: null,
-    started_at: null,
-    completed_at: null,
-    failed_at: null,
-    created: '2026-07-15T00:00:00Z',
-    updated: '2026-07-15T00:00:00Z',
-    ...overrides,
-  }
+  return makeQueueItem(overrides)
 }
 
 function makeQueue(
@@ -94,21 +61,14 @@ function makeQueue(
       prompt: 'Second prompt',
     }),
   ]
-  return {
-    id: 'chat_queue:queue-1',
-    chat_session: 'chat_session:session-1',
-    status: 'active',
+  return makeChatQueue({
     revision: 8,
     runner_state: 'scheduled',
     runner_command_id: 'command-1',
-    lease_owner: null,
-    lease_expires_at: null,
-    items,
     current_item: null,
-    created: '2026-07-15T00:00:00Z',
-    updated: '2026-07-15T00:00:00Z',
     ...overrides,
-  }
+    items,
+  })
 }
 
 function createHarness() {
@@ -264,6 +224,34 @@ describe('queue mutations', () => {
     expect(secondPayload.client_request_id).toBe(
       firstPayload.client_request_id
     )
+  })
+
+  it('does not invalidate the queue query when schedule_runner is false', async () => {
+    mockedQueueApi.enqueue.mockResolvedValue(makeItem())
+    const { queryClient, wrapper } = createHarness()
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useChatQueue('session-1'), { wrapper })
+    await waitFor(() => expect(result.current.queue).toBeDefined())
+    invalidateSpy.mockClear()
+
+    await act(async () => {
+      await result.current.enqueue({
+        prompt: 'Defer while streaming',
+        loop_count: 1,
+        schedule_runner: false,
+      })
+    })
+
+    expect(mockedQueueApi.enqueue).toHaveBeenCalledWith(
+      'session-1',
+      expect.objectContaining({
+        prompt: 'Defer while streaming',
+        schedule_runner: false,
+      })
+    )
+    expect(invalidateSpy).not.toHaveBeenCalledWith({
+      queryKey: QUERY_KEYS.chatQueue('session-1'),
+    })
   })
 
   it.each([
@@ -863,6 +851,53 @@ describe('stream cache hydration', () => {
       'item-completed',
       'queue-drained',
     ])
+  })
+
+  it('ensureRunner uses an explicit session id when the hook session is null', async () => {
+    const resumed = makeQueue({
+      status: 'active',
+      runner_state: 'scheduled',
+      revision: 9,
+    })
+    mockedQueueApi.get.mockResolvedValue(
+      makeQueue({
+        status: 'active',
+        runner_state: 'idle',
+        items: [makeItem({ status: 'pending' })],
+      })
+    )
+    mockedQueueApi.resume.mockResolvedValue(resumed)
+    const { wrapper, queryClient } = createHarness()
+    const { result } = renderHook(() => useChatQueue(null), { wrapper })
+
+    await act(async () => {
+      await result.current.ensureRunner('session-1')
+    })
+
+    expect(mockedQueueApi.resume).toHaveBeenCalledWith('session-1')
+    expect(
+      queryClient.getQueryData(QUERY_KEYS.chatQueue('session-1'))
+    ).toEqual(resumed)
+  })
+
+  it('ensureRunner no-ops when the queue is paused', async () => {
+    mockedQueueApi.get.mockResolvedValue(
+      makeQueue({
+        status: 'paused',
+        runner_state: 'idle',
+        items: [makeItem({ status: 'pending' })],
+      })
+    )
+    const { wrapper } = createHarness()
+    const { result } = renderHook(() => useChatQueue('session-1'), { wrapper })
+
+    await waitFor(() => expect(result.current.queue?.status).toBe('paused'))
+
+    await act(async () => {
+      await result.current.ensureRunner()
+    })
+
+    expect(mockedQueueApi.resume).not.toHaveBeenCalled()
   })
 
   it('exposes terminal stream failures and supports controlled restart', async () => {

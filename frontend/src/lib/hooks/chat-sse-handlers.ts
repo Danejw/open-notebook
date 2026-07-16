@@ -43,6 +43,8 @@ export interface AgUiSseHandlerDeps<TMessage extends ChatStreamMessage> {
 export interface AgUiSseHandlerOptions {
   /** Called for CUSTOM events not handled by shared progress/tool-call logic. */
   onCustomEvent?: (event: AgUiEvent) => void
+  /** Called when a tool-call audit snapshot is received (native or MCP). */
+  onToolCallUpdate?: (toolCall: ChatToolCall) => void
   /** Source chat: apply context indicators from STATE_SNAPSHOT events. */
   onStateSnapshot?: (snapshot: unknown) => void
   /**
@@ -102,6 +104,7 @@ export function createAgUiChatSseHandler<TMessage extends ChatStreamMessage>(
 
   const {
     onCustomEvent,
+    onToolCallUpdate,
     onStateSnapshot,
     flushOnTextMessageEnd = false,
     clearBuffersOnRunFinished = false,
@@ -133,6 +136,7 @@ export function createAgUiChatSseHandler<TMessage extends ChatStreamMessage>(
         const toolCallUpdate = parseMcpToolCallEvent(event)
         if (toolCallUpdate) {
           setLiveMcpToolCalls((prev) => upsertMcpToolCall(prev, toolCallUpdate))
+          onToolCallUpdate?.(toolCallUpdate)
         }
         if (isA2uiChatEnabled()) {
           const a2ui = parseA2uiEvent(event)

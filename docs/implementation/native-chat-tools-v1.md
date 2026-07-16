@@ -2,6 +2,8 @@
 
 Protocol-neutral Construction OS tools bound into project chat alongside allowlisted MCP tools.
 
+**Study / extend home:** [docs/ai-protocols/tools/](../ai-protocols/tools/extending.md) ([catalog](../ai-protocols/tools/catalog.md) · [architecture](../ai-protocols/tools/architecture.md)).
+
 ## Final tool list
 
 | Tool | Access | Purpose |
@@ -14,9 +16,10 @@ Protocol-neutral Construction OS tools bound into project chat alongside allowli
 | `get_collection` | read | Chat prompt injection block (turn-only) |
 | `list_tools` | read | **External/MCP tools only** (discovery ≠ execution) |
 | `get_tool` | read | One MCP tool schema/metadata (no execute) |
-| `list_templates` | read | HTML template metadata (no body) |
-| `get_templates` | read | One HTML template with body |
+| `list_output_templates` | read | HTML / structured output template metadata (no body) |
+| `get_output_template` | read | One HTML / structured output template with body |
 | `list_artifact_templates` | read | Artifact template catalog + defaults |
+| `get_artifact_template` | read | One artifact template with prompt + defaults (no execute) |
 | `run_artifact_template` | read | Generate output without saving |
 | `save_project_artifact` | write | Persist a Project Artifact (gated) |
 
@@ -33,7 +36,7 @@ construction_os/capabilities/
   skills.py
   collections.py
   tools.py
-  templates.py
+  output_templates.py
   artifact_templates.py
   project_artifacts.py
 
@@ -84,7 +87,7 @@ graphs/chat.py generating
 3. Agent-loaded capabilities for the current turn only (`ephemeral_*` on runtime context)
 4. Default application behavior
 
-`get_skill` / `get_collection` / `get_templates` / `run_artifact_template` do **not** call session persistence helpers.
+`get_skill` / `get_collection` / `get_output_template` / `get_artifact_template` / `run_artifact_template` do **not** call session persistence helpers.
 
 ## Write behavior (`save_project_artifact`)
 
@@ -118,7 +121,8 @@ Not implemented: skill/collection/template/MCP admin CRUD, source upload, web se
 
 | Topic | Decision |
 |-------|----------|
-| Tool name `get_templates` | Kept plural as specified |
+| HTML tool names | `list_output_templates` / `get_output_template` (not generic `list_templates`) |
+| Artifact get vs run | `get_artifact_template` loads prompt/defaults; `run_artifact_template` executes |
 | Unified loop location | Moved to `construction_os/tool_runtime/` (not under `mcp/`) |
 | Idempotency | Stored on Project Artifact; no separate table |
 | Write authorization | Conversation intent + `allow_project_artifact_save` flag (no approval framework) |

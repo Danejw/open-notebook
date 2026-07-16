@@ -651,6 +651,7 @@ async def execute_chat(
                 "artifact": artifact_meta,
                 "html_template_id": html_template_id if html_template_meta else None,
                 "html_template": html_template_meta,
+                "is_guest": bool(guest_key),
             },
         )
 

@@ -90,7 +90,7 @@ export function CollectionItemsEditor({
 
     const existingIds = new Set(items.map((item) => item.item_id))
     const nextItems = [...items]
-    lines.forEach((line, lineIndex) => {
+    lines.forEach((line) => {
       let title = line
       let url = line
       const parts = line.split(/\s+/)
@@ -122,21 +122,18 @@ export function CollectionItemsEditor({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-1.5">
       <div className="overflow-hidden rounded-md border">
-        <div className="border-b px-3 py-2 text-sm font-semibold">
-          {t('collections.itemsTitle')}
-        </div>
         {items.length === 0 ? (
-          <p className="px-3 py-4 text-sm text-muted-foreground">{t('collections.noItems')}</p>
+          <p className="px-1.5 py-2 text-sm text-muted-foreground">{t('collections.noItems')}</p>
         ) : (
           <div className="divide-y">
             {items.map((item, index) => (
               <div
                 key={`${item.item_id}-${index}`}
-                className="grid gap-2 px-3 py-3 md:grid-cols-[auto_1fr_1fr_auto]"
+                className="grid gap-1 px-1.5 py-1.5 md:grid-cols-[auto_1fr_1fr_auto]"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center">
                   <Checkbox
                     checked={item.enabled}
                     disabled={disabled}
@@ -162,12 +159,12 @@ export function CollectionItemsEditor({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8"
+                  className="size-7"
                   disabled={disabled}
                   onClick={() => removeItem(index)}
                   aria-label={t('common.delete')}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
             ))}
@@ -175,9 +172,9 @@ export function CollectionItemsEditor({
         )}
       </div>
 
-      <div className="space-y-3 rounded-md border p-4">
+      <div className="space-y-1 rounded-md border p-1.5">
         <p className="text-sm font-medium">{t('collections.addItem')}</p>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-1 md:grid-cols-2">
           <Input
             value={newTitle}
             disabled={disabled}
@@ -195,6 +192,7 @@ export function CollectionItemsEditor({
           type="button"
           variant="outline"
           size="sm"
+          className="h-7"
           disabled={disabled || !newTitle.trim() || !newUrl.trim()}
           onClick={addItem}
         >
@@ -203,7 +201,7 @@ export function CollectionItemsEditor({
         </Button>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-0.5">
         <Label htmlFor="collection-paste-urls">{t('collections.pasteUrls')}</Label>
         <Textarea
           id="collection-paste-urls"
@@ -211,12 +209,13 @@ export function CollectionItemsEditor({
           disabled={disabled}
           onChange={(e) => setPasteInput(e.target.value)}
           placeholder={t('collections.urlsPlaceholder')}
-          rows={5}
+          rows={4}
         />
         <Button
           type="button"
           variant="outline"
           size="sm"
+          className="h-7"
           disabled={disabled || !pasteInput.trim()}
           onClick={pasteUrls}
         >

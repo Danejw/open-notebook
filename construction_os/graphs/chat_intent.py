@@ -84,6 +84,31 @@ def latest_user_message(messages: Optional[Sequence[Any]]) -> str:
     return ""
 
 
+_SAVE_ARTIFACT_RE = re.compile(
+    r"("
+    r"\b(save|create|preserve|store|keep)\b.{0,40}\b("
+    r"project\s+artifact|artifact|as\s+an?\s+artifact|to\s+the\s+project|"
+    r"as\s+a\s+note"
+    r")\b|"
+    r"\b(save|create|preserve)\s+(this|that|it|the\s+output|the\s+result)\b|"
+    r"\bsave\s+as\b"
+    r")",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def requests_project_artifact_save(message: str) -> bool:
+    """
+    Return True when the user turn clearly asks to save/create/preserve
+    a Project Artifact. Used as the server-side write gate for
+    ``save_project_artifact``.
+    """
+    text = (message or "").strip()
+    if not text:
+        return False
+    return bool(_SAVE_ARTIFACT_RE.search(text))
+
+
 def needs_project_context(
     message: str,
     history: Optional[Sequence[Any]] = None,

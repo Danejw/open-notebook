@@ -5,7 +5,7 @@ from pydantic import Field
 from construction_os.domain.base import ObjectModel, RecordModel
 
 
-class Artifact(ObjectModel):
+class ArtifactTemplate(ObjectModel):
     table_name: ClassVar[str] = "artifact"
     nullable_fields: ClassVar[set[str]] = {
         "lifecycle_phase",
@@ -24,6 +24,10 @@ class Artifact(ObjectModel):
     collection_ids: Optional[List[str]] = None
     mcp_tool_ids: Optional[List[str]] = None
     html_template_id: Optional[str] = None
+
+
+# Backward-compatible alias (table remains `artifact`, IDs remain `artifact:…`)
+Artifact = ArtifactTemplate
 
 
 class DefaultPrompts(RecordModel):

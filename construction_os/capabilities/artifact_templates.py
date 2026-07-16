@@ -1,4 +1,4 @@
-"""list_artifact_templates / run_artifact_template capabilities."""
+"""list_artifact_templates / get_artifact_template / run_artifact_template capabilities."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from construction_os.capabilities.authz import require_project_session
 from construction_os.capabilities.models import CapabilityRuntimeContext
 from construction_os.services.artifact_templates import (
     execute_artifact_template,
+    get_artifact_template as get_artifact_template_service,
     list_artifact_templates as list_artifact_templates_service,
 )
 
@@ -21,6 +22,19 @@ class ListArtifactTemplatesInput(BaseModel):
 
 class ListArtifactTemplatesOutput(BaseModel):
     artifact_templates: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class GetArtifactTemplateInput(BaseModel):
+    artifact_template_id: str
+
+
+class GetArtifactTemplateOutput(BaseModel):
+    artifact_template: dict[str, Any]
+    note: str = (
+        "Loaded for this turn only. Does not execute the template and does not "
+        "persist it as a chat or session default. Use run_artifact_template to "
+        "generate output."
+    )
 
 
 class RunArtifactTemplateInput(BaseModel):
@@ -65,6 +79,18 @@ async def list_artifact_templates(
                 continue
         out.append(item)
     return ListArtifactTemplatesOutput(artifact_templates=out)
+
+
+async def get_artifact_template(
+    ctx: CapabilityRuntimeContext,
+    inputs: GetArtifactTemplateInput,
+) -> GetArtifactTemplateOutput:
+    await require_project_session(ctx)
+    template = await get_artifact_template_service(
+        inputs.artifact_template_id,
+        include_prompt=True,
+    )
+    return GetArtifactTemplateOutput(artifact_template=template)
 
 
 async def run_artifact_template(

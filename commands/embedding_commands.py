@@ -48,6 +48,12 @@ class RebuildEmbeddingsInput(CommandInput):
     mode: Literal["existing", "all"]
     include_sources: bool = True
     include_notes: bool = True
+    include_artifacts: Optional[bool] = None
+
+    def resolve_include_artifacts(self) -> bool:
+        if self.include_artifacts is not None:
+            return self.include_artifacts
+        return self.include_notes
     
 
 class RebuildEmbeddingsOutput(CommandOutput):
@@ -733,10 +739,11 @@ async def rebuild_embeddings_command(
     start_time = time.time()
 
     try:
+        include_artifacts = input_data.resolve_include_artifacts()
         logger.info("=" * 60)
         logger.info(f"Starting embedding rebuild with mode={input_data.mode}")
         logger.info(
-            f"Include: sources={input_data.include_sources}, notes={input_data.include_notes}"
+            f"Include: sources={input_data.include_sources}, artifacts={include_artifacts}"
         )
         logger.info("=" * 60)
 
@@ -753,7 +760,7 @@ async def rebuild_embeddings_command(
         items = await collect_items_for_rebuild(
             input_data.mode,
             input_data.include_sources,
-            input_data.include_notes,
+            include_artifacts,
         )
 
         total_items = len(items["sources"]) + len(items["notes"])

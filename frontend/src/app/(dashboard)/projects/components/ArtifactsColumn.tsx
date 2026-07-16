@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useRef, useCallback } from 'react'
-import { NoteResponse } from '@/lib/types/api'
+import { ProjectArtifactResponse } from '@/lib/types/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -16,13 +16,18 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { ListSelectionBar } from '@/components/common/ListSelectionBar'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { NoteEditorDialog } from './NoteEditorDialog'
+import { ArtifactEditorDialog } from './ArtifactEditorDialog'
 import { ArtifactTemplatePhases } from './ArtifactTemplatePhases'
 import { ArtifactListRow } from './ArtifactListRow'
 import { ArtifactViewerDialog } from './ArtifactViewerDialog'
 import type { NoteContextMode } from '@/lib/types/project-context'
 import type { NoteContextDefault } from '@/lib/utils/source-context'
-import { useDeleteNote, useExportNotePdf, useNote, useUpdateNote } from '@/lib/hooks/use-notes'
+import {
+  useDeleteProjectArtifact,
+  useExportProjectArtifactPdf,
+  useProjectArtifact,
+  useUpdateProjectArtifact,
+} from '@/lib/hooks/use-project-artifacts'
 import { useArtifacts } from '@/lib/hooks/use-artifacts'
 import { useIngestAsSource } from '@/lib/hooks/use-sources'
 import { useListSelection } from '@/lib/hooks/useListSelection'
@@ -40,12 +45,13 @@ import {
 } from '@/components/projects/ColumnHeader'
 import { useProjectColumnsStore } from '@/lib/stores/project-columns-store'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { downloadNoteMarkdown, normalizeNoteId } from '@/lib/utils/export-note'
-import { notesApi } from '@/lib/api/notes'
+import { downloadArtifactMarkdown, normalizeArtifactId } from '@/lib/utils/export-artifact'
+import { projectArtifactsApi } from '@/lib/api/project-artifacts'
+import { isGeneratedArtifact } from '@/lib/utils/project-artifact-kind'
 import { getApiErrorKey } from '@/lib/utils/error-handler'
 
 interface ArtifactsColumnProps {
-  notes?: NoteResponse[]
+  notes?: ProjectArtifactResponse[]
   isLoading: boolean
   projectId: string
   contextSelections?: Record<string, NoteContextMode>
@@ -66,11 +72,11 @@ export function ArtifactsColumn({
   const { t, language } = useTranslation()
   const { data: templates = [], isLoading: templatesLoading } = useArtifacts()
   const [showAddDialog, setShowAddDialog] = useState(false)
-  const [editingNote, setEditingNote] = useState<NoteResponse | null>(null)
+  const [editingNote, setEditingNote] = useState<ProjectArtifactResponse | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null)
-  const [viewingArtifact, setViewingArtifact] = useState<NoteResponse | null>(null)
-  const [renamingNote, setRenamingNote] = useState<NoteResponse | null>(null)
+  const [viewingArtifact, setViewingArtifact] = useState<ProjectArtifactResponse | null>(null)
+  const [renamingNote, setRenamingNote] = useState<ProjectArtifactResponse | null>(null)
   const [renameTitle, setRenameTitle] = useState('')
   const [draggingNoteId, setDraggingNoteId] = useState<string | null>(null)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
@@ -102,30 +108,28 @@ export function ArtifactsColumn({
     [onContextModeChange, selectedList]
   )
 
-  const deleteNote = useDeleteNote()
-  const updateNote = useUpdateNote()
-  const exportNotePdf = useExportNotePdf()
+  const deleteNote = useDeleteProjectArtifact()
+  const updateNote = useUpdateProjectArtifact()
+  const exportNotePdf = useExportProjectArtifactPdf()
   const ingestAsSource = useIngestAsSource()
   const { toast } = useToast()
 
-  const viewingNoteId = viewingArtifact?.id
-    ? viewingArtifact.id.includes(':')
-      ? viewingArtifact.id
-      : `note:${viewingArtifact.id}`
-    : ''
+  const viewingNoteId = viewingArtifact?.id ? normalizeArtifactId(viewingArtifact.id) : ''
 
-  const { data: fetchedViewingNote, isLoading: viewingNoteLoading } = useNote(viewingNoteId, {
-    enabled: Boolean(viewingArtifact),
-  })
+  const { data: fetchedViewingNote, isLoading: viewingNoteLoading } = useProjectArtifact(
+    viewingNoteId,
+    {
+      enabled: Boolean(viewingArtifact),
+    }
+  )
 
   const displayViewingNote = fetchedViewingNote ?? viewingArtifact
 
-  // Collapsible column state
-  const { notesCollapsed, toggleNotes } = useProjectColumnsStore()
+  const { artifactsCollapsed, toggleArtifacts } = useProjectColumnsStore()
   const notesLabel = t('common.artifacts')
   const collapseButton = useMemo(
-    () => createCollapseButton(toggleNotes, notesLabel),
-    [toggleNotes, notesLabel]
+    () => createCollapseButton(toggleArtifacts, notesLabel),
+    [toggleArtifacts, notesLabel]
   )
 
   const handleDeleteClick = (noteId: string) => {
@@ -160,8 +164,8 @@ export function ArtifactsColumn({
     }
   }
 
-  const handleIngestNote = async (note: NoteResponse) => {
-    if (note.note_type !== 'artifact') return
+  const handleIngestNote = async (note: ProjectArtifactResponse) => {
+    if (!isGeneratedArtifact(note)) return
     await ingestAsSource.mutateAsync({
       kind: 'note',
       noteId: note.id,
@@ -169,22 +173,22 @@ export function ArtifactsColumn({
     })
   }
 
-  const handleExportPdf = async (note: NoteResponse) => {
+  const handleExportPdf = async (note: ProjectArtifactResponse) => {
     await exportNotePdf.mutateAsync(note.id)
   }
 
-  const handleExportMarkdown = async (note: NoteResponse) => {
+  const handleExportMarkdown = async (note: ProjectArtifactResponse) => {
     try {
       let title = note.title || ''
       let content = note.content || ''
 
       if (!content) {
-        const fullNote = await notesApi.get(normalizeNoteId(note.id))
+        const fullNote = await projectArtifactsApi.get(normalizeArtifactId(note.id))
         title = fullNote.title || title
         content = fullNote.content || ''
       }
 
-      downloadNoteMarkdown(title, content)
+      downloadArtifactMarkdown(title, content)
       toast({
         title: t('common.success'),
         description: t('projects.exportMarkdownSuccess'),
@@ -198,7 +202,7 @@ export function ArtifactsColumn({
     }
   }
 
-  const handleRenameOpen = (note: NoteResponse) => {
+  const handleRenameOpen = (note: ProjectArtifactResponse) => {
     setRenamingNote(note)
     setRenameTitle(note.title || '')
   }
@@ -209,7 +213,7 @@ export function ArtifactsColumn({
     const trimmed = renameTitle.trim()
     if (!trimmed) return
 
-    const noteId = renamingNote.id.includes(':') ? renamingNote.id : `note:${renamingNote.id}`
+    const noteId = normalizeArtifactId(renamingNote.id)
 
     try {
       const updated = await updateNote.mutateAsync({
@@ -231,8 +235,8 @@ export function ArtifactsColumn({
   return (
     <>
       <CollapsibleColumn
-        isCollapsed={notesCollapsed}
-        onToggle={toggleNotes}
+        isCollapsed={artifactsCollapsed}
+        onToggle={toggleArtifacts}
         collapsedIcon={FileText}
         collapsedLabel={notesLabel}
       >
@@ -383,7 +387,7 @@ export function ArtifactsColumn({
         </Card>
       </CollapsibleColumn>
 
-      <NoteEditorDialog
+      <ArtifactEditorDialog
         open={showAddDialog || Boolean(editingNote)}
         onOpenChange={(open) => {
           if (!open) {

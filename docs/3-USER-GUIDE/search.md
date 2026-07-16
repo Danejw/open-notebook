@@ -11,8 +11,8 @@ Search is your gateway into your research. This guide covers two search modes an
 ```
 1. Go to your project
 2. Type in search box
-3. See results (both sources and notes)
-4. Click result to view source/note
+3. See results (both sources and project artifacts)
+4. Click result to view source or artifact
 5. Done!
 
 That works for basic searches.
@@ -218,7 +218,7 @@ Result: Comprehensive answer, not just search results
 
 2. Too many. Follow up with vector search:
    "Why is attention useful?" (concept search)
-   Results: Most relevant papers/notes
+   Results: Most relevant papers and artifacts
 
 3. Better results with less noise
 ```
@@ -320,7 +320,7 @@ Result: Comprehensive answer, not just search results
 1. **Start broad, then narrow** — "AI papers" → "transformers" → "attention mechanism"
 2. **Try both search types** — Each finds different things
 3. **Use Ask for complex questions** — Don't just search
-4. **Save good results as notes** — Create knowledge base
+4. **Save good results as project artifacts** — Build your knowledge base
 5. **Filter by source if needed** — "Search in Paper A only"
 
 ---
@@ -378,8 +378,8 @@ Step 3: Deep dive
   Text search in those papers:
   "limitations", "critiques", "open problems"
 
-Step 4: Save as notes
-  Create comparison note from Ask result
+Step 4: Save as project artifacts
+  Create comparison artifact from Ask result
 ```
 
 ### Example 4: Finding Pattern
@@ -440,13 +440,13 @@ NOTES (save findings)
 4. Chat: Deep questions about winner
    (Follow-up exploration)
 
-5. Save best findings as notes
+5. Save best findings as project artifacts
    (Knowledge capture)
 
 6. Transform remaining papers
    (Batch extraction for later)
 
-7. Create podcast from notes + sources
+7. Create podcast from artifacts + sources
    (Share findings)
 ```
 

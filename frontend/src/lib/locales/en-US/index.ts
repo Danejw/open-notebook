@@ -1309,6 +1309,7 @@ export const enUS = {
     "toolCallArgs": "Arguments",
     "toolCallResult": "Result",
     "toolCallError": "Error",
+    "toolCallsCount": "{count} tools",
     "risk": {
       "read": "Read",
       "action": "Action",

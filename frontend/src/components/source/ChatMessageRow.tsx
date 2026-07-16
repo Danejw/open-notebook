@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Pencil } from 'lucide-react'
 import { SourceChatMessage } from '@/lib/types/api'
 import { ChatToolCall } from '@/lib/types/mcp'
-import { ToolCallCard } from '@/components/mcp/ToolCallCard'
+import { ToolCallGroup } from '@/components/mcp/ToolCallGroup'
 import { MessageActions } from '@/components/source/MessageActions'
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
 import { TemplateHtmlPreview } from '@/components/templates/TemplateHtmlPreview'
@@ -213,11 +213,7 @@ function ChatMessageRowImpl({
               </div>
             ) : null}
             {message.type === 'ai' && toolCalls.length > 0 && (
-              <div className="w-full space-y-1.5 pt-1">
-                {toolCalls.map((toolCall) => (
-                  <ToolCallCard key={toolCall.id} toolCall={toolCall} />
-                ))}
-              </div>
+              <ToolCallGroup toolCalls={toolCalls} />
             )}
           </>
         )}

@@ -3,7 +3,7 @@
 import { useMemo, useState, useCallback } from 'react'
 import { SourceChatMessage } from '@/lib/types/api'
 import { ChatToolCall } from '@/lib/types/mcp'
-import { ToolCallCard } from '@/components/mcp/ToolCallCard'
+import { ToolCallGroup } from '@/components/mcp/ToolCallGroup'
 import { ChatMessageList } from '@/components/source/ChatMessageList'
 import { AgentActivityStatus } from '@/components/common/AgentActivityStatus'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -177,11 +177,7 @@ export function ChatPanelMessages({
         isStreaming ? (
           <>
             {pendingToolCalls.length > 0 && (
-              <div className="space-y-1.5 px-0">
-                {pendingToolCalls.map((toolCall) => (
-                  <ToolCallCard key={toolCall.id} toolCall={toolCall} />
-                ))}
-              </div>
+              <ToolCallGroup toolCalls={pendingToolCalls} />
             )}
             <AgentActivityStatus streamStatus={streamStatus} activityLog={activityLog} />
           </>

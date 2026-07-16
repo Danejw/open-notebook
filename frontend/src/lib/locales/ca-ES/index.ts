@@ -260,7 +260,9 @@ export const caES = {
     "theme": "Tema",
     "ask": "Pregunta",
     "viewAllProjects": "View all projects",
-    "runArtifact": "Run artifact in project"
+    "runArtifact": "Run artifact in project",
+    "expandSidebar": "Expandir la barra lateral",
+    "collapseSidebar": "Replegar la barra lateral"
   },
   "images": {
     "title": "Images",

@@ -260,7 +260,9 @@ export const zhCN = {
     "theme": "主题",
     "ask": "提问",
     "viewAllProjects": "View all projects",
-    "runArtifact": "Run artifact in project"
+    "runArtifact": "Run artifact in project",
+    "expandSidebar": "展开侧边栏",
+    "collapseSidebar": "折叠侧边栏"
   },
   "images": {
     "title": "Images",

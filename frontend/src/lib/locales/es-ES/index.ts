@@ -260,7 +260,9 @@ export const esES = {
     "theme": "Tema",
     "ask": "Preguntar",
     "viewAllProjects": "View all projects",
-    "runArtifact": "Run artifact in project"
+    "runArtifact": "Run artifact in project",
+    "expandSidebar": "Expandir barra lateral",
+    "collapseSidebar": "Contraer barra lateral"
   },
   "images": {
     "title": "Images",

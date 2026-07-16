@@ -260,7 +260,9 @@ export const zhTW = {
     "theme": "主題",
     "ask": "提問",
     "viewAllProjects": "View all projects",
-    "runArtifact": "Run artifact in project"
+    "runArtifact": "Run artifact in project",
+    "expandSidebar": "展開側邊欄",
+    "collapseSidebar": "摺疊側邊欄"
   },
   "images": {
     "title": "Images",

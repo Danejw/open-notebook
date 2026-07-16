@@ -260,7 +260,9 @@ export const jaJP = {
     "theme": "テーマ",
     "ask": "質問",
     "viewAllProjects": "View all projects",
-    "runArtifact": "Run artifact in project"
+    "runArtifact": "Run artifact in project",
+    "expandSidebar": "サイドバーを展開",
+    "collapseSidebar": "サイドバーを折りたたむ"
   },
   "images": {
     "title": "Images",

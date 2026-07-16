@@ -260,7 +260,9 @@ export const frFR = {
     "theme": "Thème",
     "ask": "Demander",
     "viewAllProjects": "View all projects",
-    "runArtifact": "Run artifact in project"
+    "runArtifact": "Run artifact in project",
+    "expandSidebar": "Développer la barre latérale",
+    "collapseSidebar": "Réduire la barre latérale"
   },
   "images": {
     "title": "Images",

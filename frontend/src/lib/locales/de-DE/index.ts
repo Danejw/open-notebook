@@ -260,7 +260,9 @@ export const deDE = {
     "theme": "Design",
     "ask": "Fragen",
     "viewAllProjects": "View all projects",
-    "runArtifact": "Run artifact in project"
+    "runArtifact": "Run artifact in project",
+    "expandSidebar": "Seitenleiste erweitern",
+    "collapseSidebar": "Seitenleiste einklappen"
   },
   "images": {
     "title": "Images",

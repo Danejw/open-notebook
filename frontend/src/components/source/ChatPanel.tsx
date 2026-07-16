@@ -65,6 +65,7 @@ export interface ChatPanelProps {
   onUpdateSession?: (sessionId: string, title: string) => void
   loadingSessions?: boolean
   title?: string
+  titleAdornment?: ReactNode
   contextType?: 'source' | 'project'
   projectContextStats?: ProjectContextStats
   projectId?: string
@@ -121,6 +122,7 @@ export function ChatPanel({
   onUpdateSession,
   loadingSessions = false,
   title,
+  titleAdornment,
   contextType = 'source',
   projectContextStats,
   projectId,
@@ -179,6 +181,7 @@ export function ChatPanel({
     >
       <ChatSessionHeader
         title={resolvedTitle}
+        titleAdornment={titleAdornment}
         variant={variant}
         sessions={sessions}
         currentSessionId={currentSessionId}
@@ -190,7 +193,7 @@ export function ChatPanel({
         headerActions={headerActions}
       />
 
-      <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+      <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
         <ChatPanelMessages
           messages={messages}
           isStreaming={isStreaming}

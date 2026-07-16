@@ -15,9 +15,11 @@ import { useProjectArtifacts } from '@/lib/hooks/use-project-artifacts'
 import { isGeneratedArtifact } from '@/lib/utils/project-artifact-kind'
 import { useArtifacts } from '@/lib/hooks/use-artifacts'
 import { useProjectColumnsStore } from '@/lib/stores/project-columns-store'
+import { useProjectActivityStore } from '@/lib/stores/project-activity-store'
 import { useIsDesktop } from '@/lib/hooks/use-media-query'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { UnreadDot } from '@/components/ui/unread-dot'
 import {
   ResizableHandle,
   ResizablePanel,
@@ -31,7 +33,6 @@ import {
 } from '@/components/projects/ColumnHeader'
 import {
   applyBulkSourceContext,
-  applyBulkNoteContext,
   computeSourceSelections,
   computeNoteSelections,
   type SourceContextDefault,
@@ -80,8 +81,17 @@ function ProjectPageContent() {
 
   const { sourcesCollapsed, artifactsCollapsed, chatCollapsed, setSources, setArtifacts, setChat } =
     useProjectColumnsStore()
+  const syncArtifactIds = useProjectActivityStore((state) => state.syncArtifactIds)
+  const setChatViewing = useProjectActivityStore((state) => state.setChatViewing)
+  const setArtifactsViewing = useProjectActivityStore((state) => state.setArtifactsViewing)
+  const hasUnseenArtifacts = useProjectActivityStore((state) =>
+    Boolean(state.unseenArtifactIdsByProject[projectId]?.length)
+  )
+  const chatUnread = useProjectActivityStore((state) =>
+    Boolean(state.chatUnreadByProject[projectId])
+  )
 
-  // Detect desktop to avoid double-mounting ChatColumn
+  // Detect desktop to avoid double-mounting ChatColumn on desktop+mobile simultaneously
   const isDesktop = useIsDesktop()
 
   // Persist column widths across reloads (desktop only)
@@ -200,6 +210,36 @@ function ProjectPageContent() {
     [notes]
   )
 
+  // Baseline + mark newly appeared project artifacts as unseen (session-only).
+  useEffect(() => {
+    if (!projectId || notes === undefined) return
+    syncArtifactIds(
+      projectId,
+      notes.map((note) => note.id)
+    )
+  }, [projectId, notes, syncArtifactIds])
+
+  // Sync which panels the user is actively viewing (tabs on mobile, collapse on desktop).
+  useEffect(() => {
+    if (!projectId) return
+    const chatViewing = isDesktop
+      ? !chatCollapsed
+      : mobileActiveTab === 'chat'
+    const artifactsViewing = isDesktop
+      ? !artifactsCollapsed
+      : mobileActiveTab === 'notes'
+    setChatViewing(projectId, chatViewing)
+    setArtifactsViewing(projectId, artifactsViewing)
+  }, [
+    projectId,
+    isDesktop,
+    chatCollapsed,
+    artifactsCollapsed,
+    mobileActiveTab,
+    setChatViewing,
+    setArtifactsViewing,
+  ])
+
   const handleTemplateClick = useCallback((artifactId: string) => {
     router.replace(`/projects/${encodeURIComponent(projectId)}?artifact=${encodeURIComponent(artifactId)}`)
     setArtifactRunKey((key) => key + 1)
@@ -276,15 +316,6 @@ function ProjectPageContent() {
     }))
   }
 
-  // Bulk include/exclude every note from the chat context at once (#223).
-  const handleBulkNoteContext = (action: NoteContextDefault) => {
-    setNoteContextDefault(action)
-    setContextSelections(prev => ({
-      ...prev,
-      notes: applyBulkNoteContext(prev.notes, notes ?? [], action),
-    }))
-  }
-
   if (projectLoading && !project) {
     return <DashboardContentSkeleton projectDetail />
   }
@@ -339,51 +370,66 @@ function ProjectPageContent() {
                       <FileText className="h-3.5 w-3.5" />
                       {t('navigation.sources')}
                     </TabsTrigger>
-                    <TabsTrigger value="notes" className="h-7 gap-1 px-2 text-xs">
+                    <TabsTrigger value="notes" className="relative h-7 gap-1 px-2 text-xs">
                       <Boxes className="h-3.5 w-3.5" />
-                      {t('common.artifacts')}
+                      <span className="inline-flex items-center gap-1">
+                        {t('common.notes')}
+                        {hasUnseenArtifacts ? <UnreadDot /> : null}
+                      </span>
                     </TabsTrigger>
-                    <TabsTrigger value="chat" className="h-7 gap-1 px-2 text-xs">
+                    <TabsTrigger value="chat" className="relative h-7 gap-1 px-2 text-xs">
                       <MessageSquare className="h-3.5 w-3.5" />
-                      {t('common.chat')}
+                      <span className="inline-flex items-center gap-1">
+                        {t('common.chat')}
+                        {chatUnread ? <UnreadDot /> : null}
+                      </span>
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
 
-              {/* Mobile: Show only active tab */}
-              <div className="min-h-0 flex-1 overflow-hidden lg:hidden">
-                {mobileActiveTab === 'sources' && (
-                  <SourcesColumn
-                    sources={sources}
-                    isLoading={sourcesLoading}
-                    projectId={projectId}
-                    projectName={project?.name}
-                    onRefresh={refetchSources}
-                    contextSelections={contextSelections.sources}
-                    onContextModeChange={handleSourceContextModeChange}
-                    onBulkContextModeChange={handleBulkSourceContext}
-                    hasNextPage={hasNextPage}
-                    isFetchingNextPage={isFetchingNextPage}
-                    fetchNextPage={fetchNextPage}
-                    hasArtifactTemplates={artifacts.length > 0}
-                    hasIngestibleArtifacts={hasIngestibleArtifacts}
-                  />
-                )}
-                {mobileActiveTab === 'notes' && (
-                  <ArtifactsColumn
-                    notes={notes}
-                    isLoading={notesLoading}
-                    projectId={projectId}
-                    contextSelections={contextSelections.notes}
-                    onContextModeChange={handleNoteContextModeChange}
-                    onBulkContextModeChange={handleBulkNoteContext}
-                    onTemplateClick={handleTemplateClick}
-                  />
-                )}
-                {mobileActiveTab === 'chat' && (
+              {/* Mobile: absolute fill so tab content gets a bounded height and scrolls inside.
+                  Keep Chat mounted (hidden) so queue/SSE keep running. */}
+              <div className="relative min-h-0 flex-1 overflow-hidden lg:hidden">
+                {mobileActiveTab === 'sources' ? (
+                  <div className="absolute inset-0 min-h-0 overflow-hidden">
+                    <SourcesColumn
+                      sources={sources}
+                      isLoading={sourcesLoading}
+                      projectId={projectId}
+                      projectName={project?.name}
+                      onRefresh={refetchSources}
+                      contextSelections={contextSelections.sources}
+                      onContextModeChange={handleSourceContextModeChange}
+                      onBulkContextModeChange={handleBulkSourceContext}
+                      hasNextPage={hasNextPage}
+                      isFetchingNextPage={isFetchingNextPage}
+                      fetchNextPage={fetchNextPage}
+                      hasArtifactTemplates={artifacts.length > 0}
+                      hasIngestibleArtifacts={hasIngestibleArtifacts}
+                    />
+                  </div>
+                ) : null}
+                {mobileActiveTab === 'notes' ? (
+                  <div className="absolute inset-0 min-h-0 overflow-hidden">
+                    <ArtifactsColumn
+                      notes={notes}
+                      isLoading={notesLoading}
+                      projectId={projectId}
+                      contextSelections={contextSelections.notes}
+                      onContextModeChange={handleNoteContextModeChange}
+                      onTemplateClick={handleTemplateClick}
+                    />
+                  </div>
+                ) : null}
+                <div
+                  className={cn(
+                    'absolute inset-0 min-h-0 overflow-hidden',
+                    mobileActiveTab !== 'chat' && 'hidden'
+                  )}
+                >
                   <ChatColumn {...chatColumnProps} />
-                )}
+                </div>
               </div>
             </>
           )}
@@ -446,7 +492,6 @@ function ProjectPageContent() {
                   projectId={projectId}
                   contextSelections={contextSelections.notes}
                   onContextModeChange={handleNoteContextModeChange}
-                  onBulkContextModeChange={handleBulkNoteContext}
                   onTemplateClick={handleTemplateClick}
                 />
               </ResizablePanel>

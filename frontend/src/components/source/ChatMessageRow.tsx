@@ -105,7 +105,7 @@ function ChatMessageRowImpl({
   return (
     <div
       data-index={message.id}
-      className={cn('group flex py-0.5', message.type === 'human' ? 'justify-end' : 'justify-start')}
+      className={cn('group flex py-0.5 px-2', message.type === 'human' ? 'justify-end' : 'justify-start')}
     >
       <div
         className={cn(

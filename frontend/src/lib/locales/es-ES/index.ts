@@ -369,6 +369,7 @@ export const esES = {
     "updated": "Actualizado",
     "namePlaceholder": "Nombre del cuaderno",
     "addDescription": "Agregar descripción...",
+    "projectArtifacts": "Project Artifacts",
     "noArtifactsYet": "No artifacts yet",
     "createFirstArtifact": "Ejecuta una plantilla o escribe un artefacto para crear el primer artefacto del proyecto.",
     "artifactPhases": {

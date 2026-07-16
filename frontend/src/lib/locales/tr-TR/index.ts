@@ -369,6 +369,7 @@ export const trTR = {
     "updated": "Güncellendi",
     "namePlaceholder": "Proje adı",
     "addDescription": "Açıklama ekle...",
+    "projectArtifacts": "Project Artifacts",
     "noArtifactsYet": "No artifacts yet",
     "createFirstArtifact": "İlk proje artefaktını oluşturmak için bir şablon çalıştırın veya bir artefakt yazın.",
     "artifactPhases": {

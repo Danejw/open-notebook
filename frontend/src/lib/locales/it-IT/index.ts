@@ -369,6 +369,7 @@ export const itIT = {
     "updated": "Aggiornato",
     "namePlaceholder": "Nome quaderno",
     "addDescription": "Aggiungi descrizione...",
+    "projectArtifacts": "Project Artifacts",
     "noArtifactsYet": "No artifacts yet",
     "createFirstArtifact": "Esegui un modello o scrivi un artefatto per creare il primo artefatto del progetto.",
     "artifactPhases": {

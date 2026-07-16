@@ -4,13 +4,7 @@ import { useState, useMemo, useRef, useCallback } from 'react'
 import { ProjectArtifactResponse } from '@/lib/types/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Plus, Trash2, ListChecks, FileText, EyeOff } from 'lucide-react'
+import { Plus, Trash2, FileText, EyeOff } from 'lucide-react'
 import { CompactListRowSkeleton } from '@/components/common/LoadingSkeletons'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ListSelectionBar } from '@/components/common/ListSelectionBar'
@@ -21,7 +15,6 @@ import { ArtifactTemplatePhases } from './ArtifactTemplatePhases'
 import { ArtifactListRow } from './ArtifactListRow'
 import { ArtifactViewerDialog } from './ArtifactViewerDialog'
 import type { NoteContextMode } from '@/lib/types/project-context'
-import type { NoteContextDefault } from '@/lib/utils/source-context'
 import {
   useDeleteProjectArtifact,
   useExportProjectArtifactPdf,
@@ -37,13 +30,13 @@ import { FormDialogShell } from '@/components/common/FormDialogShell'
 import { CollapsibleColumn, createCollapseButton } from '@/components/projects/CollapsibleColumn'
 import {
   ColumnHeader,
-  columnBodyClassName,
   columnCardClassName,
   columnHeaderIconClassName,
-  columnHeaderIconButtonClassName,
   columnHeaderPrimaryButtonClassName,
 } from '@/components/projects/ColumnHeader'
 import { useProjectColumnsStore } from '@/lib/stores/project-columns-store'
+import { useProjectActivityStore } from '@/lib/stores/project-activity-store'
+import { UnreadDot } from '@/components/ui/unread-dot'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { downloadArtifactMarkdown, normalizeArtifactId } from '@/lib/utils/export-artifact'
 import { projectArtifactsApi } from '@/lib/api/project-artifacts'
@@ -56,7 +49,6 @@ interface ArtifactsColumnProps {
   projectId: string
   contextSelections?: Record<string, NoteContextMode>
   onContextModeChange?: (noteId: string, mode: NoteContextMode) => void
-  onBulkContextModeChange?: (action: NoteContextDefault) => void
   onTemplateClick?: (artifactId: string) => void
 }
 
@@ -66,7 +58,6 @@ export function ArtifactsColumn({
   projectId,
   contextSelections,
   onContextModeChange,
-  onBulkContextModeChange,
   onTemplateClick,
 }: ArtifactsColumnProps) {
   const { t, language } = useTranslation()
@@ -126,10 +117,25 @@ export function ArtifactsColumn({
   const displayViewingNote = fetchedViewingNote ?? viewingArtifact
 
   const { artifactsCollapsed, toggleArtifacts } = useProjectColumnsStore()
+  const unseenArtifactIds = useProjectActivityStore(
+    (state) => state.unseenArtifactIdsByProject[projectId] ?? []
+  )
+  const markArtifactSeen = useProjectActivityStore((state) => state.markArtifactSeen)
+  const hasUnseenArtifacts = unseenArtifactIds.length > 0
+  const unseenIdSet = useMemo(() => new Set(unseenArtifactIds), [unseenArtifactIds])
   const notesLabel = t('common.artifacts')
   const collapseButton = useMemo(
     () => createCollapseButton(toggleArtifacts, notesLabel),
     [toggleArtifacts, notesLabel]
+  )
+  const artifactsTitleAdornment = hasUnseenArtifacts ? <UnreadDot /> : undefined
+
+  const handleOpenArtifact = useCallback(
+    (note: ProjectArtifactResponse) => {
+      markArtifactSeen(projectId, note.id)
+      setViewingArtifact(note)
+    },
+    [markArtifactSeen, projectId]
   )
 
   const handleDeleteClick = (noteId: string) => {
@@ -239,34 +245,37 @@ export function ArtifactsColumn({
         onToggle={toggleArtifacts}
         collapsedIcon={FileText}
         collapsedLabel={notesLabel}
+        showUnread={hasUnseenArtifacts}
       >
         <Card className={columnCardClassName}>
           <ColumnHeader
             title={notesLabel}
-            actions={
-              <>
-                {onBulkContextModeChange && notes && notes.length > 0 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={columnHeaderIconButtonClassName}
-                        title={t('sources.bulkContext')}
-                      >
-                        <ListChecks className={columnHeaderIconClassName} />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onBulkContextModeChange('include')}>
-                        {t('sources.includeAllInContext')}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onBulkContextModeChange('exclude')}>
-                        {t('sources.excludeAllFromContext')}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+            titleAdornment={artifactsTitleAdornment}
+            actions={collapseButton}
+            className="mx-2 my-1 border-b-0"
+          />
+
+          <CardContent className="flex min-h-0 flex-1 flex-col overflow-y-auto p-0">
+            {(templatesLoading || templates.length > 0) && (
+              <div className="px-1 pt-0.5">
+                {templatesLoading ? (
+                  <div className="flex flex-col divide-y divide-border/50">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <CompactListRowSkeleton key={i} />
+                    ))}
+                  </div>
+                ) : (
+                  <ArtifactTemplatePhases
+                    templates={templates}
+                    onTemplateClick={(artifact) => onTemplateClick?.(artifact.id)}
+                  />
                 )}
+              </div>
+            )}
+
+            <ColumnHeader
+              title={t('projects.projectArtifacts')}
+              actions={
                 <Button
                   size="sm"
                   className={columnHeaderPrimaryButtonClassName}
@@ -278,111 +287,98 @@ export function ArtifactsColumn({
                   <Plus className={columnHeaderIconClassName} />
                   {t('common.writeNote')}
                 </Button>
-                {collapseButton}
-              </>
-            }
-          />
+              }
+            />
 
-          <CardContent className={columnBodyClassName}>
-            {templatesLoading ? (
-              <div className="mb-2 flex flex-col divide-y divide-border/50">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <CompactListRowSkeleton key={i} />
-                ))}
-              </div>
-            ) : templates.length > 0 ? (
-              <ArtifactTemplatePhases
-                templates={templates}
-                onTemplateClick={(artifact) => onTemplateClick?.(artifact.id)}
-              />
-            ) : null}
-
-            {isLoading ? (
-              <div className="flex flex-col divide-y divide-border/50">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <CompactListRowSkeleton key={i} />
-                ))}
-              </div>
-            ) : !notes || notes.length === 0 ? (
-              <EmptyState
-                icon={FileText}
-                title={t('projects.noArtifactsYet')}
-                description={t('projects.createFirstArtifact')}
-              />
-            ) : (
-              <div className="flex flex-col divide-y divide-border/50">
-                {selectionMode && (
-                  <ListSelectionBar
-                    count={selectedIds.size}
-                    countLabel={t('common.selectedItems').replace(
-                      '{count}',
-                      String(selectedIds.size)
-                    )}
-                    onClear={clearSelection}
-                    onSelectAll={handleSelectAllVisible}
-                  >
-                    {onContextModeChange && (
-                      <>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7"
-                          onClick={() => applyBulkNoteContext('full')}
-                        >
-                          <FileText className="mr-1 h-3.5 w-3.5" />
-                          {t('sources.includeAllInContext')}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7"
-                          onClick={() => applyBulkNoteContext('off')}
-                        >
-                          <EyeOff className="mr-1 h-3.5 w-3.5" />
-                          {t('sources.excludeAllFromContext')}
-                        </Button>
-                      </>
-                    )}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-destructive hover:text-destructive"
-                      onClick={() => setBulkDeleteOpen(true)}
+            <div className="px-1 pb-0.5 pt-0.5">
+              {isLoading ? (
+                <div className="flex flex-col">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <CompactListRowSkeleton key={i} />
+                  ))}
+                </div>
+              ) : !notes || notes.length === 0 ? (
+                <EmptyState
+                  icon={FileText}
+                  title={t('projects.noArtifactsYet')}
+                  description={t('projects.createFirstArtifact')}
+                />
+              ) : (
+                <div className="flex flex-col">
+                  {selectionMode && (
+                    <ListSelectionBar
+                      count={selectedIds.size}
+                      countLabel={t('common.selectedItems').replace(
+                        '{count}',
+                        String(selectedIds.size)
+                      )}
+                      onClear={clearSelection}
+                      onSelectAll={handleSelectAllVisible}
                     >
-                      <Trash2 className="mr-1 h-3.5 w-3.5" />
-                      {t('common.bulkDelete')}
-                    </Button>
-                  </ListSelectionBar>
-                )}
-                {notes.map((note) => (
-                  <ArtifactListRow
-                    key={note.id}
-                    note={note}
-                    t={t}
-                    selectionMode={selectionMode}
-                    selected={isSelected(note.id)}
-                    contextMode={contextSelections?.[note.id]}
-                    onContextModeChange={onContextModeChange}
-                    onEnterSelection={enterSelection}
-                    onToggleSelect={toggleSelect}
-                    onOpen={() => setViewingArtifact(note)}
-                    onRename={() => handleRenameOpen(note)}
-                    onDelete={() => handleDeleteClick(note.id)}
-                    onIngest={() => void handleIngestNote(note)}
-                    onExportPdf={() => void handleExportPdf(note)}
-                    onExportMarkdown={() => void handleExportMarkdown(note)}
-                    exportPdfPending={exportNotePdf.isPending}
-                    ingestPending={ingestAsSource.isPending}
-                    draggingNoteId={draggingNoteId}
-                    setDraggingNoteId={setDraggingNoteId}
-                    suppressClickRef={suppressClickRef}
-                  />
-                ))}
-              </div>
-            )}
+                      {onContextModeChange && (
+                        <>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7"
+                            onClick={() => applyBulkNoteContext('full')}
+                          >
+                            <FileText className="mr-1 h-3.5 w-3.5" />
+                            {t('sources.includeAllInContext')}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7"
+                            onClick={() => applyBulkNoteContext('off')}
+                          >
+                            <EyeOff className="mr-1 h-3.5 w-3.5" />
+                            {t('sources.excludeAllFromContext')}
+                          </Button>
+                        </>
+                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-destructive hover:text-destructive"
+                        onClick={() => setBulkDeleteOpen(true)}
+                      >
+                        <Trash2 className="mr-1 h-3.5 w-3.5" />
+                        {t('common.bulkDelete')}
+                      </Button>
+                    </ListSelectionBar>
+                  )}
+                  {notes.map((note) => (
+                    <ArtifactListRow
+                      key={note.id}
+                      note={note}
+                      t={t}
+                      selectionMode={selectionMode}
+                      selected={isSelected(note.id)}
+                      contextMode={contextSelections?.[note.id]}
+                      onContextModeChange={onContextModeChange}
+                      onEnterSelection={enterSelection}
+                      onToggleSelect={toggleSelect}
+                      onOpen={() => handleOpenArtifact(note)}
+                      onRename={() => handleRenameOpen(note)}
+                      onDelete={() => handleDeleteClick(note.id)}
+                      onIngest={() => void handleIngestNote(note)}
+                      onExportPdf={() => void handleExportPdf(note)}
+                      onExportMarkdown={() => void handleExportMarkdown(note)}
+                      exportPdfPending={exportNotePdf.isPending}
+                      ingestPending={ingestAsSource.isPending}
+                      draggingNoteId={draggingNoteId}
+                      setDraggingNoteId={setDraggingNoteId}
+                      suppressClickRef={suppressClickRef}
+                      isUnseen={unseenIdSet.has(note.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </CollapsibleColumn>

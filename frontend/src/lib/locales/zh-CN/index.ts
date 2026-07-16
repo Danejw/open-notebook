@@ -369,6 +369,7 @@ export const zhCN = {
     "updated": "已更新",
     "namePlaceholder": "项目名称",
     "addDescription": "添加描述...",
+    "projectArtifacts": "Project Artifacts",
     "noArtifactsYet": "No artifacts yet",
     "createFirstArtifact": "运行模板或编写工件以创建第一个项目工件。",
     "artifactPhases": {

@@ -369,6 +369,7 @@ export const zhTW = {
     "updated": "已更新",
     "namePlaceholder": "專案名稱",
     "addDescription": "新增描述...",
+    "projectArtifacts": "Project Artifacts",
     "noArtifactsYet": "No artifacts yet",
     "createFirstArtifact": "執行範本或撰寫工件以建立第一個專案工件。",
     "artifactPhases": {

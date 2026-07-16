@@ -369,6 +369,7 @@ export const deDE = {
     "updated": "Aktualisiert",
     "namePlaceholder": "Projekt-Name",
     "addDescription": "Beschreibung hinzufügen...",
+    "projectArtifacts": "Project Artifacts",
     "noArtifactsYet": "No artifacts yet",
     "createFirstArtifact": "Führe eine Vorlage aus oder schreibe ein Artefakt, um das erste Projektartefakt zu erstellen.",
     "artifactPhases": {

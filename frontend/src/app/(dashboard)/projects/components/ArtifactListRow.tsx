@@ -26,6 +26,7 @@ import {
   isGeneratedArtifact,
   isManualArtifact,
 } from '@/lib/utils/project-artifact-kind'
+import { UnreadDot } from '@/components/ui/unread-dot'
 import type { TFunction } from 'i18next'
 
 function getArtifactTypeInfo(
@@ -64,6 +65,8 @@ export interface ArtifactListRowProps {
   draggingNoteId: string | null
   setDraggingNoteId: (id: string | null) => void
   suppressClickRef: MutableRefObject<boolean>
+  /** Show a primary unread indicator next to the title. */
+  isUnseen?: boolean
 }
 
 export function ArtifactListRow({
@@ -86,6 +89,7 @@ export function ArtifactListRow({
   draggingNoteId,
   setDraggingNoteId,
   suppressClickRef,
+  isUnseen = false,
 }: ArtifactListRowProps) {
   const { icon: NoteTypeIcon, label: noteTypeLabel } = getArtifactTypeInfo(note, t)
   const title = note.title || t('sources.untitledNote')
@@ -167,8 +171,12 @@ export function ArtifactListRow({
         />
       )}
 
-      <h4 className="min-w-0 flex-1 truncate text-sm font-medium leading-snug" title={title}>
-        {title}
+      <h4
+        className="flex min-w-0 flex-1 items-center gap-1.5 text-sm font-medium leading-snug"
+        title={title}
+      >
+        <span className="truncate">{title}</span>
+        {isUnseen ? <UnreadDot className="shrink-0" /> : null}
       </h4>
 
       {!selectionMode && (

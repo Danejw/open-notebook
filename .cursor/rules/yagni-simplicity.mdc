@@ -1,0 +1,36 @@
+---
+description: YAGNI — simplest solution wins; do not over-engineer or build speculative features
+alwaysApply: true
+---
+
+# YAGNI & Simplicity
+
+If we don't need it, we don't build it. The simplest approach that solves the problem is usually the best. Prefer easy-to-follow code over premature abstraction.
+
+## Rules
+
+1. **Solve the asked problem** — Implement what is needed now. Do not add “for later,” “more flexible,” or “enterprise-ready” layers unless required by the current task.
+2. **Simplest path first** — Prefer a direct fix or small change that fits existing patterns over new frameworks, indirection, or multi-file architecture.
+3. **No speculative generality** — Do not introduce config knobs, plugin systems, factories, or abstraction layers for a single use case.
+4. **Match existing complexity** — Extend what is already there. Do not redesign a working path to be “cleaner” unless that is the task.
+5. **Small diffs** — Touch only files required for the fix. Resist drive-by refactors, extra helpers, and “while we're here” features.
+
+## Do
+
+- Ask: “What is the minimum change that correctly solves this?”
+- Reuse existing helpers/components before inventing new ones
+- Inline until a second real use case appears (then extract — see DRY)
+- Ship a boring, readable solution over a clever one
+
+## Do not
+
+- Build abstractions for hypothetical future requirements
+- Add new packages, services, or folders when a local change would do
+- Split a simple flow across many files “for maintainability”
+- Overcomplicate early — complexity is earned by real need, not anticipation
+
+## Before finishing
+
+- [ ] The change solves only the stated problem
+- [ ] No unused generality, unused params, or dead “flexibility”
+- [ ] Could not have done it with a smaller, simpler change

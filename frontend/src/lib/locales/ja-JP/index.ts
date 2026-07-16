@@ -369,6 +369,7 @@ export const jaJP = {
     "updated": "更新日時",
     "namePlaceholder": "プロジェクト名",
     "addDescription": "説明を追加...",
+    "projectArtifacts": "Project Artifacts",
     "noArtifactsYet": "No artifacts yet",
     "createFirstArtifact": "テンプレートを実行するか、アーティファクトを作成して最初のプロジェクトアーティファクトを作成してください。",
     "artifactPhases": {

@@ -369,6 +369,7 @@ export const caES = {
     "updated": "Actualitzat",
     "namePlaceholder": "Nom del quadern",
     "addDescription": "Afegeix una descripció...",
+    "projectArtifacts": "Project Artifacts",
     "noArtifactsYet": "No artifacts yet",
     "createFirstArtifact": "Executa una plantilla o escriu un artefacte per crear el primer artefacte del projecte.",
     "artifactPhases": {

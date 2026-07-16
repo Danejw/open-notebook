@@ -369,6 +369,7 @@ export const ptBR = {
     "updated": "Atualizado",
     "namePlaceholder": "Nome do caderno",
     "addDescription": "Adicionar descrição...",
+    "projectArtifacts": "Project Artifacts",
     "noArtifactsYet": "No artifacts yet",
     "createFirstArtifact": "Execute um modelo ou escreva um artefato para criar o primeiro artefato do projeto.",
     "artifactPhases": {

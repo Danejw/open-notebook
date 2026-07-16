@@ -369,6 +369,7 @@ export const plPL = {
     "updated": "Zaktualizowano",
     "namePlaceholder": "Nazwa notatnika",
     "addDescription": "Dodaj opis...",
+    "projectArtifacts": "Project Artifacts",
     "noArtifactsYet": "No artifacts yet",
     "createFirstArtifact": "Uruchom szablon lub napisz artefakt, aby utworzyć pierwszy artefakt projektu.",
     "artifactPhases": {

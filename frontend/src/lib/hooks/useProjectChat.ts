@@ -31,6 +31,8 @@ interface UseProjectChatParams {
   guestKey?: string | null
   /** When true: no skills, tools, model override, or artifacts. */
   sharedMode?: boolean
+  /** Fired when an assistant turn finishes (direct send or queue item). */
+  onAssistantResponseComplete?: () => void
 }
 
 export function useProjectChat({
@@ -41,6 +43,7 @@ export function useProjectChat({
   activeArtifactId,
   guestKey = null,
   sharedMode = false,
+  onAssistantResponseComplete,
 }: UseProjectChatParams) {
   const queryClient = useQueryClient()
   const [tokenCount, setTokenCount] = useState<number>(0)
@@ -222,6 +225,7 @@ export function useProjectChat({
     presentation: { directStream: sharedMode },
     queueSessionId: sharedMode ? null : undefined,
     clearPendingModelOverride: () => setPendingModelOverride(null),
+    onAssistantResponseComplete,
     resolveCurrentSession: (sessions, currentSessionId, currentSession) =>
       currentSession || sessions.find((session) => session.id === currentSessionId),
   })

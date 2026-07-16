@@ -38,7 +38,7 @@ export function ArtifactTemplatePhases({
   }
 
   return (
-    <div className="mb-1 space-y-0.5">
+    <div className="space-y-0.5">
       {visiblePhases.map((phase) => (
         <PhaseSection
           key={phase}

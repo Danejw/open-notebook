@@ -6,12 +6,15 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ChevronLeft, LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { UnreadDot } from '@/components/ui/unread-dot'
 
 interface CollapsibleColumnProps {
   isCollapsed: boolean
   onToggle: () => void
   collapsedIcon: LucideIcon
   collapsedLabel: string
+  /** Show a primary unread indicator on the collapsed control. */
+  showUnread?: boolean
   children: ReactNode
 }
 
@@ -20,6 +23,7 @@ export function CollapsibleColumn({
   onToggle,
   collapsedIcon: CollapsedIcon,
   collapsedLabel,
+  showUnread = false,
   children,
 }: CollapsibleColumnProps) {
   const { t } = useTranslation()
@@ -35,7 +39,7 @@ export function CollapsibleColumn({
             <button
               onClick={onToggle}
               className={cn(
-                'flex flex-col items-center justify-center gap-3',
+                'relative flex flex-col items-center justify-center gap-3',
                 'w-12 h-full min-h-0',
                 'border rounded-lg',
                 'bg-card hover:bg-accent/50',
@@ -45,7 +49,12 @@ export function CollapsibleColumn({
               )}
               aria-label={expandLabel}
             >
-              <CollapsedIcon className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0" />
+              <span className="relative inline-flex">
+                <CollapsedIcon className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0" />
+                {showUnread ? (
+                  <UnreadDot className="absolute -right-0.5 -top-0.5" />
+                ) : null}
+              </span>
               <div
                 className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors whitespace-nowrap"
                 style={{ writingMode: 'vertical-rl', transform: isCJK ? 'none' : 'rotate(180deg)', textOrientation: 'mixed' }}

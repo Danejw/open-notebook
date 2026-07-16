@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils'
 
 interface ColumnHeaderProps {
   title: string
+  /** Optional adornment next to the title (e.g. unread indicator). */
+  titleAdornment?: ReactNode
   actions?: ReactNode
   className?: string
   titleClassName?: string
@@ -20,17 +22,26 @@ export const projectPageStackGapClassName = 'gap-1'
  * Shared compact header for project column panels (Sources, Notes, Chat).
  * Uses a plain div — not CardHeader — to avoid shadcn's [.border-b]:pb-6 default.
  */
-export function ColumnHeader({ title, actions, className, titleClassName }: ColumnHeaderProps) {
+export function ColumnHeader({
+  title,
+  titleAdornment,
+  actions,
+  className,
+  titleClassName,
+}: ColumnHeaderProps) {
   return (
     <div
       className={cn(
-        'flex shrink-0 items-center justify-between gap-1.5 border-b border-border px-1.5 py-0.5',
+        'mx-2 flex shrink-0 items-center justify-between gap-1.5 px-1.5 pt-3 pb-0.5',
         className
       )}
     >
-      <h2 className={cn('truncate text-sm font-semibold leading-none', titleClassName)}>
-        {title}
-      </h2>
+      <div className="flex min-w-0 items-center gap-1.5">
+        <h2 className={cn('truncate text-sm font-semibold leading-none', titleClassName)}>
+          {title}
+        </h2>
+        {titleAdornment}
+      </div>
       {actions ? (
         <div className="flex shrink-0 items-center gap-0.5">{actions}</div>
       ) : null}

@@ -11,7 +11,7 @@ interface AppShellSkeletonProps {
 /** Full-viewport shell skeleton — used before dashboard layout mounts (e.g. ConnectionGuard). */
 export function AppShellSkeleton({ className, projectDetail = false }: AppShellSkeletonProps) {
   return (
-    <div className={cn('flex h-full max-h-full gap-0.5 overflow-hidden overscroll-none bg-background p-0.5', className)}>
+    <div className={cn('flex h-dvh max-h-dvh gap-0.5 overflow-hidden overscroll-none bg-background p-0.5', className)}>
       <div className="flex w-52 shrink-0 flex-col self-stretch overflow-hidden rounded-lg border border-sidebar-border bg-sidebar">
         <div className="flex h-11 shrink-0 items-center gap-2 border-b border-sidebar-border px-2">
           <Skeleton className="h-6 w-6 rounded" />

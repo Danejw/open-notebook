@@ -187,6 +187,8 @@ export interface UseChatRuntimeOptions<
   queueSessionId?: string | null
   clearPendingModelOverride?: () => void
   onSwitchSession?: () => void
+  /** Fired when an assistant turn finishes (direct send or queue item). */
+  onAssistantResponseComplete?: () => void
   resolveCurrentSession?: (
     sessions: TSession[],
     currentSessionId: string | null,
@@ -216,6 +218,7 @@ export function useChatRuntime<
   queueSessionId: queueSessionIdOverride,
   clearPendingModelOverride,
   onSwitchSession,
+  onAssistantResponseComplete,
   resolveCurrentSession,
 }: UseChatRuntimeOptions<TSession, TCreateData, TUpdateData, TMessage>) {
   const { t } = useTranslation()
@@ -255,12 +258,18 @@ export function useChatRuntime<
       ? queueSessionIdOverride
       : currentSessionId
 
+  const onAssistantResponseCompleteRef = useRef(onAssistantResponseComplete)
+  onAssistantResponseCompleteRef.current = onAssistantResponseComplete
+
   const chatQueue = useChatQueue(effectiveQueueSessionId, {
     historyQueryKeys: currentSessionId
       ? [sessionQueryKey(currentSessionId)]
       : [],
-    onCompletion: () => {
+    onCompletion: (completion) => {
       void refetchCurrentSession()
+      if (completion.type === 'item-completed') {
+        onAssistantResponseCompleteRef.current?.()
+      }
     },
   })
 
@@ -481,6 +490,9 @@ export function useChatRuntime<
     await drainNextQueuedMessage()
   }
 
+  const { afterStreamSuccess: sendTurnAfterStreamSuccess, ...sendTurnRest } =
+    sendTurn ?? {}
+
   const { sendMessage, isSending, cancelSending } = useChatSendTurn<TMessage>({
     messages,
     setMessages,
@@ -500,7 +512,11 @@ export function useChatRuntime<
       await afterTurnRef.current?.(sessionId)
     },
     getAbortSignal: sendTurnLifecycle?.getAbortSignal,
-    ...sendTurn,
+    ...sendTurnRest,
+    afterStreamSuccess: async (sessionId) => {
+      await sendTurnAfterStreamSuccess?.(sessionId)
+      onAssistantResponseCompleteRef.current?.()
+    },
   })
 
   sendMessageRef.current = sendMessage

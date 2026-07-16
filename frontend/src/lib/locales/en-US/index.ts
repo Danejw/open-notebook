@@ -111,7 +111,7 @@ export const enUS = {
     "human": "Human",
     "unknown": "Unknown",
     "notes": "Artifacts",
-    "artifacts": "Artifacts",
+    "artifacts": "Artifact Templates",
     "chat": "Chat",
     "connectionError": "Connection Error",
     "unableToConnect": "Unable to connect to the API server",
@@ -371,6 +371,7 @@ export const enUS = {
     "updated": "Updated",
     "namePlaceholder": "Project name",
     "addDescription": "Add description...",
+    "projectArtifacts": "Project Artifacts",
     "noArtifactsYet": "No artifacts yet",
     "createFirstArtifact": "Run a template or write an artifact to create the first project artifact.",
     "artifactPhases": {

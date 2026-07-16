@@ -369,6 +369,7 @@ export const frFR = {
     "updated": "Mis à jour",
     "namePlaceholder": "Nom du projet",
     "addDescription": "Ajouter une description...",
+    "projectArtifacts": "Project Artifacts",
     "noArtifactsYet": "No artifacts yet",
     "createFirstArtifact": "Exécutez un modèle ou rédigez un artifact pour créer le premier artifact du projet.",
     "artifactPhases": {

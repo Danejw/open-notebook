@@ -15,6 +15,7 @@ import {
 
 export interface ChatSessionHeaderProps {
   title: string
+  titleAdornment?: ReactNode
   variant?: 'column' | 'immersive'
   sessions?: BaseChatSession[]
   currentSessionId?: string | null
@@ -28,6 +29,7 @@ export interface ChatSessionHeaderProps {
 
 export function ChatSessionHeader({
   title,
+  titleAdornment,
   variant = 'column',
   sessions = [],
   currentSessionId,
@@ -47,6 +49,7 @@ export function ChatSessionHeader({
   return (
     <ColumnHeader
       title={title}
+      titleAdornment={titleAdornment}
       className={
         isImmersive
           ? 'gap-3 border-border/60 px-5 py-4 sm:px-6 sm:py-5'

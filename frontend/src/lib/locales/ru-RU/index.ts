@@ -369,6 +369,7 @@ export const ruRU = {
     "updated": "Обновлено",
     "namePlaceholder": "Название блокнота",
     "addDescription": "Добавить описание...",
+    "projectArtifacts": "Project Artifacts",
     "noArtifactsYet": "No artifacts yet",
     "createFirstArtifact": "Запустите шаблон или создайте артефакт, чтобы создать первый артефакт проекта.",
     "artifactPhases": {

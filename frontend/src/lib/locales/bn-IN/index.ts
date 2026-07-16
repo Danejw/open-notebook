@@ -369,6 +369,7 @@ export const bnIN = {
     "updated": "আপডেট করা",
     "namePlaceholder": "প্রকল্পের নাম",
     "addDescription": "বিবরণ যোগ করুন...",
+    "projectArtifacts": "Project Artifacts",
     "noArtifactsYet": "No artifacts yet",
     "createFirstArtifact": "প্রথম প্রকল্প আর্টিফ্যাক্ট তৈরি করতে একটি টেমপ্লেট চালান বা একটি আর্টিফ্যাক্ট লিখুন।",
     "artifactPhases": {

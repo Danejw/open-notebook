@@ -2,16 +2,30 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { createElement } from 'react'
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { usePathname } from 'next/navigation'
 import { AppSidebar } from './AppSidebar'
 import { useSidebarStore } from '@/lib/stores/sidebar-store'
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+  usePathname: vi.fn(() => ''),
+  useSearchParams: () => new URLSearchParams(),
+}))
 
 vi.mock('@/lib/hooks/use-route-prefetch', () => ({
   useRoutePrefetch: () => vi.fn(),
 }))
 
 vi.mock('@/lib/hooks/use-projects', () => ({
-  useProjects: () => ({ data: [], isLoading: false }),
+  useProjects: () => ({
+    data: [{ id: 'proj-1', name: 'Test Project' }],
+    isLoading: false,
+  }),
 }))
 
 // Mock Tooltip components to avoid Radix UI async issues in tests
@@ -30,6 +44,14 @@ function renderSidebar(ui: React.ReactElement) {
 }
 
 describe('AppSidebar', () => {
+  beforeEach(() => {
+    vi.mocked(usePathname).mockReturnValue('')
+    vi.mocked(useSidebarStore).mockReturnValue({
+      isCollapsed: false,
+      toggleCollapse: vi.fn(),
+    } as any)
+  })
+
   it('renders correctly when expanded', () => {
     renderSidebar(<AppSidebar />)
 
@@ -93,5 +115,38 @@ describe('AppSidebar', () => {
 
     // In collapsed mode, app name shouldn't be visible (as text)
     expect(screen.queryByText('common.appName')).toBeNull()
+  })
+
+  it('sets aria-current="page" on the active sidebar nav link', () => {
+    vi.mocked(usePathname).mockReturnValue('/sources')
+
+    renderSidebar(<AppSidebar />)
+
+    expect(screen.getByRole('link', { name: 'navigation.sources' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    )
+    expect(screen.getByRole('link', { name: 'navigation.podcasts' })).not.toHaveAttribute(
+      'aria-current'
+    )
+  })
+
+  it('sets aria-current="page" on the active project nav link', () => {
+    vi.mocked(usePathname).mockReturnValue('/projects/proj-1')
+
+    renderSidebar(<AppSidebar />)
+
+    expect(screen.getByRole('link', { name: 'Test Project' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    )
+  })
+
+  it('does not nest button elements inside sidebar nav links', () => {
+    const { container } = renderSidebar(<AppSidebar />)
+
+    container.querySelectorAll('nav a').forEach((link) => {
+      expect(link.querySelector('button')).toBeNull()
+    })
   })
 })

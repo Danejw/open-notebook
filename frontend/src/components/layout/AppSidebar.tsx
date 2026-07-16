@@ -122,8 +122,9 @@ export function AppSidebar() {
   const renderNavItem = (item: NavItem) => {
     const isActive = pathname?.startsWith(item.href) || false
     const handlePrefetch = () => prefetchRoute(item.href)
-    const button = (
+    const navLink = (
       <Button
+        asChild
         variant={isActive ? 'secondary' : 'ghost'}
         size={isCollapsed ? 'icon' : 'sm'}
         className={cn(
@@ -134,34 +135,29 @@ export function AppSidebar() {
             : 'h-7 w-full justify-start gap-1.5 px-1.5'
         )}
       >
-        <item.icon className="h-3.5 w-3.5 shrink-0" />
-        {!isCollapsed && <span className="truncate text-[13px] leading-none">{item.name}</span>}
+        <Link
+          href={item.href}
+          prefetch={false}
+          onMouseEnter={handlePrefetch}
+          aria-current={isActive ? 'page' : undefined}
+          className={isCollapsed ? 'flex justify-center' : undefined}
+        >
+          <item.icon className="h-3.5 w-3.5 shrink-0" />
+          {!isCollapsed && <span className="truncate text-[13px] leading-none">{item.name}</span>}
+        </Link>
       </Button>
     )
 
     if (isCollapsed) {
       return (
         <Tooltip key={item.name}>
-          <TooltipTrigger asChild>
-            <Link
-              href={item.href}
-              prefetch={false}
-              onMouseEnter={handlePrefetch}
-              className="flex justify-center"
-            >
-              {button}
-            </Link>
-          </TooltipTrigger>
+          <TooltipTrigger asChild>{navLink}</TooltipTrigger>
           <TooltipContent side="right">{item.name}</TooltipContent>
         </Tooltip>
       )
     }
 
-    return (
-      <Link key={item.name} href={item.href} prefetch={false} onMouseEnter={handlePrefetch}>
-        {button}
-      </Link>
-    )
+    return <div key={item.name}>{navLink}</div>
   }
 
   const renderNavSection = (section: NavSection, index: number) => (

@@ -23,25 +23,29 @@ export function ProjectArtifactsNav({ isCollapsed }: ProjectArtifactsNavProps) {
 
   const visibleProjects = projects.slice(0, SIDEBAR_PROJECT_LIMIT)
 
+  const isProjectsSectionActive = pathname?.startsWith('/projects') ?? false
+
   if (isCollapsed) {
     return (
-      <Link
-        href="/projects"
-        prefetch={false}
-        onMouseEnter={() => prefetchRoute('/projects')}
-        className="flex justify-center"
+      <Button
+        asChild
+        variant={isProjectsSectionActive ? 'secondary' : 'ghost'}
+        size="icon"
+        className={cn(
+          'mx-auto h-7 w-7 shrink-0 justify-center px-0 text-sidebar-foreground sidebar-menu-item',
+          isProjectsSectionActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
+        )}
       >
-        <Button
-          variant={pathname?.startsWith('/projects') ? 'secondary' : 'ghost'}
-          size="icon"
-          className={cn(
-            'mx-auto h-7 w-7 shrink-0 justify-center px-0 text-sidebar-foreground sidebar-menu-item',
-            pathname?.startsWith('/projects') && 'bg-sidebar-accent text-sidebar-accent-foreground'
-          )}
+        <Link
+          href="/projects"
+          prefetch={false}
+          onMouseEnter={() => prefetchRoute('/projects')}
+          aria-current={isProjectsSectionActive ? 'page' : undefined}
+          className="flex justify-center"
         >
           <Book className="h-3.5 w-3.5 shrink-0" />
-        </Button>
-      </Link>
+        </Link>
+      </Button>
     )
   }
 
@@ -56,37 +60,45 @@ export function ProjectArtifactsNav({ isCollapsed }: ProjectArtifactsNavProps) {
           const isProjectActive = pathname === `/projects/${project.id}`
 
           return (
-            <Link
+            <Button
+              asChild
               key={project.id}
-              href={`/projects/${project.id}`}
-              prefetch={false}
-              onMouseEnter={() => prefetchRoute(`/projects/${project.id}`)}
+              variant={isProjectActive ? 'secondary' : 'ghost'}
+              size="sm"
+              className={cn(
+                'h-7 w-full justify-start truncate px-1.5 text-sidebar-foreground sidebar-menu-item',
+                isProjectActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
+              )}
             >
-              <Button
-                variant={isProjectActive ? 'secondary' : 'ghost'}
-                size="sm"
-                className={cn(
-                  'h-7 w-full justify-start truncate px-1.5 text-sidebar-foreground sidebar-menu-item',
-                  isProjectActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
-                )}
+              <Link
+                href={`/projects/${project.id}`}
+                prefetch={false}
+                onMouseEnter={() => prefetchRoute(`/projects/${project.id}`)}
+                aria-current={isProjectActive ? 'page' : undefined}
               >
                 <Book className="mr-1 h-3.5 w-3.5 shrink-0 opacity-80" />
                 <span className="truncate text-[13px] leading-none">{project.name}</span>
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           )
         })}
 
         {projects.length > SIDEBAR_PROJECT_LIMIT ? (
-          <Link href="/projects" prefetch={false} onMouseEnter={() => prefetchRoute('/projects')}>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 w-full justify-start px-1.5 text-[11px] text-muted-foreground sidebar-menu-item"
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="h-7 w-full justify-start px-1.5 text-[11px] text-muted-foreground sidebar-menu-item"
+          >
+            <Link
+              href="/projects"
+              prefetch={false}
+              onMouseEnter={() => prefetchRoute('/projects')}
+              aria-current={pathname === '/projects' ? 'page' : undefined}
             >
               {t('navigation.viewAllProjects')}
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         ) : null}
       </div>
     </div>

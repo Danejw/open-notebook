@@ -1121,7 +1121,12 @@ export const enUS = {
     "model": "Model",
     "systemPrompt": "System Prompt",
     "sessionUseReplacement": "This session will use {name} instead of the default model.",
-    "systemDefault": "System Default"
+    "systemDefault": "System Default",
+    "chatDefaults": "Chat defaults",
+    "chatDefaultsHint": "When this artifact is used in a project, these skills and tools are added to the chat selection, and the HTML template replaces the current one.",
+    "defaultSkills": "Skills",
+    "defaultTools": "Tools",
+    "defaultTemplate": "HTML template"
   },
   "skills": {
     "title": "Skills",

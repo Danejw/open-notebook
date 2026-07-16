@@ -6,6 +6,9 @@ export interface Artifact {
   prompt: string
   apply_default: boolean
   lifecycle_phase?: string | null
+  skill_ids?: string[]
+  mcp_tool_ids?: string[]
+  html_template_id?: string | null
   created: string
   updated: string
 }
@@ -17,6 +20,9 @@ export interface CreateArtifactRequest {
   prompt: string
   apply_default?: boolean
   lifecycle_phase?: string | null
+  skill_ids?: string[]
+  mcp_tool_ids?: string[]
+  html_template_id?: string | null
 }
 
 export interface UpdateArtifactRequest {
@@ -26,6 +32,9 @@ export interface UpdateArtifactRequest {
   prompt?: string
   apply_default?: boolean
   lifecycle_phase?: string | null
+  skill_ids?: string[]
+  mcp_tool_ids?: string[]
+  html_template_id?: string | null
 }
 
 export interface ExecuteArtifactRequest {

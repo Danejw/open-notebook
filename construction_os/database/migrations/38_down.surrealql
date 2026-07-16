@@ -1,0 +1,7 @@
+-- Migration 38 down: remove artifact chat defaults
+
+REMOVE FIELD IF EXISTS skill_ids ON TABLE artifact;
+REMOVE FIELD IF EXISTS mcp_tool_ids ON TABLE artifact;
+REMOVE FIELD IF EXISTS html_template_id ON TABLE artifact;
+
+RETURN true;

@@ -1,0 +1,7 @@
+-- Migration 38: artifact chat defaults (skills, MCP tools, HTML template)
+
+DEFINE FIELD IF NOT EXISTS skill_ids ON TABLE artifact TYPE option<array<string>>;
+DEFINE FIELD IF NOT EXISTS mcp_tool_ids ON TABLE artifact TYPE option<array<string>>;
+DEFINE FIELD IF NOT EXISTS html_template_id ON TABLE artifact TYPE option<string>;
+
+RETURN true;

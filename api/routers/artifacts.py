@@ -20,26 +20,30 @@ from construction_os.graphs.artifact import graph as artifact_graph
 router = APIRouter()
 
 
+def _artifact_response(artifact: Artifact) -> ArtifactResponse:
+    """Map a domain Artifact to the API response schema."""
+    return ArtifactResponse(
+        id=artifact.id or "",
+        name=artifact.name,
+        title=artifact.title,
+        description=artifact.description,
+        prompt=artifact.prompt,
+        apply_default=artifact.apply_default,
+        lifecycle_phase=artifact.lifecycle_phase,
+        skill_ids=list(artifact.skill_ids or []),
+        mcp_tool_ids=list(artifact.mcp_tool_ids or []),
+        html_template_id=artifact.html_template_id,
+        created=str(artifact.created),
+        updated=str(artifact.updated),
+    )
+
+
 @router.get("/artifacts", response_model=List[ArtifactResponse])
 async def get_artifacts():
     """Get all artifacts."""
     try:
         artifacts = await Artifact.get_all(order_by="name asc")
-
-        return [
-            ArtifactResponse(
-                id=artifact.id or "",
-                name=artifact.name,
-                title=artifact.title,
-                description=artifact.description,
-                prompt=artifact.prompt,
-                apply_default=artifact.apply_default,
-                lifecycle_phase=artifact.lifecycle_phase,
-                created=str(artifact.created),
-                updated=str(artifact.updated),
-            )
-            for artifact in artifacts
-        ]
+        return [_artifact_response(artifact) for artifact in artifacts]
     except Exception as e:
         logger.error(f"Error fetching artifacts: {str(e)}")
         raise HTTPException(
@@ -58,20 +62,12 @@ async def create_artifact(artifact_data: ArtifactCreate):
             prompt=artifact_data.prompt,
             apply_default=artifact_data.apply_default,
             lifecycle_phase=artifact_data.lifecycle_phase,
+            skill_ids=artifact_data.skill_ids,
+            mcp_tool_ids=artifact_data.mcp_tool_ids,
+            html_template_id=artifact_data.html_template_id,
         )
         await new_artifact.save()
-
-        return ArtifactResponse(
-            id=new_artifact.id or "",
-            name=new_artifact.name,
-            title=new_artifact.title,
-            description=new_artifact.description,
-            prompt=new_artifact.prompt,
-            apply_default=new_artifact.apply_default,
-            lifecycle_phase=new_artifact.lifecycle_phase,
-            created=str(new_artifact.created),
-            updated=str(new_artifact.updated),
-        )
+        return _artifact_response(new_artifact)
     except InvalidInputError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -161,17 +157,7 @@ async def get_artifact(artifact_id: str):
         if not artifact:
             raise HTTPException(status_code=404, detail="Artifact not found")
 
-        return ArtifactResponse(
-            id=artifact.id or "",
-            name=artifact.name,
-            title=artifact.title,
-            description=artifact.description,
-            prompt=artifact.prompt,
-            apply_default=artifact.apply_default,
-            lifecycle_phase=artifact.lifecycle_phase,
-            created=str(artifact.created),
-            updated=str(artifact.updated),
-        )
+        return _artifact_response(artifact)
     except HTTPException:
         raise
     except Exception as e:
@@ -201,20 +187,15 @@ async def update_artifact(artifact_id: str, artifact_update: ArtifactUpdate):
             artifact.apply_default = artifact_update.apply_default
         if artifact_update.lifecycle_phase is not None:
             artifact.lifecycle_phase = artifact_update.lifecycle_phase
+        if artifact_update.skill_ids is not None:
+            artifact.skill_ids = artifact_update.skill_ids
+        if artifact_update.mcp_tool_ids is not None:
+            artifact.mcp_tool_ids = artifact_update.mcp_tool_ids
+        if "html_template_id" in artifact_update.model_fields_set:
+            artifact.html_template_id = artifact_update.html_template_id
 
         await artifact.save()
-
-        return ArtifactResponse(
-            id=artifact.id or "",
-            name=artifact.name,
-            title=artifact.title,
-            description=artifact.description,
-            prompt=artifact.prompt,
-            apply_default=artifact.apply_default,
-            lifecycle_phase=artifact.lifecycle_phase,
-            created=str(artifact.created),
-            updated=str(artifact.updated),
-        )
+        return _artifact_response(artifact)
     except HTTPException:
         raise
     except InvalidInputError as e:

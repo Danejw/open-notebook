@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, type ReactNode } from 'react'
+import { useLayoutEffect, useMemo, useRef, type ReactNode } from 'react'
 import { AlertCircle, MessageSquare } from 'lucide-react'
 import { useProjectChat } from '@/lib/hooks/useProjectChat'
 import { ChatPanel } from '@/components/source/ChatPanel'
@@ -51,6 +51,19 @@ export function ChatColumn({
     contextSelections,
     activeArtifactId: activeArtifact?.id ?? null,
   })
+
+  // Apply chat defaults before ChatComposer's auto-send useEffect (layout runs first).
+  const appliedDefaultsKeyRef = useRef(0)
+  useLayoutEffect(() => {
+    if (
+      artifactRunKey > 0 &&
+      activeArtifact &&
+      appliedDefaultsKeyRef.current !== artifactRunKey
+    ) {
+      appliedDefaultsKeyRef.current = artifactRunKey
+      chat.applyArtifactDefaults(activeArtifact)
+    }
+  }, [artifactRunKey, activeArtifact, chat.applyArtifactDefaults])
 
   const contextStats = useMemo(() => {
     let sourcesInsights = 0

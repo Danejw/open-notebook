@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/utils/error-handler'
@@ -24,6 +24,7 @@ import {
   NoteResponse
 } from '@/lib/types/api'
 import type { ContextSelections } from '@/lib/types/project-context'
+import type { Artifact } from '@/lib/types/artifacts'
 import { useChatQueue } from '@/lib/hooks/useChatQueue'
 import { useChatStreamingBuffer } from '@/lib/hooks/useChatStreamingBuffer'
 import { mergeActiveQueueMessages } from '@/lib/utils/chat-queue-messages'
@@ -68,6 +69,13 @@ export function useProjectChat({
   const [selectedHtmlTemplateId, setSelectedHtmlTemplateIdState] = useState<string | null>(null)
   const [pendingHtmlTemplateId, setPendingHtmlTemplateId] = useState<string | null | undefined>(undefined)
   const [selectedMcpToolIds, setSelectedMcpToolIdsState] = useState<string[]>([])
+  // Refs keep selector values readable by send/enqueue in the same tick as applyArtifactDefaults.
+  const selectedSkillIdsRef = useRef(selectedSkillIds)
+  const selectedHtmlTemplateIdRef = useRef(selectedHtmlTemplateId)
+  const selectedMcpToolIdsRef = useRef(selectedMcpToolIds)
+  selectedSkillIdsRef.current = selectedSkillIds
+  selectedHtmlTemplateIdRef.current = selectedHtmlTemplateId
+  selectedMcpToolIdsRef.current = selectedMcpToolIds
   const {
     streamContentRef,
     streamRafRef,
@@ -294,8 +302,8 @@ export function useProjectChat({
           project_id: projectId,
           title: defaultTitle,
           model_override: sharedMode ? undefined : (pendingModelOverride ?? undefined),
-          skill_ids: sharedMode ? [] : selectedSkillIds,
-          html_template_id: sharedMode ? null : selectedHtmlTemplateId,
+          skill_ids: sharedMode ? [] : selectedSkillIdsRef.current,
+          html_template_id: sharedMode ? null : selectedHtmlTemplateIdRef.current,
           guest_key: guestKey ?? undefined,
         }, guestKey)
         sessionId = newSession.id
@@ -349,9 +357,9 @@ export function useProjectChat({
         model_override: sharedMode
           ? undefined
           : (modelOverride ?? (currentSession?.model_override ?? undefined)),
-        skill_ids: sharedMode ? [] : selectedSkillIds,
-        mcp_tool_ids: sharedMode ? [] : selectedMcpToolIds,
-        html_template_id: sharedMode ? null : selectedHtmlTemplateId,
+        skill_ids: sharedMode ? [] : selectedSkillIdsRef.current,
+        mcp_tool_ids: sharedMode ? [] : selectedMcpToolIdsRef.current,
+        html_template_id: sharedMode ? null : selectedHtmlTemplateIdRef.current,
         edit_message_id: editMessageId,
         artifact_id: sharedMode ? undefined : (activeArtifactId ?? undefined),
       }, guestKey)
@@ -419,9 +427,6 @@ export function useProjectChat({
     currentSessionId,
     currentSession,
     pendingModelOverride,
-    selectedSkillIds,
-    selectedMcpToolIds,
-    selectedHtmlTemplateId,
     activeArtifactId,
     messages,
     buildContext,
@@ -529,8 +534,8 @@ export function useProjectChat({
             project_id: projectId,
             title: defaultTitle,
             model_override: pendingModelOverride ?? undefined,
-            skill_ids: selectedSkillIds,
-            html_template_id: selectedHtmlTemplateId,
+            skill_ids: selectedSkillIdsRef.current,
+            html_template_id: selectedHtmlTemplateIdRef.current,
           })
           sessionId = newSession.id
           setCurrentSessionId(sessionId)
@@ -549,9 +554,9 @@ export function useProjectChat({
             currentSession?.model_override ??
             pendingModelOverride ??
             undefined,
-          skill_ids: selectedSkillIds,
-          tool_ids: selectedMcpToolIds,
-          html_template_id: selectedHtmlTemplateId,
+          skill_ids: selectedSkillIdsRef.current,
+          tool_ids: selectedMcpToolIdsRef.current,
+          html_template_id: selectedHtmlTemplateIdRef.current,
           artifact_id: activeArtifactId ?? undefined,
           context_config: buildContextConfig(),
         })
@@ -580,9 +585,6 @@ export function useProjectChat({
       pendingModelOverride,
       projectId,
       queryClient,
-      selectedHtmlTemplateId,
-      selectedMcpToolIds,
-      selectedSkillIds,
       sendMessage,
       sessionsQueryKey,
       sharedMode,
@@ -613,11 +615,11 @@ export function useProjectChat({
     return createSessionMutation.mutate({
       project_id: projectId,
       title,
-      skill_ids: sharedMode ? [] : selectedSkillIds,
-      html_template_id: sharedMode ? null : selectedHtmlTemplateId,
+      skill_ids: sharedMode ? [] : selectedSkillIdsRef.current,
+      html_template_id: sharedMode ? null : selectedHtmlTemplateIdRef.current,
       guest_key: guestKey ?? undefined,
     })
-  }, [createSessionMutation, projectId, selectedSkillIds, selectedHtmlTemplateId, sharedMode, guestKey])
+  }, [createSessionMutation, projectId, sharedMode, guestKey])
 
   // Update session
   const updateSession = useCallback((sessionId: string, data: UpdateProjectChatSessionRequest) => {
@@ -652,9 +654,11 @@ export function useProjectChat({
   // Persist skill selection on the session so it survives across messages
   const setSelectedSkillIds = useCallback((ids: string[]) => {
     if (sharedMode) {
+      selectedSkillIdsRef.current = []
       setSelectedSkillIdsState([])
       return
     }
+    selectedSkillIdsRef.current = ids
     setSelectedSkillIdsState(ids)
     if (currentSessionId) {
       void (async () => {
@@ -687,9 +691,11 @@ export function useProjectChat({
 
   const setSelectedHtmlTemplateId = useCallback((id: string | null) => {
     if (sharedMode) {
+      selectedHtmlTemplateIdRef.current = null
       setSelectedHtmlTemplateIdState(null)
       return
     }
+    selectedHtmlTemplateIdRef.current = id
     setSelectedHtmlTemplateIdState(id)
     if (currentSessionId) {
       void (async () => {
@@ -726,11 +732,48 @@ export function useProjectChat({
 
   const setSelectedMcpToolIds = useCallback((ids: string[]) => {
     if (sharedMode) {
+      selectedMcpToolIdsRef.current = []
       setSelectedMcpToolIdsState([])
       return
     }
+    selectedMcpToolIdsRef.current = ids
     setSelectedMcpToolIdsState(ids)
   }, [sharedMode])
+
+  /**
+   * Apply artifact-linked chat defaults before auto-send.
+   * Skills and tools are appended (union); HTML template replaces when set.
+   * Refs are updated immediately so the same-tick auto-send reads the new values.
+   */
+  const applyArtifactDefaults = useCallback((artifact: Artifact) => {
+    if (sharedMode) {
+      return
+    }
+
+    const artifactSkillIds = artifact.skill_ids ?? []
+    if (artifactSkillIds.length > 0) {
+      const nextSkills = Array.from(new Set([...selectedSkillIdsRef.current, ...artifactSkillIds]))
+      selectedSkillIdsRef.current = nextSkills
+      setSelectedSkillIds(nextSkills)
+    }
+
+    const artifactToolIds = artifact.mcp_tool_ids ?? []
+    if (artifactToolIds.length > 0) {
+      const nextTools = Array.from(new Set([...selectedMcpToolIdsRef.current, ...artifactToolIds]))
+      selectedMcpToolIdsRef.current = nextTools
+      setSelectedMcpToolIds(nextTools)
+    }
+
+    if (artifact.html_template_id) {
+      selectedHtmlTemplateIdRef.current = artifact.html_template_id
+      setSelectedHtmlTemplateId(artifact.html_template_id)
+    }
+  }, [
+    setSelectedHtmlTemplateId,
+    setSelectedMcpToolIds,
+    setSelectedSkillIds,
+    sharedMode,
+  ])
 
   // Update token/char counts when context selections change (debounced)
   useEffect(() => {
@@ -784,6 +827,7 @@ export function useProjectChat({
     setSelectedSkillIds,
     setSelectedHtmlTemplateId,
     setSelectedMcpToolIds,
+    applyArtifactDefaults,
     refetchSessions
   }
 }

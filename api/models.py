@@ -130,6 +130,15 @@ class ArtifactCreate(BaseModel):
         None,
         description="Project lifecycle phase for default construction templates",
     )
+    skill_ids: Optional[List[str]] = Field(
+        None, description="Skill IDs to append when this artifact is used in chat"
+    )
+    mcp_tool_ids: Optional[List[str]] = Field(
+        None, description="MCP tool IDs to append when this artifact is used in chat"
+    )
+    html_template_id: Optional[str] = Field(
+        None, description="HTML template to select when this artifact is used in chat"
+    )
 
 
 class ArtifactUpdate(BaseModel):
@@ -146,6 +155,15 @@ class ArtifactUpdate(BaseModel):
         None,
         description="Project lifecycle phase for default construction templates",
     )
+    skill_ids: Optional[List[str]] = Field(
+        None, description="Skill IDs to append when this artifact is used in chat"
+    )
+    mcp_tool_ids: Optional[List[str]] = Field(
+        None, description="MCP tool IDs to append when this artifact is used in chat"
+    )
+    html_template_id: Optional[str] = Field(
+        None, description="HTML template to select when this artifact is used in chat"
+    )
 
 
 class ArtifactResponse(BaseModel):
@@ -156,6 +174,9 @@ class ArtifactResponse(BaseModel):
     prompt: str
     apply_default: bool
     lifecycle_phase: Optional[str] = None
+    skill_ids: List[str] = Field(default_factory=list)
+    mcp_tool_ids: List[str] = Field(default_factory=list)
+    html_template_id: Optional[str] = None
     created: str
     updated: str
 

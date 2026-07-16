@@ -12,12 +12,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 
-type SourceChip = {
-  id?: string
-  title?: string
-  kind?: string
-}
-
 /** Loose schema avoids Zod×CommonSchemas type explosion under tsc. */
 const loosePropsSchema = z.record(z.string(), z.any())
 
@@ -70,19 +64,6 @@ function resolveValue(context: ComponentContext, value: unknown): unknown {
   }
 }
 
-function asSourceList(value: unknown): SourceChip[] {
-  if (!Array.isArray(value)) {
-    return []
-  }
-  return value
-    .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
-    .map((item) => ({
-      id: typeof item.id === 'string' ? item.id : undefined,
-      title: typeof item.title === 'string' ? item.title : 'Untitled',
-      kind: typeof item.kind === 'string' ? item.kind : 'source',
-    }))
-}
-
 function useDynamicTick(context: ComponentContext, value: unknown): number {
   const [tick, setTick] = useState(0)
   useEffect(() => {
@@ -101,133 +82,186 @@ function useDynamicTick(context: ComponentContext, value: unknown): number {
   return tick
 }
 
-export const SourceChipList = defineCosComponent(
-  'SourceChipList',
-  ({ context }) => {
-    const [expanded, setExpanded] = useState(false)
-    const props = context.componentModel.properties as Record<string, unknown>
-    useDynamicTick(context, props.sources)
-    useDynamicTick(context, props.title)
+type AskOption = {
+  id: string
+  label: string
+  recommended: boolean
+}
 
-    const title = resolveString(context, props.title)
-    const sources = asSourceList(resolveValue(context, props.sources))
-    const visible = expanded ? sources : sources.slice(0, 4)
-    const hiddenCount = Math.max(0, sources.length - visible.length)
+function asAskOptions(value: unknown): AskOption[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  return value
+    .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+    .map((item, index) => ({
+      id:
+        typeof item.id === 'string' && item.id
+          ? item.id
+          : `option-${index}`,
+      label:
+        typeof item.label === 'string'
+          ? item.label
+          : typeof item.title === 'string'
+            ? item.title
+            : `Option ${index + 1}`,
+      recommended: Boolean(item.recommended),
+    }))
+}
 
-    return (
-      <div className="space-y-2">
-        {title ? (
-          <p className="text-xs font-medium text-muted-foreground">{title}</p>
-        ) : null}
-        <div className="flex flex-wrap gap-1.5">
-          {visible.map((source, index) => (
-            <span
-              key={source.id ?? `${source.title}-${index}`}
+function setPathValue(
+  context: ComponentContext,
+  binding: unknown,
+  next: string
+): void {
+  if (
+    binding &&
+    typeof binding === 'object' &&
+    'path' in (binding as object) &&
+    typeof (binding as { path: unknown }).path === 'string'
+  ) {
+    context.dataContext.set((binding as { path: string }).path, next)
+  }
+}
+
+/**
+ * Clarifying question with suggested answers (recommended first)
+ * plus optional free-text when none fit.
+ */
+export const AskUser = defineCosComponent('AskUser', ({ context }) => {
+  const [submitting, setSubmitting] = useState(false)
+  const props = context.componentModel.properties as Record<string, unknown>
+  useDynamicTick(context, props.question)
+  useDynamicTick(context, props.options)
+  useDynamicTick(context, props.customValue)
+  useDynamicTick(context, props.selectedOptionId)
+
+  const question = resolveString(context, props.question, 'Choose an option')
+  const options = asAskOptions(resolveValue(context, props.options))
+  const customValue = resolveString(context, props.customValue)
+  const selectedOptionId = resolveString(context, props.selectedOptionId)
+  const customPlaceholder = resolveString(
+    context,
+    props.customPlaceholder,
+    'Or type your own answer…'
+  )
+  const submitLabel = resolveString(context, props.submitLabel, 'Submit answer')
+
+  const sorted = [
+    ...options.filter((option) => option.recommended),
+    ...options.filter((option) => !option.recommended),
+  ]
+
+  const submit = async (payload: {
+    optionId: string
+    optionLabel: string
+    customText: string
+  }) => {
+    if (submitting) {
+      return
+    }
+    const answer = payload.customText.trim() || payload.optionLabel.trim()
+    if (!answer) {
+      return
+    }
+    setSubmitting(true)
+    try {
+      setPathValue(context, props.selectedOptionId, payload.optionId)
+      setPathValue(context, props.customValue, payload.customText)
+      await context.dispatchAction({
+        event: {
+          name: 'ask_user_answer',
+          context: {
+            question,
+            optionId: payload.optionId,
+            optionLabel: payload.optionLabel,
+            customText: payload.customText.trim(),
+            answer,
+          },
+        },
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm font-medium text-foreground">{question}</p>
+      <div className="flex flex-col gap-1.5">
+        {sorted.map((option) => {
+          const selected = selectedOptionId === option.id && !customValue.trim()
+          return (
+            <button
+              key={option.id}
+              type="button"
+              disabled={submitting}
+              onClick={() =>
+                void submit({
+                  optionId: option.id,
+                  optionLabel: option.label,
+                  customText: '',
+                })
+              }
               className={cn(
-                'inline-flex max-w-full items-center rounded-md border bg-background px-2 py-0.5',
-                'text-xs text-foreground'
+                'flex w-full items-start gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors',
+                'hover:bg-accent hover:text-accent-foreground',
+                'disabled:pointer-events-none disabled:opacity-50',
+                selected
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border bg-background'
               )}
-              title={source.id}
             >
-              <span className="truncate">{source.title}</span>
-              {source.kind ? (
-                <span className="ml-1 text-[10px] uppercase text-muted-foreground">
-                  {source.kind}
+              <span className="flex-1">{option.label}</span>
+              {option.recommended ? (
+                <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Recommended
                 </span>
               ) : null}
-            </span>
-          ))}
-        </div>
-        {sources.length > 4 ? (
+            </button>
+          )
+        })}
+      </div>
+      <div className="space-y-1.5 pt-1">
+        <Label className="text-xs">Something else</Label>
+        <div className="flex gap-2">
+          <Input
+            value={customValue}
+            disabled={submitting}
+            onChange={(event) => {
+              setPathValue(context, props.selectedOptionId, '')
+              setPathValue(context, props.customValue, event.target.value)
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                void submit({
+                  optionId: '',
+                  optionLabel: '',
+                  customText: customValue,
+                })
+              }
+            }}
+            placeholder={customPlaceholder}
+            className="h-8 text-sm"
+          />
           <Button
             type="button"
-            variant="ghost"
             size="sm"
-            className="h-7 px-2 text-xs"
-            onClick={() => setExpanded((prev) => !prev)}
+            className="h-8 shrink-0"
+            disabled={submitting || !customValue.trim()}
+            onClick={() =>
+              void submit({
+                optionId: '',
+                optionLabel: '',
+                customText: customValue,
+              })
+            }
           >
-            {expanded ? 'Show less' : `Show ${hiddenCount} more`}
+            {submitLabel}
           </Button>
-        ) : null}
+        </div>
       </div>
-    )
-  }
-)
-
-export const MissingFieldForm = defineCosComponent(
-  'MissingFieldForm',
-  ({ context }) => {
-    const props = context.componentModel.properties as Record<string, unknown>
-    useDynamicTick(context, props.value)
-    useDynamicTick(context, props.label)
-
-    const label = resolveString(context, props.label, 'Field')
-    const hint = resolveString(context, props.hint)
-    const value = resolveString(context, props.value)
-
-    const onChange = (next: string) => {
-      const binding = props.value
-      if (
-        binding &&
-        typeof binding === 'object' &&
-        'path' in (binding as object) &&
-        typeof (binding as { path: unknown }).path === 'string'
-      ) {
-        context.dataContext.set((binding as { path: string }).path, next)
-      }
-    }
-
-    return (
-      <div className="space-y-1.5">
-        <Label className="text-xs">{label}</Label>
-        <Input
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={hint || undefined}
-          className="h-8 text-sm"
-        />
-        {hint ? (
-          <p className="text-[11px] text-muted-foreground">{hint}</p>
-        ) : null}
-      </div>
-    )
-  }
-)
-
-export const ConfirmActions = defineCosComponent(
-  'ConfirmActions',
-  ({ context }) => {
-    const props = context.componentModel.properties as Record<string, unknown>
-    const confirmLabel = resolveString(context, props.confirmLabel, 'Confirm context')
-    const refineLabel = resolveString(context, props.refineLabel, 'Refine')
-
-    const runAction = async (action: unknown) => {
-      if (!action) {
-        return
-      }
-      await context.dispatchAction(action)
-    }
-
-    return (
-      <div className="flex flex-wrap gap-2 pt-1">
-        <Button
-          type="button"
-          size="sm"
-          className="h-8"
-          onClick={() => void runAction(props.onConfirm)}
-        >
-          {confirmLabel}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="h-8"
-          onClick={() => void runAction(props.onRefine)}
-        >
-          {refineLabel}
-        </Button>
-      </div>
-    )
-  }
-)
+    </div>
+  )
+})

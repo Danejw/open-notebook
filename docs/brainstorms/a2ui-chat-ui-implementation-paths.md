@@ -221,7 +221,7 @@ Given current maturity (AG-UI streaming, CUSTOM handlers, MCP cards, HTML templa
 2. **Fixture mount** in `ChatMessageRow` behind `NEXT_PUBLIC_A2UI_CHAT` — no model involved.
 3. **SSE parse** in `chat-sse-handlers` for `CUSTOM` name `a2ui` (payload = JSONL lines or batched messages); unit-test with recorded stream.
 4. **Emit** the same fixture from project chat graph after a retrieval/context step via existing AG-UI CUSTOM channel.
-5. **Add 2–3 Cos components** (Path 3 lite): e.g. `SourceChipList`, `MissingFieldForm`, `ConfirmActions` — shadcn-backed, stable IDs.
+5. **Add Cos AskUser** (Path 3 lite): shadcn-backed clarifying picker, stable IDs.
 6. **Wire one action loop**: local function (toggle) + one agent event (`confirm_context`) that continues the run.
 7. **Before external users:** Path 2 minimum — `a2ui_payload` on AI messages + hydrate on session load; markdown fallback if validation fails.
 8. **Defer** MCP-attached surfaces (`ToolCallCard`) until one tool clearly needs a native form ([architecture Path 3](./a2ui-chat-ui-options.md)).

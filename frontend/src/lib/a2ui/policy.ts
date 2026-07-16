@@ -28,9 +28,7 @@ export const ALLOWED_COMPONENT_NAMES = new Set([
   'Slider',
   'DateTimeInput',
   // Cos semantic
-  'SourceChipList',
-  'MissingFieldForm',
-  'ConfirmActions',
+  'AskUser',
 ])
 
 const ALLOWED_CATALOG_IDS = new Set([COS_CATALOG_ID, BASIC_CATALOG_ID])

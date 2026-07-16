@@ -35,6 +35,14 @@ No project documents were loaded for this message. Reply naturally and briefly (
 When a skill's SKILL.md references supporting files (for example under references/, scripts/, or assets/), tell the user which relative path you need, or use the skill file contents already provided. Follow each skill's instructions carefully when the user task matches its description.
 {% endif %}
 
+{% if a2ui_catalog %}
+# INTERACTIVE UI (A2UI)
+
+The client can render trusted interactive surfaces. Use only this catalog:
+
+{{ a2ui_catalog }}
+{% endif %}
+
 {% if artifact %}
 # ARTIFACT INSTRUCTIONS
 

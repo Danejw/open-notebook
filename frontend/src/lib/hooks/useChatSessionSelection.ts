@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
-import { agentDebugLog } from '@/lib/a2ui/agent-debug-log'
 
 export interface ChatSessionListItem {
   id: string
@@ -44,19 +43,6 @@ export function useChatSessionSelection<
 }: UseChatSessionSelectionParams<TSession, TMessage>): void {
   useEffect(() => {
     if (currentSession?.messages) {
-      // #region agent log
-      agentDebugLog({
-        hypothesisId: 'C',
-        location: 'useChatSessionSelection.ts:setMessages',
-        message: 'session overwrite of messages',
-        data: {
-          incomingCount: currentSession.messages.length,
-          hasFixture: currentSession.messages.some(
-            (m: { id?: string }) => m.id === 'a2ui-fixture-message'
-          ),
-        },
-      })
-      // #endregion
       setMessages(currentSession.messages)
     }
   }, [currentSession, setMessages])

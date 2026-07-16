@@ -15,7 +15,7 @@ A2UI_PROTOCOL_VERSION = "v0.9"
 COS_CATALOG_ID = (
     "https://www.construction-os.ai/a2ui/catalogs/cos/v1/catalog.json"
 )
-CONTEXT_CONFIRM_SURFACE_PREFIX = "context-confirm"
+ASK_USER_SURFACE_PREFIX = "ask-user"
 
 ALLOWED_COMPONENT_NAMES = frozenset(
     {
@@ -37,11 +37,45 @@ ALLOWED_COMPONENT_NAMES = frozenset(
         "ChoicePicker",
         "Slider",
         "DateTimeInput",
-        "SourceChipList",
-        "MissingFieldForm",
-        "ConfirmActions",
+        "AskUser",
     }
 )
+
+
+def format_a2ui_agent_catalog() -> str:
+    """Catalog text injected into the project-chat system prompt when A2UI is on."""
+    return (
+        "Protocol: A2UI v0.9. Catalog: Cos "
+        f"({COS_CATALOG_ID}).\n"
+        "\n"
+        "Cos component:\n"
+        "- AskUser — clarifying multi-choice + optional free text. "
+        "Props: question, options ({id, label, recommended?}), customValue "
+        "(start empty), selectedOptionId (start empty), customPlaceholder, "
+        "submitLabel. Event: ask_user_answer "
+        "(context: question, answer, optionId, optionLabel, customText). "
+        "Recommended options render first; tap submits; free-text + Submit "
+        "when none fit.\n"
+        "\n"
+        "Basic components also allowed: Row, Column, List, Card, Tabs, Modal, "
+        "Divider, Text, Image, Icon, Video, AudioPlayer, Button, TextField, "
+        "CheckBox, ChoicePicker, Slider, DateTimeInput.\n"
+        "\n"
+        "Rules:\n"
+        "- Every surface needs a component with id root (usually Column).\n"
+        "- Use only components from this list.\n"
+        "- Prefer AskUser over long clarifying prose when the user must choose.\n"
+        "- Keep a concise markdown answer/fallback alongside any interactive UI.\n"
+        "- Never paste component JSON into the chat text. Interactive UI must use "
+        "A2UI v0.9 protocol messages (createSurface / updateComponents / "
+        "updateDataModel), not prose JSON. The client recovers inline JSON as a "
+        "fallback only.\n"
+        "- Never write protocol names or fake calls in the user-visible reply "
+        "(no a2ui.createSurface(), createSurface(), updateComponents(), etc.). "
+        "User-visible text must be plain language only.\n"
+        "- When the user message starts with [A2UI:ask_user_answer], honor their "
+        "choice or custom text and continue the task."
+    )
 
 
 def is_a2ui_chat_enabled() -> bool:
@@ -68,30 +102,30 @@ def validate_a2ui_messages(messages: List[Dict[str, Any]]) -> None:
                     raise ValueError(f"Unregistered component: {name}")
 
 
-def build_context_confirm_messages(
+def build_ask_user_messages(
     *,
-    sources: List[Dict[str, str]],
-    notes: Optional[List[Dict[str, str]]] = None,
-    title: str = "Confirm context for this answer",
+    question: str,
+    options: List[Dict[str, Any]],
     surface_id: Optional[str] = None,
+    custom_placeholder: str = "Or type your own answer…",
+    submit_label: str = "Submit answer",
 ) -> List[Dict[str, Any]]:
-    """Build a context-confirm surface with a unique surfaceId per turn."""
-    surface = surface_id or f"{CONTEXT_CONFIRM_SURFACE_PREFIX}-{uuid.uuid4().hex[:12]}"
-    chips: List[Dict[str, str]] = []
-    for item in sources:
-        chips.append(
+    """
+    Build an AskUser clarifying surface.
+
+    Each option is ``{id, label, recommended?}``. Recommended options are
+    shown first in the UI.
+    """
+    surface = surface_id or f"{ASK_USER_SURFACE_PREFIX}-{uuid.uuid4().hex[:12]}"
+    normalized: List[Dict[str, Any]] = []
+    for index, item in enumerate(options):
+        option_id = str(item.get("id") or f"option-{index + 1}")
+        label = str(item.get("label") or item.get("title") or f"Option {index + 1}")
+        normalized.append(
             {
-                "id": str(item.get("id") or ""),
-                "title": str(item.get("title") or "Source"),
-                "kind": "source",
-            }
-        )
-    for item in notes or []:
-        chips.append(
-            {
-                "id": str(item.get("id") or ""),
-                "title": str(item.get("title") or "Note"),
-                "kind": "note",
+                "id": option_id,
+                "label": label,
+                "recommended": bool(item.get("recommended")),
             }
         )
 
@@ -110,57 +144,19 @@ def build_context_confirm_messages(
                 "surfaceId": surface,
                 "components": [
                     {
-                        # A2uiSurface always mounts id "root".
                         "id": "root",
                         "component": "Column",
-                        "children": [
-                            "title",
-                            "source-list",
-                            "missing-field",
-                            "confirm-actions",
-                        ],
+                        "children": ["ask-user"],
                     },
                     {
-                        "id": "title",
-                        "component": "Text",
-                        "text": {"path": "/title"},
-                        "variant": "h3",
-                    },
-                    {
-                        "id": "source-list",
-                        "component": "SourceChipList",
-                        "title": "Sources in context",
-                        "sources": {"path": "/sources"},
-                    },
-                    {
-                        "id": "missing-field",
-                        "component": "MissingFieldForm",
-                        "label": "Anything missing?",
-                        "hint": "Optional note for the assistant",
-                        "value": {"path": "/missingNote"},
-                    },
-                    {
-                        "id": "confirm-actions",
-                        "component": "ConfirmActions",
-                        "confirmLabel": "Confirm context",
-                        "refineLabel": "Refine",
-                        "onConfirm": {
-                            "event": {
-                                "name": "confirm_context",
-                                "context": {
-                                    "missingNote": {"path": "/missingNote"},
-                                    "sourceCount": {"path": "/sourceCount"},
-                                },
-                            }
-                        },
-                        "onRefine": {
-                            "event": {
-                                "name": "refine_context",
-                                "context": {
-                                    "missingNote": {"path": "/missingNote"},
-                                },
-                            }
-                        },
+                        "id": "ask-user",
+                        "component": "AskUser",
+                        "question": {"path": "/question"},
+                        "options": {"path": "/options"},
+                        "customValue": {"path": "/customText"},
+                        "selectedOptionId": {"path": "/selectedOptionId"},
+                        "customPlaceholder": custom_placeholder,
+                        "submitLabel": submit_label,
                     },
                 ],
             },
@@ -171,10 +167,10 @@ def build_context_confirm_messages(
                 "surfaceId": surface,
                 "path": "/",
                 "value": {
-                    "title": title,
-                    "sourceCount": len(chips),
-                    "missingNote": "",
-                    "sources": chips,
+                    "question": question,
+                    "options": normalized,
+                    "customText": "",
+                    "selectedOptionId": "",
                 },
             },
         },
@@ -213,39 +209,10 @@ def emit_a2ui(
 
     payload: Dict[str, Any] = {
         "messages": messages,
-        "surfaceId": resolved_surface or f"{CONTEXT_CONFIRM_SURFACE_PREFIX}-unknown",
+        "surfaceId": resolved_surface or f"{ASK_USER_SURFACE_PREFIX}-unknown",
     }
     if message_id:
         payload["messageId"] = message_id
-
-    # #region agent log
-    try:
-        import json
-        import time
-        from pathlib import Path
-
-        log_path = Path(__file__).resolve().parents[2] / "debug-eba9bf.log"
-        with log_path.open("a", encoding="utf-8") as fh:
-            fh.write(
-                json.dumps(
-                    {
-                        "sessionId": "eba9bf",
-                        "hypothesisId": "E",
-                        "location": "a2ui_emit.py:emit_a2ui",
-                        "message": "emitting a2ui payload",
-                        "data": {
-                            "surfaceId": payload["surfaceId"],
-                            "messageCount": len(messages),
-                            "hasMessageId": bool(message_id),
-                        },
-                        "timestamp": int(time.time() * 1000),
-                    }
-                )
-                + "\n"
-            )
-    except Exception:
-        pass
-    # #endregion
 
     dispatch_custom_event(A2UI_EVENT, payload, config=config)
     return True

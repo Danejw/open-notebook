@@ -7,11 +7,19 @@ from unittest.mock import MagicMock, patch
 from construction_os.graphs.a2ui_emit import (
     A2UI_EVENT,
     COS_CATALOG_ID,
-    build_context_confirm_messages,
+    build_ask_user_messages,
     emit_a2ui,
+    format_a2ui_agent_catalog,
     is_a2ui_chat_enabled,
     validate_a2ui_messages,
 )
+
+
+def test_format_a2ui_agent_catalog_lists_current_components():
+    text = format_a2ui_agent_catalog()
+    assert "AskUser" in text
+    assert "SourceChipList" not in text
+    assert COS_CATALOG_ID in text
 
 
 def test_is_a2ui_chat_enabled_reads_env(monkeypatch):
@@ -23,37 +31,37 @@ def test_is_a2ui_chat_enabled_reads_env(monkeypatch):
     assert is_a2ui_chat_enabled() is False
 
 
-def test_build_context_confirm_messages_stable_component_ids():
-    messages = build_context_confirm_messages(
-        sources=[{"id": "source:1", "title": "Plan"}],
-        notes=[{"id": "note:2", "title": "Memo"}],
-        surface_id="context-confirm-test",
+def test_build_ask_user_messages_orders_recommended_and_validates():
+    messages = build_ask_user_messages(
+        question="Which package covers the kitchen hood?",
+        options=[
+            {"id": "mech", "label": "Mechanical", "recommended": False},
+            {"id": "elec", "label": "Electrical", "recommended": True},
+        ],
+        surface_id="ask-user-test",
     )
-    assert messages[0]["createSurface"]["catalogId"] == COS_CATALOG_ID
-    assert messages[0]["createSurface"]["surfaceId"] == "context-confirm-test"
+    assert messages[0]["createSurface"]["surfaceId"] == "ask-user-test"
     components = messages[1]["updateComponents"]["components"]
-    ids = [c["id"] for c in components]
-    assert ids == [
-        "root",
-        "title",
-        "source-list",
-        "missing-field",
-        "confirm-actions",
-    ]
+    assert components[0]["id"] == "root"
+    assert components[1]["component"] == "AskUser"
+    options = messages[2]["updateDataModel"]["value"]["options"]
+    assert options[0]["id"] == "mech"
+    assert options[1]["recommended"] is True
     validate_a2ui_messages(messages)
 
 
-def test_build_context_confirm_messages_unique_surface_ids():
-    a = build_context_confirm_messages(sources=[{"id": "source:1", "title": "Plan"}])
-    b = build_context_confirm_messages(sources=[{"id": "source:1", "title": "Plan"}])
+def test_build_ask_user_messages_unique_surface_ids():
+    a = build_ask_user_messages(question="Q?", options=[{"label": "A"}])
+    b = build_ask_user_messages(question="Q?", options=[{"label": "A"}])
     assert a[0]["createSurface"]["surfaceId"] != b[0]["createSurface"]["surfaceId"]
-    assert a[0]["createSurface"]["surfaceId"].startswith("context-confirm-")
+    assert a[0]["createSurface"]["surfaceId"].startswith("ask-user-")
 
 
 def test_emit_a2ui_dispatches_custom_event(monkeypatch):
     monkeypatch.setenv("A2UI_CHAT_ENABLED", "1")
-    messages = build_context_confirm_messages(
-        sources=[{"id": "source:1", "title": "Plan"}]
+    messages = build_ask_user_messages(
+        question="Q?",
+        options=[{"id": "a", "label": "A"}],
     )
     config = {"configurable": {"thread_id": "chat_session:test"}}
     with patch(
@@ -69,8 +77,9 @@ def test_emit_a2ui_dispatches_custom_event(monkeypatch):
 
 def test_emit_a2ui_skips_when_disabled(monkeypatch):
     monkeypatch.delenv("A2UI_CHAT_ENABLED", raising=False)
-    messages = build_context_confirm_messages(
-        sources=[{"id": "source:1", "title": "Plan"}]
+    messages = build_ask_user_messages(
+        question="Q?",
+        options=[{"id": "a", "label": "A"}],
     )
     with patch(
         "construction_os.graphs.a2ui_emit.dispatch_custom_event"

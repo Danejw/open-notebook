@@ -21,11 +21,7 @@ import {
   basicCatalog,
   type ReactComponentImplementation,
 } from '@a2ui/react/v0_9'
-import {
-  ConfirmActions,
-  MissingFieldForm,
-  SourceChipList,
-} from '@/components/a2ui/cos-components'
+import { AskUser } from '@/components/a2ui/cos-components'
 import { COS_CATALOG_ID } from '@/lib/a2ui/constants'
 
 const basicComponents = [
@@ -49,14 +45,10 @@ const basicComponents = [
   DateTimeInput,
 ] as ReactComponentImplementation[]
 
-const cosComponents = [
-  SourceChipList,
-  MissingFieldForm,
-  ConfirmActions,
-] as ReactComponentImplementation[]
+const cosComponents = [AskUser] as ReactComponentImplementation[]
 
 /**
- * Construction OS catalog: Basic Catalog primitives + Cos semantic components.
+ * Construction OS catalog: Basic Catalog primitives + AskUser.
  */
 export const cosCatalog = new Catalog<ReactComponentImplementation>(
   COS_CATALOG_ID,

@@ -1,34 +1,32 @@
 import type { A2uiClientAction } from '@a2ui/web_core/v0_9'
 
 /**
- * Build a follow-up chat message from an A2UI client action.
+ * Build a follow-up chat message from an A2UI client action (wire format for the agent).
  */
 export function formatA2uiActionMessage(action: A2uiClientAction): string {
   const name = action.name
   const context = action.context || {}
-  const missingNote =
-    typeof context.missingNote === 'string' ? context.missingNote.trim() : ''
-  const sourceCount =
-    typeof context.sourceCount === 'number'
-      ? context.sourceCount
-      : typeof context.sourceCount === 'string'
-        ? context.sourceCount
-        : undefined
 
-  if (name === 'confirm_context') {
-    const parts = [
-      '[A2UI:confirm_context] Context confirmed.',
-      sourceCount != null ? `Sources in context: ${sourceCount}.` : null,
-      missingNote ? `User note: ${missingNote}` : null,
-      'Please continue with the answer using this context.',
-    ]
-    return parts.filter(Boolean).join(' ')
-  }
+  if (name === 'ask_user_answer') {
+    const question =
+      typeof context.question === 'string' ? context.question.trim() : ''
+    const answer =
+      typeof context.answer === 'string'
+        ? context.answer.trim()
+        : typeof context.customText === 'string' && context.customText.trim()
+          ? context.customText.trim()
+          : typeof context.optionLabel === 'string'
+            ? context.optionLabel.trim()
+            : ''
+    const optionId =
+      typeof context.optionId === 'string' ? context.optionId.trim() : ''
 
-  if (name === 'refine_context') {
     const parts = [
-      '[A2UI:refine_context] Please refine the retrieved context.',
-      missingNote ? `Guidance: ${missingNote}` : 'Ask me what to adjust.',
+      '[A2UI:ask_user_answer] User answered a clarifying question.',
+      question ? `Question: ${question}` : null,
+      answer ? `Answer: ${answer}` : null,
+      optionId ? `Option id: ${optionId}.` : null,
+      'Continue with this clarification in mind.',
     ]
     return parts.filter(Boolean).join(' ')
   }

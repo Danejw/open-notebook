@@ -21,7 +21,7 @@ import { useTranslation } from '@/lib/hooks/use-translation'
 import { useHtmlTemplate } from '@/lib/hooks/use-html-documents'
 import { isA2uiChatEnabled } from '@/lib/a2ui/constants'
 import { useA2uiSurfaceStore } from '@/lib/a2ui/surface-store'
-import { agentDebugLog } from '@/lib/a2ui/agent-debug-log'
+import { useInlineA2uiFromContent } from '@/lib/a2ui/use-inline-a2ui'
 import { cn } from '@/lib/utils'
 
 const EMPTY_TOOL_CALLS: ChatToolCall[] = []
@@ -75,27 +75,15 @@ function ChatMessageRowImpl({
   const a2uiError = useA2uiSurfaceStore((state) =>
     message.type === 'ai' ? state.getErrorForMessage(message.id) : null
   )
+  const displayContent = useInlineA2uiFromContent(message.id, message.content, {
+    enabled: a2uiEnabled,
+    isStreaming: isStreamingThisMessage,
+    role: message.type === 'human' ? 'human' : 'ai',
+  })
   const showA2uiSurface =
     a2uiEnabled &&
     message.type === 'ai' &&
     (a2uiSurfaceCount > 0 || Boolean(a2uiError))
-  // #region agent log
-  if (message.type === 'ai' && (message.id === 'a2ui-fixture-message' || a2uiEnabled)) {
-    agentDebugLog({
-      hypothesisId: 'D',
-      location: 'ChatMessageRow.tsx:render',
-      message: 'AI row a2ui decision',
-      data: {
-        messageId: message.id,
-        contentPreview: String(message.content || '').slice(0, 60),
-        a2uiEnabled,
-        a2uiSurfaceCount,
-        a2uiError,
-        showA2uiSurface,
-      },
-    })
-  }
-  // #endregion
   const extractedRaw =
     message.type === 'ai' && !isStreamingThisMessage
       ? extractHtmlFromChatContent(message.content)
@@ -110,6 +98,7 @@ function ChatMessageRowImpl({
     Boolean(htmlTemplateId) &&
     !isStreamingThisMessage &&
     !extractedHtml
+  const showTextBubble = Boolean(displayContent.trim())
   // Keep revision in render so memoized parents still refresh when surfaces update.
   void a2uiRevision
 
@@ -173,30 +162,27 @@ function ChatMessageRowImpl({
                 </p>
                 <div className="rounded-md bg-muted px-3 py-1.5">
                   <AIMessageContent
-                    content={message.content}
+                    content={displayContent}
                     isStreaming={false}
                     onReferenceClick={onReferenceClick}
                   />
                 </div>
               </div>
-            ) : (
-              <div
-                className={cn(
-                  'rounded-lg px-3 py-1.5',
-                  message.type === 'human' ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                )}
-              >
-                {message.type === 'ai' ? (
+            ) : showTextBubble ? (
+              message.type === 'human' ? (
+                <div className="rounded-lg bg-primary px-3 py-1.5 text-primary-foreground">
+                  <p className="whitespace-pre-wrap break-words text-sm">{displayContent}</p>
+                </div>
+              ) : (
+                <div className="w-full min-w-0">
                   <AIMessageContent
-                    content={message.content}
+                    content={displayContent}
                     isStreaming={isStreamingThisMessage}
                     onReferenceClick={onReferenceClick}
                   />
-                ) : (
-                  <p className="whitespace-pre-wrap break-words text-sm">{message.content}</p>
-                )}
-              </div>
-            )}
+                </div>
+              )
+            ) : null}
             {message.type === 'human' && canEdit && (
               <div className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                 <Button
@@ -204,7 +190,7 @@ function ChatMessageRowImpl({
                   variant="ghost"
                   size="sm"
                   className="h-6 px-1.5 text-[11px] text-muted-foreground"
-                  onClick={() => onStartEdit(message.id, message.content)}
+                  onClick={() => onStartEdit(message.id, displayContent)}
                   disabled={isStreaming || editLocked}
                   aria-label={t('chat.editMessage')}
                 >
@@ -216,7 +202,7 @@ function ChatMessageRowImpl({
             {message.type === 'ai' && (
               <div className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                 <MessageActions
-                  content={message.content}
+                  content={displayContent}
                   projectId={projectId}
                   noteTitle={noteSaveTitle}
                   htmlTemplateId={htmlTemplateId}

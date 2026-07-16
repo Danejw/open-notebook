@@ -64,37 +64,6 @@ export function A2uiMessageSurface({ messageId }: A2uiMessageSurfaceProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [processor, surfaceIds, revision])
 
-  // #region agent log
-  useEffect(() => {
-    if (!enabled || surfaceIds.length === 0) {
-      return
-    }
-    void fetch('http://127.0.0.1:7837/ingest/abf31c58-d978-4742-b014-939241ddfcd2', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Debug-Session-Id': 'eba9bf',
-      },
-      body: JSON.stringify({
-        sessionId: 'eba9bf',
-        hypothesisId: 'F',
-        location: 'A2uiMessageSurface.tsx:render-check',
-        message: 'surface id vs processor model',
-        data: {
-          messageId,
-          surfaceIds,
-          resolvedCount: surfaces.length,
-          processorSurfaceCount: processor?.model.surfacesMap.size ?? 0,
-          orphaned: surfaceIds.length > 0 && surfaces.length === 0,
-          error,
-        },
-        timestamp: Date.now(),
-        runId: 'post-fix',
-      }),
-    }).catch(() => {})
-  }, [enabled, messageId, surfaceIds, surfaces.length, processor, error])
-  // #endregion
-
   if (!enabled) {
     return null
   }
@@ -114,7 +83,6 @@ export function A2uiMessageSurface({ messageId }: A2uiMessageSurfaceProps) {
 
   return (
     <div className="w-full space-y-2 rounded-lg border bg-background p-3">
-      <p className="px-0.5 text-xs text-muted-foreground">{t('chat.a2uiInteractive')}</p>
       {surfaces.map((surface) => (
         <A2uiSurface key={surface.id} surface={surface} />
       ))}

@@ -31,8 +31,7 @@ import { isA2uiChatEnabled } from '@/lib/a2ui/constants'
 import { hydrateA2uiFromMessages } from '@/lib/a2ui/hydrate'
 import { formatA2uiActionMessage } from '@/lib/a2ui/format-action-message'
 import { useA2uiSurfaceStore } from '@/lib/a2ui/surface-store'
-import { loadContextConfirmFixture } from '@/lib/a2ui/fixtures/load-context-confirm'
-import { agentDebugLog } from '@/lib/a2ui/agent-debug-log'
+import { loadAskUserFixture } from '@/lib/a2ui/fixtures/load-ask-user'
 
 interface UseProjectChatParams {
   projectId: string
@@ -446,42 +445,11 @@ export function useProjectChat({
 
   // Hydrate A2UI surfaces when session history loads / switches.
   useEffect(() => {
-    // #region agent log
-    agentDebugLog({
-      hypothesisId: 'C',
-      location: 'useProjectChat.ts:hydrate-effect',
-      message: 'hydrate effect fired',
-      data: {
-        enabled: isA2uiChatEnabled(),
-        sessionId: currentSessionId,
-        messageCount: currentSession?.messages?.length ?? null,
-        hasFixtureInSession: Boolean(
-          currentSession?.messages?.some((m) => m.id === 'a2ui-fixture-message')
-        ),
-        storeSurfacesBefore: useA2uiSurfaceStore
-          .getState()
-          .getSurfaceIdsForMessage('a2ui-fixture-message'),
-      },
-    })
-    // #endregion
     if (!isA2uiChatEnabled()) {
       return
     }
     if (currentSession?.messages) {
       hydrateA2uiFromMessages(currentSession.messages)
-      // #region agent log
-      agentDebugLog({
-        hypothesisId: 'C',
-        location: 'useProjectChat.ts:hydrate-after',
-        message: 'hydrated from session (may wipe fixture)',
-        data: {
-          storeSurfacesAfter: useA2uiSurfaceStore
-            .getState()
-            .getSurfaceIdsForMessage('a2ui-fixture-message'),
-          revision: useA2uiSurfaceStore.getState().revision,
-        },
-      })
-      // #endregion
       return
     }
     if (!currentSessionId) {
@@ -489,7 +457,7 @@ export function useProjectChat({
     }
   }, [currentSession, currentSessionId])
 
-  // Route A2UI confirm/refine actions back through the normal chat send path.
+  // Route A2UI AskUser actions back through the normal chat send path.
   useEffect(() => {
     if (!isA2uiChatEnabled()) {
       return
@@ -503,32 +471,12 @@ export function useProjectChat({
     }
   }, [sendMessage])
 
-  // Dev fixture: ?a2ui_fixture=1 injects a recorded surface without the agent.
+  // Dev fixture: ?a2ui_fixture=1 injects a recorded AskUser surface without the agent.
   useEffect(() => {
-    const enabled = isA2uiChatEnabled()
-    const search =
-      typeof window !== 'undefined' ? window.location.search : '(ssr)'
-    const fixtureParam =
-      typeof window !== 'undefined'
-        ? new URLSearchParams(window.location.search).get('a2ui_fixture')
-        : null
-    // #region agent log
-    agentDebugLog({
-      hypothesisId: 'A',
-      location: 'useProjectChat.ts:fixture-effect',
-      message: 'fixture effect entry',
-      data: {
-        enabled,
-        envRaw: process.env.NEXT_PUBLIC_A2UI_CHAT ?? null,
-        search,
-        fixtureParam,
-      },
-    })
-    // #endregion
-    if (!enabled || typeof window === 'undefined') {
+    if (!isA2uiChatEnabled() || typeof window === 'undefined') {
       return
     }
-    if (fixtureParam !== '1') {
+    if (new URLSearchParams(window.location.search).get('a2ui_fixture') !== '1') {
       return
     }
     const fixtureId = 'a2ui-fixture-message'
@@ -546,23 +494,9 @@ export function useProjectChat({
         },
       ]
     })
-    const applyResult = useA2uiSurfaceStore
+    useA2uiSurfaceStore
       .getState()
-      .applyMessages(fixtureId, loadContextConfirmFixture())
-    // #region agent log
-    agentDebugLog({
-      hypothesisId: 'B',
-      location: 'useProjectChat.ts:fixture-applied',
-      message: 'fixture applyMessages result',
-      data: {
-        applyResult,
-        surfaceIds: useA2uiSurfaceStore
-          .getState()
-          .getSurfaceIdsForMessage(fixtureId),
-        error: useA2uiSurfaceStore.getState().getErrorForMessage(fixtureId),
-      },
-    })
-    // #endregion
+      .applyMessages(fixtureId, loadAskUserFixture())
   }, [])
 
   const editAndResend = useCallback(async (messageId: string, content: string, modelOverride?: string) => {

@@ -11,15 +11,12 @@ export const A2UI_EVENT = 'a2ui'
 export const BASIC_CATALOG_ID =
   'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json'
 
-/** Construction OS catalog ID — Basic + Cos semantic components. */
+/** Construction OS catalog ID — Basic + AskUser. */
 export const COS_CATALOG_ID =
   'https://www.construction-os.ai/a2ui/catalogs/cos/v1/catalog.json'
 
-/** Prefix for context-confirm surfaces (full id is unique per turn). */
-export const CONTEXT_CONFIRM_SURFACE_PREFIX = 'context-confirm'
-
-/** @deprecated Prefer unique per-turn ids; kept for action-format tests. */
-export const CONTEXT_CONFIRM_SURFACE_ID = CONTEXT_CONFIRM_SURFACE_PREFIX
+/** Prefix for AskUser surfaces (full id is unique per turn). */
+export const ASK_USER_SURFACE_PREFIX = 'ask-user'
 
 /** Max A2UI messages accepted in one CUSTOM payload. */
 export const A2UI_MAX_MESSAGES = 50

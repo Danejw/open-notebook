@@ -53,7 +53,7 @@ function extractSurfaceIds(messages: A2uiServerMessage[]): string[] {
 
 /**
  * A2uiSurface always mounts component id "root". Older payloads used
- * "context-confirm-root" — rewrite so hydrated history still renders.
+ * non-root ids — rewrite so hydrated history still renders when possible.
  */
 function normalizeRootComponentIds(
   messages: A2uiServerMessage[]
@@ -64,11 +64,11 @@ function normalizeRootComponentIds(
     }
     let changed = false
     const components = message.updateComponents.components.map((component) => {
-      if (component.id !== 'context-confirm-root') {
-        return component
+      if (component.id !== 'root' && component.id.endsWith('-root')) {
+        changed = true
+        return { ...component, id: 'root' }
       }
-      changed = true
-      return { ...component, id: 'root' }
+      return component
     })
     if (!changed) {
       return message
@@ -125,29 +125,6 @@ export const useA2uiSurfaceStore = create<A2uiSurfaceStoreState>((set, get) => (
     // Handler is resolved via get() inside the processor listener — do not
     // recreate MessageProcessor here or hydrated surfaces are wiped while
     // messageSurfaces still points at the old surface IDs.
-    // #region agent log
-    void fetch('http://127.0.0.1:7837/ingest/abf31c58-d978-4742-b014-939241ddfcd2', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Debug-Session-Id': 'eba9bf',
-      },
-      body: JSON.stringify({
-        sessionId: 'eba9bf',
-        hypothesisId: 'F',
-        location: 'surface-store.ts:setActionHandler',
-        message: 'updating action handler without recreating processor',
-        data: {
-          hasHandler: Boolean(handler),
-          hasProcessor: Boolean(get().processor),
-          surfaceCount: get().processor?.model.surfacesMap.size ?? 0,
-          trackedMessages: Object.keys(get().messageSurfaces).length,
-        },
-        timestamp: Date.now(),
-        runId: 'post-fix',
-      }),
-    }).catch(() => {})
-    // #endregion
     set({ actionHandler: handler })
   },
 
@@ -199,35 +176,6 @@ export const useA2uiSurfaceStore = create<A2uiSurfaceStoreState>((set, get) => (
       deleteBeforeCreate.length > 0
         ? [...deleteBeforeCreate, ...normalizedMessages]
         : normalizedMessages
-    // #region agent log
-    const rootIds = normalizedMessages.flatMap(
-      (m) =>
-        m.updateComponents?.components
-          ?.filter((c) => c.id === 'root' || c.id === 'context-confirm-root')
-          .map((c) => c.id) ?? []
-    )
-    void fetch('http://127.0.0.1:7837/ingest/abf31c58-d978-4742-b014-939241ddfcd2', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Debug-Session-Id': 'eba9bf',
-      },
-      body: JSON.stringify({
-        sessionId: 'eba9bf',
-        hypothesisId: 'G',
-        location: 'surface-store.ts:applyMessages',
-        message: 'processing a2ui messages',
-        data: {
-          messageId,
-          surfaceIds: surfaceIdsToApply,
-          rootComponentIds: rootIds,
-          deletedBeforeCreate: deleteBeforeCreate.map((m) => m.deleteSurface?.surfaceId),
-        },
-        timestamp: Date.now(),
-        runId: 'post-fix',
-      }),
-    }).catch(() => {})
-    // #endregion
     try {
       processor.processMessages(
         toProcess as Parameters<typeof processor.processMessages>[0]
@@ -235,24 +183,6 @@ export const useA2uiSurfaceStore = create<A2uiSurfaceStoreState>((set, get) => (
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Failed to process A2UI messages'
-      // #region agent log
-      void fetch('http://127.0.0.1:7837/ingest/abf31c58-d978-4742-b014-939241ddfcd2', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Debug-Session-Id': 'eba9bf',
-        },
-        body: JSON.stringify({
-          sessionId: 'eba9bf',
-          hypothesisId: 'G',
-          location: 'surface-store.ts:applyMessages:error',
-          message: 'a2ui processMessages failed',
-          data: { messageId, surfaceIds: surfaceIdsToApply, error: message },
-          timestamp: Date.now(),
-          runId: 'post-fix',
-        }),
-      }).catch(() => {})
-      // #endregion
       set((state) => ({
         revision: state.revision + 1,
         messageSurfaces: {

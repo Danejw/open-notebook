@@ -24,8 +24,7 @@ from construction_os.graphs.chat_intent import (
 )
 from construction_os.graphs.progress import emit_agent_progress
 from construction_os.graphs.a2ui_emit import (
-    build_context_confirm_messages,
-    emit_a2ui,
+    format_a2ui_agent_catalog,
     is_a2ui_chat_enabled,
 )
 from construction_os.mcp.chat_loop import generate_with_mcp_tools
@@ -58,49 +57,6 @@ class ThreadState(TypedDict):
     artifact_instructions: Optional[str]
     a2ui_pending: Optional[list]
     a2ui_by_message_id: Optional[dict]
-
-
-def _parse_context_chips(blocks: list) -> list[dict[str, str]]:
-    """Extract {id, title} chips from evidence block strings."""
-    chips: list[dict[str, str]] = []
-    for block in blocks or []:
-        if not isinstance(block, str):
-            continue
-        item_id = ""
-        title = "Untitled"
-        for line in block.splitlines():
-            stripped = line.strip()
-            if stripped.startswith("- id:"):
-                item_id = stripped[len("- id:") :].strip()
-            elif stripped.startswith("title:"):
-                title = stripped[len("title:") :].strip() or title
-        if item_id:
-            chips.append({"id": item_id, "title": title})
-    return chips
-
-
-def _maybe_emit_context_confirm(
-    *,
-    source_blocks: list,
-    note_blocks: list,
-    config: RunnableConfig,
-) -> Optional[list]:
-    """Emit context-confirm A2UI when enabled and chips exist; return payload for state."""
-    if not is_a2ui_chat_enabled():
-        return None
-    sources = _parse_context_chips(source_blocks)
-    notes = _parse_context_chips(note_blocks)
-    if not sources and not notes:
-        return None
-    try:
-        messages = build_context_confirm_messages(sources=sources, notes=notes)
-        surface_id = messages[0]["createSurface"]["surfaceId"]
-        emitted = emit_a2ui(messages, config, surface_id=surface_id)
-        if emitted:
-            return messages
-    except Exception as exc:
-        logger.warning("A2UI context-confirm emit failed: {}", exc)
-    return None
 
 
 def _run_async(coro):
@@ -294,14 +250,9 @@ def retrieving_context(state: ThreadState, config: RunnableConfig) -> dict:
                 "tokenCount": int(result.get("tokenCount") or 0),
             }
             emit_agent_progress("completed", "retrieving_context", detail, config)
-            a2ui_pending = _maybe_emit_context_confirm(
-                source_blocks=list(result.get("sources") or []),
-                note_blocks=list(result.get("notes") or []),
-                config=config,
-            )
             return {
                 "context": formatted,
-                "a2ui_pending": a2ui_pending,
+                "a2ui_pending": None,
             }
         else:
             built = state.get("context")
@@ -330,6 +281,8 @@ def generating(state: ThreadState, config: RunnableConfig) -> dict:
                 prompt_data["artifact_instructions"] = (
                     default_prompts.artifact_instructions
                 )
+        if is_a2ui_chat_enabled():
+            prompt_data["a2ui_catalog"] = format_a2ui_agent_catalog()
         system_prompt = Prompter(prompt_template="chat/system").render(data=prompt_data)  # type: ignore[arg-type]
         payload = [SystemMessage(content=system_prompt)] + list(
             state.get("messages", [])

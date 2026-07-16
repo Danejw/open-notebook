@@ -198,10 +198,6 @@ function ProjectPageContent() {
     [notes]
   )
 
-  const handleClearArtifact = useCallback(() => {
-    router.replace(`/projects/${encodeURIComponent(projectId)}`)
-  }, [router, projectId])
-
   const handleTemplateClick = useCallback((artifactId: string) => {
     router.replace(`/projects/${encodeURIComponent(projectId)}?artifact=${encodeURIComponent(artifactId)}`)
     setArtifactRunKey((key) => key + 1)
@@ -325,7 +321,6 @@ function ProjectPageContent() {
     notes: notes ?? [],
     notesLoading,
     activeArtifact,
-    onClearArtifact: activeArtifact ? handleClearArtifact : undefined,
     artifactRunKey,
   }
 

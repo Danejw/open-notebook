@@ -80,9 +80,8 @@ interface ChatPanelProps {
   onMcpToolIdsChange?: (ids: string[]) => void
   liveMcpToolCalls?: ChatToolCall[]
   activeArtifact?: Artifact
-  onClearArtifact?: () => void
   noteSaveTitle?: string
-  autoSendArtifactKey?: number
+  artifactPrefillKey?: number
   headerActions?: ReactNode
   variant?: 'column' | 'immersive'
   queue?: ChatQueueResponse
@@ -133,9 +132,8 @@ export function ChatPanel({
   onMcpToolIdsChange,
   liveMcpToolCalls = [],
   activeArtifact,
-  onClearArtifact,
   noteSaveTitle,
-  autoSendArtifactKey = 0,
+  artifactPrefillKey = 0,
   headerActions,
   variant = 'column',
   queue,
@@ -218,8 +216,6 @@ export function ChatPanel({
         <ChatContextStrip
           contextIndicators={contextIndicators}
           projectContextStats={projectContextStats}
-          activeArtifact={activeArtifact}
-          onClearArtifact={onClearArtifact}
         />
 
         <ChatComposer
@@ -237,7 +233,7 @@ export function ChatPanel({
           selectedMcpToolIds={selectedMcpToolIds}
           onMcpToolIdsChange={onMcpToolIdsChange}
           activeArtifact={activeArtifact}
-          autoSendArtifactKey={autoSendArtifactKey}
+          artifactPrefillKey={artifactPrefillKey}
           enableSuggestions={enableSuggestions}
           contextType={contextType}
           projectId={projectId}

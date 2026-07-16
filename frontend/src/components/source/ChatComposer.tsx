@@ -44,7 +44,8 @@ export interface ChatComposerProps {
   selectedMcpToolIds?: string[]
   onMcpToolIdsChange?: (ids: string[]) => void
   activeArtifact?: Artifact
-  autoSendArtifactKey?: number
+  /** Bumps when the user clicks an artifact so the trigger prompt is re-prefilled. */
+  artifactPrefillKey?: number
   enableSuggestions?: boolean
   contextType?: 'source' | 'project'
   projectId?: string
@@ -70,7 +71,7 @@ export function ChatComposer({
   selectedMcpToolIds,
   onMcpToolIdsChange,
   activeArtifact,
-  autoSendArtifactKey = 0,
+  artifactPrefillKey = 0,
   enableSuggestions = true,
   contextType = 'source',
   projectId,
@@ -84,7 +85,6 @@ export function ChatComposer({
   const chatInputId = useId()
   const [input, setInput] = useState('')
   const prefilledArtifactRef = useRef<string | null>(null)
-  const autoSentArtifactRef = useRef<number>(0)
 
   const queueMode = Boolean(onEnqueueMessage)
   const deferToQueue = shouldDeferChatToQueue(isStreaming, queue)
@@ -123,28 +123,19 @@ export function ChatComposer({
     [deferToQueue, isStreaming, modelOverride, onEnqueueMessage, onSendMessage]
   )
 
+  // Prefill the trigger prompt when an artifact is selected; do not auto-send so
+  // skills / tools / template from the artifact can be applied first.
   useEffect(() => {
     if (!activeArtifact) {
       prefilledArtifactRef.current = null
       return
     }
-    if (
-      autoSendArtifactKey > 0 &&
-      autoSentArtifactRef.current !== autoSendArtifactKey &&
-      !composerBusy
-    ) {
-      autoSentArtifactRef.current = autoSendArtifactKey
-      void submitMessage(buildArtifactTriggerMessage(activeArtifact.title))
-        .then(() => setInput(''))
-        .catch(() => undefined)
-      prefilledArtifactRef.current = activeArtifact.id
-      return
-    }
-    if (prefilledArtifactRef.current !== activeArtifact.id) {
+    const prefillToken = `${activeArtifact.id}:${artifactPrefillKey}`
+    if (prefilledArtifactRef.current !== prefillToken) {
       setInput(buildArtifactTriggerMessage(activeArtifact.title))
-      prefilledArtifactRef.current = activeArtifact.id
+      prefilledArtifactRef.current = prefillToken
     }
-  }, [activeArtifact, autoSendArtifactKey, composerBusy, submitMessage])
+  }, [activeArtifact, artifactPrefillKey])
 
   const handleSend = async () => {
     if (input.trim() && !composerBusy) {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { SourceChatMessage } from '@/lib/types/api'
 import { ChatToolCall } from '@/lib/types/mcp'
@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils'
 
 const VIRTUALIZE_THRESHOLD = 40
 const ESTIMATED_ROW_HEIGHT = 72
+/** Distance from bottom that still counts as "pinned" for auto-scroll. */
+const NEAR_BOTTOM_PX = 96
 
 export interface ChatMessageListProps {
   messages: SourceChatMessage[]
@@ -62,6 +64,8 @@ export function ChatMessageList({
   const scrollRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const prevMessageCountRef = useRef(0)
+  const prevLastMessageIdRef = useRef<string | undefined>(undefined)
+  const stickyToBottomRef = useRef(true)
   const useVirtual = messages.length >= VIRTUALIZE_THRESHOLD
 
   const virtualizer = useVirtualizer({
@@ -72,23 +76,69 @@ export function ChatMessageList({
     enabled: useVirtual,
   })
 
-  useEffect(() => {
-    const grew = messages.length > prevMessageCountRef.current
-    prevMessageCountRef.current = messages.length
-    if (messages.length === 0) return
-    if (!grew && !isStreaming) return
+  const isNearBottom = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return true
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= NEAR_BOTTOM_PX
+  }, [])
 
-    if (useVirtual) {
-      virtualizer.scrollToIndex(messages.length - 1, {
-        align: 'end',
-        behavior: isStreaming ? 'auto' : 'smooth',
-      })
-    } else {
-      messagesEndRef.current?.scrollIntoView({
-        behavior: isStreaming ? 'auto' : 'smooth',
-      })
+  const scrollToBottom = useCallback(
+    (behavior: ScrollBehavior) => {
+      const el = scrollRef.current
+      if (!el) return
+
+      if (useVirtual) {
+        virtualizer.scrollToIndex(Math.max(messages.length - 1, 0), {
+          align: 'end',
+          behavior,
+        })
+      }
+
+      // Always scroll the container itself so footers / streaming status stay in view.
+      if (behavior === 'smooth') {
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+      } else {
+        el.scrollTop = el.scrollHeight
+      }
+    },
+    [messages.length, useVirtual, virtualizer]
+  )
+
+  // Track whether the user is pinned near the bottom (manual scroll up disables auto-scroll).
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+
+    const onScroll = () => {
+      stickyToBottomRef.current = isNearBottom()
     }
-  }, [messages, isStreaming, useVirtual, virtualizer])
+
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [isNearBottom, messages.length])
+
+  useEffect(() => {
+    const lastMessageId = messages[messages.length - 1]?.id
+    const grew = messages.length > prevMessageCountRef.current
+    const lastChanged = lastMessageId !== prevLastMessageIdRef.current
+    prevMessageCountRef.current = messages.length
+    prevLastMessageIdRef.current = lastMessageId
+
+    if (messages.length === 0) {
+      stickyToBottomRef.current = true
+      return
+    }
+
+    // New or replaced messages (send / session switch) re-pin to the bottom.
+    if (grew || lastChanged) {
+      stickyToBottomRef.current = true
+    }
+
+    if (!stickyToBottomRef.current) return
+    if (!grew && !lastChanged && !isStreaming) return
+
+    scrollToBottom(isStreaming ? 'auto' : 'smooth')
+  }, [messages, isStreaming, scrollToBottom])
 
   const rowProps = (message: SourceChatMessage): ChatMessageRowProps => ({
     message,

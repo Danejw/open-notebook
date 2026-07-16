@@ -640,7 +640,7 @@ export const enUS = {
     "showArtifactPrompt": "Show template",
     "hideArtifactPrompt": "Hide template",
     "clearArtifact": "Clear artifact",
-    "artifactSendPlaceholder": "Send to generate this artifact from project context...",
+    "artifactSendPlaceholder": "Review skills, tools, and template, then send to generate...",
     "saveAsArtifact": "Save as artifact",
     "suggestionsLabel": "Suggested messages",
     "suggestionsLoading": "Loading suggestions...",

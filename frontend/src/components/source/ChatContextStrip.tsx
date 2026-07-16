@@ -3,11 +3,7 @@
 import { FileText, Lightbulb, StickyNote } from 'lucide-react'
 import { SourceChatContextIndicator } from '@/lib/types/api'
 import { ContextIndicator } from '@/components/common/ContextIndicator'
-import {
-  ActiveArtifactBar,
-} from '@/components/projects/ActiveArtifactBar'
 import { columnFooterClassName } from '@/components/projects/ColumnHeader'
-import type { Artifact } from '@/lib/types/artifacts'
 import { cn } from '@/lib/utils'
 
 interface ProjectContextStats {
@@ -21,15 +17,11 @@ interface ProjectContextStats {
 export interface ChatContextStripProps {
   contextIndicators?: SourceChatContextIndicator | null
   projectContextStats?: ProjectContextStats
-  activeArtifact?: Artifact
-  onClearArtifact?: () => void
 }
 
 export function ChatContextStrip({
   contextIndicators,
   projectContextStats,
-  activeArtifact,
-  onClearArtifact,
 }: ChatContextStripProps) {
   return (
     <>
@@ -69,10 +61,6 @@ export function ChatContextStrip({
           tokenCount={projectContextStats.tokenCount}
           charCount={projectContextStats.charCount}
         />
-      ) : null}
-
-      {activeArtifact && onClearArtifact ? (
-        <ActiveArtifactBar artifact={activeArtifact} onClear={onClearArtifact} />
       ) : null}
     </>
   )

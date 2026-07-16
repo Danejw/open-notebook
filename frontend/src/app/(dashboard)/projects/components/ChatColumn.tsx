@@ -21,7 +21,6 @@ interface ChatColumnProps {
   notes: NoteResponse[]
   notesLoading: boolean
   activeArtifact?: Artifact
-  onClearArtifact?: () => void
   artifactRunKey?: number
 }
 
@@ -33,7 +32,6 @@ export function ChatColumn({
   notes,
   notesLoading,
   activeArtifact,
-  onClearArtifact,
   artifactRunKey = 0,
 }: ChatColumnProps) {
   const { t } = useTranslation()
@@ -52,7 +50,7 @@ export function ChatColumn({
     activeArtifactId: activeArtifact?.id ?? null,
   })
 
-  // Apply chat defaults before ChatComposer's auto-send useEffect (layout runs first).
+  // Apply artifact-linked skills / tools / template when the user clicks an artifact.
   const appliedDefaultsKeyRef = useRef(0)
   useLayoutEffect(() => {
     if (
@@ -168,9 +166,8 @@ export function ChatColumn({
         onMcpToolIdsChange={chat.setSelectedMcpToolIds}
         liveMcpToolCalls={chat.liveMcpToolCalls}
         activeArtifact={activeArtifact}
-        onClearArtifact={onClearArtifact}
         noteSaveTitle={activeArtifact?.title}
-        autoSendArtifactKey={artifactRunKey}
+        artifactPrefillKey={artifactRunKey}
         headerActions={collapseButton}
       />
     )

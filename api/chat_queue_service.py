@@ -490,6 +490,20 @@ class ChatQueueService:
             expires_at = expires_at.replace(tzinfo=timezone.utc)
         return expires_at > datetime.now(timezone.utc)
 
+    @staticmethod
+    def _scheduling_is_live(queue: ChatQueue) -> bool:
+        """True when an unexpired drain reservation is already outstanding."""
+        token = getattr(queue, "scheduling_token", None)
+        if not token:
+            return False
+        expires_at = getattr(queue, "scheduling_expires_at", None)
+        if not isinstance(expires_at, datetime):
+            # Token without expiry: treat as live to avoid duplicate drains.
+            return True
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        return expires_at > datetime.now(timezone.utc)
+
     async def _ensure_runner(
         self,
         queue: ChatQueue,
@@ -503,13 +517,13 @@ class ChatQueueService:
         # Orphaned running items need adoption even when the queue paused mid-loop.
         has_running = any(item.status == "running" for item in items)
         pending_items = [item for item in items if item.status == "pending"]
-        # An in-flight drain already owns the session. Do not schedule a
-        # competing command that clears the lease mid-turn (GET/enqueue races).
-        if (
-            has_running
-            and self._lease_is_live(queue)
-            and getattr(queue, "runner_state", None) == "running"
-        ):
+        runner_state = getattr(queue, "runner_state", None)
+        # An in-flight drain or unexpired reservation already owns the session.
+        # Never submit a competing command — that clears the lease mid-turn and
+        # leaves human prompts in chat without an AI reply.
+        if runner_state == "running" and self._lease_is_live(queue):
+            return queue
+        if runner_state == "scheduled" and self._scheduling_is_live(queue):
             return queue
         if not has_running:
             if not allow_pending or not pending_items:

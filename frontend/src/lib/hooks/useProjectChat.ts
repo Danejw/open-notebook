@@ -32,6 +32,7 @@ import {
 import type { ContextSelections } from '@/lib/types/project-context'
 import { useChatQueue } from '@/lib/hooks/useChatQueue'
 import { mergeActiveQueueMessages } from '@/lib/utils/chat-queue-messages'
+import { queueItemActivityPresentation } from '@/lib/utils/chat-queue-activity'
 
 interface UseProjectChatParams {
   projectId: string
@@ -509,6 +510,17 @@ export function useProjectChat({
         await chatQueue.ensureRunner()
       } catch (ensureError) {
         console.error('Error ensuring chat queue runner:', ensureError)
+        const error = ensureError as {
+          response?: { data?: { detail?: string } }
+          message?: string
+        }
+        toast.error(
+          getApiErrorMessage(
+            error.response?.data?.detail || error.message || error,
+            (key) => t(key),
+            'apiErrors.failedToQueue'
+          )
+        )
       }
     }
   }, [
@@ -640,24 +652,43 @@ export function useProjectChat({
         item.status === 'failed'
     )
   )
-  const queueStreamStatus =
-    typeof queueCurrentItem?.stream_progress?.message === 'string'
-      ? queueCurrentItem.stream_progress.message
-      : streamStatus
-  const queueActivityLog = Array.isArray(
-    queueCurrentItem?.stream_activity?.events
+
+  // Recover orphaned pending work when play-mode and no live turn owns chat.
+  const orphanEnsureKeyRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (sharedMode || isSending) {
+      return
+    }
+    const queue = chatQueue.queue
+    if (!queue || queue.status !== 'active' || queue.runner_state !== 'idle') {
+      return
+    }
+    const pendingCount = queue.items.filter(
+      (item) => item.visible && item.status === 'pending'
+    ).length
+    if (pendingCount === 0) {
+      orphanEnsureKeyRef.current = null
+      return
+    }
+    const key = `${queue.id}:${queue.revision}:${pendingCount}`
+    if (orphanEnsureKeyRef.current === key) {
+      return
+    }
+    orphanEnsureKeyRef.current = key
+    void chatQueue.ensureRunner().catch((ensureError: unknown) => {
+      console.error('Error ensuring orphaned chat queue runner:', ensureError)
+      orphanEnsureKeyRef.current = null
+    })
+  }, [chatQueue, isSending, sharedMode])
+
+  const queueActivity = queueItemActivityPresentation(
+    queueCurrentItem,
+    t,
+    streamStatus,
+    activityLog
   )
-    ? queueCurrentItem.stream_activity.events
-        .map((event) =>
-          event &&
-          typeof event === 'object' &&
-          'message' in event &&
-          typeof event.message === 'string'
-            ? event.message
-            : null
-        )
-        .filter((event): event is string => event !== null)
-    : activityLog
+  const queueStreamStatus = queueActivity.streamStatus
+  const queueActivityLog = queueActivity.activityLog
 
   // Switch session
   const switchSession = useCallback((sessionId: string) => {

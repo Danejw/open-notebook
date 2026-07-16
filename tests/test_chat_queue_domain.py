@@ -1015,6 +1015,7 @@ async def test_stream_snapshot_compare_and_set_rejects_delayed_write(monkeypatch
     assert "revision += 1" in normalized
     assert "stream_revision = $queue.revision" in normalized
     assert "status = 'running'" in normalized
+    assert "RETURN $updated" in normalized
     assert "stream_revision = $expected_revision" not in normalized
     assert variables["expected_revision"] == 3
 

@@ -21,6 +21,7 @@ import type {
 } from '@/lib/types/chat-queue'
 import {
   isChatQueueItemActive,
+  isChatQueueItemTerminal,
 } from '@/lib/types/chat-queue'
 
 export interface UseChatQueueOptions {
@@ -301,14 +302,31 @@ function patchOptimisticItem(
   }
 }
 
-function queueCompletions(
+/**
+ * Detects item completions and full queue drains between two snapshots.
+ *
+ * Completed items are hidden (`visible=false`) and removed from `items`, so
+ * disappearance of a previously non-terminal item also counts as completion.
+ */
+export function queueCompletions(
   previous: ChatQueueResponse,
   next: ChatQueueResponse
 ): ChatQueueCompletion[] {
   const completions: ChatQueueCompletion[] = []
 
+  const previousHadActive = previous.items.some((item) =>
+    isChatQueueItemActive(item.status)
+  )
+  const nextHasActive = next.items.some((item) =>
+    isChatQueueItemActive(item.status)
+  )
+  // Client cache may stay idle while the worker drains; treat empty active
+  // work as drained even when previous.runner_state never left idle.
+  const queueDrained =
+    next.runner_state === 'idle' && previousHadActive && !nextHasActive
+
   for (const previousItem of previous.items) {
-    if (previousItem.status === 'completed') {
+    if (isChatQueueItemTerminal(previousItem.status)) {
       continue
     }
     const nextItem = next.items.find((item) => item.id === previousItem.id)
@@ -318,13 +336,28 @@ function queueCompletions(
         queue: next,
         item: nextItem,
       })
+      continue
+    }
+    // Completed turns leave the visible list. Count disappearance when the
+    // item was running, or when the whole queue drained (missed running SSE).
+    // Do not count a lone pending removal (delete / partial refetch).
+    if (
+      !nextItem &&
+      (previousItem.status === 'running' || queueDrained)
+    ) {
+      completions.push({
+        type: 'item-completed',
+        queue: next,
+        item: {
+          ...previousItem,
+          status: 'completed',
+          visible: false,
+          runner_state: 'completed',
+        },
+      })
     }
   }
 
-  const queueDrained =
-    previous.runner_state !== 'idle' &&
-    next.runner_state === 'idle' &&
-    !next.items.some((item) => isChatQueueItemActive(item.status))
   if (queueDrained) {
     completions.push({
       type: 'queue-drained',
@@ -463,6 +496,11 @@ export function useChatQueue(
     for (const historyKey of historyKeys) {
       void queryClient.invalidateQueries({ queryKey: historyKey })
     }
+    // Do not rely solely on SSE merge — refresh the authoritative queue snapshot
+    // so the panel drops completed/hidden items promptly.
+    void queryClient.invalidateQueries({
+      queryKey: QUERY_KEYS.chatQueue(sessionId),
+    })
   }, [queryClient, queueQuery.data, sessionId])
 
   const enqueueMutation = useMutation<
@@ -821,31 +859,85 @@ export function useChatQueue(
 
   /**
    * Kick drain for an active queue after a live AG-UI turn releases the session.
+   * Always reads the server snapshot so stale cache cannot skip pending work.
    * Respects a manual pause — does not auto-resume paused queues.
+   * After scheduling (or adopting an in-flight drain), polls GET snapshots so
+   * stream_content and completions reach the UI even when SSE is silent.
    */
   const ensureRunner = useCallback(async () => {
     if (!sessionId || !activeQueryKey) {
       return
     }
-    let current =
-      queryClient.getQueryData<ChatQueueResponse>(activeQueryKey)
-    if (!current) {
-      current = await chatQueueApi.get(sessionId)
-      queryClient.setQueryData(activeQueryKey, current)
+    const applySnapshot = (snap: ChatQueueResponse) => {
+      queryClient.setQueryData(
+        activeQueryKey,
+        (previous: ChatQueueResponse | undefined) =>
+          mergeChatQueueState(previous, {
+            kind: 'snapshot',
+            queue: snap,
+          }) ?? snap
+      )
     }
+    const queueIsBusy = (snap: ChatQueueResponse) =>
+      snap.runner_state === 'running' ||
+      snap.runner_state === 'scheduled' ||
+      snap.items.some(
+        (item) =>
+          item.visible &&
+          (item.status === 'pending' || item.status === 'running')
+      )
+    const syncUntilIdle = async () => {
+      const historyKeys =
+        historyQueryKeysRef.current ??
+        [QUERY_KEYS.projectChatSession(sessionId)]
+      for (let attempt = 0; attempt < 90; attempt += 1) {
+        const snap = await chatQueueApi.get(sessionId)
+        applySnapshot(snap)
+        if (!queueIsBusy(snap)) {
+          for (const historyKey of historyKeys) {
+            await queryClient.invalidateQueries({ queryKey: historyKey })
+          }
+          await queryClient.invalidateQueries({ queryKey: activeQueryKey })
+          return
+        }
+        await new Promise<void>((resolve) => {
+          setTimeout(resolve, 400)
+        })
+      }
+      for (const historyKey of historyKeys) {
+        await queryClient.invalidateQueries({ queryKey: historyKey })
+      }
+    }
+
+    const current = await chatQueueApi.get(sessionId)
+    applySnapshot(current)
     if (current.status === 'paused') {
       return
     }
-    // resume() on an already-active queue force-schedules pending drain.
-    const queue = await chatQueueApi.resume(sessionId)
-    queryClient.setQueryData(
-      activeQueryKey,
-      (previous: ChatQueueResponse | undefined) =>
-        mergeChatQueueState(previous, {
-          kind: 'snapshot',
-          queue,
-        }) ?? queue
+    const hasPendingWork = current.items.some(
+      (item) =>
+        item.visible &&
+        (item.status === 'pending' || item.status === 'failed')
     )
+    const hasRunning = current.items.some(
+      (item) => item.visible && item.status === 'running'
+    )
+    if (!hasPendingWork && !hasRunning) {
+      return
+    }
+    // A drain is already reserved or running — do not force-reschedule, but
+    // still poll so the UI receives stream_content + history refetch.
+    if (
+      current.runner_state === 'running' ||
+      current.runner_state === 'scheduled'
+    ) {
+      await syncUntilIdle()
+      return
+    }
+    // resume() on an idle active queue schedules pending drain.
+    const queue = await chatQueueApi.resume(sessionId)
+    applySnapshot(queue)
+    await syncUntilIdle()
   }, [activeQueryKey, queryClient, sessionId])
 
   const actions = useMemo(

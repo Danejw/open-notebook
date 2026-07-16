@@ -688,6 +688,47 @@ async def test_ensure_runner_schedules_for_orphaned_running_item(service):
 
 
 @pytest.mark.asyncio
+async def test_ensure_runner_does_not_compete_with_live_schedule(service):
+    """Resume/handoff must not clear an unexpired reservation mid-drain."""
+    FakeRepository.queue = _queue(
+        status="active",
+        runner_state="scheduled",
+        scheduling_token="token:live",
+        scheduling_expires_at=datetime.now(timezone.utc) + timedelta(seconds=30),
+    )
+    FakeRepository.items = {
+        "chat_queue_item:pending": _item(status="pending", position=10)
+    }
+
+    result = await service._ensure_runner(
+        FakeRepository.queue, force_reschedule=True
+    )
+
+    assert result.scheduling_token == "token:live"
+    service.command_submitter.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_ensure_runner_does_not_compete_with_live_lease(service):
+    FakeRepository.queue = _queue(
+        status="active",
+        runner_state="running",
+        lease_owner="worker-a",
+        lease_expires_at=datetime.now(timezone.utc) + timedelta(seconds=60),
+    )
+    FakeRepository.items = {
+        "chat_queue_item:pending": _item(status="pending", position=10)
+    }
+
+    result = await service._ensure_runner(
+        FakeRepository.queue, force_reschedule=True
+    )
+
+    assert result.runner_state == "running"
+    service.command_submitter.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_get_queue_does_not_schedule_pending_work(service):
     FakeRepository.queue = _queue(status="active", runner_state="idle")
     FakeRepository.items = {

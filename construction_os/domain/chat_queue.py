@@ -939,7 +939,7 @@ class ChatQueueRepository:
                               AND lease_expires_at > time::now()
                             RETURN AFTER;
                         IF $queue != NONE {
-                            UPDATE $next.id SET
+                            LET $claimed = UPDATE $next.id SET
                                 status = 'running',
                                 current_loop = 1,
                                 iteration_token = string::concat(
@@ -952,6 +952,7 @@ class ChatQueueRepository:
                               AND chat_session = $chat_session
                               AND status = 'pending'
                             RETURN AFTER;
+                            RETURN $claimed;
                         };
                     };
                 };
@@ -1000,7 +1001,7 @@ class ChatQueueRepository:
                       AND lease_expires_at > time::now()
                     RETURN AFTER;
                 IF $queue != NONE {
-                    UPDATE $item_id SET
+                    LET $updated = UPDATE $item_id SET
                         stream_revision = $queue.revision,
                         stream_content = $content,
                         stream_progress = $progress,
@@ -1010,6 +1011,7 @@ class ChatQueueRepository:
                       AND status = 'running'
                       AND run_id = $run_id
                     RETURN AFTER;
+                    RETURN $updated;
                 };
             };
             COMMIT TRANSACTION;
@@ -1070,7 +1072,7 @@ class ChatQueueRepository:
                       AND lease_expires_at > time::now()
                     RETURN AFTER;
                 IF $queue != NONE AND $expected_loop >= $item.loop_count {
-                    UPDATE $item_id SET
+                    LET $updated = UPDATE $item_id SET
                         status = 'completed',
                         runner_state = 'completed',
                         visible = false,
@@ -1082,8 +1084,9 @@ class ChatQueueRepository:
                       AND current_loop = $expected_loop
                       AND iteration_token = $iteration_token
                     RETURN AFTER;
+                    RETURN $updated;
                 } ELSE IF $queue != NONE {
-                    UPDATE $item_id SET
+                    LET $updated = UPDATE $item_id SET
                         current_loop = $expected_loop + 1,
                         iteration_token = $next_iteration_token,
                         stream_revision = $queue.revision,
@@ -1095,6 +1098,7 @@ class ChatQueueRepository:
                       AND current_loop = $expected_loop
                       AND iteration_token = $iteration_token
                     RETURN AFTER;
+                    RETURN $updated;
                 };
             };
             COMMIT TRANSACTION;

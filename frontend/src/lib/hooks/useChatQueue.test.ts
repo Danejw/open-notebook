@@ -7,6 +7,7 @@ import { QUERY_KEYS } from '@/lib/api/query-client'
 import {
   applyChatQueueStreamEvent,
   mergeChatQueueState,
+  queueCompletions,
   shouldStreamQueue,
   useChatQueue,
 } from '@/lib/hooks/useChatQueue'
@@ -158,6 +159,102 @@ function streamEmitter() {
   }
 }
 
+describe('queueCompletions', () => {
+  it('treats visible=false removal as item-completed and drains when idle', () => {
+    const previous = makeQueue({
+      revision: 3,
+      runner_state: 'running',
+      items: [
+        makeItem({
+          id: 'chat_queue_item:item-1',
+          status: 'running',
+          stream_revision: 3,
+        }),
+      ],
+    })
+    const next = makeQueue({
+      revision: 4,
+      runner_state: 'idle',
+      items: [],
+    })
+
+    expect(queueCompletions(previous, next).map((c) => c.type)).toEqual([
+      'item-completed',
+      'queue-drained',
+    ])
+  })
+
+  it('does not require previous runner_state to leave idle for drain detection', () => {
+    const previous = makeQueue({
+      revision: 1,
+      runner_state: 'idle',
+      items: [makeItem({ status: 'pending' })],
+    })
+    const next = makeQueue({
+      revision: 2,
+      runner_state: 'idle',
+      items: [],
+    })
+
+    expect(queueCompletions(previous, next).map((c) => c.type)).toEqual([
+      'item-completed',
+      'queue-drained',
+    ])
+  })
+
+  it('does not treat a partial pending removal as completion', () => {
+    const previous = makeQueue({
+      revision: 1,
+      runner_state: 'idle',
+      items: [
+        makeItem({ id: 'chat_queue_item:item-1', status: 'pending' }),
+        makeItem({
+          id: 'chat_queue_item:item-2',
+          client_request_id: 'request-2',
+          run_id: 'run-2',
+          position: 1,
+          status: 'pending',
+        }),
+      ],
+    })
+    const next = makeQueue({
+      revision: 2,
+      runner_state: 'idle',
+      items: [makeItem({ id: 'chat_queue_item:item-1', status: 'pending' })],
+    })
+
+    expect(queueCompletions(previous, next)).toEqual([])
+  })
+
+  it('still detects explicit status=completed items remaining in the list', () => {
+    const previousItem = makeItem({ status: 'running', stream_revision: 2 })
+    const previous = makeQueue({
+      revision: 2,
+      runner_state: 'running',
+      items: [previousItem],
+    })
+    const nextItem = {
+      ...previousItem,
+      status: 'completed' as const,
+      runner_state: 'completed' as const,
+      stream_revision: 3,
+      visible: true,
+    }
+    const next = makeQueue({
+      revision: 3,
+      runner_state: 'idle',
+      items: [nextItem],
+    })
+
+    const completions = queueCompletions(previous, next)
+    expect(completions[0]).toMatchObject({
+      type: 'item-completed',
+      item: { id: previousItem.id, status: 'completed' },
+    })
+    expect(completions.some((c) => c.type === 'queue-drained')).toBe(true)
+  })
+})
+
 describe('queue query keys and query lifecycle', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -264,6 +361,95 @@ describe('queue mutations', () => {
     expect(secondPayload.client_request_id).toBe(
       firstPayload.client_request_id
     )
+  })
+
+  it('ensureRunner fetches server state and resumes when pending work exists', async () => {
+    const pending = makeQueue({
+      status: 'active',
+      runner_state: 'idle',
+      items: [makeItem({ status: 'pending', visible: true })],
+    })
+    const resumed = makeQueue({
+      status: 'active',
+      runner_state: 'scheduled',
+      revision: 2,
+      items: pending.items,
+    })
+    const drained = makeQueue({
+      status: 'active',
+      runner_state: 'idle',
+      revision: 3,
+      items: [],
+    })
+    let getCalls = 0
+    mockedQueueApi.get.mockImplementation(async () => {
+      getCalls += 1
+      // Initial query + ensureRunner decision GET still see pending work.
+      if (getCalls <= 2) {
+        return pending
+      }
+      return drained
+    })
+    mockedQueueApi.resume.mockResolvedValue(resumed)
+    const { wrapper } = createHarness()
+    const { result } = renderHook(() => useChatQueue('session-1'), { wrapper })
+    await waitFor(() => expect(result.current.queue).toBeDefined())
+
+    await act(async () => {
+      await result.current.ensureRunner()
+    })
+
+    expect(mockedQueueApi.get).toHaveBeenCalled()
+    expect(mockedQueueApi.resume).toHaveBeenCalledWith('session-1')
+  })
+
+  it('ensureRunner skips resume when a drain is already scheduled or running', async () => {
+    const scheduled = makeQueue({
+      status: 'active',
+      runner_state: 'scheduled',
+      items: [makeItem({ status: 'pending', visible: true })],
+    })
+    const drained = makeQueue({
+      status: 'active',
+      runner_state: 'idle',
+      revision: 3,
+      items: [],
+    })
+    let getCalls = 0
+    mockedQueueApi.get.mockImplementation(async () => {
+      getCalls += 1
+      if (getCalls <= 2) {
+        return scheduled
+      }
+      return drained
+    })
+    const { wrapper } = createHarness()
+    const { result } = renderHook(() => useChatQueue('session-1'), { wrapper })
+    await waitFor(() => expect(result.current.queue).toBeDefined())
+
+    await act(async () => {
+      await result.current.ensureRunner()
+    })
+
+    expect(mockedQueueApi.resume).not.toHaveBeenCalled()
+  })
+
+  it('ensureRunner skips resume when the server queue is paused', async () => {
+    const paused = makeQueue({
+      status: 'paused',
+      runner_state: 'idle',
+      items: [makeItem({ status: 'pending', visible: true })],
+    })
+    mockedQueueApi.get.mockResolvedValue(paused)
+    const { wrapper } = createHarness()
+    const { result } = renderHook(() => useChatQueue('session-1'), { wrapper })
+    await waitFor(() => expect(result.current.queue).toBeDefined())
+
+    await act(async () => {
+      await result.current.ensureRunner()
+    })
+
+    expect(mockedQueueApi.resume).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -662,10 +848,25 @@ describe('stream cache hydration', () => {
   })
 
   it('hydrates a newer item event while preserving ordered queue state', () => {
-    const current = makeQueue({ revision: 8 })
+    const current = makeQueue({
+      revision: 8,
+      items: [
+        makeItem({ id: 'chat_queue_item:item-1', position: 1 }),
+        makeItem({
+          id: 'chat_queue_item:item-2',
+          client_request_id: 'request-2',
+          run_id: 'run-2',
+          position: 0,
+          prompt: 'Second prompt',
+        }),
+      ],
+    })
     const changed = makeItem({
       id: 'chat_queue_item:item-2',
+      client_request_id: 'request-2',
+      run_id: 'run-2',
       position: 0,
+      prompt: 'Second prompt',
       status: 'running',
       runner_state: 'running',
       stream_revision: 9,
@@ -855,6 +1056,65 @@ describe('stream cache hydration', () => {
       'item-completed',
       'queue-drained',
     ])
+  })
+
+  it('refetches history when completed items disappear via visible=false', async () => {
+    const running = makeItem({
+      id: 'chat_queue_item:item-1',
+      status: 'running',
+      runner_state: 'running',
+      stream_revision: 8,
+    })
+    const initial = makeQueue({
+      revision: 8,
+      runner_state: 'running',
+      items: [running],
+    })
+    mockedQueueApi.get.mockResolvedValue(initial)
+    const emitter = streamEmitter()
+    const onCompletion = vi.fn()
+    const { queryClient, wrapper } = createHarness()
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    renderHook(
+      () =>
+        useChatQueue('session-1', {
+          onCompletion,
+          historyQueryKeys: [QUERY_KEYS.projectChatSession('session-1')],
+        }),
+      { wrapper }
+    )
+    await waitFor(() => expect(emitter.isConnected()).toBe(true))
+
+    act(() => {
+      emitter.emit({
+        event: 'item',
+        revision: 9,
+        queue: null,
+        item: {
+          ...running,
+          status: 'completed',
+          runner_state: 'completed',
+          visible: false,
+          stream_revision: 9,
+          completed_at: '2026-07-15T00:01:00Z',
+        },
+      })
+    })
+
+    await waitFor(() => expect(onCompletion).toHaveBeenCalled())
+    expect(onCompletion.mock.calls.map(([c]) => c.type)).toContain(
+      'item-completed'
+    )
+    expect(invalidateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: QUERY_KEYS.projectChatSession('session-1'),
+      })
+    )
+    expect(invalidateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: QUERY_KEYS.chatQueue('session-1'),
+      })
+    )
   })
 
   it('exposes terminal stream failures and supports controlled restart', async () => {

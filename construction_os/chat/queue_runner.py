@@ -560,7 +560,7 @@ class ChatQueueRunner:
                     return
 
                 # Publish the claimed turn immediately so the chat UI can show
-                # the human prompt before the first model tokens arrive.
+                # the human prompt and a live status bubble before model tokens.
                 try:
                     item = await self.repository.mark_stream_progress(
                         item_id=str(item.id),
@@ -570,14 +570,29 @@ class ChatQueueRunner:
                         lease_owner=owner,
                         expected_revision=item.stream_revision,
                         content=item.stream_content or "",
-                        progress=item.stream_progress,
-                        activity=item.stream_activity,
+                        progress={
+                            "phase": "started",
+                            "step": "generating",
+                        },
+                        activity=item.stream_activity or {"events": []},
                     )
                 except ChatQueueMutationError as seed_exc:
                     logger.warning(
                         "Chat queue item {} seed stream failed; continuing run: {}",
                         item.id,
                         seed_exc,
+                    )
+                    # Keep a local generating status so a later successful flush
+                    # (or final persist) can still publish the activity bubble.
+                    item = item.model_copy(
+                        update={
+                            "stream_progress": {
+                                "phase": "started",
+                                "step": "generating",
+                            },
+                            "stream_activity": item.stream_activity
+                            or {"events": []},
+                        }
                     )
 
                 completed_safely = await self._run_item_iteration(
@@ -700,7 +715,9 @@ class ChatQueueRunner:
                 else []
             )
             replay = inspect_checkpoint_turn(messages, message_id)
+            final_content = ""
             if replay == "completed":
+                final_content = replay.final_content or ""
                 try:
                     item = await self.repository.mark_stream_progress(
                         item_id=str(item.id),
@@ -709,7 +726,7 @@ class ChatQueueRunner:
                         run_id=item.run_id,
                         lease_owner=lease_owner,
                         expected_revision=item.stream_revision,
-                        content=replay.final_content or "",
+                        content=final_content,
                         progress=item.stream_progress,
                         activity=item.stream_activity,
                     )
@@ -726,7 +743,7 @@ class ChatQueueRunner:
                     message_id=message_id,
                     forwarded_props=resolved.forwarded_props,
                 )
-                item = await self._consume_events(
+                item, final_content = await self._consume_events(
                     agent=agent,
                     run_input=run_input,
                     configurable=resolved.configurable,
@@ -735,7 +752,44 @@ class ChatQueueRunner:
                     chat_session_id=chat_session_id,
                     lease_owner=lease_owner,
                 )
+                # AG-UI providers may persist the turn without emitting text
+                # deltas we recognize. Fall back to checkpoint AI content so the
+                # chat UI can show the same reply users get after refresh.
+                if not (final_content or "").strip():
+                    checkpoint = await agent.graph.aget_state(
+                        config={"configurable": {"thread_id": chat_session_id}}
+                    )
+                    messages = (
+                        list(checkpoint.values.get("messages") or [])
+                        if checkpoint and checkpoint.values
+                        else []
+                    )
+                    recovery = inspect_checkpoint_turn(messages, message_id)
+                    if recovery == "completed":
+                        final_content = recovery.final_content or ""
             self._raise_if_lease_lost()
+            # Always persist the final assistant text before completing so the
+            # chat UI can show the turn even when mid-stream flushes soft-failed.
+            if final_content and final_content != (item.stream_content or ""):
+                try:
+                    item = await self.repository.mark_stream_progress(
+                        item_id=str(item.id),
+                        queue_id=queue_id,
+                        chat_session_id=chat_session_id,
+                        run_id=item.run_id,
+                        lease_owner=lease_owner,
+                        expected_revision=item.stream_revision,
+                        content=final_content,
+                        progress=item.stream_progress
+                        or {"phase": "progress", "step": "generating"},
+                        activity=item.stream_activity or {"events": []},
+                    )
+                except ChatQueueMutationError as final_exc:
+                    logger.warning(
+                        "Chat queue item {} final stream persist failed; continuing: {}",
+                        item.id,
+                        final_exc,
+                    )
             await self.repository.complete_loop_iteration(
                 item_id=str(item.id),
                 queue_id=queue_id,
@@ -781,7 +835,7 @@ class ChatQueueRunner:
         queue_id: str,
         chat_session_id: str,
         lease_owner: str,
-    ) -> ChatQueueItem:
+    ) -> tuple[ChatQueueItem, str]:
         accumulator = _StreamAccumulator()
         last_flush = time.monotonic()
         run_error: Optional[AgentRunError] = None
@@ -841,7 +895,7 @@ class ChatQueueRunner:
         )
         if run_error is not None:
             raise run_error
-        return item
+        return item, accumulator.content
 
     async def _events_until_lease_loss(
         self,
@@ -908,7 +962,15 @@ class ChatQueueRunner:
                 item.id,
                 flush_exc,
             )
-            return item
+            # Keep accumulator state on the in-memory item so the next successful
+            # flush / final persist still publishes progress for the UI bubble.
+            return item.model_copy(
+                update={
+                    "stream_content": accumulator.content,
+                    "stream_progress": accumulator.progress or item.stream_progress,
+                    "stream_activity": accumulator.activity or item.stream_activity,
+                }
+            )
 
 
 async def _configure_worker_connection(connection: aiosqlite.Connection) -> None:

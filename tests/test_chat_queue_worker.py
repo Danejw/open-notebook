@@ -867,6 +867,54 @@ async def test_checkpoint_completed_iteration_advances_without_replaying():
     assert script.calls == []
     assert item.status == "completed"
     assert repository.calls.count("complete") == 1
+    assert item.stream_content == "already done"
+    assert repository.stream_writes[-1]["content"] == "already done"
+
+
+@pytest.mark.asyncio
+async def test_final_stream_persists_when_mid_stream_flushes_soft_fail():
+    """Final assistant text is stored before complete even if snapshots soft-fail."""
+    worker = _worker_module()
+    item = _item()
+
+    class SoftFailStreamRepository(StatefulRepository):
+        def __init__(self, items):
+            super().__init__(items)
+            self._stream_attempts = 0
+            self.fail_count = 2
+
+        async def mark_stream_progress(self, **kwargs):
+            self._stream_attempts += 1
+            if self._stream_attempts <= self.fail_count:
+                self.calls.append("stream_fail")
+                raise worker.ChatQueueMutationError("soft fail for test")
+            return await super().mark_stream_progress(**kwargs)
+
+    repository = SoftFailStreamRepository([item])
+    events = [
+        TextMessageContentEvent(message_id="ai", delta="Hello "),
+        TextMessageContentEvent(message_id="ai", delta="world"),
+        RunFinishedEvent(thread_id="chat_session:session-a", run_id="run-a"),
+    ]
+    script = EventScript([events])
+    runner = _runner(
+        repository,
+        script,
+        snapshot_interval_seconds=3600,
+    )
+
+    await runner.drain(
+        chat_session_id="chat_session:session-a",
+        queue_id="chat_queue:queue-a",
+        scheduling_token="schedule-a",
+        command_id="command:worker-a",
+    )
+
+    assert item.status == "completed"
+    assert repository.calls.count("stream_fail") == 2
+    assert repository.stream_writes[-1]["content"] == "Hello world"
+    assert item.stream_content == "Hello world"
+    assert repository.calls.count("complete") == 1
 
 
 @pytest.mark.asyncio

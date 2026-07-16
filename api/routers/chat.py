@@ -440,11 +440,14 @@ async def get_session(
         messages: list[ChatMessage] = []
         if thread_state and thread_state.values and "messages" in thread_state.values:
             for msg in thread_state.values["messages"]:
+                raw_content = msg.content if hasattr(msg, "content") else str(msg)
                 messages.append(
                     ChatMessage(
                         id=getattr(msg, "id", f"msg_{len(messages)}"),
                         type=msg.type if hasattr(msg, "type") else "unknown",
-                        content=msg.content if hasattr(msg, "content") else str(msg),
+                        content=extract_text_content(raw_content)
+                        if raw_content is not None
+                        else "",
                         timestamp=None,
                     )
                 )

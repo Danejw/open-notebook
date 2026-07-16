@@ -19,6 +19,8 @@ import { formatDistanceToNow } from 'date-fns'
 import { getDateLocale } from '@/lib/utils/date-locale'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { EmptyState } from '@/components/common/EmptyState'
+import { DialogBodyLoading } from '@/components/common/LoadingSkeletons'
 import { BaseChatSession } from '@/lib/types/api'
 import { useModels } from '@/lib/hooks/use-models'
 
@@ -145,15 +147,13 @@ export function SessionManager({
             )}
 
             {loadingSessions ? (
-              <div className="text-center py-8 text-muted-foreground">
-                {t('common.loading')}
-              </div>
+              <DialogBodyLoading label={t('common.loading')} />
             ) : sessions.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-sm">{t('chat.noSessions')}</p>
-                <p className="text-xs mt-2">{t('chat.createToStart')}</p>
-              </div>
+              <EmptyState
+                icon={MessageSquare}
+                title={t('chat.noSessions')}
+                description={t('chat.createToStart')}
+              />
             ) : (
               <div className="space-y-2 pb-4">
                 {sessions.map((session) => (
@@ -202,6 +202,7 @@ export function SessionManager({
                               variant="ghost"
                               className="h-6 w-6 p-0"
                               onClick={() => handleStartEdit(session)}
+                              aria-label={t('common.edit')}
                             >
                               <Edit2 className="h-3 w-3" />
                             </Button>
@@ -210,6 +211,7 @@ export function SessionManager({
                               variant="ghost"
                               className="h-6 w-6 p-0"
                               onClick={() => setDeleteConfirmId(session.id)}
+                              aria-label={t('common.delete')}
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>

@@ -5,6 +5,7 @@ import { MessageSquare } from 'lucide-react'
 import { PageError } from '@/components/common/PageError'
 import { useProjectChat } from '@/lib/hooks/useProjectChat'
 import { ChatPanel } from '@/components/source/ChatPanel'
+import { bindProjectChatPanelProps } from '@/components/source/bindChatPanelProps'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 import type { ContextSelections } from '@/lib/types/project-context'
@@ -124,49 +125,16 @@ export function ChatColumn({
   } else {
     content = (
       <ChatPanel
-        title={chatTitle}
-        contextType="project"
-        messages={chat.messages}
-        isStreaming={chat.isSending}
-        isDirectStreaming={chat.isDirectSending}
-        streamStatus={chat.streamStatus}
-        activityLog={chat.activityLog}
-        contextIndicators={null}
-        onSendMessage={(message, modelOverride) => chat.sendMessage(message, modelOverride)}
-        onEnqueueMessage={chat.enqueueMessage}
-        onEditMessage={(messageId, content, modelOverride) =>
-          chat.editAndResend(messageId, content, modelOverride)
-        }
-        historyEditDisabled={chat.queueHasWork}
-        queue={chat.queue}
-        onPauseQueue={chat.pauseQueue}
-        onResumeQueue={chat.resumeQueue}
-        onEditQueueItem={chat.editQueueItem}
-        onDeleteQueueItem={chat.deleteQueueItem}
-        onRetryQueueItem={chat.retryQueueItem}
-        onReorderQueue={chat.reorderQueue}
-        modelOverride={chat.currentSession?.model_override ?? chat.pendingModelOverride ?? undefined}
-        onModelChange={(model) => chat.setModelOverride(model ?? null)}
-        sessions={chat.sessions}
-        currentSessionId={chat.currentSessionId}
-        onCreateSession={(title) => chat.createSession(title)}
-        onSelectSession={chat.switchSession}
-        onUpdateSession={(sessionId, title) => chat.updateSession(sessionId, { title })}
-        onDeleteSession={chat.deleteSession}
-        loadingSessions={chat.loadingSessions || notesLoading}
-        projectContextStats={contextStats}
-        projectId={projectId}
-        selectedSkillIds={chat.selectedSkillIds}
-        onSkillIdsChange={chat.setSelectedSkillIds}
-        selectedHtmlTemplateId={chat.selectedHtmlTemplateId}
-        onHtmlTemplateIdChange={chat.setSelectedHtmlTemplateId}
-        selectedMcpToolIds={chat.selectedMcpToolIds}
-        onMcpToolIdsChange={chat.setSelectedMcpToolIds}
-        liveMcpToolCalls={chat.liveMcpToolCalls}
-        activeArtifact={activeArtifact}
-        noteSaveTitle={activeArtifact?.title}
-        artifactPrefillKey={artifactRunKey}
-        headerActions={collapseButton}
+        {...bindProjectChatPanelProps(chat, {
+          title: chatTitle,
+          loadingSessions: chat.loadingSessions || notesLoading,
+          projectContextStats: contextStats,
+          projectId,
+          activeArtifact,
+          noteSaveTitle: activeArtifact?.title,
+          artifactPrefillKey: artifactRunKey,
+          headerActions: collapseButton,
+        })}
       />
     )
   }

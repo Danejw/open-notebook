@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { ChatPanel } from '@/components/source/ChatPanel'
+import { bindSharedProjectChatPanelProps } from '@/components/source/bindChatPanelProps'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProject } from '@/lib/hooks/use-projects'
 import { useProjectChat } from '@/lib/hooks/useProjectChat'
@@ -103,24 +104,12 @@ export default function SharedProjectChatPage() {
   return (
     <div className="flex h-dvh w-full flex-col bg-background">
       <ChatPanel
-        title={project?.name || t('share.chatTitle')}
-        contextType="project"
-        projectId={projectId}
-        guestKey={guestKey || null}
-        variant="immersive"
-        messages={chat.messages}
-        isStreaming={chat.isSending}
-        streamStatus={chat.streamStatus}
-        activityLog={chat.activityLog}
-        contextIndicators={null}
-        onSendMessage={(message) => {
-          void chat.sendMessage(message)
-        }}
-        onEditMessage={(messageId, content) => {
-          void chat.editAndResend(messageId, content)
-        }}
-        currentSessionId={chat.currentSessionId}
-        loadingSessions={chat.loadingSessions}
+        {...bindSharedProjectChatPanelProps(chat, {
+          title: project?.name || t('share.chatTitle'),
+          projectId,
+          guestKey: guestKey || null,
+          variant: 'immersive',
+        })}
       />
     </div>
   )

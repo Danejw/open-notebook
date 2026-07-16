@@ -25,14 +25,14 @@ import { ChatPanelMessages } from '@/components/source/ChatPanelMessages'
 import { ChatContextStrip } from '@/components/source/ChatContextStrip'
 import { ChatComposer } from '@/components/source/ChatComposer'
 
-interface ProjectContextStats {
+export interface ProjectContextStats {
   sourcesFull: number
   notesCount: number
   tokenCount?: number
   charCount?: number
 }
 
-interface ChatPanelProps {
+export interface ChatPanelProps {
   messages: SourceChatMessage[]
   isStreaming: boolean
   /**

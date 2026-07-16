@@ -134,11 +134,10 @@ export function ModelSelector({
   const selectId = id || derivedId
 
   const isLoading = isLoadingProp ?? fetchedLoading
-  const allModels = modelsProp ?? fetchedModels ?? []
-  const filteredModels = useMemo(
-    () => allModels.filter((model) => model.type === modelType),
-    [allModels, modelType]
-  )
+  const filteredModels = useMemo(() => {
+    const allModels = modelsProp ?? fetchedModels ?? []
+    return allModels.filter((model) => model.type === modelType)
+  }, [modelsProp, fetchedModels, modelType])
 
   const resolvedInvalid =
     invalid ||

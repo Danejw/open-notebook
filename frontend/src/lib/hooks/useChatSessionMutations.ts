@@ -21,12 +21,13 @@ export interface UseChatSessionMutationsOptions<
   TSession extends { id: string },
   TCreateData,
   TUpdateData,
+  TMessage,
 > {
   sessionsQueryKey: QueryKey
   sessionQueryKey: (sessionId: string) => QueryKey
   currentSessionId: string | null
   setCurrentSessionId: Dispatch<SetStateAction<string | null>>
-  setMessages: Dispatch<SetStateAction<unknown[]>>
+  setMessages: Dispatch<SetStateAction<TMessage[]>>
   api: ChatSessionMutationsAdapter<TSession, TCreateData, TUpdateData>
   /** When false, suppress success toast on create (project sharedMode). Default true. */
   toastOnCreate?: boolean
@@ -39,6 +40,7 @@ export function useChatSessionMutations<
   TSession extends { id: string },
   TCreateData,
   TUpdateData,
+  TMessage,
 >({
   sessionsQueryKey,
   sessionQueryKey,
@@ -47,7 +49,7 @@ export function useChatSessionMutations<
   setMessages,
   api,
   toastOnCreate = true,
-}: UseChatSessionMutationsOptions<TSession, TCreateData, TUpdateData>) {
+}: UseChatSessionMutationsOptions<TSession, TCreateData, TUpdateData, TMessage>) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
 

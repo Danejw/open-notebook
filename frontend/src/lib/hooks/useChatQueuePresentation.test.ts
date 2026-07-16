@@ -65,7 +65,7 @@ describe('useChatQueuePresentation', () => {
 
     const { result } = renderHook(() =>
       useChatQueuePresentation({
-        messages: [{ id: 'm-1', content: 'hello' }],
+        messages: [{ id: 'm-1', type: 'human', content: 'hello' }],
         queue,
         streamStatus: 'Thinking',
         activityLog: ['live'],

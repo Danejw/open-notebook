@@ -322,7 +322,6 @@ export function useProjectChat({
   )
 
   const { sendMessage, isSending } = useChatSendTurn<ProjectChatMessage>({
-    currentSessionId,
     messages,
     setMessages,
     refetchCurrentSession,

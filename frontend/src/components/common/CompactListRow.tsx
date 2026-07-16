@@ -23,12 +23,14 @@ function useCompactListRowContext() {
   return useContext(CompactListRowContext)
 }
 
-interface CompactListRowProps extends ComponentPropsWithoutRef<'div'> {
+interface CompactListRowProps {
   href?: string
   as?: ElementType
   align?: CompactListRowAlign
   hover?: boolean
+  className?: string
   children: ReactNode
+  onClick?: ComponentPropsWithoutRef<'div'>['onClick']
 }
 
 export function CompactListRow({
@@ -38,7 +40,7 @@ export function CompactListRow({
   hover = true,
   className,
   children,
-  ...props
+  onClick,
 }: CompactListRowProps) {
   const rowClassName = cn(
     'group flex gap-2 px-3 py-1.5 transition-colors',
@@ -55,14 +57,14 @@ export function CompactListRow({
 
   if (href) {
     return (
-      <Link href={href} className={rowClassName} {...props}>
+      <Link href={href} className={rowClassName} onClick={onClick as ComponentPropsWithoutRef<'a'>['onClick']}>
         {content}
       </Link>
     )
   }
 
   return (
-    <Tag className={rowClassName} {...props}>
+    <Tag className={rowClassName} onClick={onClick}>
       {content}
     </Tag>
   )

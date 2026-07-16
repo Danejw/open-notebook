@@ -226,7 +226,6 @@ export function useSourceChat(sourceId: string) {
 
   const { sendMessage, isSending: isStreaming, cancelSending } =
     useChatSendTurn<SourceChatMessage>({
-      currentSessionId,
       messages,
       setMessages,
       refetchCurrentSession,

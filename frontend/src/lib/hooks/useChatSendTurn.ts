@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
-import type { QueryClient, QueryKey } from '@tanstack/react-query'
+import type { QueryClient } from '@tanstack/react-query'
 import type { TFunction } from 'i18next'
 import { toast } from 'sonner'
 import { readAgUiSseStream } from '@/lib/ag-ui/events'
@@ -21,7 +21,6 @@ import { getApiErrorMessage } from '@/lib/utils/error-handler'
 import { QUERY_KEYS } from '@/lib/api/query-client'
 
 export interface UseChatSendTurnOptions<TMessage extends ChatStreamMessage> {
-  currentSessionId: string | null
   messages: TMessage[]
   setMessages: Dispatch<SetStateAction<TMessage[]>>
   refetchCurrentSession: () => Promise<unknown>
@@ -38,7 +37,7 @@ export interface UseChatSendTurnOptions<TMessage extends ChatStreamMessage> {
     message: string
     modelOverride?: string
     editMessageId?: string
-  }) => Promise<unknown>
+  }) => Promise<ReadableStream<Uint8Array>>
 
   sseHandlerOptions?: AgUiSseHandlerOptions
   getAbortSignal?: () => AbortSignal | undefined
@@ -60,7 +59,6 @@ export interface UseChatSendTurnOptions<TMessage extends ChatStreamMessage> {
  * error recovery, and deferred queue runner ensure.
  */
 export function useChatSendTurn<TMessage extends ChatStreamMessage>({
-  currentSessionId,
   messages,
   setMessages,
   refetchCurrentSession,

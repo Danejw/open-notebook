@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Save, Copy, Check, Sparkles, FileCode2, Download } from 'lucide-react'
+import { Copy, Check, Sparkles, FileCode2, Download } from 'lucide-react'
 import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
 import { useCreateNote } from '@/lib/hooks/use-notes'
 import { htmlDocumentsApi } from '@/lib/api/html-documents'
@@ -54,7 +54,7 @@ export function MessageActions({
     return restoreTemplateMedia(raw, templateBody)
   }
 
-  const handleSave = (asArtifact: boolean) => {
+  const handleSaveAsArtifact = () => {
     if (!projectId) {
       toast.error(t('sources.cannotSaveNoteNoProject'))
       return
@@ -62,9 +62,9 @@ export function MessageActions({
 
     createNote.mutate({
       content,
-      note_type: asArtifact ? 'artifact' : 'ai',
+      note_type: 'artifact',
       project_id: projectId,
-      title: asArtifact ? noteTitle : undefined,
+      title: noteTitle,
     })
   }
 
@@ -164,27 +164,7 @@ export function MessageActions({
                   variant="ghost"
                   size="sm"
                   className="h-6 w-6 p-0"
-                  onClick={() => handleSave(false)}
-                  disabled={busy}
-                >
-                  {createNote.isPending ? (
-                    <InlineSkeleton className="h-3 w-3" />
-                  ) : (
-                    <Save className="h-3 w-3" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{t('common.saveToNote')}</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0"
-                  onClick={() => handleSave(true)}
+                  onClick={handleSaveAsArtifact}
                   disabled={busy}
                 >
                   {createNote.isPending ? (

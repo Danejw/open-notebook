@@ -6,6 +6,7 @@ Importing this package registers ObjectModel subclasses for polymorphic get().
 """
 
 from construction_os.domain.artifact import Artifact, DefaultPrompts
+from construction_os.domain.collection import Collection, CollectionItem
 from construction_os.domain.base import ObjectModel, RecordModel
 from construction_os.domain.chat_queue import (
     ChatQueue,
@@ -37,6 +38,8 @@ __all__ = [
     "Artifact",
     "Asset",
     "ChatSession",
+    "Collection",
+    "CollectionItem",
     "ChatQueue",
     "ChatQueueItem",
     "ChatQueueRepository",

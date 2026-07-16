@@ -31,6 +31,7 @@ def _artifact_response(artifact: Artifact) -> ArtifactResponse:
         apply_default=artifact.apply_default,
         lifecycle_phase=artifact.lifecycle_phase,
         skill_ids=list(artifact.skill_ids or []),
+        collection_ids=list(artifact.collection_ids or []),
         mcp_tool_ids=list(artifact.mcp_tool_ids or []),
         html_template_id=artifact.html_template_id,
         created=str(artifact.created),
@@ -63,6 +64,7 @@ async def create_artifact(artifact_data: ArtifactCreate):
             apply_default=artifact_data.apply_default,
             lifecycle_phase=artifact_data.lifecycle_phase,
             skill_ids=artifact_data.skill_ids,
+            collection_ids=artifact_data.collection_ids,
             mcp_tool_ids=artifact_data.mcp_tool_ids,
             html_template_id=artifact_data.html_template_id,
         )
@@ -189,6 +191,8 @@ async def update_artifact(artifact_id: str, artifact_update: ArtifactUpdate):
             artifact.lifecycle_phase = artifact_update.lifecycle_phase
         if artifact_update.skill_ids is not None:
             artifact.skill_ids = artifact_update.skill_ids
+        if artifact_update.collection_ids is not None:
+            artifact.collection_ids = artifact_update.collection_ids
         if artifact_update.mcp_tool_ids is not None:
             artifact.mcp_tool_ids = artifact_update.mcp_tool_ids
         if "html_template_id" in artifact_update.model_fields_set:

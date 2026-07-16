@@ -27,6 +27,10 @@ from construction_os.graphs.a2ui_emit import (
     is_a2ui_chat_enabled,
 )
 from construction_os.mcp.chat_loop import generate_with_mcp_tools
+from construction_os.collections.loader import (
+    format_collections_context,
+    load_one_collection_block,
+)
 from construction_os.skills.loader import (
     format_skills_context,
     load_one_skill_md,
@@ -46,6 +50,8 @@ class ThreadState(TypedDict):
     model_override: Optional[str]
     skills_context: Optional[str]
     skill_ids: Optional[list]
+    collections_context: Optional[str]
+    collection_ids: Optional[list]
     mcp_tool_ids: Optional[list]
     strict_mcp_tools: bool
     session_id: Optional[str]
@@ -129,9 +135,19 @@ def _context_counts(context: Optional[str | dict], formatted: Optional[str]) -> 
 
 def route_from_start(
     state: ThreadState,
-) -> Literal["loading_skills", "retrieving_context"]:
+) -> Literal["loading_skills", "loading_collections", "retrieving_context"]:
     if state.get("skill_ids"):
         return "loading_skills"
+    if state.get("collection_ids"):
+        return "loading_collections"
+    return "retrieving_context"
+
+
+def route_after_skills(
+    state: ThreadState,
+) -> Literal["loading_collections", "retrieving_context"]:
+    if state.get("collection_ids"):
+        return "loading_collections"
     return "retrieving_context"
 
 
@@ -177,6 +193,55 @@ def loading_skills(state: ThreadState, config: RunnableConfig) -> dict:
             )
 
         return {"skills_context": format_skills_context(blocks) or None}
+    except ConstructionOSError:
+        raise
+    except Exception as e:
+        error_class, user_message = classify_error(e)
+        raise error_class(user_message) from e
+
+
+def loading_collections(state: ThreadState, config: RunnableConfig) -> dict:
+    """Load selected collection manifests and URL items with progress events."""
+    try:
+        collection_ids = list(state.get("collection_ids") or [])
+        total = len(collection_ids)
+        emit_agent_progress(
+            "started",
+            "loading_collections",
+            {"collectionTotal": total},
+            config,
+        )
+        if not collection_ids:
+            return {"collections_context": None}
+
+        blocks: list[str] = []
+        for index, collection_id in enumerate(collection_ids, start=1):
+            emit_agent_progress(
+                "progress",
+                "loading_collections",
+                {
+                    "collectionId": collection_id,
+                    "collectionIndex": index,
+                    "collectionTotal": total,
+                },
+                config,
+            )
+            loaded = _run_async(load_one_collection_block(collection_id))
+            blocks.append(loaded["block"])
+            emit_agent_progress(
+                "completed",
+                "loading_collections",
+                {
+                    "collectionId": loaded.get("id") or collection_id,
+                    "collectionName": loaded["name"],
+                    "collectionIndex": index,
+                    "collectionTotal": total,
+                    "charCount": loaded.get("char_count", 0),
+                },
+                config,
+            )
+
+        return {"collections_context": format_collections_context(blocks) or None}
     except ConstructionOSError:
         raise
     except Exception as e:
@@ -317,14 +382,20 @@ def generating(state: ThreadState, config: RunnableConfig) -> dict:
 
 agent_state = StateGraph(ThreadState)
 agent_state.add_node("loading_skills", loading_skills)
+agent_state.add_node("loading_collections", loading_collections)
 agent_state.add_node("retrieving_context", retrieving_context)
 agent_state.add_node("generating", generating)
 agent_state.add_conditional_edges(
     START,
     route_from_start,
-    ["loading_skills", "retrieving_context"],
+    ["loading_skills", "loading_collections", "retrieving_context"],
 )
-agent_state.add_edge("loading_skills", "retrieving_context")
+agent_state.add_conditional_edges(
+    "loading_skills",
+    route_after_skills,
+    ["loading_collections", "retrieving_context"],
+)
+agent_state.add_edge("loading_collections", "retrieving_context")
 agent_state.add_edge("retrieving_context", "generating")
 agent_state.add_edge("generating", END)
 

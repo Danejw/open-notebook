@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react'
 import { InlineSkeleton, ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
+import { PickerSelectRow } from '@/components/common/PickerSelectRow'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -209,38 +210,30 @@ export function DiscoverModelsDialog({
               </div>
             )}
 
-            <div className="space-y-1">
+            <div className="divide-y rounded-md border">
               {filteredModels.map((model) => (
-                <label
+                <PickerSelectRow
                   key={model.name}
-                  className="flex items-center gap-2 p-1.5 rounded hover:bg-muted cursor-pointer text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedModels.has(model.name)}
-                    onChange={() => toggleModel(model.name)}
-                    className="rounded"
-                  />
-                  <span className="truncate">{model.name}</span>
-                  {model.description && model.description !== model.name && (
-                    <span className="text-xs text-muted-foreground truncate">({model.description})</span>
-                  )}
-                </label>
+                  id={`discover-${model.name}`}
+                  title={model.name}
+                  description={
+                    model.description && model.description !== model.name
+                      ? model.description
+                      : undefined
+                  }
+                  checked={selectedModels.has(model.name)}
+                  onCheckedChange={() => toggleModel(model.name)}
+                />
               ))}
 
               {showCustomOption && (
-                <label className={`flex items-center gap-2 p-1.5 rounded hover:bg-muted cursor-pointer text-sm${filteredModels.length > 0 ? ' border-t mt-1 pt-2' : ''}`}>
-                  <input
-                    type="checkbox"
-                    checked={customModelSelected}
-                    onChange={() => setCustomModelSelected(prev => !prev)}
-                    className="rounded"
-                  />
-                  <Plus className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span className="truncate">
-                    {t('models.addCustomModel').replace('{name}', searchQuery.trim())}
-                  </span>
-                </label>
+                <PickerSelectRow
+                  id="discover-custom-model"
+                  title={t('models.addCustomModel').replace('{name}', searchQuery.trim())}
+                  leading={<Plus className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                  checked={customModelSelected}
+                  onCheckedChange={(checked) => setCustomModelSelected(checked)}
+                />
               )}
 
               {filteredModels.length === 0 && !showCustomOption && (

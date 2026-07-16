@@ -10,7 +10,7 @@ import { AlertCircle, Wand2 } from 'lucide-react'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { useUpdateModelDefaults, useAutoAssignDefaults } from '@/lib/hooks/use-models'
 import { Model, ModelDefaults } from '@/lib/types/models'
-import { ModelSelector } from '@/components/common/ModelSelector'
+import { ModelPickerField } from '@/components/common/ModelPickerField'
 import { EmbeddingModelChangeDialog } from '@/components/settings/EmbeddingModelChangeDialog'
 import { ModelType } from '@/components/settings/apiKeysShared'
 
@@ -128,20 +128,19 @@ export function DefaultModelSelectors({
             const isValid = currentValue && available.some(m => m.id === currentValue)
 
             return (
-              <ModelSelector
+              <ModelPickerField
                 key={config.key}
                 id={config.id}
                 label={config.label}
                 labelClassName="text-xs"
                 modelType={config.modelType}
                 models={models}
-                value={currentValue}
-                onChange={(v) => handleChange(config.key, v)}
+                value={currentValue || null}
+                onChange={(v) => handleChange(config.key, v ?? '')}
                 size="compact"
                 required={config.required}
                 invalid={Boolean(config.required && !isValid && available.length > 0)}
                 allowClear={!config.required}
-                onClear={() => handleChange(config.key, '')}
                 sortByName
                 placeholder={
                   config.required && !isValid && available.length > 0
@@ -162,20 +161,19 @@ export function DefaultModelSelectors({
                 const isValid = currentValue && available.some(m => m.id === currentValue)
 
                 return (
-                  <ModelSelector
+                  <ModelPickerField
                     key={config.key}
                     id={config.id}
                     label={config.label}
                     labelClassName="text-xs"
                     modelType={config.modelType}
                     models={models}
-                    value={currentValue}
-                    onChange={(v) => handleChange(config.key, v)}
+                    value={currentValue || null}
+                    onChange={(v) => handleChange(config.key, v ?? '')}
                     size="compact"
                     required={config.required}
                     invalid={Boolean(config.required && !isValid && available.length > 0)}
                     allowClear={!config.required}
-                    onClear={() => handleChange(config.key, '')}
                     sortByName
                     description={config.description}
                     placeholder={

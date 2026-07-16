@@ -1,26 +1,30 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { FileCode2, Pencil, Trash2, Upload } from 'lucide-react'
+import { toast } from 'sonner'
 import { PageHeader, pageContentClassName, pageSectionGapClassName } from '@/components/layout/PageHeader'
 import { PageRefreshButton } from '@/components/layout/PageRefreshButton'
 import { EmptyState } from '@/components/common/EmptyState'
-import { ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { FormDialogShell } from '@/components/common/FormDialogShell'
+import { ResourceList } from '@/components/common/ResourceList'
+import { settleBulkActions } from '@/components/common/bulk-settle'
+import { TemplateHtmlPreview } from '@/components/templates/TemplateHtmlPreview'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ConfirmDialog } from '@/components/common/ConfirmDialog'
-import { FormDialogShell } from '@/components/common/FormDialogShell'
-import { TemplateHtmlPreview } from '@/components/templates/TemplateHtmlPreview'
 import {
   useCreateHtmlTemplate,
-  useDeleteHtmlTemplate,
   useHtmlTemplates,
   useUpdateHtmlTemplate,
 } from '@/lib/hooks/use-html-documents'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import type { HtmlTemplate } from '@/lib/types/html-documents'
+import { htmlDocumentsApi } from '@/lib/api/html-documents'
+import { QUERY_KEYS } from '@/lib/api/query-client'
 import {
   CompactListRow,
   CompactListRowActions,
@@ -34,15 +38,17 @@ import {
 export default function TemplatesPage() {
   const { t } = useTranslation()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const queryClient = useQueryClient()
   const { data: templates = [], isLoading, refetch } = useHtmlTemplates()
   const createTemplate = useCreateHtmlTemplate()
   const updateTemplate = useUpdateHtmlTemplate()
-  const deleteTemplate = useDeleteHtmlTemplate()
 
   const [uploading, setUploading] = useState(false)
   const [renaming, setRenaming] = useState<HtmlTemplate | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [deleting, setDeleting] = useState<HtmlTemplate | null>(null)
+  const [bulkDeleteIds, setBulkDeleteIds] = useState<string[] | null>(null)
+  const [bulkBusy, setBulkBusy] = useState(false)
 
   const handleUpload = async (file: File | undefined) => {
     if (!file) return
@@ -82,8 +88,29 @@ export default function TemplatesPage() {
 
   const handleDeleteConfirm = async () => {
     if (!deleting) return
-    await deleteTemplate.mutateAsync(deleting.id)
+    await htmlDocumentsApi.deleteTemplate(deleting.id)
+    await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.htmlTemplates })
     setDeleting(null)
+  }
+
+  const handleBulkDeleteConfirm = async () => {
+    if (!bulkDeleteIds?.length) return
+    setBulkBusy(true)
+    try {
+      const { succeeded, failed } = await settleBulkActions(bulkDeleteIds, (id) =>
+        htmlDocumentsApi.deleteTemplate(id)
+      )
+      if (failed > 0) {
+        toast.error(t('common.bulkPartial').replace('{failed}', failed.toString()))
+      }
+      if (succeeded > 0) {
+        toast.success(t('common.bulkSuccess').replace('{count}', succeeded.toString()))
+      }
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.htmlTemplates })
+      setBulkDeleteIds(null)
+    } finally {
+      setBulkBusy(false)
+    }
   }
 
   return (
@@ -114,23 +141,46 @@ export default function TemplatesPage() {
           }
         />
 
-        {isLoading ? (
-          <ListRowsSkeleton rows={4} withHeader={false} />
-        ) : templates.length === 0 ? (
-          <EmptyState icon={FileCode2} title={t('templates.emptyTemplates')} />
-        ) : (
-          <ul className="divide-y rounded-md border">
-            {templates.map((template) => (
-              <CompactListRow key={template.id} as="li" hover={false}>
-                <CompactListRowIcon>
-                  <FileCode2 aria-hidden />
-                </CompactListRowIcon>
-                <CompactListRowContent>
-                  <CompactListRowTitleRow>
-                    <CompactListRowTitle className="leading-snug">{template.name}</CompactListRowTitle>
-                  </CompactListRowTitleRow>
-                  <CompactListRowMeta className="leading-tight">{template.category}</CompactListRowMeta>
-                </CompactListRowContent>
+        <ResourceList
+          title={t('templates.title')}
+          items={templates}
+          getItemId={(template) => template.id}
+          isLoading={isLoading}
+          empty={<EmptyState icon={FileCode2} title={t('templates.emptyTemplates')} />}
+          formatSelectedCount={(count) =>
+            t('common.selectedItems').replace('{count}', count.toString())
+          }
+          bulkActions={({ selectedIds }) => (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 text-destructive hover:text-destructive"
+              disabled={bulkBusy || selectedIds.length === 0}
+              onClick={() => setBulkDeleteIds(selectedIds)}
+            >
+              <Trash2 className="mr-1 h-3.5 w-3.5" />
+              {t('common.bulkDelete')}
+            </Button>
+          )}
+          renderItem={(template, ctx) => (
+            <CompactListRow
+              as="div"
+              hover={!ctx.selectionMode}
+              onClick={
+                ctx.selectionMode ? () => ctx.onToggle(!ctx.selected) : undefined
+              }
+            >
+              <CompactListRowIcon>
+                <FileCode2 aria-hidden />
+              </CompactListRowIcon>
+              <CompactListRowContent>
+                <CompactListRowTitleRow>
+                  <CompactListRowTitle className="leading-snug">{template.name}</CompactListRowTitle>
+                </CompactListRowTitleRow>
+                <CompactListRowMeta className="leading-tight">{template.category}</CompactListRowMeta>
+              </CompactListRowContent>
+              {!ctx.selectionMode ? (
                 <CompactListRowActions>
                   <Button
                     size="sm"
@@ -151,10 +201,10 @@ export default function TemplatesPage() {
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </CompactListRowActions>
-              </CompactListRow>
-            ))}
-          </ul>
-        )}
+              ) : null}
+            </CompactListRow>
+          )}
+        />
 
         <details className="rounded-md border border-dashed text-xs">
           <summary className="cursor-pointer select-none px-3 py-1.5 font-medium">
@@ -215,7 +265,22 @@ export default function TemplatesPage() {
         confirmText={t('common.delete')}
         confirmVariant="destructive"
         onConfirm={() => void handleDeleteConfirm()}
-        isLoading={deleteTemplate.isPending}
+      />
+
+      <ConfirmDialog
+        open={Boolean(bulkDeleteIds?.length)}
+        onOpenChange={(open) => {
+          if (!open) setBulkDeleteIds(null)
+        }}
+        title={t('common.delete')}
+        description={t('common.bulkDeleteConfirm').replace(
+          '{count}',
+          String(bulkDeleteIds?.length ?? 0)
+        )}
+        confirmText={t('common.delete')}
+        confirmVariant="destructive"
+        onConfirm={() => void handleBulkDeleteConfirm()}
+        isLoading={bulkBusy}
       />
     </div>
   )

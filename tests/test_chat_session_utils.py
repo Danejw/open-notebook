@@ -9,6 +9,7 @@ from construction_os.utils.chat_session import (
     hydrate_langgraph_messages,
     normalize_chat_session_id,
     normalize_source_id,
+    resolve_session_collection_ids,
     resolve_session_html_template_id,
     resolve_session_skill_ids,
     session_record_fields,
@@ -61,6 +62,7 @@ def test_session_record_fields_defaults():
         title=None,
         model_override="gpt-test",
         skill_ids=None,
+        collection_ids=["collection:abc"],
         html_template_id="html_template:t1",
         created="2026-01-01",
         updated="2026-01-02",
@@ -69,6 +71,7 @@ def test_session_record_fields_defaults():
     assert fields["id"] == "chat_session:1"
     assert fields["title"] == "Untitled Session"
     assert fields["skill_ids"] == []
+    assert fields["collection_ids"] == ["collection:abc"]
     assert fields["html_template_id"] == "html_template:t1"
 
 
@@ -82,6 +85,19 @@ def test_resolve_session_skill_ids_from_request():
 def test_resolve_session_skill_ids_from_session():
     session = SimpleNamespace(skill_ids=["stored"])
     resolved = resolve_session_skill_ids(session, None)
+    assert resolved == ["stored"]
+
+
+def test_resolve_session_collection_ids_from_request():
+    session = SimpleNamespace(collection_ids=["old"])
+    resolved = resolve_session_collection_ids(session, ["new"])
+    assert resolved == ["new"]
+    assert session.collection_ids == ["new"]
+
+
+def test_resolve_session_collection_ids_from_session():
+    session = SimpleNamespace(collection_ids=["stored"])
+    resolved = resolve_session_collection_ids(session, None)
     assert resolved == ["stored"]
 
 

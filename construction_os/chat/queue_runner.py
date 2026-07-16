@@ -33,6 +33,7 @@ from construction_os.domain.project import (
     Source,
     get_project_scope_ids,
 )
+from construction_os.domain.collection import Collection
 from construction_os.domain.skill import Skill
 from construction_os.exceptions import NotFoundError
 from construction_os.graphs import chat as chat_graph_module
@@ -258,6 +259,7 @@ class QueueExecutionResolver:
         snapshot = dict(item.execution_snapshot or {})
         model_id = snapshot.get("model_id")
         skill_ids = _snapshot_list(snapshot, "skill_ids")
+        collection_ids = _snapshot_list(snapshot, "collection_ids")
         tool_ids = _snapshot_list(snapshot, "tool_ids")
         html_template_id = snapshot.get("html_template_id")
         artifact_id = snapshot.get("artifact_id")
@@ -273,12 +275,14 @@ class QueueExecutionResolver:
                     f"Model '{model_id}' is not a language model"
                 )
         await self._validate_skills(skill_ids)
+        await self._validate_collections(collection_ids)
         await self._validate_tools(tool_ids)
         html_template = await self._resolve_template(html_template_id)
 
         common = {
             "model_override": model_id,
             "skill_ids": skill_ids,
+            "collection_ids": collection_ids,
             "mcp_tool_ids": tool_ids,
             "strict_mcp_tools": True,
             "session_id": chat_session_id,
@@ -353,6 +357,16 @@ class QueueExecutionResolver:
             skill = await _required_resource(Skill.get, skill_id, "Skill")
             if getattr(skill, "archived", False):
                 raise QueueItemValidationError(f"Skill '{skill_id}' is archived")
+
+    async def _validate_collections(self, collection_ids: list[str]) -> None:
+        for collection_id in collection_ids:
+            collection = await _required_resource(
+                Collection.get, collection_id, "Collection"
+            )
+            if getattr(collection, "archived", False):
+                raise QueueItemValidationError(
+                    f"Collection '{collection_id}' is archived"
+                )
 
     async def _validate_tools(self, tool_ids: list[str]) -> None:
         for tool_id in tool_ids:

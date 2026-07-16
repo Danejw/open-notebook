@@ -9,6 +9,7 @@ import { useTranslation } from '@/lib/hooks/use-translation'
 
 export interface ChatSessionSkillSnapshot {
   skill_ids?: string[] | null
+  collection_ids?: string[] | null
   html_template_id?: string | null
 }
 
@@ -21,7 +22,11 @@ export interface UseChatSkillSelectionOptions {
   sessionQueryKey: (sessionId: string) => QueryKey
   persistSession: (
     sessionId: string,
-    data: { skill_ids?: string[]; html_template_id?: string | null }
+    data: {
+      skill_ids?: string[]
+      collection_ids?: string[]
+      html_template_id?: string | null
+    }
   ) => Promise<unknown>
 }
 
@@ -43,6 +48,8 @@ export function useChatSkillSelection({
 
   const [selectedSkillIds, setSelectedSkillIdsState] = useState<string[]>([])
   const [pendingSkillIds, setPendingSkillIds] = useState<string[] | null>(null)
+  const [selectedCollectionIds, setSelectedCollectionIdsState] = useState<string[]>([])
+  const [pendingCollectionIds, setPendingCollectionIds] = useState<string[] | null>(null)
   const [selectedHtmlTemplateId, setSelectedHtmlTemplateIdState] = useState<
     string | null
   >(null)
@@ -54,14 +61,17 @@ export function useChatSkillSelection({
   )
 
   const selectedSkillIdsRef = useRef(selectedSkillIds)
+  const selectedCollectionIdsRef = useRef(selectedCollectionIds)
   const selectedHtmlTemplateIdRef = useRef(selectedHtmlTemplateId)
   const selectedMcpToolIdsRef = useRef(selectedMcpToolIds)
   selectedSkillIdsRef.current = selectedSkillIds
+  selectedCollectionIdsRef.current = selectedCollectionIds
   selectedHtmlTemplateIdRef.current = selectedHtmlTemplateId
   selectedMcpToolIdsRef.current = selectedMcpToolIds
 
   const clearPending = useCallback(() => {
     setPendingSkillIds(null)
+    setPendingCollectionIds(null)
     setPendingHtmlTemplateId(undefined)
   }, [])
 
@@ -69,12 +79,14 @@ export function useChatSkillSelection({
   useEffect(() => {
     if (disabled) {
       setSelectedSkillIdsState([])
+      setSelectedCollectionIdsState([])
       setSelectedMcpToolIdsState([])
       setSelectedHtmlTemplateIdState(null)
       return
     }
     if (!currentSessionId) {
       setSelectedSkillIdsState(pendingSkillIds ?? [])
+      setSelectedCollectionIdsState(pendingCollectionIds ?? [])
       setSelectedHtmlTemplateIdState(
         pendingHtmlTemplateId === undefined ? null : pendingHtmlTemplateId
       )
@@ -83,17 +95,22 @@ export function useChatSkillSelection({
     if (pendingSkillIds !== null) {
       setPendingSkillIds(null)
     }
+    if (pendingCollectionIds !== null) {
+      setPendingCollectionIds(null)
+    }
     if (pendingHtmlTemplateId !== undefined) {
       setPendingHtmlTemplateId(undefined)
     }
     if (currentSession) {
       setSelectedSkillIdsState(currentSession.skill_ids ?? [])
+      setSelectedCollectionIdsState(currentSession.collection_ids ?? [])
       setSelectedHtmlTemplateIdState(currentSession.html_template_id ?? null)
     }
   }, [
     currentSession,
     currentSessionId,
     disabled,
+    pendingCollectionIds,
     pendingHtmlTemplateId,
     pendingSkillIds,
   ])
@@ -101,7 +118,11 @@ export function useChatSkillSelection({
   const persistField = useCallback(
     async (
       sessionId: string,
-      data: { skill_ids?: string[]; html_template_id?: string | null }
+      data: {
+        skill_ids?: string[]
+        collection_ids?: string[]
+        html_template_id?: string | null
+      }
     ) => {
       try {
         await persistSession(sessionId, data)
@@ -145,6 +166,25 @@ export function useChatSkillSelection({
     [currentSessionId, disabled, persistField]
   )
 
+  const setSelectedCollectionIds = useCallback(
+    (ids: string[]) => {
+      if (disabled) {
+        selectedCollectionIdsRef.current = []
+        setSelectedCollectionIdsState([])
+        return
+      }
+      selectedCollectionIdsRef.current = ids
+      setSelectedCollectionIdsState(ids)
+      if (currentSessionId) {
+        void persistField(currentSessionId, { collection_ids: ids })
+        setPendingCollectionIds(null)
+      } else {
+        setPendingCollectionIds(ids)
+      }
+    },
+    [currentSessionId, disabled, persistField]
+  )
+
   const setSelectedHtmlTemplateId = useCallback(
     (id: string | null) => {
       if (disabled) {
@@ -179,17 +219,21 @@ export function useChatSkillSelection({
 
   const clearPendingOnSessionCreated = useCallback(() => {
     setPendingSkillIds(null)
+    setPendingCollectionIds(null)
     setPendingHtmlTemplateId(undefined)
   }, [])
 
   return {
     selectedSkillIds,
+    selectedCollectionIds,
     selectedHtmlTemplateId,
     selectedMcpToolIds,
     selectedSkillIdsRef,
+    selectedCollectionIdsRef,
     selectedHtmlTemplateIdRef,
     selectedMcpToolIdsRef,
     setSelectedSkillIds,
+    setSelectedCollectionIds,
     setSelectedHtmlTemplateId,
     setSelectedMcpToolIds,
     clearPending,

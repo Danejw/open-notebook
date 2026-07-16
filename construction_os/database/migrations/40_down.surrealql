@@ -1,0 +1,11 @@
+-- Migration 40 down: Remove collections
+
+REMOVE FIELD IF EXISTS collection_ids ON TABLE chat_session;
+
+REMOVE EVENT IF EXISTS collection_delete ON TABLE collection;
+REMOVE INDEX IF EXISTS idx_collection_item_collection_enabled ON TABLE collection_item;
+REMOVE INDEX IF EXISTS idx_collection_item_collection_item_id ON TABLE collection_item;
+REMOVE TABLE IF EXISTS collection_item;
+
+REMOVE INDEX IF EXISTS idx_collection_slug ON TABLE collection;
+REMOVE TABLE IF EXISTS collection;

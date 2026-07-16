@@ -10,6 +10,7 @@ class Artifact(ObjectModel):
     nullable_fields: ClassVar[set[str]] = {
         "lifecycle_phase",
         "skill_ids",
+        "collection_ids",
         "mcp_tool_ids",
         "html_template_id",
     }
@@ -20,6 +21,7 @@ class Artifact(ObjectModel):
     apply_default: bool
     lifecycle_phase: Optional[str] = None
     skill_ids: Optional[List[str]] = None
+    collection_ids: Optional[List[str]] = None
     mcp_tool_ids: Optional[List[str]] = None
     html_template_id: Optional[str] = None
 

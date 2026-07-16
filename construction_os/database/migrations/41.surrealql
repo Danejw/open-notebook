@@ -1,0 +1,3 @@
+-- Migration 41: artifact chat defaults — collections
+
+DEFINE FIELD IF NOT EXISTS collection_ids ON TABLE artifact TYPE option<array<string>>;

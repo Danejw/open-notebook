@@ -37,6 +37,7 @@ export interface ChatRuntimeDataSource<TSession extends { id: string }> {
 
 export interface ChatRuntimeSendContext<TSession extends ChatRuntimeSessionRecord> {
   selectedSkillIdsRef: RefObject<string[]>
+  selectedCollectionIdsRef: RefObject<string[]>
   selectedHtmlTemplateIdRef: RefObject<string | null>
   selectedMcpToolIdsRef: RefObject<string[]>
   currentSession: TSession | undefined
@@ -86,6 +87,7 @@ export interface ChatRuntimeSessionRecord {
   id: string
   model_override?: string | null
   skill_ids?: string[] | null
+  collection_ids?: string[] | null
   html_template_id?: string | null
   messages?: ChatStreamMessage[]
 }
@@ -104,7 +106,11 @@ export interface UseChatRuntimeOptions<
   skillSelection: {
     persistSession: (
       sessionId: string,
-      data: { skill_ids?: string[]; html_template_id?: string | null }
+      data: {
+        skill_ids?: string[]
+        collection_ids?: string[]
+        html_template_id?: string | null
+      }
     ) => Promise<unknown>
     disabled?: boolean
   }
@@ -251,12 +257,15 @@ export function useChatRuntime<
 
   const {
     selectedSkillIds,
+    selectedCollectionIds,
     selectedHtmlTemplateId,
     selectedMcpToolIds,
     selectedSkillIdsRef,
+    selectedCollectionIdsRef,
     selectedHtmlTemplateIdRef,
     selectedMcpToolIdsRef,
     setSelectedSkillIds,
+    setSelectedCollectionIds,
     setSelectedHtmlTemplateId,
     setSelectedMcpToolIds,
     clearPending,
@@ -289,12 +298,14 @@ export function useChatRuntime<
   const sendContext = useMemo<ChatRuntimeSendContext<TSession>>(
     () => ({
       selectedSkillIdsRef,
+      selectedCollectionIdsRef,
       selectedHtmlTemplateIdRef,
       selectedMcpToolIdsRef,
       currentSession,
     }),
     [
       currentSession,
+      selectedCollectionIdsRef,
       selectedHtmlTemplateIdRef,
       selectedMcpToolIdsRef,
       selectedSkillIdsRef,
@@ -484,12 +495,15 @@ export function useChatRuntime<
     activityLog,
     liveMcpToolCalls,
     selectedSkillIds,
+    selectedCollectionIds,
     selectedHtmlTemplateId,
     selectedMcpToolIds,
     selectedSkillIdsRef,
+    selectedCollectionIdsRef,
     selectedHtmlTemplateIdRef,
     selectedMcpToolIdsRef,
     setSelectedSkillIds,
+    setSelectedCollectionIds,
     setSelectedHtmlTemplateId,
     setSelectedMcpToolIds,
     clearPending,

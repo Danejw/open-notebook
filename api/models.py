@@ -133,6 +133,9 @@ class ArtifactCreate(BaseModel):
     skill_ids: Optional[List[str]] = Field(
         None, description="Skill IDs to append when this artifact is used in chat"
     )
+    collection_ids: Optional[List[str]] = Field(
+        None, description="Collection IDs to append when this artifact is used in chat"
+    )
     mcp_tool_ids: Optional[List[str]] = Field(
         None, description="MCP tool IDs to append when this artifact is used in chat"
     )
@@ -158,6 +161,9 @@ class ArtifactUpdate(BaseModel):
     skill_ids: Optional[List[str]] = Field(
         None, description="Skill IDs to append when this artifact is used in chat"
     )
+    collection_ids: Optional[List[str]] = Field(
+        None, description="Collection IDs to append when this artifact is used in chat"
+    )
     mcp_tool_ids: Optional[List[str]] = Field(
         None, description="MCP tool IDs to append when this artifact is used in chat"
     )
@@ -175,6 +181,7 @@ class ArtifactResponse(BaseModel):
     apply_default: bool
     lifecycle_phase: Optional[str] = None
     skill_ids: List[str] = Field(default_factory=list)
+    collection_ids: List[str] = Field(default_factory=list)
     mcp_tool_ids: List[str] = Field(default_factory=list)
     html_template_id: Optional[str] = None
     created: str
@@ -875,6 +882,7 @@ class ChatQueueExecutionSnapshot(BaseModel):
 
     model_id: Optional[str] = None
     skill_ids: Optional[List[str]] = Field(default_factory=list)
+    collection_ids: Optional[List[str]] = Field(default_factory=list)
     tool_ids: Optional[List[str]] = Field(default_factory=list)
     html_template_id: Optional[str] = None
     artifact_id: Optional[str] = None
@@ -892,6 +900,7 @@ class ChatQueueItemEnqueueRequest(BaseModel):
     loop_count: int = Field(default=1, ge=1, le=10)
     model_id: Optional[str] = None
     skill_ids: Optional[List[str]] = None
+    collection_ids: Optional[List[str]] = None
     tool_ids: List[str] = Field(default_factory=list)
     html_template_id: Optional[str] = None
     artifact_id: Optional[str] = None
@@ -913,6 +922,7 @@ class ChatQueueItemEnqueueRequest(BaseModel):
         *,
         default_model_id: Optional[str] = None,
         default_skill_ids: Optional[List[str]] = None,
+        default_collection_ids: Optional[List[str]] = None,
         default_html_template_id: Optional[str] = None,
     ) -> ChatQueueExecutionSnapshot:
         """Resolve omitted session selectors into one immutable execution snapshot."""
@@ -923,6 +933,11 @@ class ChatQueueItemEnqueueRequest(BaseModel):
             if "skill_ids" in supplied
             else list(default_skill_ids or [])
         )
+        collection_ids = (
+            list(self.collection_ids or [])
+            if "collection_ids" in supplied
+            else list(default_collection_ids or [])
+        )
         html_template_id = (
             self.html_template_id
             if "html_template_id" in supplied
@@ -931,6 +946,7 @@ class ChatQueueItemEnqueueRequest(BaseModel):
         return ChatQueueExecutionSnapshot(
             model_id=model_id,
             skill_ids=skill_ids,
+            collection_ids=collection_ids,
             tool_ids=self.tool_ids,
             html_template_id=html_template_id,
             artifact_id=self.artifact_id,
@@ -948,6 +964,7 @@ class ChatQueueItemUpdateRequest(BaseModel):
     loop_count: Optional[int] = Field(default=None, ge=1, le=10)
     model_id: Optional[str] = None
     skill_ids: Optional[List[str]] = None
+    collection_ids: Optional[List[str]] = None
     tool_ids: Optional[List[str]] = None
     html_template_id: Optional[str] = None
     artifact_id: Optional[str] = None
@@ -978,6 +995,7 @@ class ChatQueueItemUpdateRequest(BaseModel):
         selector_fields = {
             "model_id",
             "skill_ids",
+            "collection_ids",
             "tool_ids",
             "html_template_id",
             "artifact_id",

@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { FormDialogShell } from '@/components/common/FormDialogShell'
-import { ModelSelector } from '@/components/common/ModelSelector'
+import { useMemo } from 'react'
 import { Settings2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { ResourcePicker } from '@/components/common/ResourcePicker'
 import { useModelDefaults, useModels } from '@/lib/hooks/use-models'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import type { Model } from '@/lib/types/models'
 
 interface ChatModelOverrideDialogProps {
   currentModel?: string
@@ -14,25 +14,19 @@ interface ChatModelOverrideDialogProps {
   disabled?: boolean
 }
 
+type ModelPickerItem = Model | { id: 'default'; name: string; provider?: string }
+
 export function ChatModelOverrideDialog({
   currentModel,
   onModelChange,
   disabled = false,
 }: ChatModelOverrideDialogProps) {
   const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
-  const [selectedModel, setSelectedModel] = useState(currentModel || 'default')
-  const { data: models } = useModels()
+  const { data: models, isLoading } = useModels()
   const { data: defaults } = useModelDefaults()
 
-  useEffect(() => {
-    setSelectedModel(currentModel || 'default')
-  }, [currentModel])
-
   const languageModels = useMemo(() => {
-    if (!models) {
-      return []
-    }
+    if (!models) return []
     return [...models]
       .filter((model) => model.type === 'language')
       .sort((a, b) => a.name.localeCompare(b.name))
@@ -53,29 +47,52 @@ export function ChatModelOverrideDialog({
     return t('common.default')
   }, [currentModel, languageModels, defaultModel, t])
 
-  const handleSave = () => {
-    onModelChange(selectedModel === 'default' ? undefined : selectedModel)
-    setOpen(false)
-  }
+  const items: ModelPickerItem[] = useMemo(() => {
+    const defaultLabel = defaultModel
+      ? `${t('common.default')} (${defaultModel.name})`
+      : t('artifacts.systemDefault')
+    return [
+      { id: 'default', name: defaultLabel, provider: defaultModel?.provider },
+      ...languageModels,
+    ]
+  }, [defaultModel, languageModels, t])
 
-  const handleReset = () => {
-    setSelectedModel('default')
-    onModelChange(undefined)
-    setOpen(false)
-  }
+  const value = currentModel ?? 'default'
 
   return (
-    <FormDialogShell
-      open={open}
-      onOpenChange={setOpen}
-      title={t('common.modelConfiguration')}
-      contentClassName="sm:max-w-md"
-      submitLabel={t('common.saveChanges')}
-      onOpen={() => setSelectedModel(currentModel || 'default')}
-      onSubmit={(event) => {
-        event.preventDefault()
-        handleSave()
+    <ResourcePicker
+      selectionMode="single"
+      value={value}
+      onChange={(id) => {
+        onModelChange(!id || id === 'default' ? undefined : id)
       }}
+      title={t('common.modelConfiguration')}
+      items={items}
+      getItemId={(item) => item.id}
+      getItemProps={(item) => ({
+        title: item.name,
+        description: 'provider' in item ? item.provider : undefined,
+      })}
+      isLoading={isLoading}
+      emptyTitle={t('common.noResults')}
+      cancelLabel={t('common.cancel')}
+      saveLabel={t('common.save')}
+      clearLabel={t('common.resetToDefault')}
+      clearValue="default"
+      afterBody={({ draftSingle }) =>
+        draftSingle && draftSingle !== 'default' ? (
+          <div className="border-t px-3 py-3">
+            <div className="rounded-lg bg-muted p-3">
+              <p className="text-sm text-muted-foreground">
+                {t('artifacts.sessionUseReplacement').replace(
+                  '{name}',
+                  languageModels.find((model) => model.id === draftSingle)?.name || draftSingle
+                )}
+              </p>
+            </div>
+          </div>
+        ) : undefined
+      }
       trigger={
         <Button
           variant="outline"
@@ -87,38 +104,6 @@ export function ChatModelOverrideDialog({
           <span className="truncate text-xs">{currentModelName}</span>
         </Button>
       }
-      footerLeft={
-        <Button type="button" variant="outline" onClick={handleReset}>
-          {t('common.resetToDefault')}
-        </Button>
-      }
-    >
-      <ModelSelector
-        id="model"
-        label={t('common.model')}
-        modelType="language"
-        value={selectedModel}
-        onChange={setSelectedModel}
-        sortByName
-        placeholder={t('models.selectModelPlaceholder')}
-        defaultOption={{
-          value: 'default',
-          label: defaultModel
-            ? `${t('common.default')} (${defaultModel.name})`
-            : t('artifacts.systemDefault'),
-          provider: defaultModel?.provider,
-        }}
-      />
-      {selectedModel && selectedModel !== 'default' ? (
-        <div className="rounded-lg bg-muted p-3">
-          <p className="text-sm text-muted-foreground">
-            {t('artifacts.sessionUseReplacement').replace(
-              '{name}',
-              languageModels.find((m) => m.id === selectedModel)?.name || selectedModel
-            )}
-          </p>
-        </div>
-      ) : null}
-    </FormDialogShell>
+    />
   )
 }

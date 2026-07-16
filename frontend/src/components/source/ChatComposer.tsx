@@ -7,6 +7,7 @@ import { Send, Square } from 'lucide-react'
 import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
 import { ChatModelOverrideDialog } from '@/components/source/ChatModelOverrideDialog'
 import { SkillPicker } from '@/components/skills/SkillPicker'
+import { CollectionPicker } from '@/components/collections/CollectionPicker'
 import { ToolPicker } from '@/components/mcp/ToolPicker'
 import { TemplatePicker } from '@/components/templates/TemplatePicker'
 import { ChatSuggestionPills } from '@/components/source/ChatSuggestionPills'
@@ -41,6 +42,8 @@ export interface ChatComposerProps {
   onModelChange?: (model?: string) => void
   selectedSkillIds?: string[]
   onSkillIdsChange?: (ids: string[]) => void
+  selectedCollectionIds?: string[]
+  onCollectionIdsChange?: (ids: string[]) => void
   selectedHtmlTemplateId?: string | null
   onHtmlTemplateIdChange?: (id: string | null) => void
   selectedMcpToolIds?: string[]
@@ -70,6 +73,8 @@ export function ChatComposer({
   onModelChange,
   selectedSkillIds,
   onSkillIdsChange,
+  selectedCollectionIds,
+  onCollectionIdsChange,
   selectedHtmlTemplateId,
   onHtmlTemplateIdChange,
   selectedMcpToolIds,
@@ -224,6 +229,13 @@ export function ChatComposer({
           <ToolPicker
             selectedToolIds={selectedMcpToolIds ?? []}
             onChange={onMcpToolIdsChange}
+            disabled={composerBusy}
+          />
+        ) : null}
+        {onCollectionIdsChange ? (
+          <CollectionPicker
+            selectedCollectionIds={selectedCollectionIds ?? []}
+            onChange={onCollectionIdsChange}
             disabled={composerBusy}
           />
         ) : null}

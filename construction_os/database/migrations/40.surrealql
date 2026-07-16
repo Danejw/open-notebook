@@ -1,0 +1,51 @@
+-- Migration 40: Collections — reusable reference groups + chat session attachment
+
+DEFINE TABLE IF NOT EXISTS collection SCHEMAFULL;
+
+DEFINE FIELD IF NOT EXISTS name ON TABLE collection TYPE string;
+DEFINE FIELD IF NOT EXISTS slug ON TABLE collection TYPE string;
+DEFINE FIELD IF NOT EXISTS description ON TABLE collection TYPE string;
+DEFINE FIELD IF NOT EXISTS version ON TABLE collection TYPE option<string> DEFAULT "1.0.0";
+DEFINE FIELD IF NOT EXISTS tags ON TABLE collection TYPE option<array<string>>;
+DEFINE FIELD IF NOT EXISTS use_when ON TABLE collection TYPE option<array<string>>;
+DEFINE FIELD IF NOT EXISTS owner ON TABLE collection TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS visibility ON TABLE collection TYPE string DEFAULT "instance";
+DEFINE FIELD IF NOT EXISTS status ON TABLE collection TYPE string DEFAULT "draft";
+DEFINE FIELD IF NOT EXISTS archived ON TABLE collection TYPE bool DEFAULT false;
+DEFINE FIELD IF NOT EXISTS selection ON TABLE collection FLEXIBLE TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS manifest_extra ON TABLE collection FLEXIBLE TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS manifest_raw ON TABLE collection TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS validation_results ON TABLE collection FLEXIBLE TYPE option<object>;
+
+DEFINE FIELD IF NOT EXISTS created ON collection DEFAULT time::now() VALUE $before OR time::now();
+DEFINE FIELD IF NOT EXISTS updated ON collection DEFAULT time::now() VALUE time::now();
+
+DEFINE INDEX IF NOT EXISTS idx_collection_slug ON TABLE collection COLUMNS slug UNIQUE;
+
+DEFINE TABLE IF NOT EXISTS collection_item SCHEMAFULL;
+
+DEFINE FIELD IF NOT EXISTS collection ON TABLE collection_item TYPE record<collection>;
+DEFINE FIELD IF NOT EXISTS item_id ON TABLE collection_item TYPE string;
+DEFINE FIELD IF NOT EXISTS type ON TABLE collection_item TYPE string DEFAULT "url";
+DEFINE FIELD IF NOT EXISTS title ON TABLE collection_item TYPE string;
+DEFINE FIELD IF NOT EXISTS url ON TABLE collection_item TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS description ON TABLE collection_item TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS tags ON TABLE collection_item TYPE option<array<string>>;
+DEFINE FIELD IF NOT EXISTS topics ON TABLE collection_item TYPE option<array<string>>;
+DEFINE FIELD IF NOT EXISTS authority ON TABLE collection_item TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS enabled ON TABLE collection_item TYPE bool DEFAULT true;
+DEFINE FIELD IF NOT EXISTS priority ON TABLE collection_item TYPE option<int>;
+DEFINE FIELD IF NOT EXISTS metadata ON TABLE collection_item FLEXIBLE TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS sort_order ON TABLE collection_item TYPE int DEFAULT 0;
+
+DEFINE FIELD IF NOT EXISTS created ON collection_item DEFAULT time::now() VALUE $before OR time::now();
+DEFINE FIELD IF NOT EXISTS updated ON collection_item DEFAULT time::now() VALUE time::now();
+
+DEFINE INDEX IF NOT EXISTS idx_collection_item_collection_item_id ON TABLE collection_item COLUMNS collection, item_id UNIQUE;
+DEFINE INDEX IF NOT EXISTS idx_collection_item_collection_enabled ON TABLE collection_item COLUMNS collection, enabled;
+
+DEFINE EVENT IF NOT EXISTS collection_delete ON TABLE collection WHEN ($after == NONE) THEN {
+    DELETE collection_item WHERE collection == $before.id;
+};
+
+DEFINE FIELD IF NOT EXISTS collection_ids ON TABLE chat_session TYPE option<array<string>>;

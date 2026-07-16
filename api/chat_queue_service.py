@@ -177,6 +177,7 @@ class ChatQueueService:
         snapshot = request.to_execution_snapshot(
             default_model_id=session.model_override,
             default_skill_ids=session.skill_ids,
+            default_collection_ids=session.collection_ids,
             default_html_template_id=session.html_template_id,
         ).model_copy(deep=True)
         try:

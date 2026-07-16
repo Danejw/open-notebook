@@ -21,6 +21,7 @@ from construction_os.utils.chat_session import (
     normalize_chat_session_id,
     normalize_source_id,
     resolve_html_template_meta,
+    resolve_session_collection_ids,
     resolve_session_html_template_id,
     resolve_session_skill_ids,
     session_record_fields,
@@ -52,6 +53,9 @@ class CreateSourceChatSessionRequest(BaseModel):
     skill_ids: Optional[List[str]] = Field(
         None, description="Skill IDs selected for this session"
     )
+    collection_ids: Optional[List[str]] = Field(
+        None, description="Collection IDs selected for this session"
+    )
     html_template_id: Optional[str] = Field(
         None, description="Optional HTML bid template for structured output"
     )
@@ -63,6 +67,9 @@ class UpdateSourceChatSessionRequest(BaseModel):
     )
     skill_ids: Optional[List[str]] = Field(
         None, description="Skill IDs selected for this session"
+    )
+    collection_ids: Optional[List[str]] = Field(
+        None, description="Collection IDs selected for this session"
     )
     html_template_id: Optional[str] = Field(
         None, description="Optional HTML bid template for structured output"
@@ -93,6 +100,9 @@ class SourceChatSessionResponse(BaseModel):
     skill_ids: Optional[List[str]] = Field(
         None, description="Skill IDs selected for this session"
     )
+    collection_ids: Optional[List[str]] = Field(
+        None, description="Collection IDs selected for this session"
+    )
     html_template_id: Optional[str] = Field(
         None, description="Optional HTML bid template for structured output"
     )
@@ -118,6 +128,10 @@ class SendMessageRequest(BaseModel):
     skill_ids: Optional[List[str]] = Field(
         None,
         description="Selected skill IDs; when omitted, session-stored skills are used",
+    )
+    collection_ids: Optional[List[str]] = Field(
+        None,
+        description="Selected collection IDs; when omitted, session-stored collections are used",
     )
     html_template_id: Optional[str] = Field(
         None,
@@ -166,6 +180,7 @@ async def create_source_chat_session(
             title=request.title or f"Source Chat {asyncio.get_event_loop().time():.0f}",
             model_override=request.model_override,
             skill_ids=request.skill_ids or [],
+            collection_ids=request.collection_ids or [],
             html_template_id=request.html_template_id,
         )
         await session.save()
@@ -322,6 +337,8 @@ async def update_source_chat_session(
             session.model_override = request.model_override
         if request.skill_ids is not None:
             session.skill_ids = request.skill_ids or []
+        if request.collection_ids is not None:
+            session.collection_ids = request.collection_ids or []
         if request.html_template_id is not None:
             session.html_template_id = request.html_template_id or None
 
@@ -419,6 +436,9 @@ async def send_message_to_source_chat(
         )
 
         skill_ids = resolve_session_skill_ids(session, request.skill_ids)
+        collection_ids = resolve_session_collection_ids(
+            session, request.collection_ids
+        )
         html_template_id = resolve_session_html_template_id(
             session, request.html_template_id
         )
@@ -440,6 +460,7 @@ async def send_message_to_source_chat(
                     "source_id": full_source_id,
                     "model_override": model_override,
                     "skill_ids": skill_ids,
+                    "collection_ids": collection_ids,
                     "mcp_tool_ids": list(request.mcp_tool_ids or []),
                     "session_id": full_session_id,
                     "html_template_id": html_template_id if html_template_meta else None,

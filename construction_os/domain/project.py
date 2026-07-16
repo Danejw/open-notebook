@@ -577,12 +577,14 @@ class ChatSession(ObjectModel):
     nullable_fields: ClassVar[set[str]] = {
         "model_override",
         "skill_ids",
+        "collection_ids",
         "html_template_id",
         "guest_key",
     }
     title: Optional[str] = None
     model_override: Optional[str] = None
     skill_ids: Optional[List[str]] = None
+    collection_ids: Optional[List[str]] = None
     html_template_id: Optional[str] = None
     guest_key: Optional[str] = None
 

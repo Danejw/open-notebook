@@ -5,7 +5,7 @@ import { useDebounce } from 'use-debounce'
 import { Search, FileText, Link as LinkIcon, Upload } from 'lucide-react'
 import { EmptyState } from '@/components/common/EmptyState'
 import { InlineSkeleton, PickerDialogSkeleton } from '@/components/common/LoadingSkeletons'
-import { PickerCheckboxRow } from '@/components/common/PickerCheckboxRow'
+import { PickerSelectRow } from '@/components/common/PickerSelectRow'
 import {
   PickerDialogActions,
   PickerDialogShell,
@@ -240,7 +240,7 @@ export function AddExistingSourceDialog({
             const isSelected = selectedSourceIds.includes(source.id)
 
             return (
-              <PickerCheckboxRow
+              <PickerSelectRow
                 key={source.id}
                 id={source.id}
                 checked={isSelected}

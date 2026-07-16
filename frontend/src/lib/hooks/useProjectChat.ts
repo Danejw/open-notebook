@@ -114,6 +114,7 @@ export function useProjectChat({
               ? {
                   ...data,
                   skill_ids: [],
+                  collection_ids: [],
                   model_override: undefined,
                   html_template_id: null,
                 }
@@ -140,6 +141,7 @@ export function useProjectChat({
               ? undefined
               : (pendingModelOverride ?? undefined),
             skill_ids: sharedMode ? [] : ctx.selectedSkillIdsRef.current,
+            collection_ids: sharedMode ? [] : ctx.selectedCollectionIdsRef.current,
             html_template_id: sharedMode
               ? null
               : ctx.selectedHtmlTemplateIdRef.current,
@@ -160,6 +162,7 @@ export function useProjectChat({
             ? undefined
             : (modelOverride ?? ctx.currentSession?.model_override ?? undefined),
           skill_ids: sharedMode ? [] : ctx.selectedSkillIdsRef.current,
+          collection_ids: sharedMode ? [] : ctx.selectedCollectionIdsRef.current,
           mcp_tool_ids: sharedMode ? [] : ctx.selectedMcpToolIdsRef.current,
           html_template_id: sharedMode
             ? null
@@ -191,6 +194,7 @@ export function useProjectChat({
           pendingModelOverride ??
           undefined,
         skill_ids: ctx.selectedSkillIdsRef.current,
+        collection_ids: ctx.selectedCollectionIdsRef.current,
         tool_ids: ctx.selectedMcpToolIdsRef.current,
         html_template_id: ctx.selectedHtmlTemplateIdRef.current,
         artifact_id: activeArtifactId ?? undefined,
@@ -213,12 +217,15 @@ export function useProjectChat({
     refetchSessions,
     liveMcpToolCalls,
     selectedSkillIds,
+    selectedCollectionIds,
     selectedHtmlTemplateId,
     selectedMcpToolIds,
     selectedSkillIdsRef,
+    selectedCollectionIdsRef,
     selectedHtmlTemplateIdRef,
     selectedMcpToolIdsRef,
     setSelectedSkillIds,
+    setSelectedCollectionIds,
     setSelectedHtmlTemplateId,
     setSelectedMcpToolIds,
     updateSessionMutation,
@@ -252,6 +259,7 @@ export function useProjectChat({
         project_id: projectId,
         title,
         skill_ids: sharedMode ? [] : selectedSkillIdsRef.current,
+        collection_ids: sharedMode ? [] : selectedCollectionIdsRef.current,
         html_template_id: sharedMode ? null : selectedHtmlTemplateIdRef.current,
         guest_key: guestKey ?? undefined,
       })
@@ -262,6 +270,7 @@ export function useProjectChat({
       mutateCreateSession,
       projectId,
       selectedHtmlTemplateIdRef,
+      selectedCollectionIdsRef,
       selectedSkillIdsRef,
       sharedMode,
     ]
@@ -306,15 +315,25 @@ export function useProjectChat({
         setSelectedMcpToolIds(nextTools)
       }
 
+      const artifactCollectionIds = artifact.collection_ids ?? []
+      if (artifactCollectionIds.length > 0) {
+        const nextCollections = Array.from(
+          new Set([...selectedCollectionIdsRef.current, ...artifactCollectionIds])
+        )
+        setSelectedCollectionIds(nextCollections)
+      }
+
       if (artifact.html_template_id) {
         setSelectedHtmlTemplateId(artifact.html_template_id)
       }
     },
     [
+      setSelectedCollectionIds,
       setSelectedHtmlTemplateId,
       setSelectedMcpToolIds,
       setSelectedSkillIds,
       sharedMode,
+      selectedCollectionIdsRef,
       selectedMcpToolIdsRef,
       selectedSkillIdsRef,
     ]
@@ -408,6 +427,7 @@ export function useProjectChat({
     charCount,
     pendingModelOverride,
     selectedSkillIds,
+    selectedCollectionIds,
     selectedHtmlTemplateId,
     selectedMcpToolIds,
     liveMcpToolCalls,
@@ -430,6 +450,7 @@ export function useProjectChat({
     reorderQueue: chatQueue.reorder,
     setModelOverride,
     setSelectedSkillIds,
+    setSelectedCollectionIds,
     setSelectedHtmlTemplateId,
     setSelectedMcpToolIds,
     applyArtifactDefaults,

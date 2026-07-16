@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { FormDialogShell } from '@/components/common/FormDialogShell'
-import { ModelSelector } from '@/components/common/ModelSelector'
+import { ModelPickerField } from '@/components/common/ModelPickerField'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
 interface AdvancedModelsDialogProps {
@@ -54,28 +54,31 @@ export function AdvancedModelsDialog({
         onOpenChange(false)
       }}
     >
-      <ModelSelector
+      <ModelPickerField
         label={t('searchPage.strategyModel')}
         modelType="language"
-        value={strategyModel}
-        onChange={setStrategyModel}
+        value={strategyModel || null}
+        onChange={(value) => setStrategyModel(value ?? '')}
         placeholder={t('searchPage.selectStrategyPlaceholder')}
+        allowClear={false}
       />
 
-      <ModelSelector
+      <ModelPickerField
         label={t('searchPage.answerModel')}
         modelType="language"
-        value={answerModel}
-        onChange={setAnswerModel}
+        value={answerModel || null}
+        onChange={(value) => setAnswerModel(value ?? '')}
         placeholder={t('searchPage.selectAnswerPlaceholder')}
+        allowClear={false}
       />
 
-      <ModelSelector
+      <ModelPickerField
         label={t('searchPage.finalAnswerModel')}
         modelType="language"
-        value={finalAnswerModel}
-        onChange={setFinalAnswerModel}
+        value={finalAnswerModel || null}
+        onChange={(value) => setFinalAnswerModel(value ?? '')}
         placeholder={t('searchPage.selectFinalPlaceholder')}
+        allowClear={false}
       />
     </FormDialogShell>
   )

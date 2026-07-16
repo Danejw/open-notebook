@@ -1,0 +1,3 @@
+-- Migration 41 down: remove artifact collection defaults
+
+REMOVE FIELD IF EXISTS collection_ids ON TABLE artifact;

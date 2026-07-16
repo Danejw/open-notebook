@@ -21,6 +21,7 @@ export type ChatQueueMetadata = Record<string, unknown>
 export interface ChatQueueExecutionSnapshot {
   model_id: string | null
   skill_ids: string[] | null
+  collection_ids: string[] | null
   tool_ids: string[] | null
   html_template_id: string | null
   artifact_id: string | null
@@ -79,6 +80,7 @@ export interface ChatQueueItemEnqueuePayload {
   loop_count?: number
   model_id?: string | null
   skill_ids?: string[] | null
+  collection_ids?: string[] | null
   tool_ids?: string[]
   html_template_id?: string | null
   artifact_id?: string | null
@@ -121,6 +123,7 @@ export interface ChatQueueItemUpdatePayload {
   loop_count?: number
   model_id?: string | null
   skill_ids?: string[] | null
+  collection_ids?: string[] | null
   tool_ids?: string[] | null
   html_template_id?: string | null
   artifact_id?: string | null

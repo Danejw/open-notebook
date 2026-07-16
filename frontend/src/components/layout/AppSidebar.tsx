@@ -45,6 +45,7 @@ import {
   Wrench,
   Sparkles,
   Plug2,
+  Library,
 } from 'lucide-react'
 
 type NavSection = {
@@ -61,6 +62,7 @@ const getMainNavigation = (t: TFunction): NavSection[] => [
     items: [
       { name: t('navigation.skills'), href: '/skills', icon: Sparkles },
       { name: t('navigation.tools'), href: '/tools', icon: Plug2 },
+      { name: t('navigation.collections'), href: '/collections', icon: Library },
     ],
   },
   {

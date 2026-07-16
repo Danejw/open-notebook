@@ -45,6 +45,7 @@ Have conversations with AI about your sources. Manage context to control what AI
 **Quick links:**
 - Start your first chat
 - Select which sources go in context
+- Attach [Collections](collections.md) of reference URLs in chat
 - Ask effective questions
 - Use follow-ups productively
 - Understand citations and verify claims

@@ -34,6 +34,14 @@ When a user asks you a question, analyze the source content to provide comprehen
 When a skill's SKILL.md references supporting files (for example under references/, scripts/, or assets/), tell the user which relative path you need. Follow each skill's instructions carefully when the user task matches its description.
 {% endif %}
 
+{% if collections_context %}
+# COLLECTIONS (CURATED REFERENCES)
+
+{{ collections_context }}
+
+Use these curated reference URLs when they match the user's request. Cite the collection name and item title when you rely on a listed source.
+{% endif %}
+
 {% if html_template %}
 # HTML BID TEMPLATE (STRUCTURED OUTPUT) — PRIMARY MODE
 

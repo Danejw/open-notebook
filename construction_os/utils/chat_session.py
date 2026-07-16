@@ -65,6 +65,7 @@ def session_record_fields(session: ChatSession) -> Dict[str, Any]:
         "title": session.title or "Untitled Session",
         "model_override": getattr(session, "model_override", None),
         "skill_ids": getattr(session, "skill_ids", None) or [],
+        "collection_ids": getattr(session, "collection_ids", None) or [],
         "html_template_id": getattr(session, "html_template_id", None),
         "created": str(session.created),
         "updated": str(session.updated),
@@ -123,6 +124,18 @@ def resolve_session_skill_ids(
         session.skill_ids = skill_ids
         return skill_ids
     return list(getattr(session, "skill_ids", None) or [])
+
+
+def resolve_session_collection_ids(
+    session: ChatSession,
+    request_collection_ids: Optional[List[str]],
+) -> List[str]:
+    """Resolve collection ids from request override or session; mutates session."""
+    if request_collection_ids is not None:
+        collection_ids = list(request_collection_ids)
+        session.collection_ids = collection_ids
+        return collection_ids
+    return list(getattr(session, "collection_ids", None) or [])
 
 
 def resolve_session_html_template_id(

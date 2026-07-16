@@ -17,6 +17,10 @@ from construction_os.domain.project import Source
 from construction_os.exceptions import ConstructionOSError
 from construction_os.graphs.progress import emit_agent_progress
 from construction_os.mcp.chat_loop import generate_with_mcp_tools
+from construction_os.collections.loader import (
+    format_collections_context,
+    load_one_collection_block,
+)
 from construction_os.skills.loader import format_skills_context, load_one_skill_md
 from construction_os.utils import clean_thinking_content
 from construction_os.utils.context_builder import ContextBuilder
@@ -34,6 +38,8 @@ class SourceChatState(TypedDict):
     context_indicators: Optional[Dict[str, List[str]]]
     skills_context: Optional[str]
     skill_ids: Optional[list]
+    collections_context: Optional[str]
+    collection_ids: Optional[list]
     mcp_tool_ids: Optional[list]
     strict_mcp_tools: bool
     session_id: Optional[str]
@@ -91,9 +97,19 @@ def _format_source_context(context_data: Dict) -> str:
 
 def route_from_start(
     state: SourceChatState,
-) -> Literal["loading_skills", "retrieving_context"]:
+) -> Literal["loading_skills", "loading_collections", "retrieving_context"]:
     if state.get("skill_ids"):
         return "loading_skills"
+    if state.get("collection_ids"):
+        return "loading_collections"
+    return "retrieving_context"
+
+
+def route_after_skills(
+    state: SourceChatState,
+) -> Literal["loading_collections", "retrieving_context"]:
+    if state.get("collection_ids"):
+        return "loading_collections"
     return "retrieving_context"
 
 
@@ -139,6 +155,55 @@ def loading_skills(state: SourceChatState, config: RunnableConfig) -> dict:
             )
 
         return {"skills_context": format_skills_context(blocks) or None}
+    except ConstructionOSError:
+        raise
+    except Exception as e:
+        error_class, user_message = classify_error(e)
+        raise error_class(user_message) from e
+
+
+def loading_collections(state: SourceChatState, config: RunnableConfig) -> dict:
+    """Load selected collection manifests and URL items with progress events."""
+    try:
+        collection_ids = list(state.get("collection_ids") or [])
+        total = len(collection_ids)
+        emit_agent_progress(
+            "started",
+            "loading_collections",
+            {"collectionTotal": total},
+            config,
+        )
+        if not collection_ids:
+            return {"collections_context": None}
+
+        blocks: list[str] = []
+        for index, collection_id in enumerate(collection_ids, start=1):
+            emit_agent_progress(
+                "progress",
+                "loading_collections",
+                {
+                    "collectionId": collection_id,
+                    "collectionIndex": index,
+                    "collectionTotal": total,
+                },
+                config,
+            )
+            loaded = _run_async(load_one_collection_block(collection_id))
+            blocks.append(loaded["block"])
+            emit_agent_progress(
+                "completed",
+                "loading_collections",
+                {
+                    "collectionId": loaded.get("id") or collection_id,
+                    "collectionName": loaded["name"],
+                    "collectionIndex": index,
+                    "collectionTotal": total,
+                    "charCount": loaded.get("char_count", 0),
+                },
+                config,
+            )
+
+        return {"collections_context": format_collections_context(blocks) or None}
     except ConstructionOSError:
         raise
     except Exception as e:
@@ -212,6 +277,7 @@ def generating(state: SourceChatState, config: RunnableConfig) -> dict:
             "context": state.get("context"),
             "context_indicators": state.get("context_indicators"),
             "skills_context": state.get("skills_context"),
+            "collections_context": state.get("collections_context"),
             "html_template": state.get("html_template"),
         }
         system_prompt = Prompter(prompt_template="source_chat/system").render(
@@ -258,14 +324,20 @@ def generating(state: SourceChatState, config: RunnableConfig) -> dict:
 
 source_chat_state = StateGraph(SourceChatState)
 source_chat_state.add_node("loading_skills", loading_skills)
+source_chat_state.add_node("loading_collections", loading_collections)
 source_chat_state.add_node("retrieving_context", retrieving_context)
 source_chat_state.add_node("generating", generating)
 source_chat_state.add_conditional_edges(
     START,
     route_from_start,
-    ["loading_skills", "retrieving_context"],
+    ["loading_skills", "loading_collections", "retrieving_context"],
 )
-source_chat_state.add_edge("loading_skills", "retrieving_context")
+source_chat_state.add_conditional_edges(
+    "loading_skills",
+    route_after_skills,
+    ["loading_collections", "retrieving_context"],
+)
+source_chat_state.add_edge("loading_collections", "retrieving_context")
 source_chat_state.add_edge("retrieving_context", "generating")
 source_chat_state.add_edge("generating", END)
 

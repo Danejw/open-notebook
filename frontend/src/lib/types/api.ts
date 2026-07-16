@@ -173,6 +173,7 @@ export interface BaseChatSession {
   message_count?: number
   model_override?: string | null
   skill_ids?: string[] | null
+  collection_ids?: string[] | null
   html_template_id?: string | null
   guest_key?: string | null
 }
@@ -204,6 +205,7 @@ export interface CreateSourceChatSessionRequest {
   title?: string
   model_override?: string
   skill_ids?: string[]
+  collection_ids?: string[]
   html_template_id?: string | null
 }
 
@@ -211,6 +213,7 @@ export interface UpdateSourceChatSessionRequest {
   title?: string
   model_override?: string
   skill_ids?: string[]
+  collection_ids?: string[]
   html_template_id?: string | null
 }
 
@@ -218,6 +221,7 @@ export interface SendMessageRequest {
   message: string
   model_override?: string
   skill_ids?: string[]
+  collection_ids?: string[]
   mcp_tool_ids?: string[]
   html_template_id?: string | null
 }
@@ -253,6 +257,7 @@ export interface CreateProjectChatSessionRequest {
   title?: string
   model_override?: string
   skill_ids?: string[]
+  collection_ids?: string[]
   html_template_id?: string | null
   guest_key?: string
 }
@@ -261,6 +266,7 @@ export interface UpdateProjectChatSessionRequest {
   title?: string
   model_override?: string | null
   skill_ids?: string[]
+  collection_ids?: string[]
   html_template_id?: string | null
 }
 
@@ -278,6 +284,7 @@ export interface SendProjectChatMessageRequest {
   }
   model_override?: string
   skill_ids?: string[]
+  collection_ids?: string[]
   mcp_tool_ids?: string[]
   html_template_id?: string | null
   edit_message_id?: string

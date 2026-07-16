@@ -18,6 +18,7 @@ from api.routers import (
     auth,
     chat,
     chat_queue,
+    collections,
     config,
     context,
     credentials,
@@ -351,6 +352,7 @@ app.include_router(artifacts.router, prefix="/api", tags=["artifacts"])
 app.include_router(html_documents.router, prefix="/api", tags=["html-documents"])
 app.include_router(media.router, prefix="/api", tags=["media"])
 app.include_router(skills.router, prefix="/api", tags=["skills"])
+app.include_router(collections.router, prefix="/api", tags=["collections"])
 app.include_router(mcp.router, prefix="/api", tags=["mcp"])
 app.include_router(notes.router, prefix="/api", tags=["notes"])
 app.include_router(embedding.router, prefix="/api", tags=["embedding"])

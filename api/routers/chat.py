@@ -26,6 +26,7 @@ from construction_os.utils.chat_session import (
     normalize_chat_session_id,
     resolve_artifact_meta,
     resolve_html_template_meta,
+    resolve_session_collection_ids,
     resolve_session_html_template_id,
     resolve_session_skill_ids,
     session_record_fields,
@@ -90,6 +91,9 @@ class CreateSessionRequest(BaseModel):
     skill_ids: Optional[List[str]] = Field(
         None, description="Skill IDs selected for this session"
     )
+    collection_ids: Optional[List[str]] = Field(
+        None, description="Collection IDs selected for this session"
+    )
     html_template_id: Optional[str] = Field(
         None, description="Optional HTML bid template for structured output"
     )
@@ -106,6 +110,9 @@ class UpdateSessionRequest(BaseModel):
     )
     skill_ids: Optional[List[str]] = Field(
         None, description="Skill IDs selected for this session"
+    )
+    collection_ids: Optional[List[str]] = Field(
+        None, description="Collection IDs selected for this session"
     )
     html_template_id: Optional[str] = Field(
         None, description="Optional HTML bid template for structured output"
@@ -138,6 +145,9 @@ class ChatSessionResponse(BaseModel):
     skill_ids: Optional[List[str]] = Field(
         None, description="Skill IDs selected for this session"
     )
+    collection_ids: Optional[List[str]] = Field(
+        None, description="Collection IDs selected for this session"
+    )
     html_template_id: Optional[str] = Field(
         None, description="Optional HTML bid template for structured output"
     )
@@ -169,6 +179,10 @@ class ExecuteChatRequest(BaseModel):
     skill_ids: Optional[List[str]] = Field(
         None,
         description="Selected skill IDs; when omitted, session-stored skills are used",
+    )
+    collection_ids: Optional[List[str]] = Field(
+        None,
+        description="Selected collection IDs; when omitted, session-stored collections are used",
     )
     html_template_id: Optional[str] = Field(
         None,
@@ -379,6 +393,7 @@ async def create_session(
             raise HTTPException(status_code=404, detail="Project not found")
 
         skill_ids: List[str] = [] if guest_key else list(request.skill_ids or [])
+        collection_ids: List[str] = [] if guest_key else list(request.collection_ids or [])
         html_template_id = None if guest_key else request.html_template_id
 
         session = ChatSession(
@@ -386,6 +401,7 @@ async def create_session(
             or f"Chat Session {asyncio.get_event_loop().time():.0f}",
             model_override=None if guest_key else request.model_override,
             skill_ids=skill_ids,
+            collection_ids=collection_ids,
             html_template_id=html_template_id,
             guest_key=guest_key,
         )
@@ -481,6 +497,9 @@ async def update_session(
             if "skill_ids" in update_data:
                 session.skill_ids = update_data["skill_ids"] or []
 
+            if "collection_ids" in update_data:
+                session.collection_ids = update_data["collection_ids"] or []
+
             if "html_template_id" in update_data:
                 session.html_template_id = update_data["html_template_id"] or None
 
@@ -568,6 +587,8 @@ async def execute_chat(
             model_override = None
             skill_ids: List[str] = []
             session.skill_ids = []
+            collection_ids: List[str] = []
+            session.collection_ids = []
             html_template_id = None
             session.html_template_id = None
             html_template_meta = None
@@ -582,6 +603,9 @@ async def execute_chat(
             )
 
             skill_ids = resolve_session_skill_ids(session, request.skill_ids)
+            collection_ids = resolve_session_collection_ids(
+                session, request.collection_ids
+            )
             html_template_id = resolve_session_html_template_id(
                 session, request.html_template_id
             )
@@ -620,6 +644,7 @@ async def execute_chat(
                 "project": project_meta,
                 "model_override": model_override,
                 "skill_ids": skill_ids,
+                "collection_ids": collection_ids,
                 "mcp_tool_ids": mcp_tool_ids,
                 "session_id": full_session_id,
                 "artifact_id": artifact_id if artifact_meta else None,

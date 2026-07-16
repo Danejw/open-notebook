@@ -56,6 +56,7 @@ export function useSourceChat(sourceId: string) {
         sourceChatApi.createSession(sourceId, {
           title,
           skill_ids: ctx.selectedSkillIdsRef.current,
+          collection_ids: ctx.selectedCollectionIdsRef.current,
           html_template_id: ctx.selectedHtmlTemplateIdRef.current,
         }),
     },
@@ -67,6 +68,7 @@ export function useSourceChat(sourceId: string) {
           message,
           model_override: modelOverride,
           skill_ids: ctx.selectedSkillIdsRef.current,
+          collection_ids: ctx.selectedCollectionIdsRef.current,
           mcp_tool_ids: ctx.selectedMcpToolIdsRef.current,
           html_template_id: ctx.selectedHtmlTemplateIdRef.current,
         },
@@ -117,6 +119,7 @@ export function useSourceChat(sourceId: string) {
         schedule_runner: scheduleRunner,
         model_id: modelOverride ?? ctx.currentSession?.model_override ?? undefined,
         skill_ids: ctx.selectedSkillIdsRef.current,
+        collection_ids: ctx.selectedCollectionIdsRef.current,
         tool_ids: ctx.selectedMcpToolIdsRef.current,
         html_template_id: ctx.selectedHtmlTemplateIdRef.current,
       }),
@@ -134,11 +137,14 @@ export function useSourceChat(sourceId: string) {
     refetchSessions,
     liveMcpToolCalls,
     selectedSkillIds,
+    selectedCollectionIds,
     selectedHtmlTemplateId,
     selectedMcpToolIds,
     selectedSkillIdsRef,
+    selectedCollectionIdsRef,
     selectedHtmlTemplateIdRef,
     setSelectedSkillIds,
+    setSelectedCollectionIds,
     setSelectedHtmlTemplateId,
     setSelectedMcpToolIds,
     mutateCreateSession,
@@ -173,6 +179,7 @@ export function useSourceChat(sourceId: string) {
       return mutateCreateSession({
         ...data,
         skill_ids: data.skill_ids ?? selectedSkillIdsRef.current,
+        collection_ids: data.collection_ids ?? selectedCollectionIdsRef.current,
         html_template_id:
           data.html_template_id !== undefined
             ? data.html_template_id
@@ -183,6 +190,7 @@ export function useSourceChat(sourceId: string) {
       clearPending,
       mutateCreateSession,
       selectedHtmlTemplateIdRef,
+      selectedCollectionIdsRef,
       selectedSkillIdsRef,
     ]
   )
@@ -199,6 +207,7 @@ export function useSourceChat(sourceId: string) {
     contextIndicators,
     loadingSessions,
     selectedSkillIds,
+    selectedCollectionIds,
     selectedHtmlTemplateId,
     selectedMcpToolIds,
     liveMcpToolCalls,
@@ -220,6 +229,7 @@ export function useSourceChat(sourceId: string) {
     reorderQueue: chatQueue.reorder,
     refetchSessions,
     setSelectedSkillIds,
+    setSelectedCollectionIds,
     setSelectedHtmlTemplateId,
     setSelectedMcpToolIds,
   }

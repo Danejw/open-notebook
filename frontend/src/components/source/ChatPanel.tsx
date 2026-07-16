@@ -73,6 +73,8 @@ export interface ChatPanelProps {
   enableSuggestions?: boolean
   selectedSkillIds?: string[]
   onSkillIdsChange?: (ids: string[]) => void
+  selectedCollectionIds?: string[]
+  onCollectionIdsChange?: (ids: string[]) => void
   selectedHtmlTemplateId?: string | null
   onHtmlTemplateIdChange?: (id: string | null) => void
   selectedMcpToolIds?: string[]
@@ -125,6 +127,8 @@ export function ChatPanel({
   enableSuggestions = true,
   selectedSkillIds,
   onSkillIdsChange,
+  selectedCollectionIds,
+  onCollectionIdsChange,
   selectedHtmlTemplateId,
   onHtmlTemplateIdChange,
   selectedMcpToolIds,
@@ -227,6 +231,8 @@ export function ChatPanel({
           onModelChange={onModelChange}
           selectedSkillIds={selectedSkillIds}
           onSkillIdsChange={onSkillIdsChange}
+          selectedCollectionIds={selectedCollectionIds}
+          onCollectionIdsChange={onCollectionIdsChange}
           selectedHtmlTemplateId={selectedHtmlTemplateId}
           onHtmlTemplateIdChange={onHtmlTemplateIdChange}
           selectedMcpToolIds={selectedMcpToolIds}

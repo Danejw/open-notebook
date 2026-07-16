@@ -7,6 +7,7 @@ export interface Artifact {
   apply_default: boolean
   lifecycle_phase?: string | null
   skill_ids?: string[]
+  collection_ids?: string[]
   mcp_tool_ids?: string[]
   html_template_id?: string | null
   created: string
@@ -21,6 +22,7 @@ export interface CreateArtifactRequest {
   apply_default?: boolean
   lifecycle_phase?: string | null
   skill_ids?: string[]
+  collection_ids?: string[]
   mcp_tool_ids?: string[]
   html_template_id?: string | null
 }
@@ -33,6 +35,7 @@ export interface UpdateArtifactRequest {
   apply_default?: boolean
   lifecycle_phase?: string | null
   skill_ids?: string[]
+  collection_ids?: string[]
   mcp_tool_ids?: string[]
   html_template_id?: string | null
 }

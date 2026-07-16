@@ -15,6 +15,9 @@ import {
 
 interface SkillCardProps {
   skill: Skill
+  /** When true, row is not a navigation link (bulk selection). */
+  selectionMode?: boolean
+  onSelectToggle?: () => void
 }
 
 function shouldShowStatus(status: string): boolean {
@@ -22,7 +25,7 @@ function shouldShowStatus(status: string): boolean {
   return normalized !== '' && normalized !== 'active'
 }
 
-export function SkillCard({ skill }: SkillCardProps) {
+export function SkillCard({ skill, selectionMode = false, onSelectToggle }: SkillCardProps) {
   const { t } = useTranslation()
 
   const metaParts: string[] = []
@@ -35,7 +38,10 @@ export function SkillCard({ skill }: SkillCardProps) {
   }
 
   return (
-    <CompactListRow href={`/skills/${skill.id}`}>
+    <CompactListRow
+      href={selectionMode ? undefined : `/skills/${skill.id}`}
+      onClick={selectionMode ? () => onSelectToggle?.() : undefined}
+    >
       <CompactListRowIcon>
         <Sparkles aria-hidden />
       </CompactListRowIcon>

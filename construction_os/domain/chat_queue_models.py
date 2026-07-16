@@ -26,6 +26,7 @@ EXECUTION_SELECTOR_FIELDS = frozenset(
     {
         "model_id",
         "skill_ids",
+        "collection_ids",
         "tool_ids",
         "html_template_id",
         "artifact_id",

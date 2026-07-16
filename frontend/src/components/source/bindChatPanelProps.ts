@@ -23,6 +23,8 @@ type CommonChatPanelFields = Pick<
   | 'onReorderQueue'
   | 'selectedSkillIds'
   | 'onSkillIdsChange'
+  | 'selectedCollectionIds'
+  | 'onCollectionIdsChange'
   | 'selectedHtmlTemplateId'
   | 'onHtmlTemplateIdChange'
   | 'selectedMcpToolIds'
@@ -49,6 +51,8 @@ type CommonChatRuntime = {
   reorderQueue: NonNullable<ChatPanelProps['onReorderQueue']>
   selectedSkillIds: NonNullable<ChatPanelProps['selectedSkillIds']>
   setSelectedSkillIds: NonNullable<ChatPanelProps['onSkillIdsChange']>
+  selectedCollectionIds: NonNullable<ChatPanelProps['selectedCollectionIds']>
+  setSelectedCollectionIds: NonNullable<ChatPanelProps['onCollectionIdsChange']>
   selectedHtmlTemplateId: ChatPanelProps['selectedHtmlTemplateId']
   setSelectedHtmlTemplateId: NonNullable<ChatPanelProps['onHtmlTemplateIdChange']>
   selectedMcpToolIds: NonNullable<ChatPanelProps['selectedMcpToolIds']>
@@ -77,6 +81,8 @@ export function bindCommonChatPanelProps(chat: CommonChatRuntime): CommonChatPan
     onReorderQueue: chat.reorderQueue,
     selectedSkillIds: chat.selectedSkillIds,
     onSkillIdsChange: chat.setSelectedSkillIds,
+    selectedCollectionIds: chat.selectedCollectionIds,
+    onCollectionIdsChange: chat.setSelectedCollectionIds,
     selectedHtmlTemplateId: chat.selectedHtmlTemplateId,
     onHtmlTemplateIdChange: chat.setSelectedHtmlTemplateId,
     selectedMcpToolIds: chat.selectedMcpToolIds,

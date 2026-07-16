@@ -11,9 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { MarkdownEditor } from '@/components/ui/markdown-editor'
-import { SkillPicker } from '@/components/skills/SkillPicker'
-import { ToolPicker } from '@/components/mcp/ToolPicker'
-import { TemplatePicker } from '@/components/templates/TemplatePicker'
+import { ChatDefaultsPickerRow } from '@/components/chat/ChatDefaultsPickerRow'
 import { useCreateArtifact, useUpdateArtifact, useArtifact } from '@/lib/hooks/use-artifacts'
 import { Artifact } from '@/lib/types/artifacts'
 import { useQueryClient } from '@tanstack/react-query'
@@ -30,6 +28,7 @@ const artifactSchema = z.object({
   prompt: z.string().min(1),
   apply_default: z.boolean().optional(),
   skill_ids: z.array(z.string()).default([]),
+  collection_ids: z.array(z.string()).default([]),
   mcp_tool_ids: z.array(z.string()).default([]),
   html_template_id: z.string().nullable().optional(),
 })
@@ -43,6 +42,7 @@ const emptyFormValues: ArtifactFormData = {
   prompt: '',
   apply_default: false,
   skill_ids: [],
+  collection_ids: [],
   mcp_tool_ids: [],
   html_template_id: null,
 }
@@ -92,6 +92,7 @@ export function ArtifactEditorDialog({ open, onOpenChange, artifact }: ArtifactE
       prompt: source?.prompt ?? '',
       apply_default: source?.apply_default ?? false,
       skill_ids: source?.skill_ids ?? [],
+      collection_ids: source?.collection_ids ?? [],
       mcp_tool_ids: source?.mcp_tool_ids ?? [],
       html_template_id: source?.html_template_id ?? null,
     })
@@ -100,6 +101,7 @@ export function ArtifactEditorDialog({ open, onOpenChange, artifact }: ArtifactE
   const onSubmit = async (data: ArtifactFormData) => {
     const chatDefaults = {
       skill_ids: data.skill_ids ?? [],
+      collection_ids: data.collection_ids ?? [],
       mcp_tool_ids: data.mcp_tool_ids ?? [],
       html_template_id: data.html_template_id ?? null,
     }
@@ -253,53 +255,7 @@ export function ArtifactEditorDialog({ open, onOpenChange, artifact }: ArtifactE
                     {t('artifacts.chatDefaultsHint')}
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      {t('artifacts.defaultSkills')}
-                    </Label>
-                    <Controller
-                      control={control}
-                      name="skill_ids"
-                      render={({ field }) => (
-                        <SkillPicker
-                          selectedSkillIds={field.value ?? []}
-                          onChange={field.onChange}
-                        />
-                      )}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      {t('artifacts.defaultTools')}
-                    </Label>
-                    <Controller
-                      control={control}
-                      name="mcp_tool_ids"
-                      render={({ field }) => (
-                        <ToolPicker
-                          selectedToolIds={field.value ?? []}
-                          onChange={field.onChange}
-                        />
-                      )}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      {t('artifacts.defaultTemplate')}
-                    </Label>
-                    <Controller
-                      control={control}
-                      name="html_template_id"
-                      render={({ field }) => (
-                        <TemplatePicker
-                          selectedTemplateId={field.value ?? null}
-                          onChange={field.onChange}
-                        />
-                      )}
-                    />
-                  </div>
-                </div>
+                <ChatDefaultsPickerRow control={control} />
               </div>
             </div>
           )}

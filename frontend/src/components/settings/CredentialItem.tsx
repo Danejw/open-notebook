@@ -1,10 +1,15 @@
 'use client'
 
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { ResourceList } from '@/components/common/ResourceList'
+import { settleBulkActions } from '@/components/common/bulk-settle'
 import {
   Key,
   AlertTriangle,
@@ -16,8 +21,9 @@ import {
   Bot,
 } from 'lucide-react'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { useDeleteModel, useTestModel } from '@/lib/hooks/use-models'
+import { MODEL_QUERY_KEYS, useTestModel } from '@/lib/hooks/use-models'
 import { useCredential, useTestCredential } from '@/lib/hooks/use-credentials'
+import { modelsApi } from '@/lib/api/models'
 import { Credential } from '@/lib/api/credentials'
 import { Model, ModelDefaults } from '@/lib/types/models'
 import { CredentialFormDialog } from '@/components/settings/CredentialFormDialog'
@@ -46,12 +52,14 @@ export function CredentialItem({
   allCredentials,
 }: CredentialItemProps) {
   const { t } = useTranslation()
+  const queryClient = useQueryClient()
   const { testCredential, isPending: isTestPending, testResults } = useTestCredential()
   const { testModel, isPending: isModelTestPending, testingModelId, testResult: modelTestResult, testedModelName, clearResult: clearModelTestResult } = useTestModel()
-  const deleteModel = useDeleteModel()
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [discoverOpen, setDiscoverOpen] = useState(false)
+  const [bulkDeleteIds, setBulkDeleteIds] = useState<string[] | null>(null)
+  const [bulkBusy, setBulkBusy] = useState(false)
   const { data: fullCredential } = useCredential(editOpen ? credential.id : '')
 
   const linkedModels = models.filter(m => m.credential === credential.id)
@@ -59,7 +67,6 @@ export function CredentialItem({
   const testResult = testResults[credential.id]
 
   const testModelLabel = t('models.testModel')
-  const deleteModelLabel = t('models.deleteModel')
 
   const defaultSlots: Record<string, string> = {}
   if (defaults) {
@@ -163,56 +170,69 @@ export function CredentialItem({
         )}
 
         {linkedModels.length > 0 && (
-          <div className="space-y-1.5 pt-1">
-            {(['language', 'embedding', 'text_to_speech', 'speech_to_text'] as ModelType[])
-              .filter(type => linkedModels.some(m => m.type === type))
-              .map(type => (
-                <div key={type} className="flex items-start gap-1.5">
+          <ResourceList
+            className="mt-1"
+            title={t('apiKeys.modelsButton')}
+            items={linkedModels}
+            getItemId={(model) => model.id}
+            formatSelectedCount={(count) =>
+              t('common.selectedItems').replace('{count}', count.toString())
+            }
+            bulkActions={({ selectedIds }) => (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 text-destructive hover:text-destructive"
+                disabled={bulkBusy || selectedIds.length === 0}
+                onClick={() => setBulkDeleteIds(selectedIds)}
+              >
+                <Trash2 className="mr-1 h-3.5 w-3.5" />
+                {t('common.bulkDelete')}
+              </Button>
+            )}
+            renderItem={(model, ctx) => {
+              const defaultSlot = defaultSlots[model.id]
+              return (
+                <div
+                  className="flex items-center gap-2 px-3 py-1.5"
+                  onClick={
+                    ctx.selectionMode ? () => ctx.onToggle(!ctx.selected) : undefined
+                  }
+                >
                   <Badge
                     variant="outline"
-                    className={`text-[10px] gap-0.5 px-1 py-0 shrink-0 mt-0.5 ${TYPE_COLORS[type]}`}
+                    className={`text-[10px] gap-0.5 px-1 py-0 shrink-0 ${TYPE_COLORS[model.type as ModelType] || ''}`}
                   >
-                    {TYPE_ICONS[type]}
-                    {t(TYPE_LABEL_KEYS[type])}
+                    {TYPE_ICONS[model.type as ModelType]}
+                    {t(TYPE_LABEL_KEYS[model.type as ModelType])}
                   </Badge>
-                  <div className="flex flex-wrap gap-1">
-                    {linkedModels.filter(m => m.type === type).map(model => {
-                      const defaultSlot = defaultSlots[model.id]
-                      return (
-                        <Badge
-                          key={model.id}
-                          variant={defaultSlot ? 'default' : 'secondary'}
-                          className="text-xs gap-1 pr-0.5 group/model"
-                        >
-                          {model.name}
-                          {defaultSlot && <span className="ml-0.5 opacity-75">({defaultSlot})</span>}
-                          <button
-                            className="ml-0.5 opacity-0 group-hover/model:opacity-60 hover:!opacity-100 transition-opacity"
-                            onClick={() => testModel(model.id, model.name)}
-                            disabled={isModelTestPending && testingModelId === model.id}
-                            title={testModelLabel}
-                            aria-label={testModelLabel}
-                          >
-                            {isModelTestPending && testingModelId === model.id
-                              ? <InlineSkeleton className="h-3 w-3" />
-                              : <Plug className="h-3 w-3" />
-                            }
-                          </button>
-                          <button
-                            className="opacity-0 group-hover/model:opacity-60 hover:!opacity-100 hover:text-destructive transition-opacity"
-                            onClick={() => deleteModel.mutate(model.id)}
-                            title={deleteModelLabel}
-                            aria-label={deleteModelLabel}
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </Badge>
-                      )
-                    })}
-                  </div>
+                  <span className="min-w-0 flex-1 truncate text-sm">
+                    {model.name}
+                    {defaultSlot ? (
+                      <span className="ml-1 text-xs text-muted-foreground">({defaultSlot})</span>
+                    ) : null}
+                  </span>
+                  {!ctx.selectionMode ? (
+                    <button
+                      type="button"
+                      className="shrink-0 text-muted-foreground hover:text-foreground"
+                      onClick={() => testModel(model.id, model.name)}
+                      disabled={isModelTestPending && testingModelId === model.id}
+                      title={testModelLabel}
+                      aria-label={testModelLabel}
+                    >
+                      {isModelTestPending && testingModelId === model.id ? (
+                        <InlineSkeleton className="h-3.5 w-3.5" />
+                      ) : (
+                        <Plug className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  ) : null}
                 </div>
-              ))}
-          </div>
+              )
+            }}
+          />
         )}
       </div>
 
@@ -241,6 +261,43 @@ export function CredentialItem({
           credential={credential}
         />
       )}
+
+      <ConfirmDialog
+        open={Boolean(bulkDeleteIds?.length)}
+        onOpenChange={(open) => {
+          if (!open) setBulkDeleteIds(null)
+        }}
+        title={t('models.deleteModel')}
+        description={t('common.bulkDeleteConfirm').replace(
+          '{count}',
+          String(bulkDeleteIds?.length ?? 0)
+        )}
+        confirmText={t('common.delete')}
+        confirmVariant="destructive"
+        onConfirm={() => {
+          void (async () => {
+            if (!bulkDeleteIds?.length) return
+            setBulkBusy(true)
+            try {
+              const { succeeded, failed } = await settleBulkActions(bulkDeleteIds, (id) =>
+                modelsApi.delete(id)
+              )
+              if (failed > 0) {
+                toast.error(t('common.bulkPartial').replace('{failed}', failed.toString()))
+              }
+              if (succeeded > 0) {
+                toast.success(t('common.bulkSuccess').replace('{count}', succeeded.toString()))
+              }
+              await queryClient.invalidateQueries({ queryKey: MODEL_QUERY_KEYS.models })
+              await queryClient.invalidateQueries({ queryKey: MODEL_QUERY_KEYS.defaults })
+              setBulkDeleteIds(null)
+            } finally {
+              setBulkBusy(false)
+            }
+          })()
+        }}
+        isLoading={bulkBusy}
+      />
 
       <ModelTestResultDialog
         open={modelTestResult !== null}

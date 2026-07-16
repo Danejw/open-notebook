@@ -25,3 +25,5 @@ Pinned for project chat. **Protocol:** A2UI v0.9
 4. Prefer AskUser over long clarifying prose when the user must choose.
 5. Always keep a markdown text fallback beside any interactive surface.
 6. Never paste component JSON into chat text — use A2UI v0.9 protocol messages only.
+
+How to add the next Cos component without rebuilding the stack: [extending.md](./extending.md).

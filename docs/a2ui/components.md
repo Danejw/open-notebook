@@ -6,6 +6,8 @@ What the chat agent can put on an interactive surface today.
 **Catalog:** Cos (`https://www.construction-os.ai/a2ui/catalogs/cos/v1/catalog.json`)  
 **Flag:** `A2UI_CHAT_ENABLED` + `NEXT_PUBLIC_A2UI_CHAT`
 
+Related: [agent-catalog.md](./agent-catalog.md) · [extending.md](./extending.md)
+
 ## Rules the surface must follow
 
 1. Every surface needs a component with id **`root`** (the React mount looks only for that id).
@@ -68,3 +70,7 @@ Canonical short form for humans + agents: [agent-catalog.md](./agent-catalog.md)
 ## Inline JSON recovery
 
 If the model pastes catalog JSON into chat text (shorthand `{ "component": "…" }` trees, fenced protocol arrays, etc.), the client strips it from the markdown bubble and normalizes it through the same Cos catalog allowlist into A2UI v0.9 surfaces. New components work once added to `ALLOWED_COMPONENT_NAMES` — no per-component parsers.
+
+## Adding components
+
+Do not rebuild transport, store, or parsers. Follow the checklist in [extending.md](./extending.md).

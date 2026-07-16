@@ -1,12 +1,14 @@
 # Frontend Architecture Score: 64/100
 
+> **Remediation status (2026-07-16 follow-up):** UI-013–UI-025 have been implemented on this branch. The score above remains the pre-fix baseline; re-score in the next weekly audit after verifying the landed changes.
+
 **Previous score:** Not published (2026-07-15 run listed 12 issues and landed fixes; no formal 0–100 scorecard)
 **Change:** N/A (first scored weekly audit)
 **Audit coverage:** 86% — High coverage
 **Comparison status:** Baseline for scored tracking — Not directly comparable to the prior issue-fix run (different deliverable shape; prior run focused on finding/fixing UI-001–UI-012 rather than publishing category ratings)
 **Architecture trend:** Improving (UI-001–UI-012 verified still resolved; residual issues are fewer and mostly Medium/Low)
 
-**Issues found:** 13 (High: 3, Medium: 7, Low: 3)
+**Issues found:** 13 (High: 3, Medium: 7, Low: 3) — **all remediated on this branch**
 **Most repeated frontend pattern:** Identical page-header refresh icon buttons across dashboard pages, plus residual ConfirmDialog / FieldError bypasses in older feature surfaces
 **Highest-value refactor:** Finish ConfirmDialog adoption for remaining simple deletes, then extract shared chat session/SSE behavior beyond `useChatStreamingBuffer`
 

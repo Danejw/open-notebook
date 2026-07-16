@@ -6,6 +6,7 @@ import { ChatToolCall } from '@/lib/types/mcp'
 import { ToolCallCard } from '@/components/mcp/ToolCallCard'
 import { ChatMessageList } from '@/components/source/ChatMessageList'
 import { AgentActivityStatus } from '@/components/common/AgentActivityStatus'
+import { EmptyState } from '@/components/common/EmptyState'
 import { useMcpSessionToolCalls } from '@/lib/hooks/use-mcp'
 import {
   groupToolCallsByMessage,
@@ -14,7 +15,6 @@ import {
 import { useModalManager } from '@/lib/hooks/use-modal-manager'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
 
 export interface ChatPanelMessagesProps {
   messages: SourceChatMessage[]
@@ -163,19 +163,15 @@ export function ChatPanelMessages({
       }
       contentClassName={isImmersive ? 'gap-3' : undefined}
       emptyState={
-        <div
-          className={cn(
-            'text-center text-muted-foreground',
-            isImmersive ? 'px-2 py-10' : 'px-2 py-3'
+        <EmptyState
+          variant="subtle"
+          title={t('chat.startConversation').replace(
+            '{type}',
+            contextType === 'source' ? t('navigation.sources') : t('common.project')
           )}
-        >
-          <p className={cn(isImmersive ? 'text-base' : 'text-sm')}>
-            {t('chat.startConversation').replace(
-              '{type}',
-              contextType === 'source' ? t('navigation.sources') : t('common.project')
-            )}
-          </p>
-        </div>
+          className={isImmersive ? 'px-2 py-10' : 'px-2 py-3'}
+          titleClassName={isImmersive ? 'text-base' : undefined}
+        />
       }
       footer={
         isStreaming ? (

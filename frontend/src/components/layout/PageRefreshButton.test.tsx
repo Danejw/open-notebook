@@ -19,4 +19,16 @@ describe('PageRefreshButton', () => {
 
     expect(screen.getByRole('button', { name: 'common.refresh' })).toBeDisabled()
   })
+
+  it('renders a visible label when showLabel is enabled', () => {
+    render(<PageRefreshButton onClick={vi.fn()} showLabel label="Refresh list" />)
+
+    expect(screen.getByRole('button', { name: 'Refresh list' })).toBeInTheDocument()
+  })
+
+  it('disables the button while loading', () => {
+    render(<PageRefreshButton onClick={vi.fn()} showLabel isLoading />)
+
+    expect(screen.getByRole('button', { name: 'common.refresh' })).toBeDisabled()
+  })
 })

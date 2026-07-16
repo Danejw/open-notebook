@@ -8,8 +8,8 @@ import { getConfig } from '@/lib/config'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertCircle } from 'lucide-react'
 import { LoginCardSkeleton } from '@/components/common/LoadingSkeletons'
+import { InlineError } from '@/components/common/PageError'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
 export function LoginForm() {
@@ -90,12 +90,7 @@ export function LoginForm() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-start gap-2 text-red-600 text-sm">
-                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  {error || t('auth.connectErrorHint')}
-                </div>
-              </div>
+              <InlineError title={error || t('auth.connectErrorHint')} />
 
               {configInfo && (
                 <div className="space-y-2 text-xs text-muted-foreground border-t pt-3">
@@ -158,12 +153,7 @@ export function LoginForm() {
               />
             </div>
 
-            {error && (
-              <div className="flex items-center gap-2 text-red-600 text-sm">
-                <AlertCircle className="h-4 w-4" />
-                {error}
-              </div>
-            )}
+            {error && <InlineError title={error} />}
 
             <Button
               type="submit"

@@ -1,9 +1,10 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { AlertCircle, ListMusic, RefreshCcw } from 'lucide-react'
+import { AlertCircle, ListMusic } from 'lucide-react'
 import { EmptyState } from '@/components/common/EmptyState'
-import { InlineSkeleton, ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
+import { ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
+import { PageRefreshButton } from '@/components/layout/PageRefreshButton'
 
 import { useDeletePodcastEpisode, usePodcastEpisodes, useRetryPodcastEpisode } from '@/lib/hooks/use-podcasts'
 import { EpisodeCard } from '@/components/podcasts/EpisodeCard'
@@ -95,19 +96,12 @@ export function EpisodesTab() {
           <Button onClick={() => setShowGenerateDialog(true)}>
             {t('podcasts.generateBtn')}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
+          <PageRefreshButton
+            showLabel
             onClick={handleRefresh}
-            disabled={isFetching}
-          >
-            {isFetching ? (
-              <InlineSkeleton className="mr-2" />
-            ) : (
-              <RefreshCcw className="mr-2 h-4 w-4" />
-            )}
-            {t('common.refresh')}
-          </Button>
+            isLoading={isFetching}
+            iconClassName="mr-2 h-4 w-4"
+          />
         </div>
       </div>
 

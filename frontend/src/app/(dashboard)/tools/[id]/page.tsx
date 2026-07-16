@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, KeyRound, RefreshCw, Zap } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { PageRefreshButton } from '@/components/layout/PageRefreshButton'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -195,15 +196,13 @@ export default function ToolConnectionDetailPage() {
                   />
                   <span className="hidden sm:inline">{t('tools.sync')}</span>
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
+                <PageRefreshButton
+                  showLabel
                   className="h-7 px-2 text-xs"
+                  iconClassName="sm:mr-1.5"
+                  labelClassName="hidden sm:inline"
                   onClick={handleRefresh}
-                >
-                  <RefreshCw className="h-3.5 w-3.5 sm:mr-1.5" />
-                  <span className="hidden sm:inline">{t('common.refresh')}</span>
-                </Button>
+                />
                 <Button
                   variant="outline"
                   size="sm"

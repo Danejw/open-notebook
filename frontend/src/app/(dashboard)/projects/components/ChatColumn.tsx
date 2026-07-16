@@ -1,7 +1,8 @@
 'use client'
 
 import { useLayoutEffect, useMemo, useRef, type ReactNode } from 'react'
-import { AlertCircle, MessageSquare } from 'lucide-react'
+import { MessageSquare } from 'lucide-react'
+import { PageError } from '@/components/common/PageError'
 import { useProjectChat } from '@/lib/hooks/useProjectChat'
 import { ChatPanel } from '@/components/source/ChatPanel'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -111,11 +112,12 @@ export function ChatColumn({
     content = (
       <Card className="flex h-full flex-col">
         <CardContent className="flex flex-1 items-center justify-center">
-          <div className="text-center text-muted-foreground">
-            <AlertCircle className="mx-auto mb-4 h-12 w-12 opacity-50" />
-            <p className="text-sm">{t('chat.unableToLoadChat')}</p>
-            <p className="mt-2 text-xs">{t('common.refreshPage') || 'Please try refreshing the page'}</p>
-          </div>
+          <PageError
+            title={t('chat.unableToLoadChat')}
+            description={t('common.refreshPage') || 'Please try refreshing the page'}
+            tone="muted"
+            centered
+          />
         </CardContent>
       </Card>
     )

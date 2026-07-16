@@ -6,6 +6,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { SourceListResponse } from '@/lib/types/api'
 import { TableLoadMoreSkeleton } from '@/components/common/LoadingSkeletons'
 import { EmptyState } from '@/components/common/EmptyState'
+import { PageError } from '@/components/common/PageError'
 import { SourcesTableSkeleton } from '@/components/layout/SourcesTableSkeleton'
 import { PageHeader, pageContentClassName, pageSectionGapClassName } from '@/components/layout/PageHeader'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
@@ -241,19 +242,25 @@ export default function SourcesPage() {
 
   if (error && sources.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-red-500">{t('sources.failedToLoad')}</p>
+      <div className={cn('flex h-full w-full max-w-none flex-col', pageContentClassName, pageSectionGapClassName)}>
+        <PageHeader title={t('sources.allSources')} />
+        <div className="flex flex-1 items-center justify-center">
+          <PageError title={t('sources.failedToLoad')} centered />
+        </div>
       </div>
     )
   }
 
   if (!isLoading && sources.length === 0) {
     return (
-      <EmptyState
-        icon={FileText}
-        title={t('sources.noSourcesYet')}
-        description={t('sources.allSourcesDescShort')}
-      />
+      <div className={cn('flex h-full w-full max-w-none flex-col', pageContentClassName, pageSectionGapClassName)}>
+        <PageHeader title={t('sources.allSources')} />
+        <EmptyState
+          icon={FileText}
+          title={t('sources.noSourcesYet')}
+          description={t('sources.allSourcesDescShort')}
+        />
+      </div>
     )
   }
 

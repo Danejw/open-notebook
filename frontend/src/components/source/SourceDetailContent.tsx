@@ -5,7 +5,7 @@ import { isAxiosError } from 'axios'
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
 import { sourcesApi } from '@/lib/api/sources'
 import { embeddingApi } from '@/lib/api/embedding'
-import { SourceDetailResponse } from '@/lib/types/api'
+import { useSource } from '@/lib/hooks/use-sources'
 import {
   SourceDetailSkeleton,
 } from '@/components/common/LoadingSkeletons'
@@ -63,9 +63,12 @@ export function SourceDetailContent({
   onClose
 }: SourceDetailContentProps) {
   const { t, language } = useTranslation()
-  const [source, setSource] = useState<SourceDetailResponse | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const {
+    data: source,
+    isLoading,
+    isError,
+    refetch,
+  } = useSource(sourceId)
   const [copied, setCopied] = useState(false)
   const [isEmbedding, setIsEmbedding] = useState(false)
   const [isDownloadingFile, setIsDownloadingFile] = useState(false)
@@ -73,31 +76,19 @@ export function SourceDetailContent({
   const [sourceDeleteOpen, setSourceDeleteOpen] = useState(false)
   const [deletingSource, setDeletingSource] = useState(false)
 
-  const fetchSource = useCallback(async () => {
-    try {
-      setLoading(true)
-      const data = await sourcesApi.get(sourceId)
-      setSource(data)
-      if (typeof data.file_available === 'boolean') {
-        setFileAvailable(data.file_available)
-      } else if (!data.asset?.file_path) {
-        setFileAvailable(null)
-      } else {
-        setFileAvailable(null)
-      }
-    } catch (err) {
-      console.error('Failed to fetch source:', err)
-      setError(t('sources.loadFailed'))
-    } finally {
-      setLoading(false)
-    }
-  }, [sourceId, t])
-
   useEffect(() => {
-    if (sourceId) {
-      void fetchSource()
+    if (!source) {
+      setFileAvailable(null)
+      return
     }
-  }, [fetchSource, sourceId])
+    if (typeof source.file_available === 'boolean') {
+      setFileAvailable(source.file_available)
+    } else if (!source.asset?.file_path) {
+      setFileAvailable(null)
+    } else {
+      setFileAvailable(null)
+    }
+  }, [source])
 
   const handleUpdateTitle = async (title: string) => {
     if (!source || title === source.title) return
@@ -105,11 +96,11 @@ export function SourceDetailContent({
     try {
       await sourcesApi.update(sourceId, { title })
       toast.success(t('common.success'))
-      setSource({ ...source, title })
+      await refetch()
     } catch (err) {
       console.error('Failed to update source title:', err)
       toast.error(t('common.error'))
-      await fetchSource()
+      await refetch()
     }
   }
 
@@ -120,7 +111,7 @@ export function SourceDetailContent({
       setIsEmbedding(true)
       const response = await embeddingApi.embedContent(sourceId, 'source')
       toast.success(response.message || t('common.success'))
-      await fetchSource()
+      await refetch()
     } catch (err) {
       console.error('Failed to embed content:', err)
       toast.error(t('common.error'))
@@ -258,14 +249,16 @@ export function SourceDetailContent({
     }
   }
 
-  if (loading) {
+  if (isLoading) {
     return <SourceDetailSkeleton />
   }
 
-  if (error || !source) {
+  if (isError || !source) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 p-4">
-        <p className="text-sm text-destructive">{error || t('sources.notFound')}</p>
+        <p className="text-sm text-destructive">
+          {isError ? t('sources.loadFailed') : t('sources.notFound')}
+        </p>
       </div>
     )
   }
@@ -540,7 +533,9 @@ export function SourceDetailContent({
             <ProjectAssociations
               sourceId={sourceId}
               currentProjectIds={source.projects || []}
-              onSave={fetchSource}
+              onSave={() => {
+                void refetch()
+              }}
             />
           </TabsContent>
         </Tabs>

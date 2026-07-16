@@ -1345,6 +1345,15 @@ export const ptBR = {
     "configUpdateSuccess": "Configuração atualizada com sucesso",
     "configDeleteSuccess": "Configuração excluída com sucesso",
     "apiKeyEditHint": "Deixe em branco para manter a chave de API existente",
+    "testButton": "Testar",
+    "modelsButton": "Modelos",
+    "hasKey": "Chave",
+    "modality": {
+      "language": "Idioma",
+      "embedding": "Embedding",
+      "text_to_speech": "TTS",
+      "speech_to_text": "STT"
+    },
     "decryptionError": "Erro de Descriptografia",
     "decryptionErrorDescription": "A chave de API desta credencial não pôde ser descriptografada. A chave de criptografia pode ter sido alterada. Exclua esta credencial e recrie-a com a chave correta."
   },

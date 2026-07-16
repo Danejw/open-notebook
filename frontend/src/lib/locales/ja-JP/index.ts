@@ -1345,6 +1345,15 @@ export const jaJP = {
     "configUpdateSuccess": "設定が正常に変更されました",
     "configDeleteSuccess": "設定が正常に削除されました",
     "apiKeyEditHint": "既存のAPIキーを維持するには空白のままにしてください",
+    "testButton": "テスト",
+    "modelsButton": "モデル",
+    "hasKey": "キー",
+    "modality": {
+      "language": "言語",
+      "embedding": "埋め込み",
+      "text_to_speech": "TTS",
+      "speech_to_text": "STT"
+    },
     "decryptionError": "復号エラー",
     "decryptionErrorDescription": "この認証情報のAPIキーを復号できませんでした。暗号化キーが変更された可能性があります。この認証情報を削除し、正しいキーで再作成してください。"
   },

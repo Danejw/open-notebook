@@ -1345,6 +1345,15 @@ export const caES = {
     "configUpdateSuccess": "S'ha actualitzat la configuració correctament",
     "configDeleteSuccess": "S'ha suprimit la configuració correctament",
     "apiKeyEditHint": "Deixa-ho en blanc per conservar la clau de l'API existent",
+    "testButton": "Provar",
+    "modelsButton": "Models",
+    "hasKey": "Clau",
+    "modality": {
+      "language": "Idioma",
+      "embedding": "Embedding",
+      "text_to_speech": "TTS",
+      "speech_to_text": "STT"
+    },
     "decryptionError": "Error de desencriptació",
     "decryptionErrorDescription": "No s'ha pogut desencriptar la clau de l'API d'aquesta credencial. La clau d'encriptació pot haver canviat. Suprimeix aquesta credencial i torna-la a crear amb la clau correcta."
   },

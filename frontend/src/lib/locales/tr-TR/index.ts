@@ -1345,6 +1345,15 @@ export const trTR = {
     "configUpdateSuccess": "Yapılandırma başarıyla güncellendi",
     "configDeleteSuccess": "Yapılandırma başarıyla silindi",
     "apiKeyEditHint": "Mevcut API anahtarını korumak için boş bırakın",
+    "testButton": "Test",
+    "modelsButton": "Modeller",
+    "hasKey": "Anahtar",
+    "modality": {
+      "language": "Dil",
+      "embedding": "Embedding",
+      "text_to_speech": "TTS",
+      "speech_to_text": "STT"
+    },
     "decryptionError": "Şifre Çözme Hatası",
     "decryptionErrorDescription": "Bu kimlik bilgisinin API anahtarı çözülemedi. Şifreleme anahtarı değişmiş olabilir. Bu kimlik bilgisini silin ve doğru anahtarla yeniden oluşturun."
   },

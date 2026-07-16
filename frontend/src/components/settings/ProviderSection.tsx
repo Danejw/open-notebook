@@ -16,7 +16,7 @@ import {
   TYPE_ICONS,
   TYPE_COLORS,
   TYPE_COLOR_INACTIVE,
-  TYPE_LABELS,
+  TYPE_LABEL_KEYS,
 } from '@/components/settings/apiKeysShared'
 
 export interface ProviderSectionProps {
@@ -62,7 +62,7 @@ export function ProviderSection({
                   className={`text-xs gap-1 ${activeTypes.has(type) ? TYPE_COLORS[type] : TYPE_COLOR_INACTIVE}`}
                 >
                   {TYPE_ICONS[type]}
-                  <span className="hidden sm:inline">{TYPE_LABELS[type]}</span>
+                  <span className="hidden sm:inline">{t(TYPE_LABEL_KEYS[type])}</span>
                 </Badge>
               ))}
             </div>

@@ -1345,6 +1345,15 @@ export const esES = {
     "configUpdateSuccess": "Configuración actualizada exitosamente",
     "configDeleteSuccess": "Configuración eliminada exitosamente",
     "apiKeyEditHint": "Deja en blanco para mantener la clave API existente",
+    "testButton": "Probar",
+    "modelsButton": "Modelos",
+    "hasKey": "Clave",
+    "modality": {
+      "language": "Idioma",
+      "embedding": "Embedding",
+      "text_to_speech": "TTS",
+      "speech_to_text": "STT"
+    },
     "decryptionError": "Error de desencriptación",
     "decryptionErrorDescription": "La clave API de esta credencial no pudo ser desencriptada. La clave de encriptación puede haber cambiado. Elimina esta credencial y créala de nuevo con la clave correcta."
   },

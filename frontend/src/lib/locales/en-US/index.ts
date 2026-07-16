@@ -1345,6 +1345,15 @@ export const enUS = {
     "configUpdateSuccess": "Configuration updated successfully",
     "configDeleteSuccess": "Configuration deleted successfully",
     "apiKeyEditHint": "Leave blank to keep the existing API key",
+    "testButton": "Test",
+    "modelsButton": "Models",
+    "hasKey": "Key",
+    "modality": {
+      "language": "Language",
+      "embedding": "Embedding",
+      "text_to_speech": "TTS",
+      "speech_to_text": "STT"
+    },
     "decryptionError": "Decryption Error",
     "decryptionErrorDescription": "This credential's API key could not be decrypted. The encryption key may have changed. Delete this credential and re-create it with the correct key."
   },

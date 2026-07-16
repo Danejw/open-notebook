@@ -88,6 +88,15 @@ export const TYPE_COLORS: Record<ModelType, string> = {
 
 export const TYPE_COLOR_INACTIVE = 'bg-muted text-muted-foreground opacity-50'
 
+/** Translation key suffix for each model modality label. */
+export const TYPE_LABEL_KEYS: Record<ModelType, string> = {
+  language: 'apiKeys.modality.language',
+  embedding: 'apiKeys.modality.embedding',
+  text_to_speech: 'apiKeys.modality.text_to_speech',
+  speech_to_text: 'apiKeys.modality.speech_to_text',
+}
+
+/** @deprecated Prefer TYPE_LABEL_KEYS + t(); kept for transitional English fallbacks. */
 export const TYPE_LABELS: Record<ModelType, string> = {
   language: 'Language',
   embedding: 'Embedding',

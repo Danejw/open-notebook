@@ -1345,6 +1345,15 @@ export const bnIN = {
     "configUpdateSuccess": "কনফিগারেশন সফলভাবে আপডেট",
     "configDeleteSuccess": "কনফিগারেশন সফলভাবে মুছে ফেলা",
     "apiKeyEditHint": "বিদ্যমান API কী রাখতে খালি রাখুন",
+    "testButton": "পরীক্ষা",
+    "modelsButton": "মডেল",
+    "hasKey": "কী",
+    "modality": {
+      "language": "ভাষা",
+      "embedding": "এমবেডিং",
+      "text_to_speech": "TTS",
+      "speech_to_text": "STT"
+    },
     "decryptionError": "ডিক্রিপশন ত্রুটি",
     "decryptionErrorDescription": "এই শংসাপত্রের API কী ডিক্রিপ্ট করা যায়নি। এনক্রিপশন কী পরিবর্তন হয়ে থাকতে পারে। এই শংসাপত্রটি মুছে সঠিক কী দিয়ে পুনরায় তৈরি করুন।"
   },

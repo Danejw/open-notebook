@@ -1345,6 +1345,15 @@ export const zhTW = {
     "configUpdateSuccess": "設定更新成功",
     "configDeleteSuccess": "設定刪除成功",
     "apiKeyEditHint": "留空以保留現有 API 金鑰",
+    "testButton": "測試",
+    "modelsButton": "模型",
+    "hasKey": "金鑰",
+    "modality": {
+      "language": "語言",
+      "embedding": "嵌入",
+      "text_to_speech": "TTS",
+      "speech_to_text": "STT"
+    },
     "decryptionError": "解密錯誤",
     "decryptionErrorDescription": "此憑證的 API 金鑰無法解密。加密金鑰可能已變更。請刪除此憑證並使用正確的金鑰重新建立。"
   },

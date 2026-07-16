@@ -1345,6 +1345,15 @@ export const plPL = {
     "configUpdateSuccess": "Konfiguracja zaktualizowana pomyślnie",
     "configDeleteSuccess": "Konfiguracja usunięta pomyślnie",
     "apiKeyEditHint": "Pozostaw puste, aby zachować istniejący klucz API",
+    "testButton": "Testuj",
+    "modelsButton": "Modele",
+    "hasKey": "Klucz",
+    "modality": {
+      "language": "Język",
+      "embedding": "Embedding",
+      "text_to_speech": "TTS",
+      "speech_to_text": "STT"
+    },
     "decryptionError": "Błąd odszyfrowywania",
     "decryptionErrorDescription": "Nie udało się odszyfrować klucza API tego poświadczenia. Klucz szyfrowania mógł ulec zmianie. Usuń to poświadczenie i utwórz je ponownie z prawidłowym kluczem."
   },

@@ -1345,6 +1345,15 @@ export const deDE = {
     "configUpdateSuccess": "Konfiguration erfolgreich aktualisiert",
     "configDeleteSuccess": "Konfiguration erfolgreich gelöscht",
     "apiKeyEditHint": "Leer lassen, um den vorhandenen API-Schlüssel beizubehalten",
+    "testButton": "Testen",
+    "modelsButton": "Modelle",
+    "hasKey": "Schlüssel",
+    "modality": {
+      "language": "Sprache",
+      "embedding": "Embedding",
+      "text_to_speech": "TTS",
+      "speech_to_text": "STT"
+    },
     "decryptionError": "Entschlüsselungsfehler",
     "decryptionErrorDescription": "Der API-Schlüssel dieser Zugangsdaten konnte nicht entschlüsselt werden. Möglicherweise hat sich der Verschlüsselungsschlüssel geändert. Lösche diese Zugangsdaten und erstelle sie mit dem richtigen Schlüssel neu."
   },

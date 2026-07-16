@@ -29,7 +29,7 @@ import {
   TYPE_ICONS,
   TYPE_COLORS,
   TYPE_COLOR_INACTIVE,
-  TYPE_LABELS,
+  TYPE_LABEL_KEYS,
 } from '@/components/settings/apiKeysShared'
 
 export interface CredentialItemProps {
@@ -91,14 +91,16 @@ export function CredentialItem({
                   className={`text-[10px] gap-0.5 px-1 py-0 ${activeTypes.has(mod as ModelType) ? (TYPE_COLORS[mod as ModelType] || '') : TYPE_COLOR_INACTIVE}`}
                 >
                   {TYPE_ICONS[mod as ModelType]}
-                  <span className="hidden sm:inline">{TYPE_LABELS[mod as ModelType] || mod}</span>
+                  <span className="hidden sm:inline">
+                    {t(TYPE_LABEL_KEYS[mod as ModelType] || mod)}
+                  </span>
                 </Badge>
               ))}
             </div>
             {credential.has_api_key && (
               <Badge variant="outline" className="text-[10px]">
                 <Key className="h-2.5 w-2.5 mr-0.5" />
-                Key
+                {t('apiKeys.hasKey')}
               </Badge>
             )}
           </div>
@@ -116,7 +118,7 @@ export function CredentialItem({
               aria-label={t('apiKeys.testConnection')}
             >
               {isTestPending ? <InlineSkeleton /> : <Plug className="h-4 w-4" />}
-              <span className="hidden sm:inline text-xs">Test</span>
+              <span className="hidden sm:inline text-xs">{t('apiKeys.testButton')}</span>
             </Button>
             <Button
               variant="ghost" size="sm"
@@ -126,7 +128,7 @@ export function CredentialItem({
               aria-label={t('apiKeys.syncModels')}
             >
               <Bot className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs">Models</span>
+              <span className="hidden sm:inline text-xs">{t('apiKeys.modelsButton')}</span>
             </Button>
             <Button
               variant="ghost"
@@ -171,7 +173,7 @@ export function CredentialItem({
                     className={`text-[10px] gap-0.5 px-1 py-0 shrink-0 mt-0.5 ${TYPE_COLORS[type]}`}
                   >
                     {TYPE_ICONS[type]}
-                    {TYPE_LABELS[type]}
+                    {t(TYPE_LABEL_KEYS[type])}
                   </Badge>
                   <div className="flex flex-wrap gap-1">
                     {linkedModels.filter(m => m.type === type).map(model => {
@@ -189,6 +191,7 @@ export function CredentialItem({
                             onClick={() => testModel(model.id, model.name)}
                             disabled={isModelTestPending && testingModelId === model.id}
                             title={testModelLabel}
+                            aria-label={testModelLabel}
                           >
                             {isModelTestPending && testingModelId === model.id
                               ? <InlineSkeleton className="h-3 w-3" />

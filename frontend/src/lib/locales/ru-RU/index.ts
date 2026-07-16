@@ -1345,6 +1345,15 @@ export const ruRU = {
     "configUpdateSuccess": "Конфигурация успешно обновлена",
     "configDeleteSuccess": "Конфигурация успешно удалена",
     "apiKeyEditHint": "Оставьте пустым, чтобы сохранить текущий API-ключ",
+    "testButton": "Тест",
+    "modelsButton": "Модели",
+    "hasKey": "Ключ",
+    "modality": {
+      "language": "Язык",
+      "embedding": "Эмбеддинг",
+      "text_to_speech": "TTS",
+      "speech_to_text": "STT"
+    },
     "decryptionError": "Ошибка расшифровки",
     "decryptionErrorDescription": "API-ключ этих учётных данных не удалось расшифровать. Возможно, ключ шифрования был изменён. Удалите эти учётные данные и создайте заново с правильным ключом."
   },

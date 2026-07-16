@@ -560,7 +560,9 @@ export default function SearchPage() {
                             return null
                           }
                           const [type, id] = result.parent_id.split(':')
-                          const modalType = type === 'source_insight' ? 'insight' : type as 'source' | 'note' | 'insight'
+                          if (type !== 'source' && type !== 'note') {
+                            return null
+                          }
 
                           return (
                           <Card key={index}>
@@ -568,7 +570,7 @@ export default function SearchPage() {
                               <div className="flex items-start justify-between gap-4">
                                 <div className="flex-1">
                                   <button
-                                    onClick={() => openModal(modalType, id)}
+                                    onClick={() => openModal(type as 'source' | 'note', id)}
                                     className="text-primary hover:underline font-medium"
                                   >
                                     {result.title}

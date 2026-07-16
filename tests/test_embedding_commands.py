@@ -208,7 +208,6 @@ async def test_rebuild_sources_uses_linked_embed_stage(monkeypatch):
             return_value={
                 "sources": ["source:one", "source:two"],
                 "notes": [],
-                "insights": [],
             }
         ),
     )
@@ -220,7 +219,6 @@ async def test_rebuild_sources_uses_linked_embed_stage(monkeypatch):
             mode="all",
             include_sources=True,
             include_notes=False,
-            include_insights=False,
         )
     )
 
@@ -232,25 +230,25 @@ async def test_rebuild_sources_uses_linked_embed_stage(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_legacy_embed_single_item_routes_insights(monkeypatch):
-    async def fake_embed_insight(input_data):
-        assert input_data.insight_id == "source_insight:abc"
-        return embedding_commands.EmbedInsightOutput(
+async def test_legacy_embed_single_item_routes_notes(monkeypatch):
+    async def fake_embed_note(input_data):
+        assert input_data.note_id == "note:abc"
+        return embedding_commands.EmbedNoteOutput(
             success=True,
-            insight_id=input_data.insight_id,
+            note_id=input_data.note_id,
             processing_time=0.1,
         )
 
-    monkeypatch.setattr(embedding_commands, "embed_insight_command", fake_embed_insight)
+    monkeypatch.setattr(embedding_commands, "embed_note_command", fake_embed_note)
 
     result = await embedding_commands.legacy_embed_single_item_command(
         embedding_commands.LegacyEmbedSingleItemInput(
-            item_id="source_insight:abc",
-            item_type="insight",
+            item_id="note:abc",
+            item_type="note",
         )
     )
 
     assert result.success is True
-    assert result.item_id == "source_insight:abc"
-    assert result.item_type == "insight"
+    assert result.item_id == "note:abc"
+    assert result.item_type == "note"
     assert result.chunks_created == 0

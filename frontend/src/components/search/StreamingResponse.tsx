@@ -40,16 +40,14 @@ export function StreamingResponse({
   const { t } = useTranslation()
 
   const handleReferenceClick = (type: string, id: string) => {
-    const modalType = type === 'source_insight' ? 'insight' : type as 'source' | 'note' | 'insight'
+    if (type !== 'source' && type !== 'note') {
+      return
+    }
 
     try {
-      openModal(modalType, id)
-      // Note: The modal system uses URL parameters and doesn't throw errors for missing items.
-      // The modal component itself will handle displaying "not found" states.
-      // This try-catch is here for future enhancements or unexpected errors.
+      openModal(type, id)
     } catch {
-      const typeLabel = type === 'source_insight' ? 'insight' : type
-      toast.error(t('common.itemNotFound').replace('{type}', typeLabel))
+      toast.error(t('common.itemNotFound').replace('{type}', type))
     }
   }
 

@@ -103,7 +103,6 @@ export function AddExistingSourceDialog({
         asset: null,
         embedded: false,
         embedded_chunks: 0,
-        insights_count: 0,
         created: r.created,
         updated: r.updated,
       })) as SourceListResponse[]

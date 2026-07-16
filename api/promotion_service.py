@@ -1,4 +1,4 @@
-"""Promote notes, insights, and raw text into ingested text sources."""
+"""Promote notes and raw text into ingested text sources."""
 
 from typing import List, Optional
 
@@ -7,8 +7,7 @@ from loguru import logger
 from api.command_service import CommandService
 from api.models import SourceResponse
 from construction_os.database.repository import ensure_record_id, repo_query
-from construction_os.domain.artifact import Artifact
-from construction_os.domain.project import Note, Project, Source, SourceInsight
+from construction_os.domain.project import Note, Project, Source
 from construction_os.exceptions import InvalidInputError, NotFoundError
 
 
@@ -37,13 +36,6 @@ async def _validate_projects(project_ids: List[str]) -> None:
             raise NotFoundError(f"Project {project_id} not found")
 
 
-async def _validate_artifacts(artifact_ids: List[str]) -> None:
-    for artifact_id in artifact_ids:
-        artifact = await Artifact.get(artifact_id)
-        if not artifact:
-            raise NotFoundError(f"Artifact {artifact_id} not found")
-
-
 async def promote_text_to_source(
     *,
     content: str,
@@ -60,9 +52,8 @@ async def promote_text_to_source(
     if not project_ids:
         raise InvalidInputError("At least one project ID is required")
 
-    artifacts = artifact_ids or []
+    # artifact_ids accepted for API compatibility but ignored (insights removed)
     await _validate_projects(project_ids)
-    await _validate_artifacts(artifacts)
 
     source = Source(
         title=title or "Untitled",
@@ -84,7 +75,7 @@ async def promote_text_to_source(
                 "content": stripped,
                 "title": title or "Untitled",
                 "project_ids": project_ids,
-                "artifacts": artifacts,
+                "artifacts": [],
                 "embed": embed,
             },
         )
@@ -148,44 +139,6 @@ async def promote_note_to_source(
         )
 
     title = note.title or "Untitled artifact"
-    return await promote_text_to_source(
-        content=content,
-        title=title,
-        project_ids=project_ids,
-        embed=embed,
-        artifact_ids=artifact_ids,
-    )
-
-
-async def promote_insight_to_source(
-    insight_id: str,
-    *,
-    project_id: Optional[str] = None,
-    embed: bool = True,
-    artifact_ids: Optional[List[str]] = None,
-) -> SourceResponse:
-    insight = await SourceInsight.get(insight_id)
-    if not insight:
-        raise NotFoundError("Insight not found")
-
-    content = insight.content or ""
-    if not content.strip():
-        raise InvalidInputError("Insight has no content to ingest")
-
-    project_ids: List[str] = []
-    if project_id:
-        project_ids = [project_id]
-    else:
-        source = await insight.get_source()
-        if source.id:
-            project_ids = await get_source_project_ids(str(source.id))
-
-    if not project_ids:
-        raise InvalidInputError(
-            "project_id is required when the insight source is not linked to a project"
-        )
-
-    title = insight.insight_type or "Source insight"
     return await promote_text_to_source(
         content=content,
         title=title,

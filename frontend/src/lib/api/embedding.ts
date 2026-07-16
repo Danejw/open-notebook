@@ -19,7 +19,6 @@ export interface RebuildEmbeddingsRequest {
   mode: 'existing' | 'all'
   include_sources?: boolean
   include_notes?: boolean
-  include_insights?: boolean
 }
 
 export interface RebuildEmbeddingsResponse {

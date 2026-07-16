@@ -41,11 +41,8 @@ async def get_project_context(project_id: str, context_request: ContextRequest):
                     except Exception:
                         continue
 
-                    if "insights" in status:
-                        source_context = await source.get_context(context_size="short")
-                        context_data["source"].append(source_context)
-                        total_content += str(source_context)
-                    elif "full content" in status:
+                    # Legacy "insights" mode treated as full content
+                    if "insights" in status or "full content" in status:
                         source_context = await source.get_context(context_size="long")
                         context_data["source"].append(source_context)
                         total_content += str(source_context)

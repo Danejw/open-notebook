@@ -23,7 +23,6 @@ async def start_rebuild(request: RebuildRequest):
     - **mode**: "existing" (re-embed items with embeddings) or "all" (embed everything)
     - **include_sources**: Include sources in rebuild (default: true)
     - **include_notes**: Include notes in rebuild (default: true)
-    - **include_insights**: Include insights in rebuild (default: true)
 
     Returns command ID to track progress and estimated item count.
     """
@@ -75,21 +74,7 @@ async def start_rebuild(request: RebuildRequest):
             elif result:
                 total_estimate += result[0] if isinstance(result[0], int) else 0
 
-        if request.include_insights:
-            if request.mode == "existing":
-                result = await repo_query(
-                    "SELECT VALUE count() as count FROM source_insight WHERE embedding != none AND array::len(embedding) > 0 GROUP ALL"
-                )
-            else:
-                result = await repo_query(
-                    "SELECT VALUE count() as count FROM source_insight GROUP ALL"
-                )
-
-            if result and isinstance(result[0], dict):
-                total_estimate += result[0].get("count", 0)
-            elif result:
-                total_estimate += result[0] if isinstance(result[0], int) else 0
-
+        
         logger.info(f"Estimated {total_estimate} items to process")
 
         # Submit command
@@ -100,7 +85,6 @@ async def start_rebuild(request: RebuildRequest):
                 "mode": request.mode,
                 "include_sources": request.include_sources,
                 "include_notes": request.include_notes,
-                "include_insights": request.include_insights,
             },
         )
 
@@ -128,7 +112,7 @@ async def get_rebuild_status(command_id: str):
     Returns:
     - **status**: queued, running, completed, failed
     - **progress**: processed count, total count, percentage
-    - **stats**: breakdown by type (sources, notes, insights, failed)
+    - **stats**: breakdown by type (sources, notes, failed)
     - **timestamps**: started_at, completed_at
     """
     try:
@@ -162,7 +146,6 @@ async def get_rebuild_status(command_id: str):
             response.stats = RebuildStats(
                 sources=result.get("sources_submitted", 0),
                 notes=result.get("notes_submitted", 0),
-                insights=result.get("insights_submitted", 0),
                 failed=result.get("failed_submissions", 0),
             )
 

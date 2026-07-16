@@ -735,7 +735,6 @@ function ArtifactListRow({
             <div onClick={(event) => event.stopPropagation()}>
               <ContextToggle
                 mode={contextMode}
-                hasInsights={false}
                 onChange={(mode) => onContextModeChange(note.id, mode)}
                 className="h-7 w-7"
               />

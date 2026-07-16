@@ -27,7 +27,6 @@ import {
   AlertTriangle,
   Unlink,
   EyeOff,
-  Lightbulb,
   Network,
 } from 'lucide-react'
 import { useSourceStatus, useEmbedSource } from '@/lib/hooks/use-sources'
@@ -662,15 +661,6 @@ function SourceCardImpl({
                       <EyeOff className="h-4 w-4" />
                       {t('common.contextModes.off')}
                     </DropdownMenuRadioItem>
-                    {source.insights_count > 0 && (
-                      <DropdownMenuRadioItem
-                        value="insights"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Lightbulb className="h-4 w-4" />
-                        {t('common.contextModes.insights')}
-                      </DropdownMenuRadioItem>
-                    )}
                     <DropdownMenuRadioItem
                       value="full"
                       onClick={(e) => e.stopPropagation()}
@@ -851,7 +841,6 @@ function areEqual(prev: SourceCardProps, next: SourceCardProps): boolean {
     p.kg_status === n.kg_status &&
     p.processing_failures === n.processing_failures &&
     p.failure_details_unavailable === n.failure_details_unavailable &&
-    p.insights_count === n.insights_count &&
     p.asset?.url === n.asset?.url &&
     p.asset?.file_path === n.asset?.file_path &&
     topicsEqual(p.topics, n.topics) &&

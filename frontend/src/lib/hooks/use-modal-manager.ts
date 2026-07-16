@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 
-export type ModalType = 'source' | 'note' | 'insight'
+export type ModalType = 'source' | 'note'
 
 export function useModalManager() {
   const router = useRouter()
@@ -15,7 +15,7 @@ export function useModalManager() {
 
   /**
    * Open a modal by updating URL params without navigation
-   * @param type - Type of modal to open (source, note, insight)
+   * @param type - Type of modal to open (source, note)
    * @param id - ID of the content to display
    */
   const openModal = (type: ModalType, id: string) => {

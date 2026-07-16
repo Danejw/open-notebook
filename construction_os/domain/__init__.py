@@ -29,7 +29,6 @@ from construction_os.domain.project import (
     Project,
     Source,
     SourceEmbedding,
-    SourceInsight,
     text_search,
     vector_search,
 )
@@ -57,7 +56,6 @@ __all__ = [
     "RecordModel",
     "Source",
     "SourceEmbedding",
-    "SourceInsight",
     "text_search",
     "vector_search",
 ]

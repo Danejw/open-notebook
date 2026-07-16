@@ -1,73 +1,58 @@
 import type { ContextMode, NoteContextMode } from '@/lib/types/project-context'
+import { normalizeContextMode } from '@/lib/types/project-context'
 
 /**
  * Bulk context actions for sources:
- * - `include`  → each source's sensible included mode (insights if available, else full)
- * - `insights` → insights when the source has them, otherwise excluded (don't force full)
+ * - `include`  → full content
  * - `full`     → full content for every source
  * - `exclude`  → excluded from context
- *
- * `include` is the implicit default applied on first load; `insights`, `full`
- * and `exclude` are the explicit bulk actions offered in the column header.
  */
-export type SourceContextDefault = 'include' | 'insights' | 'full' | 'exclude'
+export type SourceContextDefault = 'include' | 'full' | 'exclude'
 
 /** The subset of actions surfaced as explicit bulk menu items. */
 export type SourceBulkAction = Exclude<SourceContextDefault, 'include'>
 
 interface SourceLike {
   id: string
-  insights_count: number
 }
 
-/** The "included" context mode for a source: insights when available, else full. */
-export function includedMode(insightsCount: number): ContextMode {
-  return insightsCount > 0 ? 'insights' : 'full'
+/** The "included" context mode for a source. */
+export function includedMode(): ContextMode {
+  return 'full'
 }
 
 /** Resolve the context mode a bulk action implies for a single source. */
-export function bulkModeForSource(
-  mode: SourceContextDefault,
-  insightsCount: number,
-): ContextMode {
+export function bulkModeForSource(mode: SourceContextDefault): ContextMode {
   switch (mode) {
     case 'exclude':
       return 'off'
     case 'full':
-      return 'full'
-    case 'insights':
-      // "insights only" must not force a mode on sources without insights —
-      // those are left out of context entirely (#223).
-      return insightsCount > 0 ? 'insights' : 'off'
     case 'include':
-    default:
-      return includedMode(insightsCount)
+      return 'full'
+    default: {
+      const _exhaustive: never = mode
+      return _exhaustive
+    }
   }
 }
 
 /**
  * Compute chat-context selections for a batch of sources while preserving
- * existing choices.
- *
- * Newly-seen sources adopt `defaultMode`, so a prior bulk action also governs
- * sources that load later via pagination — otherwise a bulk action would
- * silently miss sources loaded after it (#223/#915).
+ * existing choices. Legacy 'insights' modes normalize to 'full'.
  */
 export function computeSourceSelections(
   existing: Record<string, ContextMode>,
   sources: SourceLike[],
   defaultMode: SourceContextDefault = 'include',
 ): Record<string, ContextMode> {
-  const next = { ...existing }
+  const next: Record<string, ContextMode> = {}
+  for (const [id, mode] of Object.entries(existing)) {
+    next[id] = normalizeContextMode(mode)
+  }
   for (const source of sources) {
     const current = next[source.id]
     if (current === undefined) {
-      next[source.id] = bulkModeForSource(defaultMode, source.insights_count)
-    } else if (defaultMode === 'include' && current === 'full' && source.insights_count > 0) {
-      // Auto-upgrade only under the implicit default: a source included as
-      // 'full' (because it had no insights yet) prefers leaner insights once
-      // they exist. An explicit 'full' bulk choice is left untouched.
-      next[source.id] = 'insights'
+      next[source.id] = bulkModeForSource(defaultMode)
     }
   }
   return next
@@ -81,15 +66,13 @@ export function applyBulkSourceContext(
 ): Record<string, ContextMode> {
   const next = { ...existing }
   for (const source of sources) {
-    next[source.id] = bulkModeForSource(action, source.insights_count)
+    next[source.id] = bulkModeForSource(action)
   }
   return next
 }
 
 // ---------------------------------------------------------------------------
 // Notes
-//
-// Notes have no insights, so their context is binary: included (full) or off.
 // ---------------------------------------------------------------------------
 
 /** Bulk context actions for notes. `include` maps to full content. */

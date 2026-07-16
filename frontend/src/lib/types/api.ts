@@ -40,7 +40,6 @@ export interface SourceListResponse {
   } | null
   embedded: boolean
   embedded_chunks: number            // ADD: From Python API
-  insights_count: number
   created: string
   updated: string
   file_available?: boolean
@@ -192,7 +191,6 @@ export interface SourceChatMessage {
 
 export interface SourceChatContextIndicator {
   sources: string[]
-  insights: string[]
   notes: string[]
 }
 

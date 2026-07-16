@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Plus, FileText, Link2, ChevronDown, ListChecks, Trash2, Unlink, Lightbulb, Network, List, Waypoints, RefreshCw } from 'lucide-react'
+import { Plus, FileText, Link2, ChevronDown, ListChecks, Trash2, Unlink, Network, List, Waypoints, RefreshCw } from 'lucide-react'
 import { ColumnCardsSkeleton, CompactListRowSkeleton } from '@/components/common/LoadingSkeletons'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ListSelectionBar } from '@/components/common/ListSelectionBar'
@@ -36,7 +36,6 @@ import {
 } from '@/components/projects/ColumnHeader'
 import { useProjectColumnsStore } from '@/lib/stores/project-columns-store'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { useRunArtifactInsight } from '@/lib/hooks/use-run-artifact-insight'
 import {
   clearArtifactDragData,
   getActiveArtifactDragPayload,
@@ -83,7 +82,6 @@ export function SourcesColumn({
   const [sourcesView, setSourcesView] = useState<SourcesViewMode>('list')
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [addDialogOpen, setAddDialogOpen] = useState(false)
-  const [droppedArtifactIds, setDroppedArtifactIds] = useState<string[]>([])
   const [isArtifactDragOver, setIsArtifactDragOver] = useState(false)
   const [dragOverKind, setDragOverKind] = useState<ArtifactDragKind | null>(null)
   const [addExistingDialogOpen, setAddExistingDialogOpen] = useState(false)
@@ -133,7 +131,6 @@ export function SourcesColumn({
   const retrySource = useRetrySource()
   const bulkRetrySources = useBulkRetrySources()
   const removeFromProject = useRemoveSourceFromProject()
-  const { runArtifactOnSource } = useRunArtifactInsight()
   const ingestAsSource = useIngestAsSource()
   const bulkExtractKnowledge = useBulkExtractKnowledge()
 
@@ -229,22 +226,11 @@ export function SourcesColumn({
       return
     }
 
-    setDroppedArtifactIds([payload.id])
     setAddDialogOpen(true)
   }, [enableArtifactDrop, ingestAsSource, projectId])
 
-  const handleArtifactDropOnSource = useCallback(
-    (sourceId: string, artifactId: string) => {
-      void runArtifactOnSource({ sourceId, artifactId })
-    },
-    [runArtifactOnSource]
-  )
-
   const handleAddDialogOpenChange = useCallback((open: boolean) => {
     setAddDialogOpen(open)
-    if (!open) {
-      setDroppedArtifactIds([])
-    }
   }, [])
 
   const emptyStateDescription = hasArtifactTemplates || hasIngestibleArtifacts
@@ -450,9 +436,6 @@ export function SourcesColumn({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onBulkContextModeChange('insights')}>
-                          {t('sources.includeAllInsights')}
-                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => onBulkContextModeChange('full')}>
                           {t('sources.includeAllFull')}
                         </DropdownMenuItem>
@@ -555,10 +538,10 @@ export function SourcesColumn({
                         variant="ghost"
                         size="sm"
                         className="h-7"
-                        onClick={() => applyBulkContext('insights')}
+                        onClick={() => applyBulkContext('full')}
                       >
-                        <Lightbulb className="mr-1 h-3.5 w-3.5" />
-                        {t('common.contextModes.insights')}
+                        <FileText className="mr-1 h-3.5 w-3.5" />
+                        {t('common.contextModes.full')}
                       </Button>
                     )}
                     <Button
@@ -631,11 +614,6 @@ export function SourcesColumn({
                       ? (mode) => onContextModeChange(source.id, mode)
                       : undefined
                     }
-                    onArtifactDrop={
-                      hasArtifactTemplates
-                        ? (artifactId) => handleArtifactDropOnSource(source.id, artifactId)
-                        : undefined
-                    }
                     selectionMode={selectionMode}
                     selected={selectedIds.has(source.id)}
                     onToggleSelect={toggleSelect}
@@ -656,7 +634,6 @@ export function SourcesColumn({
         open={addDialogOpen}
         onOpenChange={handleAddDialogOpenChange}
         defaultprojectId={projectId}
-        initialArtifactIds={droppedArtifactIds}
       />
 
       <AddExistingSourceDialog

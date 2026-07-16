@@ -23,7 +23,6 @@ export interface AgentProgressDetail {
   charCount?: number
   sourceCount?: number
   noteCount?: number
-  insightCount?: number
   tokenCount?: number
   searchQueries?: number
   searchTerm?: string
@@ -154,11 +153,6 @@ export function formatAgentProgressLogLine(
       }
       if (detail.noteCount) {
         parts.push(t('agentProgress.countNotes', { count: detail.noteCount }))
-      }
-      if (detail.insightCount) {
-        parts.push(
-          t('agentProgress.countInsights', { count: detail.insightCount })
-        )
       }
       const counts = joinParts(parts) || t('agentProgress.noContextItems')
       if (detail.tokenCount != null && detail.tokenCount > 0) {

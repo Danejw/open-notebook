@@ -98,7 +98,7 @@ function ChatMessageRowImpl({
     Boolean(htmlTemplateId) &&
     !isStreamingThisMessage &&
     !extractedHtml
-  const showTextBubble = Boolean(displayContent.trim())
+  const showMessageBody = Boolean(displayContent.trim())
   // Keep revision in render so memoized parents still refresh when surfaces update.
   void a2uiRevision
 
@@ -148,27 +148,25 @@ function ChatMessageRowImpl({
         ) : (
           <>
             {showTemplatePreview && extractedHtml ? (
-              <div className="w-full space-y-2 rounded-lg border bg-background p-2">
-                <p className="px-1 text-xs text-muted-foreground">
+              <div className="w-full space-y-2">
+                <p className="text-xs text-muted-foreground">
                   {t('chat.templateStructuredOutput')}
                 </p>
                 <TemplateHtmlPreview html={extractedHtml} />
               </div>
             ) : showTemplateMissing ? (
-              <div className="w-full space-y-2 rounded-lg border border-dashed p-3">
+              <div className="w-full space-y-2">
                 <p className="text-sm font-medium">{t('chat.templateOutputMissing')}</p>
                 <p className="text-xs text-muted-foreground">
                   {t('chat.templateOutputMissingHint')}
                 </p>
-                <div className="rounded-md bg-muted px-3 py-1.5">
-                  <AIMessageContent
-                    content={displayContent}
-                    isStreaming={false}
-                    onReferenceClick={onReferenceClick}
-                  />
-                </div>
+                <AIMessageContent
+                  content={displayContent}
+                  isStreaming={false}
+                  onReferenceClick={onReferenceClick}
+                />
               </div>
-            ) : showTextBubble ? (
+            ) : showMessageBody ? (
               message.type === 'human' ? (
                 <div className="rounded-lg bg-primary px-3 py-1.5 text-primary-foreground">
                   <p className="whitespace-pre-wrap break-words text-sm">{displayContent}</p>
@@ -276,7 +274,14 @@ const AIMessageContent = memo(function AIMessageContent({
     return <p className="whitespace-pre-wrap break-words text-sm">{content}</p>
   }
 
-  const markdownWithCompactRefs = convertReferencesToCompactMarkdown(content, t('common.references'))
+  const markdownWithCompactRefs = convertReferencesToCompactMarkdown(
+    content,
+    t('common.references'),
+    {
+      source: t('common.source'),
+      note: t('common.note'),
+    }
+  )
   const LinkComponent = createCompactReferenceLinkComponent(onReferenceClick)
 
   return (

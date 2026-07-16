@@ -89,7 +89,6 @@ def _format_project_context(context: Optional[str | dict]) -> Optional[str]:
         parts: list[str] = []
         sources = context.get("sources") or context.get("Sources") or []
         notes = context.get("notes") or context.get("Notes") or []
-        insights = context.get("insights") or []
         if isinstance(sources, list) and sources:
             parts.append("## Sources")
             for item in sources:
@@ -100,11 +99,6 @@ def _format_project_context(context: Optional[str | dict]) -> Optional[str]:
             for item in notes:
                 parts.append(str(item))
             parts.append("")
-        if isinstance(insights, list) and insights:
-            parts.append("## Insights")
-            for item in insights:
-                parts.append(str(item))
-            parts.append("")
         if parts:
             return "\n".join(parts).strip()
         return "\n".join(f"**{k}:** {v}" for k, v in context.items())
@@ -112,29 +106,24 @@ def _format_project_context(context: Optional[str | dict]) -> Optional[str]:
 
 
 def _context_counts(context: Optional[str | dict], formatted: Optional[str]) -> dict:
-    """Derive source/note/insight/token counts for progress events."""
+    """Derive source/note/token counts for progress events."""
     source_count = 0
     note_count = 0
-    insight_count = 0
     if isinstance(context, dict):
         sources = context.get("sources") or []
         notes = context.get("notes") or []
-        insights = context.get("insights") or []
         source_count = len(sources) if isinstance(sources, list) else 0
         note_count = len(notes) if isinstance(notes, list) else 0
-        insight_count = len(insights) if isinstance(insights, list) else 0
         if context.get("total_tokens") is not None:
             return {
                 "sourceCount": source_count,
                 "noteCount": note_count,
-                "insightCount": insight_count,
                 "tokenCount": int(context["total_tokens"]),
             }
     text = formatted or ""
     return {
         "sourceCount": source_count,
         "noteCount": note_count,
-        "insightCount": insight_count,
         "tokenCount": token_count(text) if text else 0,
     }
 
@@ -220,7 +209,6 @@ def retrieving_context(state: ThreadState, config: RunnableConfig) -> dict:
             detail = {
                 "sourceCount": 0,
                 "noteCount": 0,
-                "insightCount": 0,
                 "tokenCount": 0,
             }
             emit_agent_progress("completed", "retrieving_context", detail, config)
@@ -239,14 +227,12 @@ def retrieving_context(state: ThreadState, config: RunnableConfig) -> dict:
             built = {
                 "sources": result.get("sources") or [],
                 "notes": result.get("notes") or [],
-                "insights": result.get("insights") or [],
                 "total_tokens": result.get("total_tokens") or 0,
             }
             formatted = result.get("formatted")
             detail = {
                 "sourceCount": int(result.get("sourceCount") or 0),
                 "noteCount": int(result.get("noteCount") or 0),
-                "insightCount": int(result.get("insightCount") or 0),
                 "tokenCount": int(result.get("tokenCount") or 0),
             }
             emit_agent_progress("completed", "retrieving_context", detail, config)

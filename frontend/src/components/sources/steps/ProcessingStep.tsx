@@ -3,9 +3,7 @@
 import { Control, Controller } from "react-hook-form"
 import { useTranslation } from "@/lib/hooks/use-translation"
 import { FormSection } from "@/components/ui/form-section"
-import { CheckboxList } from "@/components/ui/checkbox-list"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Artifact } from "@/lib/types/artifacts"
 import { SettingsResponse } from "@/lib/types/api"
 
 interface CreateSourceFormData {
@@ -15,49 +13,23 @@ interface CreateSourceFormData {
   content?: string
   file?: FileList | File
   projects?: string[]
-  artifacts?: string[]
   embed: boolean
   async_processing: boolean
 }
 
 interface ProcessingStepProps {
   control: Control<CreateSourceFormData>
-  artifacts: Artifact[]
-  selectedArtifacts: string[]
-  onToggleArtifact: (artifactId: string) => void
-  loading?: boolean
   settings?: SettingsResponse
 }
 
 export function ProcessingStep({
   control,
-  artifacts,
-  selectedArtifacts,
-  onToggleArtifact,
-  loading = false,
   settings
 }: ProcessingStepProps) {
   const { t } = useTranslation()
-  const artifactItems = artifacts.map((artifact) => ({
-    id: artifact.id,
-    title: artifact.title,
-    description: artifact.description
-  }))
 
   return (
     <div className="space-y-[2px]">
-      <FormSection
-        title={`${t('navigation.artifacts')} (${t('common.optional')})`}
-      >
-        <CheckboxList
-          items={artifactItems}
-          selectedIds={selectedArtifacts}
-          onToggle={onToggleArtifact}
-          loading={loading}
-          emptyMessage={t('common.noMatches')}
-        />
-      </FormSection>
-
       <FormSection
         title={t('navigation.settings')}
       >

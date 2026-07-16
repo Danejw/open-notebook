@@ -19,11 +19,8 @@ from surreal_commands import execute_command_sync, get_command_status, submit_co
 from api.command_service import CommandService
 from api.models import (
     AssetModel,
-    CreateSourceInsightRequest,
     IngestTextSourceRequest,
-    InsightCreationResponse,
     SourceCreate,
-    SourceInsightResponse,
     SourceListResponse,
     SourceResponse,
     SourceStatusResponse,
@@ -155,7 +152,7 @@ def parse_source_form_data(
             content=content,
             title=title,
             file_path=None,  # Will be set later if file is uploaded
-            artifacts=artifacts_list,
+            artifacts=[],  # ignored
             embed=embed_bool,
             delete_source=delete_source_bool,
             async_processing=async_processing_bool,
@@ -209,7 +206,6 @@ async def get_sources(
                 (SELECT status, error_message, error_type, started_at, finished_at, updated, command_id
                  FROM kg_extraction_run WHERE source_id = $parent.id
                  ORDER BY started_at DESC LIMIT 1)[0] AS latest_kg_run,
-                (SELECT VALUE count() FROM source_insight WHERE source = $parent.id GROUP ALL)[0].count OR 0 AS insights_count,
                 (SELECT VALUE id FROM source_embedding WHERE source = $parent.id LIMIT 1) != [] AS embedded
                 FROM (select value in from reference where out=$project_id)
                 {order_clause}
@@ -232,7 +228,6 @@ async def get_sources(
                 (SELECT status, error_message, error_type, started_at, finished_at, updated, command_id
                  FROM kg_extraction_run WHERE source_id = $parent.id
                  ORDER BY started_at DESC LIMIT 1)[0] AS latest_kg_run,
-                (SELECT VALUE count() FROM source_insight WHERE source = $parent.id GROUP ALL)[0].count OR 0 AS insights_count,
                 (SELECT VALUE id FROM source_embedding WHERE source = $parent.id LIMIT 1) != [] AS embedded
                 FROM source
                 {order_clause}
@@ -314,7 +309,6 @@ async def get_sources(
                     else None,
                     embedded=row.get("embedded", False),
                     embedded_chunks=0,  # Not needed in list view
-                    insights_count=row.get("insights_count", 0),
                     created=str(row["created"]),
                     updated=str(row["updated"]),
                     # Status fields from fetched command + pipeline stage
@@ -407,14 +401,8 @@ async def create_source(
                 detail="Invalid source type. Must be link, upload, or text",
             )
 
-        # Validate artifacts exist
-        artifact_ids = source_data.artifacts or []
-        for artifact_id in artifact_ids:
-            artifact = await Artifact.get(artifact_id)
-            if not artifact:
-                raise HTTPException(
-                    status_code=404, detail=f"Artifact {artifact_id} not found"
-                )
+        # Artifacts list ignored — SourceInsight feature removed
+        artifact_ids: list = []
 
         # Branch based on processing mode
         if source_data.async_processing:
@@ -1192,85 +1180,3 @@ async def delete_source(source_id: str):
         raise HTTPException(status_code=500, detail=f"Error deleting source: {str(e)}")
 
 
-@router.get("/sources/{source_id}/insights", response_model=List[SourceInsightResponse])
-async def get_source_insights(source_id: str):
-    """Get all insights for a specific source."""
-    try:
-        source = await Source.get(source_id)
-        if not source:
-            raise HTTPException(status_code=404, detail="Source not found")
-
-        insights = await source.get_insights()
-        return [
-            SourceInsightResponse(
-                id=insight.id or "",
-                source_id=source_id,
-                insight_type=insight.insight_type,
-                content=insight.content,
-                created=str(insight.created),
-                updated=str(insight.updated),
-            )
-            for insight in insights
-        ]
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fetching insights for source {source_id}: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Error fetching insights: {str(e)}"
-        )
-
-
-@router.post(
-    "/sources/{source_id}/insights",
-    response_model=InsightCreationResponse,
-    status_code=202,
-)
-async def create_source_insight(source_id: str, request: CreateSourceInsightRequest):
-    """
-    Start insight generation for a source by running a Artifact.
-
-    This endpoint returns immediately with a 202 Accepted status.
-    The Artifact runs asynchronously in the background via the job queue.
-    Poll GET /sources/{source_id}/insights to see when the insight is ready.
-    """
-    try:
-        # Validate source exists
-        source = await Source.get(source_id)
-        if not source:
-            raise HTTPException(status_code=404, detail="Source not found")
-
-        # Validate Artifact exists
-        artifact = await Artifact.get(request.artifact_id)
-        if not artifact:
-            raise HTTPException(status_code=404, detail="Artifact not found")
-
-        # Submit Artifact as background job (fire-and-forget)
-        command_id = submit_command(
-            "construction_os",
-            "run_artifact",
-            {
-                "source_id": source_id,
-                "artifact_id": request.artifact_id,
-            },
-        )
-        logger.info(
-            f"Submitted run_artifact command {command_id} for source {source_id}"
-        )
-
-        # Return immediately with command_id for status tracking
-        return InsightCreationResponse(
-            status="pending",
-            message="Insight generation started",
-            source_id=source_id,
-            artifact_id=request.artifact_id,
-            command_id=str(command_id),
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error starting insight generation for source {source_id}: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Error starting insight generation: {str(e)}"
-        )

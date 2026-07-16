@@ -82,9 +82,11 @@ class TestConstructionArtifactSeeds:
 
     def test_seed_construction_artifacts_uses_shared_templates(self):
         source = inspect.getsource(rebrand_migration.seed_construction_artifacts)
-        for name in CONSTRUCTION_ARTIFACT_NAMES[:8]:
-            assert name in source
         assert "CONSTRUCTION_ARTIFACT_TEMPLATES" in source
+        for name in CONSTRUCTION_ARTIFACT_NAMES[:8]:
+            assert any(
+                template["name"] == name for template in CONSTRUCTION_ARTIFACT_TEMPLATES
+            )
 
 
 class TestRewriteNotebookIds:

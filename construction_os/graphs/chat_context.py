@@ -18,13 +18,14 @@ SNIPPET_MAX_CHARS = 1200
 
 
 def eligible_source_ids(context_config: Optional[dict]) -> Set[str]:
-    """Source IDs marked insights or full content in the UI pool."""
+    """Source IDs marked for inclusion (legacy insights mode → full)."""
     sources = (context_config or {}).get("sources") or {}
     eligible: Set[str] = set()
     for source_id, status in sources.items():
         status_l = str(status).lower()
         if "not in" in status_l:
             continue
+        # Legacy "insights" context mode is treated as full content
         if "insights" in status_l or "full content" in status_l:
             sid = str(source_id)
             if not sid.startswith("source:"):
@@ -138,7 +139,7 @@ async def build_relevance_context(
     """
     Build compact, query-scoped chat context from the UI candidate pool.
 
-    Returns a dict with sources/notes/insights lists (compact strings),
+    Returns a dict with sources/notes lists (compact strings),
     formatted text, and counts for progress events.
     """
     source_pool = eligible_source_ids(context_config)
@@ -186,7 +187,6 @@ async def build_relevance_context(
 
     source_blocks: List[str] = []
     note_blocks: List[str] = []
-    insight_blocks: List[str] = []
     seen_sources: Set[str] = set()
     seen_notes: Set[str] = set()
 
@@ -197,10 +197,6 @@ async def build_relevance_context(
         if rid.startswith("note:") or parent.startswith("note:"):
             note_blocks.append(block)
             seen_notes.add(rid if rid.startswith("note:") else parent)
-        elif rid.startswith("insight:") or "insight" in (item.raw or {}).get("type", ""):
-            insight_blocks.append(block)
-            if parent.startswith("source:"):
-                seen_sources.add(parent)
         else:
             source_blocks.append(block)
             if rid.startswith("source:"):
@@ -219,8 +215,6 @@ async def build_relevance_context(
         sections.append("## Sources\n" + "\n\n".join(source_blocks))
     if note_blocks:
         sections.append("## Notes\n" + "\n\n".join(note_blocks))
-    if insight_blocks:
-        sections.append("## Insights\n" + "\n\n".join(insight_blocks))
 
     formatted, tokens = _trim_to_budget(sections, max_tokens)
 
@@ -229,23 +223,20 @@ async def build_relevance_context(
     ]
     source_count = sum(1 for line in id_lines if "source:" in line)
     note_count = sum(1 for line in id_lines if "note:" in line)
-    insight_count = sum(1 for line in id_lines if "insight:" in line)
     # Embedding chunk hits may use non-source ids; count remaining source blocks.
     if source_blocks and source_count == 0 and "## Sources" in (formatted or ""):
         source_count = min(
             len(source_blocks),
-            max(1, len(id_lines) - note_count - insight_count),
+            max(1, len(id_lines) - note_count),
         )
 
     return {
         "sources": source_blocks,
         "notes": note_blocks,
-        "insights": insight_blocks,
         "formatted": formatted or None,
         "total_tokens": tokens,
         "sourceCount": source_count,
         "noteCount": note_count,
-        "insightCount": insight_count,
         "tokenCount": tokens,
     }
 
@@ -261,7 +252,7 @@ def estimate_preview_tokens(
 
     Selections are a search pool; answers inject at most max_tokens.
     Empty pool => 0. Otherwise report a retrieval-sized estimate capped
-    at max_tokens (not the full dump of every insight).
+    at max_tokens (not the full dump of every source).
     """
     if source_pool_size <= 0 and note_pool_size <= 0:
         return 0

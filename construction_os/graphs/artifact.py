@@ -59,9 +59,6 @@ async def run_artifact(state: dict, config: RunnableConfig) -> dict:
         response_content = extract_text_content(response.content)
         cleaned_content = clean_thinking_content(response_content)
 
-        if source:
-            await source.add_insight(artifact.title, cleaned_content)
-
         return {
             "output": cleaned_content,
         }

@@ -52,9 +52,9 @@ async def setup_test_database() -> None:
     await run_construction_os_rebrand()
 
 
-async def test_project_source_artifact_insight_flow() -> dict[str, Any]:
-    """17.3 — Create project, attach source, simulate artifact insight."""
-    from construction_os.database.repository import db_connection, ensure_record_id, repo_query
+async def test_project_source_artifact_flow() -> dict[str, Any]:
+    """17.3 — Create project, attach source, confirm construction artifacts exist."""
+    from construction_os.database.repository import db_connection
     from construction_os.domain.artifact import Artifact
     from construction_os.domain.project import Project, Source
 
@@ -78,52 +78,30 @@ async def test_project_source_artifact_insight_flow() -> dict[str, Any]:
         result["artifact_list_count"] = len(artifacts)
         result["bid_scope_found"] = bid_scope is not None
 
-        insight_rows = await repo_query(
-            """
-            CREATE source_insight CONTENT {
-                source: $source_id,
-                insight_type: $insight_type,
-                content: $content
-            };
-            """,
-            {
-                "source_id": ensure_record_id(source_id),
-                "insight_type": "Bid Scope Summary",
-                "content": "Scope: concrete slab, bond required, bid date March 15.",
-            },
-        )
-        insight_id = str(insight_rows[0]["id"])
-
-        source_insights = await Source.get(source_id)
-        insights = await source_insights.get_insights()  # type: ignore[union-attr]
-
     result["project_id"] = project_id
     result["source_id"] = source_id
-    result["insight_id"] = insight_id
-    result["insight_count"] = len(insights)
-    result["ok"] = (
-        bool(project_id)
-        and bool(source_id)
-        and bid_scope is not None
-        and len(insights) >= 1
-    )
+    result["ok"] = bool(project_id) and bool(source_id) and bid_scope is not None
     return result
 
 
-async def test_save_insight_as_note_with_project_note(insight_id: str, project_id: str) -> dict[str, Any]:
-    """17.4 — Save insight as note linked via project_note."""
+async def test_create_note_with_project_note(project_id: str) -> dict[str, Any]:
+    """17.4 — Create a note linked via project_note (insights removed)."""
     from construction_os.database.repository import db_connection, repo_query
-    from construction_os.domain.project import SourceInsight
+    from construction_os.domain.project import Note
 
     result: dict[str, Any] = {"ok": False}
 
     async with db_connection():
-        insight = await SourceInsight.get(insight_id)
         with patch(
             "construction_os.domain.project.submit_command",
             return_value=None,
         ):
-            note = await insight.save_as_note(project_id)
+            note = Note(
+                title="Bid Scope Note",
+                content="Scope: concrete slab, bond required, bid date March 15.",
+            )
+            await note.save()
+            await note.add_to_project(project_id)
         note_id = str(note.id)
 
         edges = await repo_query(
@@ -304,17 +282,15 @@ async def main() -> int:
         print(f"  setup FAILED: {exc}\n")
         return 1
 
-    flow = await test_project_source_artifact_insight_flow()
-    print("17.3 Project -> Source -> Artifact insight:")
+    flow = await test_project_source_artifact_flow()
+    print("17.3 Project -> Source -> Artifacts:")
     for k, v in flow.items():
         print(f"  {k}: {v}")
     results["17.3"] = flow["ok"]
     print()
 
-    note_flow = await test_save_insight_as_note_with_project_note(
-        flow["insight_id"], flow["project_id"]
-    )
-    print("17.4 Save insight as note (project_note):")
+    note_flow = await test_create_note_with_project_note(flow["project_id"])
+    print("17.4 Create note (project_note):")
     for k, v in note_flow.items():
         print(f"  {k}: {v}")
     results["17.4"] = note_flow["ok"]

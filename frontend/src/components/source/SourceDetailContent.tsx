@@ -1,18 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
 import { sourcesApi } from '@/lib/api/sources'
-import { insightsApi, SourceInsightResponse } from '@/lib/api/insights'
-import { artifactsApi } from '@/lib/api/artifacts'
 import { embeddingApi } from '@/lib/api/embedding'
 import { SourceDetailResponse } from '@/lib/types/api'
-import { Artifact } from '@/lib/types/artifacts'
 import {
-  InlineSkeleton,
-  ListRowsSkeleton,
   SourceDetailSkeleton,
 } from '@/components/common/LoadingSkeletons'
 import { InlineEdit } from '@/components/common/InlineEdit'
@@ -29,13 +23,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   Link as LinkIcon,
   ExternalLink,
   Download,
@@ -43,7 +30,6 @@ import {
   CheckCircle,
   MoreVertical,
   Trash2,
-  Plus,
   Database,
   AlertCircle,
   MessageSquare,
@@ -53,7 +39,6 @@ import { getDateLocale } from '@/lib/utils/date-locale'
 import { toast } from 'sonner'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { cn } from '@/lib/utils'
-import { SourceInsightDialog } from '@/components/source/SourceInsightDialog'
 import { ProjectAssociations } from '@/components/source/ProjectAssociations'
 import { SourceKnowledgePanel } from '@/components/source/SourceKnowledgePanel'
 
@@ -78,22 +63,13 @@ export function SourceDetailContent({
   onClose
 }: SourceDetailContentProps) {
   const { t, language } = useTranslation()
-  const queryClient = useQueryClient()
   const [source, setSource] = useState<SourceDetailResponse | null>(null)
-  const [insights, setInsights] = useState<SourceInsightResponse[]>([])
-  const [artifacts, setArtifacts] = useState<Artifact[]>([])
-  const [selectedArtifactId, setSelectedArtifactId] = useState<string>('')
   const [loading, setLoading] = useState(true)
-  const [loadingInsights, setLoadingInsights] = useState(false)
-  const [creatingInsight, setCreatingInsight] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [isEmbedding, setIsEmbedding] = useState(false)
   const [isDownloadingFile, setIsDownloadingFile] = useState(false)
   const [fileAvailable, setFileAvailable] = useState<boolean | null>(null)
-  const [selectedInsight, setSelectedInsight] = useState<SourceInsightResponse | null>(null)
-  const [insightToDelete, setInsightToDelete] = useState<string | null>(null)
-  const [deletingInsight, setDeletingInsight] = useState(false)
   const [sourceDeleteOpen, setSourceDeleteOpen] = useState(false)
   const [deletingSource, setDeletingSource] = useState(false)
 
@@ -117,98 +93,11 @@ export function SourceDetailContent({
     }
   }, [sourceId, t])
 
-  const fetchInsights = useCallback(async () => {
-    try {
-      setLoadingInsights(true)
-      const data = await insightsApi.listForSource(sourceId)
-      setInsights(data)
-    } catch (err) {
-      console.error('Failed to fetch insights:', err)
-    } finally {
-      setLoadingInsights(false)
-    }
-  }, [sourceId])
-
-  const fetchArtifacts = useCallback(async () => {
-    try {
-      const data = await artifactsApi.list()
-      setArtifacts(data)
-    } catch (err) {
-      console.error('Failed to fetch artifacts:', err)
-    }
-  }, [])
-
   useEffect(() => {
     if (sourceId) {
       void fetchSource()
-      void fetchInsights()
-      void fetchArtifacts()
     }
-  }, [fetchInsights, fetchSource, fetchArtifacts, sourceId])
-
-  const createInsight = async () => {
-    if (!selectedArtifactId) {
-      toast.error(t('sources.selectArtifact'))
-      return
-    }
-
-    try {
-      setCreatingInsight(true)
-      const response = await insightsApi.create(sourceId, {
-        artifact_id: selectedArtifactId
-      })
-      // Show toast for async operation
-      toast.success(t('sources.insightGenerationStarted'))
-      setSelectedArtifactId('')
-
-      // Poll for command completion if we have a command_id
-      if (response.command_id) {
-        // Poll in background (don't block UI)
-        insightsApi.waitForCommand(response.command_id, {
-          maxAttempts: 120, // Up to 4 minutes (120 * 2s)
-          intervalMs: 2000
-        }).then(success => {
-          if (success) {
-            void fetchInsights()
-            // Invalidate sources queries so project page refreshes with updated insights_count
-            queryClient.invalidateQueries({ queryKey: ['sources'] })
-          }
-        }).catch(err => {
-          console.error('Error waiting for insight command:', err)
-        })
-      } else {
-        // Fallback: refresh after delay if no command_id
-        setTimeout(() => {
-          void fetchInsights()
-          // Also invalidate sources queries
-          queryClient.invalidateQueries({ queryKey: ['sources'] })
-        }, 5000)
-      }
-    } catch (err) {
-      console.error('Failed to create insight:', err)
-      toast.error(t('common.error'))
-    } finally {
-      setCreatingInsight(false)
-    }
-  }
-
-  const handleDeleteInsight = async (e?: React.MouseEvent) => {
-    e?.preventDefault()
-    if (!insightToDelete) return
-
-    try {
-      setDeletingInsight(true)
-      await insightsApi.delete(insightToDelete)
-      toast.success(t('common.success'))
-      setInsightToDelete(null)
-      await fetchInsights()
-    } catch (err) {
-      console.error('Failed to delete insight:', err)
-      toast.error(t('common.error'))
-    } finally {
-      setDeletingInsight(false)
-    }
-  }
+  }, [fetchSource, sourceId])
 
   const handleUpdateTitle = async (title: string) => {
     if (!source || title === source.title) return
@@ -454,12 +343,8 @@ export function SourceDetailContent({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-1">
         <Tabs defaultValue="content" className="w-full">
-          <TabsList className="sticky top-0 z-10 mt-0.5 grid w-full grid-cols-4">
+          <TabsList className="sticky top-0 z-10 mt-0.5 grid w-full grid-cols-3">
             <TabsTrigger value="content">{t('sources.content')}</TabsTrigger>
-            <TabsTrigger value="insights">
-              {t('common.insights')}
-              {insights.length > 0 ? ` (${insights.length})` : ''}
-            </TabsTrigger>
             <TabsTrigger value="knowledge">{t('knowledge.tab')}</TabsTrigger>
             <TabsTrigger value="details">{t('sources.details')}</TabsTrigger>
           </TabsList>
@@ -519,83 +404,6 @@ export function SourceDetailContent({
             ) : (
               <div className="rounded-md border border-border/60 bg-muted/20 px-1.5 py-1">
                 <MarkdownRenderer size="sm">{contentText}</MarkdownRenderer>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="insights" className="mt-1 space-y-1">
-            <div className="flex items-center gap-1 rounded-md border border-border/60 bg-muted/20 p-0.5">
-              <Select
-                name="artifact"
-                value={selectedArtifactId}
-                onValueChange={setSelectedArtifactId}
-                disabled={creatingInsight}
-              >
-                <SelectTrigger id="artifact-select" className="h-7 flex-1 text-[11px]">
-                  <SelectValue placeholder={t('sources.selectArtifact')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {artifacts.map((artifact) => (
-                    <SelectItem key={artifact.id} value={artifact.id}>
-                      {artifact.title || artifact.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                size="sm"
-                className="h-7 shrink-0 px-2 text-xs"
-                onClick={createInsight}
-                disabled={!selectedArtifactId || creatingInsight}
-              >
-                {creatingInsight ? (
-                  <InlineSkeleton className="h-3 w-3" />
-                ) : (
-                  <>
-                    <Plus className="h-3.5 w-3.5 sm:mr-1" />
-                    <span className="hidden sm:inline">{t('common.create')}</span>
-                  </>
-                )}
-              </Button>
-            </div>
-
-            {loadingInsights ? (
-              <ListRowsSkeleton rows={3} withHeader={false} />
-            ) : insights.length === 0 ? (
-              <p className="px-0.5 py-3 text-center text-[11px] text-muted-foreground">
-                {t('sources.noInsightsYet')}
-              </p>
-            ) : (
-              <div className="divide-y divide-border rounded-md border border-border/60">
-                {insights.map((insight) => (
-                  <div
-                    key={insight.id}
-                    className="flex items-start gap-1 px-1 py-1.5"
-                  >
-                    <button
-                      type="button"
-                      className="min-w-0 flex-1 text-left"
-                      onClick={() => setSelectedInsight(insight)}
-                    >
-                      <span className="text-[11px] font-medium uppercase text-muted-foreground">
-                        {insight.insight_type}
-                      </span>
-                      <p className="line-clamp-2 text-sm leading-snug text-foreground">
-                        {insight.content.slice(0, 160)}
-                        {insight.content.length > 160 ? '…' : ''}
-                      </p>
-                    </button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
-                      onClick={() => setInsightToDelete(insight.id)}
-                      aria-label={t('common.delete')}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ))}
               </div>
             )}
           </TabsContent>
@@ -737,39 +545,6 @@ export function SourceDetailContent({
           </TabsContent>
         </Tabs>
       </div>
-
-      <SourceInsightDialog
-        open={Boolean(selectedInsight)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setSelectedInsight(null)
-          }
-        }}
-        insight={selectedInsight ?? undefined}
-        projectId={source.projects?.[0]}
-        onDelete={async (insightId) => {
-          try {
-            await insightsApi.delete(insightId)
-            toast.success(t('common.success'))
-            setSelectedInsight(null)
-            await fetchInsights()
-          } catch (err) {
-            console.error('Failed to delete insight:', err)
-            toast.error(t('common.error'))
-          }
-        }}
-      />
-
-      <ConfirmDialog
-        open={!!insightToDelete}
-        onOpenChange={(open) => { if (!open) setInsightToDelete(null) }}
-        title={t('sources.deleteInsight')}
-        description={t('sources.deleteInsightConfirm')}
-        confirmText={t('common.delete')}
-        confirmVariant="destructive"
-        isLoading={deletingInsight}
-        onConfirm={handleDeleteInsight}
-      />
 
       <ConfirmDialog
         open={sourceDeleteOpen}

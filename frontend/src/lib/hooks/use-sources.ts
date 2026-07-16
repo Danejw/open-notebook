@@ -610,7 +610,6 @@ export function useRemoveSourceFromProject() {
 type IngestAsSourceInput =
   | { kind: 'text'; data: IngestTextSourceRequest; projectId?: string }
   | { kind: 'note'; noteId: string; projectId?: string; options?: PromoteToSourceRequest }
-  | { kind: 'insight'; insightId: string; projectId?: string; options?: PromoteToSourceRequest }
 
 export function useIngestAsSource() {
   const queryClient = useQueryClient()
@@ -629,11 +628,7 @@ export function useIngestAsSource() {
           artifacts: input.options?.artifacts,
         })
       }
-      return sourcesApi.ingestInsightAsSource(input.insightId, {
-        project_id: input.projectId ?? input.options?.project_id,
-        embed: input.options?.embed,
-        artifacts: input.options?.artifacts,
-      })
+      throw new Error('Unsupported ingest kind')
     },
     onSuccess: (_result, input) => {
       queryClient.invalidateQueries({ queryKey: ['sources'] })

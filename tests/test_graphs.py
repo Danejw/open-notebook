@@ -168,7 +168,9 @@ class TestSaveSourceTitlePreservation:
         from construction_os.graphs.source import save_source
 
         mock_source = MagicMock(spec=Source)
+        mock_source.id = "source:123"
         mock_source.title = "My Custom Research Title"
+        mock_source.full_text = None
         mock_source.save = AsyncMock()
         mock_get.return_value = mock_source
 
@@ -182,10 +184,13 @@ class TestSaveSourceTitlePreservation:
             "source_id": "source:123",
             "content_state": content_state,
             "embed": False,
-            "apply_Artifacts": [],
+            "project_ids": [],
         }
 
-        await save_source(state)
+        with patch(
+            "construction_os.graphs.source.begin_kg_stage", new_callable=AsyncMock
+        ):
+            await save_source(state)
 
         assert mock_source.title == "My Custom Research Title"
         mock_source.save.assert_awaited_once()
@@ -197,7 +202,9 @@ class TestSaveSourceTitlePreservation:
         from construction_os.graphs.source import save_source
 
         mock_source = MagicMock(spec=Source)
+        mock_source.id = "source:123"
         mock_source.title = "Processing..."
+        mock_source.full_text = None
         mock_source.save = AsyncMock()
         mock_get.return_value = mock_source
 
@@ -211,10 +218,13 @@ class TestSaveSourceTitlePreservation:
             "source_id": "source:123",
             "content_state": content_state,
             "embed": False,
-            "apply_Artifacts": [],
+            "project_ids": [],
         }
 
-        await save_source(state)
+        with patch(
+            "construction_os.graphs.source.begin_kg_stage", new_callable=AsyncMock
+        ):
+            await save_source(state)
 
         assert mock_source.title == "Extracted Article Title"
         mock_source.save.assert_awaited_once()
@@ -226,7 +236,9 @@ class TestSaveSourceTitlePreservation:
         from construction_os.graphs.source import save_source
 
         mock_source = MagicMock(spec=Source)
+        mock_source.id = "source:123"
         mock_source.title = None
+        mock_source.full_text = None
         mock_source.save = AsyncMock()
         mock_get.return_value = mock_source
 
@@ -240,10 +252,13 @@ class TestSaveSourceTitlePreservation:
             "source_id": "source:123",
             "content_state": content_state,
             "embed": False,
-            "apply_Artifacts": [],
+            "project_ids": [],
         }
 
-        await save_source(state)
+        with patch(
+            "construction_os.graphs.source.begin_kg_stage", new_callable=AsyncMock
+        ):
+            await save_source(state)
 
         assert mock_source.title == "Extracted Title"
         mock_source.save.assert_awaited_once()
@@ -255,7 +270,9 @@ class TestSaveSourceTitlePreservation:
         from construction_os.graphs.source import save_source
 
         mock_source = MagicMock(spec=Source)
+        mock_source.id = "source:123"
         mock_source.title = ""
+        mock_source.full_text = None
         mock_source.save = AsyncMock()
         mock_get.return_value = mock_source
 
@@ -269,10 +286,13 @@ class TestSaveSourceTitlePreservation:
             "source_id": "source:123",
             "content_state": content_state,
             "embed": False,
-            "apply_Artifacts": [],
+            "project_ids": [],
         }
 
-        await save_source(state)
+        with patch(
+            "construction_os.graphs.source.begin_kg_stage", new_callable=AsyncMock
+        ):
+            await save_source(state)
 
         assert mock_source.title == "Extracted Title"
         mock_source.save.assert_awaited_once()

@@ -93,9 +93,6 @@ function SourcesTableRowImpl({
           locale: dateLocale,
         })}
       </td>
-      <td className="hidden h-9 px-3 text-center md:table-cell">
-        <span className="text-xs font-medium">{source.insights_count || 0}</span>
-      </td>
       <td className="hidden h-9 px-3 text-center lg:table-cell">
         <Badge variant={source.embedded ? 'default' : 'secondary'} className="text-[11px]">
           {source.embedded ? yesLabel : noLabel}
@@ -121,7 +118,6 @@ function areEqual(prev: SourcesTableRowProps, next: SourcesTableRowProps) {
     prev.source.title === next.source.title &&
     prev.source.updated === next.source.updated &&
     prev.source.embedded === next.source.embedded &&
-    prev.source.insights_count === next.source.insights_count &&
     prev.isSelected === next.isSelected &&
     prev.index === next.index
   )

@@ -25,7 +25,6 @@ from api.routers import (
     embedding_rebuild,
     episode_profiles,
     html_documents,
-    insights,
     knowledge_graph,
     knowledge_graph_viz,
     languages,
@@ -361,7 +360,6 @@ app.include_router(
 app.include_router(settings.router, prefix="/api", tags=["settings"])
 app.include_router(context.router, prefix="/api", tags=["context"])
 app.include_router(sources.router, prefix="/api", tags=["sources"])
-app.include_router(insights.router, prefix="/api", tags=["insights"])
 app.include_router(knowledge_graph.router, prefix="/api", tags=["knowledge-graph"])
 app.include_router(
     knowledge_graph_viz.router, prefix="/api", tags=["knowledge-graph-viz"]

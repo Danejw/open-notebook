@@ -305,7 +305,6 @@ class TestSourceFailureDetails:
                 "topics": [],
                 "asset": None,
                 "embedded": False,
-                "insights_count": 0,
                 "created": "2026-07-14T00:00:00Z",
                 "updated": "2026-07-14T01:00:00Z",
                 "command": {"id": "command:extract", "status": "completed"},

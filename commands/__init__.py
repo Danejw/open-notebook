@@ -2,8 +2,6 @@
 
 from .chat_queue_commands import drain_chat_queue_command
 from .embedding_commands import (
-    create_insight_command,
-    embed_insight_command,
     embed_note_command,
     embed_source_command,
     rebuild_embeddings_command,
@@ -14,7 +12,6 @@ from .podcast_commands import generate_podcast_command
 from .source_commands import (
     ingest_text_source_command,
     process_source_command,
-    run_artifact_command,
 )
 
 __all__ = [
@@ -22,16 +19,13 @@ __all__ = [
     "drain_chat_queue_command",
     # Embedding commands
     "embed_note_command",
-    "embed_insight_command",
     "embed_source_command",
-    "create_insight_command",
     "rebuild_embeddings_command",
     # Knowledge graph
     "build_knowledge_graph_command",
     # Other commands
     "generate_podcast_command",
     "process_source_command",
-    "run_artifact_command",
     "ingest_text_source_command",
     "process_text_command",
     "analyze_data_command",

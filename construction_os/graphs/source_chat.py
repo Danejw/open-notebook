@@ -13,7 +13,7 @@ from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
 from construction_os.ai.provision import provision_langchain_model
-from construction_os.domain.project import Source, SourceInsight
+from construction_os.domain.project import Source
 from construction_os.exceptions import ConstructionOSError
 from construction_os.graphs.progress import emit_agent_progress
 from construction_os.mcp.chat_loop import generate_with_mcp_tools
@@ -29,7 +29,6 @@ class SourceChatState(TypedDict):
     messages: Annotated[list, add_messages]
     source_id: str
     source: Optional[Source]
-    insights: Optional[List[SourceInsight]]
     context: Optional[str]
     model_override: Optional[str]
     context_indicators: Optional[Dict[str, List[str]]]
@@ -79,24 +78,11 @@ def _format_source_context(context_data: Dict) -> str:
                     context_parts.append(f"**Content:**\n{full_text}")
                 context_parts.append("")
 
-    if context_data.get("insights"):
-        context_parts.append("## SOURCE INSIGHTS")
-        for insight in context_data["insights"]:
-            if isinstance(insight, dict):
-                context_parts.append(f"**Insight ID:** {insight.get('id', 'Unknown')}")
-                context_parts.append(
-                    f"**Type:** {insight.get('insight_type', 'Unknown')}"
-                )
-                context_parts.append(
-                    f"**Content:** {insight.get('content', 'No content')}"
-                )
-                context_parts.append("")
 
     if context_data.get("metadata"):
         metadata = context_data["metadata"]
         context_parts.append("## CONTEXT METADATA")
         context_parts.append(f"- Source count: {metadata.get('source_count', 0)}")
-        context_parts.append(f"- Insight count: {metadata.get('insight_count', 0)}")
         context_parts.append(f"- Total tokens: {context_data.get('total_tokens', 0)}")
         context_parts.append("")
 
@@ -161,7 +147,7 @@ def loading_skills(state: SourceChatState, config: RunnableConfig) -> dict:
 
 
 def retrieving_context(state: SourceChatState, config: RunnableConfig) -> dict:
-    """Build source + insights context with count/token progress events."""
+    """Build source context with count/token progress events."""
     try:
         emit_agent_progress("started", "retrieving_context", {}, config)
         source_id = state.get("source_id")
@@ -171,17 +157,14 @@ def retrieving_context(state: SourceChatState, config: RunnableConfig) -> dict:
         context_data = _run_async(
             ContextBuilder(
                 source_id=source_id,
-                include_insights=True,
                 include_notes=False,
                 max_tokens=50000,
             ).build()
         )
 
         source = None
-        insights = []
         context_indicators: dict[str, list[str]] = {
             "sources": [],
-            "insights": [],
             "notes": [],
         }
 
@@ -191,16 +174,6 @@ def retrieving_context(state: SourceChatState, config: RunnableConfig) -> dict:
                 Source(**source_info) if isinstance(source_info, dict) else source_info
             )
             context_indicators["sources"].append(source.id)
-
-        if context_data.get("insights"):
-            for insight_data in context_data["insights"]:
-                insight = (
-                    SourceInsight(**insight_data)
-                    if isinstance(insight_data, dict)
-                    else insight_data
-                )
-                insights.append(insight)
-                context_indicators["insights"].append(insight.id)
 
         formatted_context = _format_source_context(context_data)
         token_estimate = int(
@@ -213,14 +186,12 @@ def retrieving_context(state: SourceChatState, config: RunnableConfig) -> dict:
             {
                 "sourceCount": len(context_indicators["sources"]),
                 "noteCount": 0,
-                "insightCount": len(context_indicators["insights"]),
                 "tokenCount": token_estimate,
             },
             config,
         )
         return {
             "source": source,
-            "insights": insights,
             "context": formatted_context,
             "context_indicators": context_indicators,
         }
@@ -236,12 +207,8 @@ def generating(state: SourceChatState, config: RunnableConfig) -> dict:
     try:
         emit_agent_progress("started", "generating", {}, config)
         source = state.get("source")
-        insights = state.get("insights") or []
         prompt_data = {
             "source": source.model_dump() if source else None,
-            "insights": [insight.model_dump() for insight in insights]
-            if insights
-            else [],
             "context": state.get("context"),
             "context_indicators": state.get("context_indicators"),
             "skills_context": state.get("skills_context"),

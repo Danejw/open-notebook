@@ -1,11 +1,10 @@
 'use client'
 
-import { FileText, Lightbulb, StickyNote } from 'lucide-react'
+import { FileText, StickyNote } from 'lucide-react'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 interface ContextIndicatorProps {
-  sourcesInsights: number
   sourcesFull: number
   notesCount: number
   tokenCount?: number
@@ -24,16 +23,14 @@ function formatNumber(num: number): string {
 }
 
 export function ContextIndicator({
-  sourcesInsights,
   sourcesFull,
   notesCount,
   tokenCount,
   charCount,
   className
 }: ContextIndicatorProps) {
-  const hasContext = (sourcesInsights + sourcesFull) > 0 || notesCount > 0
+  const hasContext = sourcesFull > 0 || notesCount > 0
   const showTokens = tokenCount !== undefined && tokenCount > 0
-  // Prefer tokens; only show chars when tokens are unavailable
   const showChars = !showTokens && charCount !== undefined && charCount > 0
 
   if (!hasContext) {
@@ -61,23 +58,10 @@ export function ContextIndicator({
           <TooltipContent className="max-w-xs">
             <p>
               Selected sources/notes are searched per message. Chat loads only
-              the most relevant excerpts (not every insight every time).
+              the most relevant excerpts each time.
             </p>
           </TooltipContent>
         </Tooltip>
-        {sourcesInsights > 0 && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="inline-flex items-center gap-0.5 text-amber-600 cursor-default">
-                <Lightbulb className="h-3 w-3" />
-                {sourcesInsights}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Insights for {sourcesInsights} source{sourcesInsights !== 1 ? 's' : ''}</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
 
         {sourcesFull > 0 && (
           <Tooltip>

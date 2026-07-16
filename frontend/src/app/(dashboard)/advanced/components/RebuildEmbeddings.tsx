@@ -27,7 +27,6 @@ export function RebuildEmbeddings() {
   const [mode, setMode] = useState<'existing' | 'all'>('existing')
   const [includeSources, setIncludeSources] = useState(true)
   const [includeNotes, setIncludeNotes] = useState(true)
-  const [includeInsights, setIncludeInsights] = useState(true)
   const [commandId, setCommandId] = useState<string | null>(null)
   const [status, setStatus] = useState<RebuildStatusResponse | null>(null)
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
@@ -87,7 +86,6 @@ export function RebuildEmbeddings() {
       mode,
       include_sources: includeSources,
       include_notes: includeNotes,
-      include_insights: includeInsights
     }
 
     rebuildMutation.mutate(request)
@@ -100,7 +98,7 @@ export function RebuildEmbeddings() {
     rebuildMutation.reset()
   }
 
-  const isAnyTypeSelected = includeSources || includeNotes || includeInsights
+  const isAnyTypeSelected = includeSources || includeNotes
   const isRebuildActive = commandId && status && (status.status === 'queued' || status.status === 'running')
 
   const progressData = status?.progress
@@ -113,7 +111,6 @@ export function RebuildEmbeddings() {
 
   const sourcesProcessed = stats?.sources_processed ?? stats?.sources ?? 0
   const notesProcessed = stats?.notes_processed ?? stats?.notes ?? 0
-  const insightsProcessed = stats?.insights_processed ?? stats?.insights ?? 0
   const failedItems = stats?.failed_items ?? stats?.failed ?? 0
 
   const computedDuration = status?.started_at && status?.completed_at
@@ -174,16 +171,6 @@ export function RebuildEmbeddings() {
                   />
                   <Label htmlFor="notes" className="font-normal cursor-pointer">
                     {t('common.notes')}
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="insights"
-                    checked={includeInsights}
-                    onCheckedChange={(checked) => setIncludeInsights(checked === true)}
-                  />
-                  <Label htmlFor="insights" className="font-normal cursor-pointer">
-                    {t('common.insights')}
                   </Label>
                 </div>
               </div>
@@ -274,7 +261,7 @@ export function RebuildEmbeddings() {
             )}
 
              {stats && (
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">{t('navigation.sources')}</p>
                   <p className="text-2xl font-bold">{sourcesProcessed}</p>
@@ -282,10 +269,6 @@ export function RebuildEmbeddings() {
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">{t('common.notes')}</p>
                   <p className="text-2xl font-bold">{notesProcessed}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">{t('common.insights')}</p>
-                  <p className="text-2xl font-bold">{insightsProcessed}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">{t('advanced.rebuild.time')}</p>

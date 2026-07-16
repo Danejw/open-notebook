@@ -127,13 +127,9 @@ class TestProjectDomain:
         async def fake_get_notes(self, include_content=False):
             return []
 
-        async def fake_get_insights(self):
-            return []
-
         with (
             patch.object(Project, "get_sources", new=fake_get_sources),
             patch.object(Project, "get_notes", new=fake_get_notes),
-            patch.object(Source, "get_insights", new=fake_get_insights),
         ):
             context = await project.get_context()
 
@@ -475,9 +471,6 @@ class TestPodcastService:
         async def fake_get_notes(self, include_content=False):
             return []
 
-        async def fake_get_insights(self):
-            return []
-
         def fake_submit_command(app_name, command_name, command_args):
             submitted_args.update(command_args)
             return "command:podcast"
@@ -499,7 +492,6 @@ class TestPodcastService:
             patch.object(Project, "get", new=AsyncMock(return_value=project)),
             patch.object(Project, "get_sources", new=fake_get_sources),
             patch.object(Project, "get_notes", new=fake_get_notes),
-            patch.object(Source, "get_insights", new=fake_get_insights),
             patch("api.podcast_service.submit_command", new=fake_submit_command),
             patch.dict(
                 sys.modules, {"commands.podcast_commands": fake_commands_module}

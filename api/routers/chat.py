@@ -310,20 +310,6 @@ async def _build_suggestion_context(
         if topics:
             lines.append(f"Topics: {', '.join(topics)}")
 
-        try:
-            insights = await source.get_insights()
-            types = sorted(
-                {
-                    str(getattr(i, "insight_type", "") or "").strip()
-                    for i in (insights or [])
-                    if getattr(i, "insight_type", None)
-                }
-            )
-            if types:
-                lines.append(f"Insight types: {', '.join(types[:8])}")
-        except Exception as e:
-            logger.debug(f"Skipping insights for suggestion context: {e}")
-
         if project_id:
             project = await Project.get(project_id)
             if project:

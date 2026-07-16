@@ -120,12 +120,4 @@ export const sourcesApi = {
     )
     return response.data
   },
-
-  ingestInsightAsSource: async (insightId: string, data: PromoteToSourceRequest = {}) => {
-    const response = await apiClient.post<SourceResponse>(
-      `/insights/${insightId}/ingest-as-source`,
-      data
-    )
-    return response.data
-  },
 }

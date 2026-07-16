@@ -15,17 +15,6 @@ const NoteEditorDialog = dynamic(
   }
 )
 
-const SourceInsightDialog = dynamic(
-  () =>
-    import('@/components/source/SourceInsightDialog').then((m) => ({
-      default: m.SourceInsightDialog,
-    })),
-  {
-    ssr: false,
-    loading: () => null,
-  }
-)
-
 /**
  * Modal Provider Component
  *
@@ -35,7 +24,6 @@ const SourceInsightDialog = dynamic(
  * Supported modal types:
  * - source: Source detail modal
  * - note: Note editor modal
- * - insight: Source insight modal
  */
 export function ModalProvider() {
   const { modalType, modalId, closeModal } = useModalManager()
@@ -58,16 +46,6 @@ export function ModalProvider() {
           }}
           projectId=""
           note={{ id: modalId, title: null, content: null }}
-        />
-      ) : null}
-
-      {modalType === 'insight' && modalId ? (
-        <SourceInsightDialog
-          open
-          onOpenChange={(open) => {
-            if (!open) closeModal()
-          }}
-          insight={{ id: modalId, insight_type: '', content: '' }}
         />
       ) : null}
     </>

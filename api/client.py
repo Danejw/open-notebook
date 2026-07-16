@@ -313,7 +313,6 @@ class APIClient:
         mode: str = "existing",
         include_sources: bool = True,
         include_notes: bool = True,
-        include_insights: bool = True,
     ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
         """Rebuild embeddings in bulk.
 
@@ -324,7 +323,6 @@ class APIClient:
             "mode": mode,
             "include_sources": include_sources,
             "include_notes": include_notes,
-            "include_insights": include_insights,
         }
         # Use double the configured timeout for bulk rebuild operations (or configured value if already high)
         rebuild_timeout = max(self.timeout, min(self.timeout * 2, 3600.0))
@@ -438,46 +436,6 @@ class APIClient:
     ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
         """Delete a source."""
         return self._make_request("DELETE", f"/api/sources/{source_id}")
-
-    # Insights API methods
-    def get_source_insights(self, source_id: str) -> List[Dict[Any, Any]]:
-        """Get all insights for a specific source."""
-        result = self._make_request("GET", f"/api/sources/{source_id}/insights")
-        return result if isinstance(result, list) else [result]
-
-    def get_insight(
-        self, insight_id: str
-    ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
-        """Get a specific insight."""
-        return self._make_request("GET", f"/api/insights/{insight_id}")
-
-    def delete_insight(
-        self, insight_id: str
-    ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
-        """Delete a specific insight."""
-        return self._make_request("DELETE", f"/api/insights/{insight_id}")
-
-    def save_insight_as_note(
-        self, insight_id: str, project_id: Optional[str] = None
-    ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
-        """Convert an insight to a note."""
-        data = {}
-        if project_id:
-            data["project_id"] = project_id
-        return self._make_request(
-            "POST", f"/api/insights/{insight_id}/save-as-note", json=data
-        )
-
-    def create_source_insight(
-        self, source_id: str, artifact_id: str, model_id: Optional[str] = None
-    ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
-        """Create a new insight for a source by running a Artifact."""
-        data = {"artifact_id": artifact_id}
-        if model_id:
-            data["model_id"] = model_id
-        return self._make_request(
-            "POST", f"/api/sources/{source_id}/insights", json=data
-        )
 
     # Episode Profiles API methods
     def get_episode_profiles(self) -> List[Dict[Any, Any]]:

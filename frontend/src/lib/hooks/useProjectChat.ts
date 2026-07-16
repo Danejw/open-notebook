@@ -248,9 +248,7 @@ export function useProjectChat({
 
     sources.forEach(source => {
       const mode = contextSelections.sources[source.id]
-      if (mode === 'insights') {
-        context_config.sources[source.id] = 'insights'
-      } else if (mode === 'full') {
+      if (mode === 'full') {
         context_config.sources[source.id] = 'full content'
       } else {
         context_config.sources[source.id] = 'not in'

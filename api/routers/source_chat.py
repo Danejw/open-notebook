@@ -60,9 +60,6 @@ class ContextIndicator(BaseModel):
     sources: List[str] = Field(
         default_factory=list, description="Source IDs used in context"
     )
-    insights: List[str] = Field(
-        default_factory=list, description="Insight IDs used in context"
-    )
     notes: List[str] = Field(
         default_factory=list, description="Note IDs used in context"
     )
@@ -300,7 +297,6 @@ async def get_source_chat_session(
                 context_data = thread_state.values["context_indicators"]
                 context_indicators = ContextIndicator(
                     sources=context_data.get("sources", []),
-                    insights=context_data.get("insights", []),
                     notes=context_data.get("notes", []),
                 )
 

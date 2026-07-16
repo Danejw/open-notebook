@@ -276,7 +276,6 @@ export default function SourcesPage() {
               <col className="w-[140px]" />
               <col className="w-[100px]" />
               <col className="w-[100px]" />
-              <col className="w-[100px]" />
             </colgroup>
             <thead className="sticky top-0 z-10 bg-background">
               <tr className="border-b bg-muted/50">
@@ -305,9 +304,6 @@ export default function SourcesPage() {
                     )}
                   </Button>
                 </th>
-                <th className="hidden h-8 px-3 text-center align-middle text-xs font-medium text-muted-foreground md:table-cell">
-                  {t('sources.insights')}
-                </th>
                 <th className="hidden h-8 px-3 text-center align-middle text-xs font-medium text-muted-foreground lg:table-cell">
                   {t('sources.embedded')}
                 </th>
@@ -319,7 +315,7 @@ export default function SourcesPage() {
             <tbody>
               {useVirtual && paddingTop > 0 && (
                 <tr aria-hidden="true">
-                  <td colSpan={6} style={{ height: paddingTop, padding: 0, border: 0 }} />
+                  <td colSpan={5} style={{ height: paddingTop, padding: 0, border: 0 }} />
                 </tr>
               )}
               {useVirtual
@@ -344,12 +340,12 @@ export default function SourcesPage() {
                 : sources.map((source, index) => renderSourceRow(source, index))}
               {useVirtual && paddingBottom > 0 && (
                 <tr aria-hidden="true">
-                  <td colSpan={6} style={{ height: paddingBottom, padding: 0, border: 0 }} />
+                  <td colSpan={5} style={{ height: paddingBottom, padding: 0, border: 0 }} />
                 </tr>
               )}
               {isFetchingNextPage && (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={5}>
                     <TableLoadMoreSkeleton />
                   </td>
                 </tr>

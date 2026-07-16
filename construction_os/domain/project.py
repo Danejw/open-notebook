@@ -85,28 +85,7 @@ class Project(ObjectModel):
             if isinstance(source_context, dict):
                 title = source_context.get("title") or source.title or "Untitled source"
                 full_text = source_context.get("full_text")
-                insights = source_context.get("insights") or []
-
-                content_parts = []
-                if full_text:
-                    content_parts.append(str(full_text))
-
-                insight_lines = []
-                for insight in insights:
-                    if not isinstance(insight, dict):
-                        continue
-
-                    insight_content = insight.get("content")
-                    if not insight_content:
-                        continue
-
-                    insight_type = insight.get("insight_type") or "Insight"
-                    insight_lines.append(f"- {insight_type}: {insight_content}")
-
-                if insight_lines:
-                    content_parts.append("Insights:\n" + "\n".join(insight_lines))
-
-                content = "\n\n".join(content_parts).strip()
+                content = str(full_text).strip() if full_text else ""
             else:
                 title = source.title or "Untitled source"
                 content = str(source_context).strip()
@@ -323,37 +302,6 @@ class SourceEmbedding(ObjectModel):
             raise DatabaseOperationError(e)
 
 
-class SourceInsight(ObjectModel):
-    table_name: ClassVar[str] = "source_insight"
-    insight_type: str
-    content: str
-
-    async def get_source(self) -> "Source":
-        try:
-            src = await repo_query(
-                """
-            select source.* from $id fetch source
-            """,
-                {"id": ensure_record_id(self.id)},
-            )
-            return Source(**src[0]["source"])
-        except Exception as e:
-            logger.error(f"Error fetching source for insight {self.id}: {str(e)}")
-            logger.exception(e)
-            raise DatabaseOperationError(e)
-
-    async def save_as_note(self, project_id: Optional[str] = None) -> Any:
-        source = await self.get_source()
-        note = Note(
-            title=f"{self.insight_type} from source {source.title}",
-            content=self.content,
-        )
-        await note.save()
-        if project_id:
-            await note.add_to_project(project_id)
-        return note
-
-
 class ProcessingFailure(BaseModel):
     """Latest user-visible failure recorded for one source processing stage."""
 
@@ -468,17 +416,13 @@ class Source(ObjectModel):
     async def get_context(
         self, context_size: Literal["short", "long"] = "short"
     ) -> Dict[str, Any]:
-        insights_list = await self.get_insights()
-        insights = [insight.model_dump() for insight in insights_list]
         if context_size == "long":
             return dict(
                 id=self.id,
                 title=self.title,
-                insights=insights,
                 full_text=self.full_text,
             )
-        else:
-            return dict(id=self.id, title=self.title, insights=insights)
+        return dict(id=self.id, title=self.title)
 
     async def get_embedded_chunks(self) -> int:
         try:
@@ -495,20 +439,6 @@ class Source(ObjectModel):
             logger.error(f"Error fetching chunks count for source {self.id}: {str(e)}")
             logger.exception(e)
             raise DatabaseOperationError(f"Failed to count chunks for source: {str(e)}")
-
-    async def get_insights(self) -> List[SourceInsight]:
-        try:
-            result = await repo_query(
-                """
-                SELECT * FROM source_insight WHERE source=$id
-                """,
-                {"id": ensure_record_id(self.id)},
-            )
-            return [SourceInsight(**insight) for insight in result]
-        except Exception as e:
-            logger.error(f"Error fetching insights for source {self.id}: {str(e)}")
-            logger.exception(e)
-            raise DatabaseOperationError("Failed to fetch insights for source")
 
     async def add_to_project(self, project_id: str) -> Any:
         if not project_id:
@@ -540,53 +470,6 @@ class Source(ObjectModel):
 
         return await begin_embed_stage(str(self.id), chain_kg=chain_kg)
 
-    async def add_insight(self, insight_type: str, content: str) -> Optional[str]:
-        """
-        Submit insight creation as an async command (fire-and-forget).
-
-        Submits a create_insight command that handles database operations with
-        automatic retry logic for transaction conflicts. The command also submits
-        an embed_insight command for async embedding.
-
-        This method returns immediately after submitting the command - it does NOT
-        wait for the insight to be created. Use this for batch operations where
-        throughput is more important than immediate confirmation.
-
-        Args:
-            insight_type: Type/category of the insight
-            content: The insight content text
-
-        Returns:
-            command_id for optional tracking, or None if submission failed
-
-        Raises:
-            InvalidInputError: If insight_type or content is empty
-        """
-        if not insight_type or not content:
-            raise InvalidInputError("Insight type and content must be provided")
-
-        try:
-            # Submit create_insight command (fire-and-forget)
-            # Command handles retries internally for transaction conflicts
-            command_id = submit_command(
-                "construction_os",
-                "create_insight",
-                {
-                    "source_id": str(self.id),
-                    "insight_type": insight_type,
-                    "content": content,
-                },
-            )
-            logger.info(
-                f"Submitted create_insight command {command_id} for source {self.id} "
-                f"(type={insight_type})"
-            )
-            return str(command_id)
-
-        except Exception as e:
-            logger.error(f"Error submitting create_insight for source {self.id}: {e}")
-            return None
-
     def _prepare_save_data(self) -> dict:
         """Override to ensure command field is always RecordID format for database"""
         data = super()._prepare_save_data()
@@ -598,7 +481,7 @@ class Source(ObjectModel):
         return data
 
     async def delete(self) -> bool:
-        """Delete source and clean up associated file, embeddings, and insights."""
+        """Delete source and clean up associated file and embeddings."""
         # Clean up uploaded file if it exists
         if self.asset and self.asset.file_path:
             file_path = Path(self.asset.file_path)
@@ -616,21 +499,17 @@ class Source(ObjectModel):
                     f"File {file_path} not found for source {self.id}, skipping cleanup"
                 )
 
-        # Delete associated embeddings and insights to prevent orphaned records
+        # Delete associated embeddings to prevent orphaned records
         try:
             source_id = ensure_record_id(self.id)
             await repo_query(
                 "DELETE source_embedding WHERE source = $source_id",
                 {"source_id": source_id},
             )
-            await repo_query(
-                "DELETE source_insight WHERE source = $source_id",
-                {"source_id": source_id},
-            )
-            logger.debug(f"Deleted embeddings and insights for source {self.id}")
+            logger.debug(f"Deleted embeddings for source {self.id}")
         except Exception as e:
             logger.warning(
-                f"Failed to delete embeddings/insights for source {self.id}: {e}. "
+                f"Failed to delete embeddings for source {self.id}: {e}. "
                 "Continuing with source deletion."
             )
 

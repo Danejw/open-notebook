@@ -1,13 +1,12 @@
 'use client'
 
-import { FileText, Lightbulb, StickyNote } from 'lucide-react'
+import { FileText, StickyNote } from 'lucide-react'
 import { SourceChatContextIndicator } from '@/lib/types/api'
 import { ContextIndicator } from '@/components/common/ContextIndicator'
 import { columnFooterClassName } from '@/components/projects/ColumnHeader'
 import { cn } from '@/lib/utils'
 
 interface ProjectContextStats {
-  sourcesInsights: number
   sourcesFull: number
   notesCount: number
   tokenCount?: number
@@ -38,12 +37,6 @@ export function ChatContextStrip({
               {contextIndicators.sources.length}
             </span>
           )}
-          {contextIndicators.insights?.length > 0 && (
-            <span className="inline-flex items-center gap-0.5">
-              <Lightbulb className="h-3 w-3" />
-              {contextIndicators.insights.length}
-            </span>
-          )}
           {contextIndicators.notes?.length > 0 && (
             <span className="inline-flex items-center gap-0.5">
               <StickyNote className="h-3 w-3" />
@@ -55,7 +48,6 @@ export function ChatContextStrip({
 
       {projectContextStats ? (
         <ContextIndicator
-          sourcesInsights={projectContextStats.sourcesInsights}
           sourcesFull={projectContextStats.sourcesFull}
           notesCount={projectContextStats.notesCount}
           tokenCount={projectContextStats.tokenCount}

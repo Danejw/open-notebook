@@ -26,7 +26,6 @@ import { ChatContextStrip } from '@/components/source/ChatContextStrip'
 import { ChatComposer } from '@/components/source/ChatComposer'
 
 interface ProjectContextStats {
-  sourcesInsights: number
   sourcesFull: number
   notesCount: number
   tokenCount?: number

@@ -1,5 +1,5 @@
 import apiClient from '@/lib/api/client'
-import type { CommandJobStatusResponse } from '@/lib/api/insights'
+import type { CommandJobStatusResponse } from '@/lib/api/command-status'
 
 export interface KnowledgeExtractorInfo {
   id: string

@@ -18,7 +18,6 @@ import { SourceTypeStep, parseAndValidateUrls } from './steps/SourceTypeStep'
 import { ProjectsStep } from './steps/ProjectsStep'
 import { ProcessingStep } from './steps/ProcessingStep'
 import { useProjects } from '@/lib/hooks/use-projects'
-import { useArtifacts } from '@/lib/hooks/use-artifacts'
 import { useCreateSource } from '@/lib/hooks/use-sources'
 import { useSettings } from '@/lib/hooks/use-settings'
 import { CreateSourceRequest } from '@/lib/types/api'
@@ -33,7 +32,6 @@ const createSourceSchema = z.object({
   content: z.string().optional(),
   file: z.any().optional(),
   projects: z.array(z.string()).optional(),
-  artifacts: z.array(z.string()).optional(),
   embed: z.boolean(),
   async_processing: z.boolean(),
 }).refine((data) => {
@@ -70,7 +68,6 @@ interface AddSourceDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   defaultprojectId?: string
-  initialArtifactIds?: string[]
 }
 
 interface ProcessingState {
@@ -89,7 +86,6 @@ export function AddSourceDialog({
   open, 
   onOpenChange, 
   defaultprojectId,
-  initialArtifactIds = [],
 }: AddSourceDialogProps) {
   const { t } = useTranslation()
 
@@ -106,7 +102,6 @@ export function AddSourceDialog({
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>(
     defaultprojectId ? [defaultprojectId] : []
   )
-  const [selectedArtifactIds, setSelectedArtifactIds] = useState<string[]>([])
 
   // Batch-specific state
   const [urlValidationErrors, setUrlValidationErrors] = useState<{ url: string; line: number }[]>([])
@@ -118,7 +113,6 @@ export function AddSourceDialog({
   // API hooks
   const createSource = useCreateSource()
   const { data: projects = [], isLoading: projectsLoading } = useProjects()
-  const { data: artifacts = [], isLoading: artifactsLoading } = useArtifacts()
   const { data: settings } = useSettings()
 
   // Form setup
@@ -136,33 +130,18 @@ export function AddSourceDialog({
       projects: defaultprojectId ? [defaultprojectId] : [],
       embed: true,
       async_processing: true,
-      artifacts: [],
     },
   })
 
-  // Initialize form values when settings and artifacts are loaded
   useEffect(() => {
-    if (settings && artifacts.length > 0) {
+    if (settings) {
       reset({
         projects: defaultprojectId ? [defaultprojectId] : [],
         embed: true,
         async_processing: true,
-        artifacts: [],
       })
     }
-  }, [settings, artifacts, defaultprojectId, reset])
-
-  // Apply default and dropped artifact selections when the dialog opens
-  useEffect(() => {
-    if (!open || !artifacts.length) return
-
-    const defaultArtifacts = artifacts
-      .filter(a => a.apply_default)
-      .map(a => a.id)
-
-    const merged = [...new Set([...defaultArtifacts, ...initialArtifactIds])]
-    setSelectedArtifactIds(merged)
-  }, [open, artifacts, initialArtifactIds])
+  }, [settings, defaultprojectId, reset])
 
   // Cleanup effect
   useEffect(() => {
@@ -292,13 +271,6 @@ export function AddSourceDialog({
     setSelectedProjectIds(updated)
   }
 
-  const handleArtifactToggle = (artifactId: string) => {
-    const updated = selectedArtifactIds.includes(artifactId)
-      ? selectedArtifactIds.filter(id => id !== artifactId)
-      : [...selectedArtifactIds, artifactId]
-    setSelectedArtifactIds(updated)
-  }
-
   // Single source submission
   const submitSingleSource = async (data: CreateSourceFormData): Promise<void> => {
     const createRequest: CreateSourceRequest = {
@@ -307,7 +279,6 @@ export function AddSourceDialog({
       url: data.type === 'link' ? data.url : undefined,
       content: data.type === 'text' ? data.content : undefined,
       title: data.title,
-      artifacts: selectedArtifactIds,
       embed: true,
       delete_source: false,
       async_processing: true,
@@ -357,7 +328,6 @@ export function AddSourceDialog({
           type: item.type === 'url' ? 'link' : 'upload',
           projects: selectedProjectIds,
           url: item.type === 'url' ? item.value as string : undefined,
-          artifacts: selectedArtifactIds,
           embed: true,
           delete_source: false,
           async_processing: true,
@@ -439,16 +409,6 @@ export function AddSourceDialog({
     setSelectedProjectIds(defaultprojectId ? [defaultprojectId] : [])
     setUrlValidationErrors([])
     setBatchProgress(null)
-
-    // Reset to default artifacts
-    if (artifacts.length > 0) {
-      const defaultArtifacts = artifacts
-        .filter(a => a.apply_default)
-        .map(a => a.id)
-      setSelectedArtifactIds(defaultArtifacts)
-    } else {
-      setSelectedArtifactIds([])
-    }
 
     onOpenChange(false)
   }
@@ -565,10 +525,6 @@ export function AddSourceDialog({
               <ProcessingStep
                 // @ts-expect-error - Type inference issue with zod schema
                 control={control}
-                artifacts={artifacts}
-                selectedArtifacts={selectedArtifactIds}
-                onToggleArtifact={handleArtifactToggle}
-                loading={artifactsLoading}
                 settings={settings}
               />
             )}

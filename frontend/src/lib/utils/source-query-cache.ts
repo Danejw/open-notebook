@@ -208,7 +208,6 @@ export function buildOptimisticSource(
           : null,
     embedded: false,
     embedded_chunks: 0,
-    insights_count: 0,
     created: now,
     updated: now,
     status: variables.async_processing ? 'queued' : undefined,

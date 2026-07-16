@@ -1,6 +1,6 @@
 'use client'
 
-import { EyeOff, Lightbulb, FileText } from 'lucide-react'
+import { EyeOff, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,
@@ -14,14 +14,12 @@ import { useTranslation } from '@/lib/hooks/use-translation'
 
 interface ContextToggleProps {
   mode: ContextMode
-  hasInsights?: boolean // For sources - determines if 'insights' mode is available
   onChange: (mode: ContextMode) => void
   className?: string
 }
 
 export function ContextToggle<TMode extends ContextMode = ContextMode>({
   mode,
-  hasInsights = false,
   onChange,
   className
 }: Omit<ContextToggleProps, 'mode' | 'onChange'> & {
@@ -37,12 +35,6 @@ export function ContextToggle<TMode extends ContextMode = ContextMode>({
       color: 'text-muted-foreground',
       bgColor: 'hover:bg-muted'
     },
-    insights: {
-      icon: Lightbulb,
-      label: t('common.contextModes.insights'),
-      color: 'text-amber-600',
-      bgColor: 'hover:bg-amber-50'
-    },
     full: {
       icon: FileText,
       label: t('common.contextModes.full'),
@@ -50,19 +42,16 @@ export function ContextToggle<TMode extends ContextMode = ContextMode>({
       bgColor: 'hover:bg-primary/10'
     }
   } as const
-  const config = MODE_CONFIG[mode]
+  const config = MODE_CONFIG[mode === 'full' ? 'full' : 'off']
   const Icon = config.icon
 
-  // Determine available modes based on whether item has insights
-  const availableModes = (hasInsights
-    ? ['off', 'insights', 'full']
-    : ['off', 'full']) as TMode[]
+  const availableModes = ['off', 'full'] as TMode[]
 
   const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation() // Prevent card click
+    e.stopPropagation()
 
-    // Cycle to next mode
-    const currentIndex = availableModes.indexOf(mode)
+    const normalized = (mode === 'full' ? 'full' : 'off') as TMode
+    const currentIndex = availableModes.indexOf(normalized)
     const nextIndex = (currentIndex + 1) % availableModes.length
     onChange(availableModes[nextIndex])
   }

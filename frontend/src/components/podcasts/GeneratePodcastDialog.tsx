@@ -35,7 +35,7 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 
-type SourceMode = 'off' | 'insights' | 'full'
+type SourceMode = 'off' | 'full'
 
 interface ProjectSelection {
   sources: Record<string, SourceMode>
@@ -63,8 +63,8 @@ function hasSelections(selection?: ProjectSelection): boolean {
   )
 }
 
-function getSourceDefaultMode(source: SourceListResponse): SourceMode {
-  return source.insights_count && source.insights_count > 0 ? 'insights' : 'full'
+function getSourceDefaultMode(_source: SourceListResponse): SourceMode {
+  return 'full'
 }
 
 interface GeneratePodcastDialogProps {
@@ -145,7 +145,6 @@ function ContentSelectionPanel({
 
   // Pre-compute source modes once to avoid repeated t.podcasts access in loops
   const sourceModes = [
-    { value: 'insights', label: tr.summary },
     { value: 'full', label: tr.fullContent },
   ] as const
 
@@ -314,10 +313,6 @@ function ContentSelectionPanel({
                                           <SelectItem
                                             key={option.value}
                                             value={option.value}
-                                            disabled={
-                                              option.value === 'insights' &&
-                                              (!source.insights_count || source.insights_count === 0)
-                                            }
                                           >
                                             {option.label}
                                           </SelectItem>
@@ -582,7 +577,7 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
             .filter(([, mode]) => mode !== 'off')
             .reduce<Record<string, string>>((acc, [sourceId, mode]) => {
               const normalizedId = sourceId.replace(/^source:/, '')
-              acc[normalizedId] = mode === 'insights' ? 'insights' : 'full content'
+              acc[normalizedId] = 'full content'
               return acc
             }, {})
 
@@ -731,7 +726,7 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
         .filter(([, mode]) => mode !== 'off')
         .reduce<Record<string, string>>((acc, [sourceId, mode]) => {
           const normalizedId = sourceId.replace(/^source:/, '')
-          acc[normalizedId] = mode === 'insights' ? 'insights' : 'full content'
+          acc[normalizedId] = 'full content'
           return acc
         }, {})
 

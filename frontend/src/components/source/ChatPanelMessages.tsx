@@ -76,11 +76,12 @@ export function ChatPanelMessages({
 
   const handleReferenceClick = useCallback(
     (type: string, id: string) => {
-      const modalType =
-        type === 'source_insight' ? 'insight' : (type as 'source' | 'note' | 'insight')
+      if (type !== 'source' && type !== 'note') {
+        return
+      }
 
       try {
-        openModal(modalType, id)
+        openModal(type, id)
       } catch {
         toast.error(t('common.noResults'))
       }

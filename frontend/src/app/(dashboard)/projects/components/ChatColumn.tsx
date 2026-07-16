@@ -64,15 +64,12 @@ export function ChatColumn({
   }, [artifactRunKey, activeArtifact, chat.applyArtifactDefaults])
 
   const contextStats = useMemo(() => {
-    let sourcesInsights = 0
     let sourcesFull = 0
     let notesCount = 0
 
     sources.forEach((source) => {
       const mode = contextSelections.sources[source.id]
-      if (mode === 'insights') {
-        sourcesInsights++
-      } else if (mode === 'full') {
+      if (mode === 'full') {
         sourcesFull++
       }
     })
@@ -85,7 +82,6 @@ export function ChatColumn({
     })
 
     return {
-      sourcesInsights,
       sourcesFull,
       notesCount,
       tokenCount: chat.tokenCount,

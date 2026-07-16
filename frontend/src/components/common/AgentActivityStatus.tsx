@@ -11,6 +11,7 @@ interface AgentActivityStatusProps {
 
 /**
  * Live agent status + compact completed-step log for the current turn.
+ * Flat text — no chat-bubble chrome.
  */
 export function AgentActivityStatus({
   streamStatus,
@@ -23,7 +24,7 @@ export function AgentActivityStatus({
 
   return (
     <div className={cn('flex justify-start', className)}>
-      <div className="max-w-[90%] space-y-1.5 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+      <div className="w-full max-w-[min(100%,52rem)] space-y-1.5 text-sm text-muted-foreground">
         {activityLog.length > 0 && (
           <ul className="space-y-0.5 text-[12px] leading-snug">
             {activityLog.map((line, index) => (

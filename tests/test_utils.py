@@ -258,12 +258,10 @@ class TestContextBuilder:
 
         assert config.sources == {}
         assert config.notes == {}
-        assert config.include_insights is True
         assert config.include_notes is True
         assert config.priority_weights is not None
         assert "source" in config.priority_weights
         assert "note" in config.priority_weights
-        assert "insight" in config.priority_weights
 
     def test_context_builder_initialization(self):
         """Test ContextBuilder initialization with various params."""
@@ -271,13 +269,13 @@ class TestContextBuilder:
             source_id="source:123",
             project_id="Project:456",
             max_tokens=1000,
-            include_insights=False,
+            include_notes=False,
         )
 
         assert builder.source_id == "source:123"
         assert builder.project_id == "Project:456"
         assert builder.max_tokens == 1000
-        assert builder.include_insights is False
+        assert builder.include_notes is False
 
 
 if __name__ == "__main__":

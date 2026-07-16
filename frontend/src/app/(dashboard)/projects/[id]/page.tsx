@@ -263,7 +263,7 @@ function ProjectPageContent() {
     }))
   }
 
-  // Bulk-apply a context action (insights-only / full / exclude) to every
+  // Bulk-apply a context action (full / exclude) to every
   // source at once (#223). Also records the action as the default for sources
   // loaded later (#915).
   const handleBulkSourceContext = (action: SourceBulkAction) => {

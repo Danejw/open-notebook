@@ -665,7 +665,10 @@ describe('stream cache hydration', () => {
     const current = makeQueue({ revision: 8 })
     const changed = makeItem({
       id: 'chat_queue_item:item-2',
-      position: 0,
+      client_request_id: 'request-2',
+      run_id: 'run-2',
+      position: 1,
+      prompt: 'Second prompt',
       status: 'running',
       runner_state: 'running',
       stream_revision: 9,
@@ -680,7 +683,12 @@ describe('stream cache hydration', () => {
     const next = applyChatQueueStreamEvent(current, event)
 
     expect(next?.revision).toBe(9)
-    expect(next?.items[0]).toEqual(changed)
+    // Preserve FIFO order: item-2 stays at position 1 while becoming current.
+    expect(next?.items.map((item) => item.id)).toEqual([
+      'chat_queue_item:item-1',
+      'chat_queue_item:item-2',
+    ])
+    expect(next?.items[1]).toEqual(changed)
     expect(next?.current_item).toEqual(changed)
   })
 

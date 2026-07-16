@@ -36,7 +36,6 @@ RECORD_TABLES: tuple[str, ...] = (
     "project",
     "source",
     "source_embedding",
-    "source_insight",
     "note",
     "artifact",
     "episode",
@@ -106,7 +105,6 @@ KNOWN_RECORD_TABLES = frozenset(
         "project",
         "source",
         "source_embedding",
-        "source_insight",
         "note",
         "artifact",
         "credential",
@@ -131,7 +129,6 @@ KNOWN_RECORD_TABLES = frozenset(
 RECORD_LINK_FIELDS: dict[str, frozenset[str]] = {
     "source": frozenset({"command"}),
     "source_embedding": frozenset({"source"}),
-    "source_insight": frozenset({"source"}),
     "skill_file": frozenset({"skill"}),
     "model": frozenset({"credential"}),
     "episode": frozenset({"command"}),

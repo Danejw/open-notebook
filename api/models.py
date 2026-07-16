@@ -268,7 +268,6 @@ class RebuildRequest(BaseModel):
     )
     include_sources: bool = Field(True, description="Include sources in rebuild")
     include_notes: bool = Field(True, description="Include notes in rebuild")
-    include_insights: bool = Field(True, description="Include insights in rebuild")
 
 
 class RebuildResponse(BaseModel):
@@ -286,7 +285,6 @@ class RebuildProgress(BaseModel):
 class RebuildStats(BaseModel):
     sources: int = Field(0, description="Sources processed")
     notes: int = Field(0, description="Notes processed")
-    insights: int = Field(0, description="Insights processed")
     failed: int = Field(0, description="Failed items")
 
 
@@ -421,7 +419,6 @@ class SourceListResponse(BaseModel):
     asset: Optional[AssetModel]
     embedded: bool  # Boolean flag indicating if source has embeddings
     embedded_chunks: int  # Number of embedded chunks
-    insights_count: int
     created: str
     updated: str
     file_available: Optional[bool] = None
@@ -463,25 +460,6 @@ class ContextResponse(BaseModel):
     total_tokens: Optional[int] = Field(None, description="Estimated token count")
 
 
-# Insights API models
-class SourceInsightResponse(BaseModel):
-    id: str
-    source_id: str
-    insight_type: str
-    content: str
-    created: str
-    updated: str
-
-
-class InsightCreationResponse(BaseModel):
-    """Response for async insight creation."""
-
-    status: Literal["pending"] = "pending"
-    message: str = "Insight generation started"
-    source_id: str
-    artifact_id: str
-    command_id: Optional[str] = None
-
 
 class SaveAsNoteRequest(BaseModel):
     project_id: Optional[str] = Field(None, description="Project ID to add note to")
@@ -510,16 +488,7 @@ class PromoteToSourceRequest(BaseModel):
     )
 
 
-class CreateSourceInsightRequest(BaseModel):
-    model_config = ConfigDict(protected_namespaces=())
 
-    artifact_id: str = Field(..., description="ID of Artifact to apply")
-    model_id: Optional[str] = Field(
-        None, description="Model ID (uses default if not provided)"
-    )
-
-
-# Source status response
 class SourceStatusResponse(BaseModel):
     status: Optional[str] = Field(None, description="Processing status")
     message: str = Field(..., description="Descriptive message about the status")

@@ -1,11 +1,11 @@
-"""Tests for promotion endpoints (ingest text, note/insight → source)."""
+"""Tests for promotion endpoints (ingest text, note → source)."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
-from construction_os.domain.project import Note, Source, SourceInsight
+from construction_os.domain.project import Note, Source
 
 
 @pytest.fixture
@@ -35,6 +35,10 @@ class TestIngestTextSource:
             status="new",
             processing_info={"async": True},
             projects=["project:1"],
+            pipeline_stage=None,
+            stage=None,
+            processing_failures={},
+            failure_details_unavailable=False,
         )
 
         response = client.post(
@@ -66,14 +70,12 @@ class TestIngestTextSource:
 class TestPromoteNoteToSource:
     @pytest.mark.asyncio
     @patch("api.promotion_service.CommandService.submit_command_job", new_callable=AsyncMock)
-    @patch("api.promotion_service._validate_artifacts", new_callable=AsyncMock)
     @patch("api.promotion_service._validate_projects", new_callable=AsyncMock)
     @patch("api.promotion_service.get_note_project_ids", new_callable=AsyncMock)
     async def test_note_promotion(
         self,
         mock_get_projects,
         mock_validate_projects,
-        mock_validate_artifacts,
         mock_submit,
         client,
     ):
@@ -121,52 +123,3 @@ class TestPromoteNoteToSource:
         )
 
         assert response.status_code == 400
-
-
-class TestPromoteInsightToSource:
-    @pytest.mark.asyncio
-    @patch("api.promotion_service.CommandService.submit_command_job", new_callable=AsyncMock)
-    @patch("api.promotion_service._validate_artifacts", new_callable=AsyncMock)
-    @patch("api.promotion_service._validate_projects", new_callable=AsyncMock)
-    @patch("api.promotion_service.get_source_project_ids", new_callable=AsyncMock)
-    async def test_insight_promotion(
-        self,
-        mock_get_projects,
-        mock_validate_projects,
-        mock_validate_artifacts,
-        mock_submit,
-        client,
-    ):
-        mock_get_projects.return_value = ["project:1"]
-        mock_submit.return_value = "command:789"
-
-        insight = SourceInsight(insight_type="Bid Scope Summary", content="Summary text")
-        insight.id = "source_insight:xyz"
-
-        parent_source = Source(title="Original PDF", topics=[])
-        parent_source.id = "source:parent"
-
-        async def get_source():
-            return parent_source
-
-        insight.get_source = get_source
-
-        with patch.object(SourceInsight, "get", new_callable=AsyncMock, return_value=insight):
-            with patch.object(Source, "save", new_callable=AsyncMock):
-                with patch.object(Source, "add_to_project", new_callable=AsyncMock):
-                    response = client.post(
-                        "/api/insights/source_insight:xyz/ingest-as-source",
-                        json={"embed": True},
-                    )
-
-        assert response.status_code == 200
-        mock_submit.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    @patch.object(SourceInsight, "get", new_callable=AsyncMock, return_value=None)
-    async def test_insight_not_found(self, mock_get, client):
-        response = client.post(
-            "/api/insights/source_insight:missing/ingest-as-source",
-            json={"project_id": "project:1"},
-        )
-        assert response.status_code == 404

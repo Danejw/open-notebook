@@ -2,7 +2,7 @@
 Generic ContextBuilder for the Construction OS project.
 
 This module provides a flexible ContextBuilder class that can handle any parameters
-and build context from sources, projects, insights, and notes.
+and build context from sources, projects, and notes.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ class ContextItem:
     """Represents a single item in the context."""
 
     id: str
-    type: Literal["source", "note", "insight"]
+    type: Literal["source", "note"]
     content: Dict[str, Any]
     priority: int = 0
     token_count: Optional[int] = None
@@ -41,7 +41,6 @@ class ContextConfig:
 
     sources: Optional[Dict[str, str]] = None  # {source_id: inclusion_level}
     notes: Optional[Dict[str, str]] = None  # {note_id: inclusion_level}
-    include_insights: bool = True
     include_notes: bool = True
     max_tokens: Optional[int] = None
     priority_weights: Optional[Dict[str, int]] = None  # {type: weight}
@@ -53,13 +52,13 @@ class ContextConfig:
         if self.notes is None:
             self.notes = {}
         if self.priority_weights is None:
-            self.priority_weights = {"source": 100, "note": 50, "insight": 75}
+            self.priority_weights = {"source": 100, "note": 50}
 
 
 class ContextBuilder:
     """
     Generic ContextBuilder that can handle any parameters and build context
-    from sources, projects, insights, and notes.
+    from sources, projects, and notes.
     """
 
     def __init__(self, **kwargs):
@@ -69,7 +68,6 @@ class ContextBuilder:
         Supported parameters:
         - source_id: str - Include specific source
         - project_id: str - Include Project content
-        - include_insights: bool - Include source insights
         - include_notes: bool - Include notes
         - context_config: ContextConfig - Custom context configuration
         - max_tokens: int - Maximum token limit
@@ -81,7 +79,6 @@ class ContextBuilder:
         # Extract commonly used parameters
         self.source_id: Optional[str] = kwargs.get("source_id")
         self.project_id: Optional[str] = kwargs.get("project_id")
-        self.include_insights: bool = kwargs.get("include_insights", True)
         self.include_notes: bool = kwargs.get("include_notes", True)
         self.max_tokens: Optional[int] = kwargs.get("max_tokens")
 
@@ -90,7 +87,6 @@ class ContextBuilder:
         self.context_config: ContextConfig
         if context_config_arg is None:
             self.context_config = ContextConfig(
-                include_insights=self.include_insights,
                 include_notes=self.include_notes,
                 max_tokens=self.max_tokens,
             )
@@ -140,17 +136,21 @@ class ContextBuilder:
             raise DatabaseOperationError(f"Failed to build context: {str(e)}")
 
     async def _add_source_context(
-        self, source_id: str, inclusion_level: str = "insights"
+        self, source_id: str, inclusion_level: str = "full content"
     ) -> None:
         """
-        Add source and its insights to context.
+        Add source to context.
 
         Args:
             source_id: ID of the source
-            inclusion_level: "insights", "full content", or "not in"
+            inclusion_level: "full content", "insights" (legacy→full), or "not in"
         """
         if inclusion_level == "not in":
             return
+        # Legacy context mode "insights" maps to full source content
+        if "insights" in inclusion_level and "full content" not in inclusion_level:
+            inclusion_level = "full content"
+
 
         try:
             # Ensure source ID has table prefix
@@ -179,25 +179,6 @@ class ContextBuilder:
             )
             self.add_item(item)
 
-            # Add insights if requested and available
-            if self.include_insights and "insights" in inclusion_level:
-                insights = await source.get_insights()
-                for insight in insights:
-                    insight_priority = (self.context_config.priority_weights or {}).get(
-                        "insight", 75
-                    )
-                    insight_item = ContextItem(
-                        id=insight.id or "",
-                        type="insight",
-                        content={
-                            "id": insight.id,
-                            "source_id": source.id,
-                            "insight_type": insight.insight_type,
-                            "content": insight.content,
-                        },
-                        priority=insight_priority,
-                    )
-                    self.add_item(insight_item)
 
             logger.debug(f"Added source context for {source_id}")
 
@@ -225,11 +206,11 @@ class ContextBuilder:
                 for source_id, status in config_sources.items():
                     await self._add_source_context(source_id, status)
             else:
-                # Default: get all sources with insights
+                # Default: get all sources with full content
                 sources = await project.get_sources()
                 for source in sources:
                     if source.id:
-                        await self._add_source_context(source.id, "insights")
+                        await self._add_source_context(source.id, "full content")
 
             # Process notes from context config or get all
             if self.include_notes:
@@ -374,15 +355,12 @@ class ContextBuilder:
         # Group items by type
         sources = []
         notes = []
-        insights = []
-
+        
         for item in self.items:
             if item.type == "source":
                 sources.append(item.content)
             elif item.type == "note":
                 notes.append(item.content)
-            elif item.type == "insight":
-                insights.append(item.content)
 
         # Calculate total tokens
         total_tokens = sum(item.token_count or 0 for item in self.items)
@@ -390,15 +368,12 @@ class ContextBuilder:
         response = {
             "sources": sources,
             "notes": notes,
-            "insights": insights,
             "total_tokens": total_tokens,
             "total_items": len(self.items),
             "metadata": {
                 "source_count": len(sources),
                 "note_count": len(notes),
-                "insight_count": len(insights),
                 "config": {
-                    "include_insights": self.include_insights,
                     "include_notes": self.include_notes,
                     "max_tokens": self.max_tokens,
                 },
@@ -442,21 +417,20 @@ async def build_project_context(
 
 
 async def build_source_context(
-    source_id: str, include_insights: bool = True, max_tokens: Optional[int] = None
+    source_id: str, max_tokens: Optional[int] = None
 ) -> Dict[str, Any]:
     """
     Build context for a single source.
 
     Args:
         source_id: ID of the source
-        include_insights: Whether to include insights
         max_tokens: Optional token limit
 
     Returns:
         Built context
     """
     builder = ContextBuilder(
-        source_id=source_id, include_insights=include_insights, max_tokens=max_tokens
+        source_id=source_id, max_tokens=max_tokens
     )
     return await builder.build()
 
@@ -483,7 +457,7 @@ async def build_mixed_context(
 
     # Configure sources
     if source_ids:
-        context_config.sources = {sid: "insights" for sid in source_ids}
+        context_config.sources = {sid: "full content" for sid in source_ids}
 
     # Configure notes
     if note_ids:

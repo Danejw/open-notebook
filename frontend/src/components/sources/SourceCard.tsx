@@ -33,7 +33,7 @@ import { useSourceStatus, useEmbedSource } from '@/lib/hooks/use-sources'
 import { useExtractKnowledge, useSourceExtractors } from '@/lib/hooks/use-knowledge'
 import { useGraphLiveStore } from '@/lib/stores/graph-live-store'
 import { useKnowledgeExtractStore } from '@/lib/stores/knowledge-extract-store'
-import { useLongPress } from '@/lib/hooks/use-long-press'
+import { useSelectableRow } from '@/lib/hooks/useSelectableRow'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import type { TFunction } from 'i18next'
 import { cn } from '@/lib/utils'
@@ -350,28 +350,6 @@ function SourceCardImpl({
     }
   }
 
-  const handleCardClick = () => {
-    if (selectionMode) {
-      onToggleSelect?.(source.id)
-      return
-    }
-    if (onClick) {
-      onClick(source.id)
-    }
-  }
-
-  const longPressHandlers = useLongPress({
-    disabled: !onEnterSelection && !selectionMode,
-    onLongPress: () => {
-      if (selectionMode) {
-        onToggleSelect?.(source.id)
-      } else {
-        onEnterSelection?.(source.id)
-      }
-    },
-    onClick: handleCardClick,
-  })
-
   const isProcessing: boolean =
     currentStatus === 'new' ||
     currentStatus === 'running' ||
@@ -493,6 +471,18 @@ function SourceCardImpl({
     embedSource.mutate({ sourceId: source.id, chainKg: false })
   }
 
+  const { rowProps, selectedClassName } = useSelectableRow({
+    selectionMode,
+    selected,
+    onToggleSelect: () => onToggleSelect?.(source.id),
+    onEnterSelection: onEnterSelection
+      ? () => onEnterSelection(source.id)
+      : undefined,
+    onActivate: onClick ? () => onClick(source.id) : undefined,
+    longPressDisabled: !onEnterSelection && !selectionMode,
+    selectedRingOnly: isProcessing,
+  })
+
   const handleArtifactDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     if (!onArtifactDrop || !isArtifactDragEvent(event)) return
     if (getActiveArtifactDragPayload()?.kind !== 'template') return
@@ -531,9 +521,7 @@ function SourceCardImpl({
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      aria-pressed={selectionMode ? selected : undefined}
+      {...rowProps}
       aria-busy={isProcessing || undefined}
       className={cn(
         'group relative flex flex-col gap-0.5 overflow-hidden rounded-md px-1 py-0.5',
@@ -542,11 +530,9 @@ function SourceCardImpl({
         isFailed && 'bg-destructive/5 hover:bg-destructive/10',
         isProcessing && 'bg-muted/40',
         isArtifactDragOver && 'ring-2 ring-primary bg-primary/10',
-        selected && !isProcessing && 'bg-primary/10 ring-1 ring-primary/40',
-        selected && isProcessing && 'ring-1 ring-primary/40',
+        selectedClassName,
         className
       )}
-      {...longPressHandlers}
       onDragEnter={handleArtifactDragEnter}
       onDragOver={handleArtifactDragOver}
       onDragLeave={handleArtifactDragLeave}
@@ -558,12 +544,6 @@ function SourceCardImpl({
             ? `${title} — ${statusData?.message || statusLabel}`
             : title
       }
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          handleCardClick()
-        }
-      }}
     >
       {isProcessing && (
         <div

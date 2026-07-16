@@ -33,7 +33,7 @@ import type { NoteContextDefault } from '@/lib/utils/source-context'
 import { useDeleteNote, useExportNotePdf, useNote, useUpdateNote } from '@/lib/hooks/use-notes'
 import { useArtifacts } from '@/lib/hooks/use-artifacts'
 import { useIngestAsSource } from '@/lib/hooks/use-sources'
-import { useLongPress } from '@/lib/hooks/use-long-press'
+import { useSelectableRow } from '@/lib/hooks/useSelectableRow'
 import { useListSelection } from '@/lib/hooks/useListSelection'
 import { useToast } from '@/lib/hooks/use-toast'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
@@ -613,28 +613,18 @@ function ArtifactListRow({
   const isIngestibleArtifact = note.note_type === 'artifact'
   const isDraggingNote = draggingNoteId === note.id
 
-  const handleActivate = () => {
-    if (suppressClickRef.current) return
-    if (selectionMode) {
-      onToggleSelect(note.id)
-      return
-    }
-    onOpen()
-  }
-
-  const longPressHandlers = useLongPress({
-    onLongPress: () => {
-      if (selectionMode) onToggleSelect(note.id)
-      else onEnterSelection(note.id)
-    },
-    onClick: handleActivate,
+  const { rowProps, selectedClassName } = useSelectableRow({
+    selectionMode,
+    selected,
+    onToggleSelect: () => onToggleSelect(note.id),
+    onEnterSelection: () => onEnterSelection(note.id),
+    onActivate: onOpen,
+    suppressClickRef,
   })
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      aria-pressed={selectionMode ? selected : undefined}
+      {...rowProps}
       draggable={isIngestibleArtifact && !selectionMode}
       aria-grabbed={isDraggingNote}
       className={cn(
@@ -642,9 +632,8 @@ function ArtifactListRow({
         'cursor-pointer transition-colors select-none',
         'hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
         isIngestibleArtifact && !selectionMode && 'cursor-grab active:cursor-grabbing',
-        selected && 'bg-primary/10 ring-1 ring-primary/40'
+        selectedClassName
       )}
-      {...longPressHandlers}
       onDragStart={
         isIngestibleArtifact && !selectionMode
           ? (event) => {
@@ -678,12 +667,6 @@ function ArtifactListRow({
             }
           : undefined
       }
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          handleActivate()
-        }
-      }}
     >
       {selectionMode ? (
         <Checkbox

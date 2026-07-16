@@ -242,6 +242,8 @@ export interface ProjectChatMessage {
   type: 'human' | 'ai'
   content: string
   timestamp?: string
+  /** Optional A2UI v0.9 message array persisted with the AI message. */
+  a2ui_payload?: Array<Record<string, unknown>> | null
 }
 
 export interface ProjectChatSessionWithMessages extends ProjectChatSession {

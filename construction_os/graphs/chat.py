@@ -10,6 +10,7 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
+from loguru import logger
 from typing_extensions import TypedDict
 
 from construction_os.ai.provision import provision_langchain_model
@@ -22,6 +23,11 @@ from construction_os.graphs.chat_intent import (
     needs_project_context,
 )
 from construction_os.graphs.progress import emit_agent_progress
+from construction_os.graphs.a2ui_emit import (
+    build_context_confirm_messages,
+    emit_a2ui,
+    is_a2ui_chat_enabled,
+)
 from construction_os.mcp.chat_loop import generate_with_mcp_tools
 from construction_os.skills.loader import (
     format_skills_context,
@@ -50,6 +56,51 @@ class ThreadState(TypedDict):
     artifact_id: Optional[str]
     artifact: Optional[dict]
     artifact_instructions: Optional[str]
+    a2ui_pending: Optional[list]
+    a2ui_by_message_id: Optional[dict]
+
+
+def _parse_context_chips(blocks: list) -> list[dict[str, str]]:
+    """Extract {id, title} chips from evidence block strings."""
+    chips: list[dict[str, str]] = []
+    for block in blocks or []:
+        if not isinstance(block, str):
+            continue
+        item_id = ""
+        title = "Untitled"
+        for line in block.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("- id:"):
+                item_id = stripped[len("- id:") :].strip()
+            elif stripped.startswith("title:"):
+                title = stripped[len("title:") :].strip() or title
+        if item_id:
+            chips.append({"id": item_id, "title": title})
+    return chips
+
+
+def _maybe_emit_context_confirm(
+    *,
+    source_blocks: list,
+    note_blocks: list,
+    config: RunnableConfig,
+) -> Optional[list]:
+    """Emit context-confirm A2UI when enabled and chips exist; return payload for state."""
+    if not is_a2ui_chat_enabled():
+        return None
+    sources = _parse_context_chips(source_blocks)
+    notes = _parse_context_chips(note_blocks)
+    if not sources and not notes:
+        return None
+    try:
+        messages = build_context_confirm_messages(sources=sources, notes=notes)
+        surface_id = messages[0]["createSurface"]["surfaceId"]
+        emitted = emit_a2ui(messages, config, surface_id=surface_id)
+        if emitted:
+            return messages
+    except Exception as exc:
+        logger.warning("A2UI context-confirm emit failed: {}", exc)
+    return None
 
 
 def _run_async(coro):
@@ -217,7 +268,7 @@ def retrieving_context(state: ThreadState, config: RunnableConfig) -> dict:
                 "tokenCount": 0,
             }
             emit_agent_progress("completed", "retrieving_context", detail, config)
-            return {"context": None}
+            return {"context": None, "a2ui_pending": None}
 
         built: Optional[str | dict] = None
         formatted: Optional[str] = None
@@ -243,14 +294,22 @@ def retrieving_context(state: ThreadState, config: RunnableConfig) -> dict:
                 "tokenCount": int(result.get("tokenCount") or 0),
             }
             emit_agent_progress("completed", "retrieving_context", detail, config)
-            return {"context": formatted}
+            a2ui_pending = _maybe_emit_context_confirm(
+                source_blocks=list(result.get("sources") or []),
+                note_blocks=list(result.get("notes") or []),
+                config=config,
+            )
+            return {
+                "context": formatted,
+                "a2ui_pending": a2ui_pending,
+            }
         else:
             built = state.get("context")
             formatted = _format_project_context(built)
 
         detail = _context_counts(built if isinstance(built, dict) else None, formatted)
         emit_agent_progress("completed", "retrieving_context", detail, config)
-        return {"context": formatted}
+        return {"context": formatted, "a2ui_pending": None}
     except ConstructionOSError:
         raise
     except Exception as e:
@@ -303,7 +362,14 @@ def generating(state: ThreadState, config: RunnableConfig) -> dict:
         )
 
         emit_agent_progress("completed", "generating", {}, config)
-        return {"messages": cleaned_message}
+        result: dict = {"messages": cleaned_message}
+        pending = state.get("a2ui_pending")
+        if pending:
+            existing = dict(state.get("a2ui_by_message_id") or {})
+            existing[assistant_message_id] = pending
+            result["a2ui_by_message_id"] = existing
+            result["a2ui_pending"] = None
+        return result
     except ConstructionOSError:
         raise
     except Exception as e:

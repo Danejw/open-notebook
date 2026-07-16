@@ -13,6 +13,9 @@ import {
   parseMcpToolCallEvent,
   upsertMcpToolCall,
 } from '@/lib/ag-ui/mcp-tool-calls'
+import { parseA2uiEvent } from '@/lib/ag-ui/a2ui'
+import { isA2uiChatEnabled } from '@/lib/a2ui/constants'
+import { useA2uiSurfaceStore } from '@/lib/a2ui/surface-store'
 import type { ChatToolCall } from '@/lib/types/mcp'
 
 export interface ChatStreamMessage {
@@ -131,6 +134,14 @@ export function createAgUiChatSseHandler<TMessage extends ChatStreamMessage>(
         if (toolCallUpdate) {
           setLiveMcpToolCalls((prev) => upsertMcpToolCall(prev, toolCallUpdate))
         }
+        if (isA2uiChatEnabled()) {
+          const a2ui = parseA2uiEvent(event)
+          if (a2ui) {
+            const store = useA2uiSurfaceStore.getState()
+            const boundMessageId = a2ui.messageId || aiMessageIdRef.current
+            store.applyMessages(boundMessageId, a2ui.messages)
+          }
+        }
         onCustomEvent?.(event)
         break
       }
@@ -139,6 +150,9 @@ export function createAgUiChatSseHandler<TMessage extends ChatStreamMessage>(
         aiMessageIdRef.current = messageId
         streamContentRef.current.set(messageId, '')
         setMessages((prev) => [...prev, createAiMessage(messageId, '')])
+        if (isA2uiChatEnabled()) {
+          useA2uiSurfaceStore.getState().attachPendingToMessage(messageId)
+        }
         break
       }
       case 'TEXT_MESSAGE_CONTENT':

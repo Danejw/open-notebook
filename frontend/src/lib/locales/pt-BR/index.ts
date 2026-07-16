@@ -649,7 +649,10 @@ export const ptBR = {
     "templatePreview": "Template document preview",
     "templateStructuredOutput": "Structured template output",
     "templateOutputMissing": "Template output missing",
-    "templateOutputMissingHint": "This reply did not include a filled HTML document. Resend with the template selected, or ask the model to return the complete HTML in a fenced html block."
+    "templateOutputMissingHint": "This reply did not include a filled HTML document. Resend with the template selected, or ask the model to return the complete HTML in a fenced html block.",
+    "a2uiInteractive": "Interactive context",
+    "a2uiUnavailable": "Interactive UI unavailable",
+    "a2uiUnavailableHint": "The assistant sent an interactive surface that could not be rendered. The text reply above is still available."
   },
   "searchPage": {
     "askAndSearch": "Perguntar e Buscar",

@@ -117,6 +117,10 @@ class ChatMessage(BaseModel):
     type: str = Field(..., description="Message type (human|ai)")
     content: str = Field(..., description="Message content")
     timestamp: Optional[str] = Field(None, description="Message timestamp")
+    a2ui_payload: Optional[List[Dict[str, Any]]] = Field(
+        None,
+        description="Optional A2UI v0.9 message array attached to this AI message",
+    )
 
 
 class ChatSessionResponse(BaseModel):
@@ -438,16 +442,24 @@ async def get_session(
         )
 
         messages: list[ChatMessage] = []
-        if thread_state and thread_state.values and "messages" in thread_state.values:
-            for msg in thread_state.values["messages"]:
-                messages.append(
-                    ChatMessage(
-                        id=getattr(msg, "id", f"msg_{len(messages)}"),
-                        type=msg.type if hasattr(msg, "type") else "unknown",
-                        content=msg.content if hasattr(msg, "content") else str(msg),
-                        timestamp=None,
+        a2ui_by_message_id: dict = {}
+        if thread_state and thread_state.values:
+            raw_a2ui = thread_state.values.get("a2ui_by_message_id") or {}
+            if isinstance(raw_a2ui, dict):
+                a2ui_by_message_id = raw_a2ui
+            if "messages" in thread_state.values:
+                for msg in thread_state.values["messages"]:
+                    msg_id = getattr(msg, "id", f"msg_{len(messages)}")
+                    payload = a2ui_by_message_id.get(str(msg_id))
+                    messages.append(
+                        ChatMessage(
+                            id=msg_id,
+                            type=msg.type if hasattr(msg, "type") else "unknown",
+                            content=msg.content if hasattr(msg, "content") else str(msg),
+                            timestamp=None,
+                            a2ui_payload=payload if isinstance(payload, list) else None,
+                        )
                     )
-                )
 
         project_query = await repo_query(
             "SELECT out FROM refers_to WHERE in = $session_id",

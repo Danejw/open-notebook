@@ -10,6 +10,7 @@ import { ToolCallCard } from '@/components/mcp/ToolCallCard'
 import { MessageActions } from '@/components/source/MessageActions'
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
 import { TemplateHtmlPreview } from '@/components/templates/TemplateHtmlPreview'
+import { A2uiMessageSurface } from '@/components/a2ui/A2uiMessageSurface'
 import {
   convertReferencesToCompactMarkdown,
   createCompactReferenceLinkComponent,
@@ -18,6 +19,9 @@ import { extractHtmlFromChatContent } from '@/lib/utils/extract-html-from-chat'
 import { restoreTemplateMedia } from '@/lib/utils/restore-template-media'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { useHtmlTemplate } from '@/lib/hooks/use-html-documents'
+import { isA2uiChatEnabled } from '@/lib/a2ui/constants'
+import { useA2uiSurfaceStore } from '@/lib/a2ui/surface-store'
+import { agentDebugLog } from '@/lib/a2ui/agent-debug-log'
 import { cn } from '@/lib/utils'
 
 const EMPTY_TOOL_CALLS: ChatToolCall[] = []
@@ -63,6 +67,35 @@ function ChatMessageRowImpl({
 }: ChatMessageRowProps) {
   const { t } = useTranslation()
   const { data: htmlTemplate } = useHtmlTemplate(htmlTemplateId ?? undefined)
+  const a2uiEnabled = isA2uiChatEnabled()
+  const a2uiRevision = useA2uiSurfaceStore((state) => state.revision)
+  const a2uiSurfaceCount = useA2uiSurfaceStore((state) =>
+    message.type === 'ai' ? state.getSurfaceIdsForMessage(message.id).length : 0
+  )
+  const a2uiError = useA2uiSurfaceStore((state) =>
+    message.type === 'ai' ? state.getErrorForMessage(message.id) : null
+  )
+  const showA2uiSurface =
+    a2uiEnabled &&
+    message.type === 'ai' &&
+    (a2uiSurfaceCount > 0 || Boolean(a2uiError))
+  // #region agent log
+  if (message.type === 'ai' && (message.id === 'a2ui-fixture-message' || a2uiEnabled)) {
+    agentDebugLog({
+      hypothesisId: 'D',
+      location: 'ChatMessageRow.tsx:render',
+      message: 'AI row a2ui decision',
+      data: {
+        messageId: message.id,
+        contentPreview: String(message.content || '').slice(0, 60),
+        a2uiEnabled,
+        a2uiSurfaceCount,
+        a2uiError,
+        showA2uiSurface,
+      },
+    })
+  }
+  // #endregion
   const extractedRaw =
     message.type === 'ai' && !isStreamingThisMessage
       ? extractHtmlFromChatContent(message.content)
@@ -77,6 +110,8 @@ function ChatMessageRowImpl({
     Boolean(htmlTemplateId) &&
     !isStreamingThisMessage &&
     !extractedHtml
+  // Keep revision in render so memoized parents still refresh when surfaces update.
+  void a2uiRevision
 
   return (
     <div
@@ -188,6 +223,11 @@ function ChatMessageRowImpl({
                 />
               </div>
             )}
+            {showA2uiSurface ? (
+              <div className="w-full pt-1">
+                <A2uiMessageSurface messageId={message.id} />
+              </div>
+            ) : null}
             {message.type === 'ai' && toolCalls.length > 0 && (
               <div className="w-full space-y-1.5 pt-1">
                 {toolCalls.map((toolCall) => (
@@ -226,6 +266,10 @@ function areChatMessageRowPropsEqual(prev: ChatMessageRowProps, next: ChatMessag
   }
   if (prev.isEditing !== next.isEditing) return false
   if (prev.isEditing && prev.editDraft !== next.editDraft) return false
+  // A2UI surfaces live in an external store; always re-check AI rows.
+  if (prev.message.type === 'ai' || next.message.type === 'ai') {
+    return false
+  }
   return true
 }
 

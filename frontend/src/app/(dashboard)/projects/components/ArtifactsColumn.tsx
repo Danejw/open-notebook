@@ -37,6 +37,7 @@ import { useLongPress } from '@/lib/hooks/use-long-press'
 import { useListSelection } from '@/lib/hooks/useListSelection'
 import { useToast } from '@/lib/hooks/use-toast'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { FormDialogShell } from '@/components/common/FormDialogShell'
 import { CollapsibleColumn, createCollapseButton } from '@/components/projects/CollapsibleColumn'
 import {
   ColumnHeader,
@@ -509,7 +510,7 @@ export function ArtifactsColumn({
         </DialogContent>
       </Dialog>
 
-      <Dialog
+      <FormDialogShell
         open={Boolean(renamingNote)}
         onOpenChange={(open) => {
           if (!open) {
@@ -517,44 +518,27 @@ export function ArtifactsColumn({
             setRenameTitle('')
           }
         }}
+        title={t('projects.renameArtifact')}
+        isSubmitting={updateNote.isPending}
+        compactFooter
+        contentClassName="sm:max-w-md"
+        disableSubmit={!renameTitle.trim()}
+        onSubmit={(event) => {
+          event.preventDefault()
+          void handleRenameConfirm()
+        }}
       >
-        <DialogContent className="sm:max-w-md">
-          <DialogTitle>{t('projects.renameArtifact')}</DialogTitle>
-          <form
-            className="space-y-4"
-            onSubmit={(event) => {
-              event.preventDefault()
-              void handleRenameConfirm()
-            }}
-          >
-            <div className="space-y-2">
-              <Label htmlFor="artifact-rename-title">{t('common.title')}</Label>
-              <Input
-                id="artifact-rename-title"
-                value={renameTitle}
-                onChange={(event) => setRenameTitle(event.target.value)}
-                placeholder={t('sources.addTitle')}
-                autoFocus
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setRenamingNote(null)
-                  setRenameTitle('')
-                }}
-              >
-                {t('common.cancel')}
-              </Button>
-              <Button type="submit" disabled={!renameTitle.trim() || updateNote.isPending}>
-                {updateNote.isPending ? `${t('common.saving')}...` : t('common.save')}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+        <div className="space-y-1.5">
+          <Label htmlFor="artifact-rename-title">{t('common.title')}</Label>
+          <Input
+            id="artifact-rename-title"
+            value={renameTitle}
+            onChange={(event) => setRenameTitle(event.target.value)}
+            placeholder={t('sources.addTitle')}
+            autoFocus
+          />
+        </div>
+      </FormDialogShell>
 
       <ConfirmDialog
         open={deleteDialogOpen}

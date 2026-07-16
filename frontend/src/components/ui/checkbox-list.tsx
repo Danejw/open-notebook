@@ -14,7 +14,7 @@ interface CheckboxListProps {
   selectedIds: string[]
   onToggle: (id: string) => void
   loading?: boolean
-  emptyMessage?: string
+  emptyMessage: string
   className?: string
 }
 
@@ -23,7 +23,7 @@ export function CheckboxList({
   selectedIds,
   onToggle,
   loading = false,
-  emptyMessage = "No items found.",
+  emptyMessage,
   className
 }: CheckboxListProps) {
   if (loading) {

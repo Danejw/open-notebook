@@ -113,6 +113,7 @@ export function CredentialItem({
               onClick={() => testCredential(credential.id)}
               disabled={isTestPending || !!credential.decryption_error}
               title={t('apiKeys.testConnection')}
+              aria-label={t('apiKeys.testConnection')}
             >
               {isTestPending ? <InlineSkeleton /> : <Plug className="h-4 w-4" />}
               <span className="hidden sm:inline text-xs">Test</span>
@@ -122,11 +123,19 @@ export function CredentialItem({
               onClick={() => setDiscoverOpen(true)}
               disabled={!!credential.decryption_error}
               title={t('apiKeys.syncModels')}
+              aria-label={t('apiKeys.syncModels')}
             >
               <Bot className="h-4 w-4" />
               <span className="hidden sm:inline text-xs">Models</span>
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setEditOpen(true)} disabled={!!credential.decryption_error} title={t('common.edit')}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setEditOpen(true)}
+              disabled={!!credential.decryption_error}
+              title={t('common.edit')}
+              aria-label={t('common.edit')}
+            >
               <Edit className="h-4 w-4" />
             </Button>
             <Button
@@ -134,6 +143,7 @@ export function CredentialItem({
               onClick={() => setDeleteOpen(true)}
               className="text-destructive hover:text-destructive hover:bg-destructive/10"
               title={t('common.delete')}
+              aria-label={t('common.delete')}
             >
               <Trash2 className="h-4 w-4" />
             </Button>

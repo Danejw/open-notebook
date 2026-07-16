@@ -7,20 +7,15 @@ import { getApiErrorMessage } from '@/lib/utils/error-handler'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { chatApi } from '@/lib/api/chat'
 import { QUERY_KEYS } from '@/lib/api/query-client'
+import { readAgUiSseStream } from '@/lib/ag-ui/events'
+import { createAgUiChatSseHandler } from '@/lib/hooks/chat-sse-handlers'
 import {
-  agentStepI18nKey,
-  readAgUiSseStream,
-  type AgUiEvent,
-} from '@/lib/ag-ui/events'
-import {
-  formatAgentProgressLogLine,
-  formatAgentProgressStatus,
-  parseAgentProgressEvent,
-} from '@/lib/ag-ui/progress'
-import {
-  parseMcpToolCallEvent,
-  upsertMcpToolCall,
-} from '@/lib/ag-ui/mcp-tool-calls'
+  deriveQueueActivityLog,
+  deriveQueueHasWork,
+  deriveQueueStreamStatus,
+  getQueueCurrentItem,
+} from '@/lib/hooks/chat-queue-status'
+import { useChatSessionSelection } from '@/lib/hooks/useChatSessionSelection'
 import {
   ProjectChatMessage,
   CreateProjectChatSessionRequest,
@@ -119,12 +114,24 @@ export function useProjectChat({
     },
   })
 
-  // Update messages when current session changes
-  useEffect(() => {
-    if (currentSession?.messages) {
-      setMessages(currentSession.messages)
-    }
-  }, [currentSession])
+  const prefetchSession = useCallback(
+    (sessionId: string) => {
+      void queryClient.prefetchQuery({
+        queryKey: sessionQueryKey(sessionId),
+        queryFn: () => chatApi.getSession(sessionId, guestKey),
+      })
+    },
+    [queryClient, guestKey, sessionQueryKey]
+  )
+
+  useChatSessionSelection({
+    sessions,
+    currentSessionId,
+    setCurrentSessionId,
+    currentSession,
+    setMessages,
+    prefetchSession,
+  })
 
   // Restore skill / template selection from the active session (or pending)
   useEffect(() => {
@@ -153,26 +160,6 @@ export function useProjectChat({
       setSelectedHtmlTemplateIdState(currentSession.html_template_id ?? null)
     }
   }, [currentSession, currentSessionId, pendingSkillIds, pendingHtmlTemplateId, sharedMode])
-
-  // Auto-select most recent session when sessions are loaded
-  useEffect(() => {
-    if (sessions.length > 0 && !currentSessionId) {
-      // Sessions are sorted by created date desc from API
-      const mostRecentSession = sessions[0]
-      setCurrentSessionId(mostRecentSession.id)
-    }
-  }, [sessions, currentSessionId])
-
-  // Prefetch the most recent session in parallel with session list resolution
-  useEffect(() => {
-    const firstSession = sessions[0]
-    if (!firstSession) return
-
-    void queryClient.prefetchQuery({
-      queryKey: sessionQueryKey(firstSession.id),
-      queryFn: () => chatApi.getSession(firstSession.id, guestKey),
-    })
-  }, [sessions, queryClient, guestKey, sessionQueryKey])
 
   // Create session mutation
   const createSessionMutation = useMutation({
@@ -364,103 +351,34 @@ export function useProjectChat({
         artifact_id: sharedMode ? undefined : (activeArtifactId ?? undefined),
       }, guestKey)
 
-      let aiMessageId: string | null = null
-
-      await readAgUiSseStream(body, (event: AgUiEvent) => {
-        switch (event.type) {
-          case 'STEP_STARTED': {
-            if (typeof event.stepName === 'string') {
-              setStreamStatus(t(agentStepI18nKey(event.stepName)))
-            }
-            break
-          }
-          case 'STEP_FINISHED': {
-            break
-          }
-          case 'CUSTOM': {
-            const progress = parseAgentProgressEvent(event)
-            if (progress) {
-              const status = formatAgentProgressStatus(progress, t)
-              if (status) {
-                setStreamStatus(status)
-              }
-              const logLine = formatAgentProgressLogLine(progress, t)
-              if (logLine) {
-                setActivityLog((prev) => [...prev, logLine])
-              }
-            }
-            const toolCallUpdate = parseMcpToolCallEvent(event)
-            if (toolCallUpdate) {
-              setLiveMcpToolCalls((prev) => upsertMcpToolCall(prev, toolCallUpdate))
-            }
-            break
-          }
-          case 'TEXT_MESSAGE_START': {
-            aiMessageId = (event.messageId as string) || `ai-${Date.now()}`
-            streamContentRef.current.set(aiMessageId, '')
-            const newMsg: ProjectChatMessage = {
-              id: aiMessageId,
-              type: 'ai',
-              content: '',
-              timestamp: new Date().toISOString(),
-            }
-            setMessages((prev) => [...prev, newMsg])
-            break
-          }
-          case 'TEXT_MESSAGE_CONTENT':
-          case 'TEXT_MESSAGE_CHUNK': {
-            const delta =
-              typeof event.delta === 'string'
-                ? event.delta
-                : typeof event.content === 'string'
-                  ? event.content
-                  : ''
-            if (!delta) {
-              break
-            }
-            if (!aiMessageId) {
-              aiMessageId = (event.messageId as string) || `ai-${Date.now()}`
-              streamContentRef.current.set(aiMessageId, delta)
-              setMessages((prev) => [
-                ...prev,
-                {
-                  id: aiMessageId!,
-                  type: 'ai',
-                  content: delta,
-                  timestamp: new Date().toISOString(),
-                },
-              ])
-            } else {
-              appendStreamingDelta(aiMessageId, delta)
-            }
-            break
-          }
-          case 'TEXT_MESSAGE_END': {
-            // Cancel any pending RAF tick then flush; do not clear the map
-            // (RUN_FINISHED is responsible for the final clear).
-            if (streamRafRef.current != null) {
-              cancelAnimationFrame(streamRafRef.current)
-              streamRafRef.current = null
-            }
-            flushStreamingContent()
-            setStreamStatus(null)
-            break
-          }
-          case 'RUN_FINISHED': {
-            flushStreamingContent()
-            clearStreamingBuffers()
-            setStreamStatus(null)
-            break
-          }
-          case 'RUN_ERROR': {
-            throw new Error(
-              typeof event.message === 'string' ? event.message : 'Stream error'
-            )
-          }
-          default:
-            break
+      const aiMessageIdRef = { current: null as string | null }
+      const handleAgUiEvent = createAgUiChatSseHandler<ProjectChatMessage>(
+        {
+          aiMessageIdRef,
+          streamContentRef,
+          streamRafRef,
+          setMessages,
+          setStreamStatus,
+          setActivityLog,
+          setLiveMcpToolCalls,
+          appendStreamingDelta,
+          flushStreamingContent,
+          clearStreamingBuffers,
+          t,
+          createAiMessage: (id, content) => ({
+            id,
+            type: 'ai',
+            content,
+            timestamp: new Date().toISOString(),
+          }),
+        },
+        {
+          flushOnTextMessageEnd: true,
+          clearBuffersOnRunFinished: true,
         }
-      })
+      )
+
+      await readAgUiSseStream(body, handleAgUiEvent)
 
       // Refetch current session to get updated data
       await refetchCurrentSession()
@@ -615,35 +533,10 @@ export function useProjectChat({
     () => mergeActiveQueueMessages(messages, chatQueue.queue),
     [chatQueue.queue, messages]
   )
-  const queueCurrentItem =
-    chatQueue.queue?.current_item ??
-    chatQueue.queue?.items.find((item) => item.status === 'running')
-  const queueHasWork = Boolean(
-    chatQueue.queue?.items.some(
-      (item) =>
-        item.status === 'pending' ||
-        item.status === 'running' ||
-        item.status === 'failed'
-    )
-  )
-  const queueStreamStatus =
-    typeof queueCurrentItem?.stream_progress?.message === 'string'
-      ? queueCurrentItem.stream_progress.message
-      : streamStatus
-  const queueActivityLog = Array.isArray(
-    queueCurrentItem?.stream_activity?.events
-  )
-    ? queueCurrentItem.stream_activity.events
-        .map((event) =>
-          event &&
-          typeof event === 'object' &&
-          'message' in event &&
-          typeof event.message === 'string'
-            ? event.message
-            : null
-        )
-        .filter((event): event is string => event !== null)
-    : activityLog
+  const queueCurrentItem = getQueueCurrentItem(chatQueue.queue)
+  const queueHasWork = deriveQueueHasWork(chatQueue.queue, { includeFailed: true })
+  const queueStreamStatus = deriveQueueStreamStatus(queueCurrentItem, streamStatus)
+  const queueActivityLog = deriveQueueActivityLog(queueCurrentItem, activityLog)
 
   // Switch session
   const switchSession = useCallback((sessionId: string) => {

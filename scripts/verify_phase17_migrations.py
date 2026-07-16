@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import sys
 
 os.environ.setdefault("SURREAL_URL", "ws://localhost:8000/rpc")
 os.environ.setdefault("SURREAL_USER", "root")

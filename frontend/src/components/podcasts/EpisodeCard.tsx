@@ -5,6 +5,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { getDateLocale } from '@/lib/utils/date-locale'
 import { InfoIcon, RefreshCcw, Trash2 } from 'lucide-react'
 
+import { getAuthToken } from '@/lib/api/client'
 import { resolvePodcastAssetUrl } from '@/lib/api/podcasts'
 import { EpisodeStatus, FAILED_EPISODE_STATUSES, PodcastEpisode } from '@/lib/types/podcasts'
 import { cn } from '@/lib/utils'
@@ -154,19 +155,7 @@ export function EpisodeCard({ episode, onDelete, deleting, onRetry, retrying }: 
       }
 
       try {
-        let token: string | undefined
-        if (typeof window !== 'undefined') {
-          const raw = window.localStorage.getItem('auth-storage')
-          if (raw) {
-            try {
-              const parsed = JSON.parse(raw)
-              token = parsed?.state?.token
-            } catch (error) {
-              console.error('Failed to parse auth storage', error)
-            }
-          }
-        }
-
+        const token = getAuthToken()
         const headers: HeadersInit = {}
         if (token) {
           headers.Authorization = `Bearer ${token}`

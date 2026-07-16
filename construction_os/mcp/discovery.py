@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
 
 from loguru import logger
 
@@ -10,7 +9,6 @@ from construction_os.domain.mcp import McpConnection, McpTool, utcnow_iso
 from construction_os.mcp.client import McpClient
 from construction_os.mcp.result_text import bound_error_message
 from construction_os.mcp.risk import classify_tool_risk
-from construction_os.mcp.transport import McpTransportError
 
 
 async def test_connection(connection: McpConnection) -> McpConnection:

@@ -423,7 +423,7 @@ CHAT (explore with follow-ups)
   ↓
 ARTIFACTS (batch extract)
   ↓
-NOTES (save insights)
+NOTES (save findings)
 ```
 
 ### Workflow Example
@@ -440,7 +440,7 @@ NOTES (save insights)
 4. Chat: Deep questions about winner
    (Follow-up exploration)
 
-5. Save best insights as notes
+5. Save best findings as notes
    (Knowledge capture)
 
 6. Transform remaining papers

@@ -308,7 +308,7 @@ New team member listens, gets context faster than reading 100 documents
 ```
 1. Build project (add sources)
    ↓
-2. Apply artifacts (extract insights)
+2. Apply artifacts (structured extracts → notes)
    ↓
 3. Chat/Ask (explore content)
    ↓

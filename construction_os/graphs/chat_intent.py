@@ -28,7 +28,7 @@ _PROJECT_SIGNAL_RE = re.compile(
     r"\b(explain|summarize|summary|compare|find|show|list|extract|"
     r"review|analyze|analyse|describe|draft|write|cite|"
     r"according\s+to|based\s+on|in\s+the\s+(doc|document|source|"
-    r"contract|spec|drawing|pdf|note|insight))\b|"
+    r"contract|spec|drawing|pdf|note))\b|"
     r"\b(retainage|submittal|rfi|spec|drawing|contract|clause|"
     r"section|schedule|invoice|change\s+order)\b"
     r")",

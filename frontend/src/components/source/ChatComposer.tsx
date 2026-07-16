@@ -3,7 +3,7 @@
 import { useState, useId, useCallback, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Send } from 'lucide-react'
+import { Send, Square } from 'lucide-react'
 import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
 import { ChatModelOverrideDialog } from '@/components/source/ChatModelOverrideDialog'
 import { SkillPicker } from '@/components/skills/SkillPicker'
@@ -25,7 +25,9 @@ import { cn } from '@/lib/utils'
 export interface ChatComposerProps {
   variant?: 'column' | 'immersive'
   isStreaming: boolean
+  isDirectStreaming?: boolean
   composerDisabled?: boolean
+  onCancelStreaming?: () => void
   onSendMessage: (message: string, modelOverride?: string) => void
   onEnqueueMessage?: (
     message: string,
@@ -59,9 +61,11 @@ export interface ChatComposerProps {
 export function ChatComposer({
   variant = 'column',
   isStreaming,
+  isDirectStreaming = false,
   composerDisabled = false,
   onSendMessage,
   onEnqueueMessage,
+  onCancelStreaming,
   modelOverride,
   onModelChange,
   selectedSkillIds,
@@ -89,6 +93,8 @@ export function ChatComposer({
   const queueMode = Boolean(onEnqueueMessage)
   const deferToQueue = shouldDeferChatToQueue(isStreaming, queue)
   const composerBusy = !queueMode && (composerDisabled || isStreaming)
+  const showStopStreaming =
+    Boolean(onCancelStreaming) && isDirectStreaming && !deferToQueue
 
   const suggestionsCollapsed = useChatUiStore((s) => s.suggestionsCollapsed)
   const setSuggestionsCollapsed = useChatUiStore((s) => s.setSuggestionsCollapsed)
@@ -243,18 +249,34 @@ export function ChatComposer({
           )}
           rows={1}
         />
-        <Button
-          onClick={() => void handleSend()}
-          aria-label={t('chat.send')}
-          disabled={!input.trim() || composerBusy}
-          size="icon"
-          className={cn(
-            'flex-shrink-0',
-            isImmersive ? 'h-11 w-11 rounded-xl' : 'h-8 w-8'
-          )}
-        >
-          {composerBusy ? <InlineSkeleton /> : <Send className="h-4 w-4" />}
-        </Button>
+        {showStopStreaming ? (
+          <Button
+            type="button"
+            onClick={onCancelStreaming}
+            aria-label={t('common.cancel')}
+            variant="destructive"
+            size="icon"
+            className={cn(
+              'flex-shrink-0',
+              isImmersive ? 'h-11 w-11 rounded-xl' : 'h-8 w-8'
+            )}
+          >
+            <Square className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button
+            onClick={() => void handleSend()}
+            aria-label={t('chat.send')}
+            disabled={!input.trim() || composerBusy}
+            size="icon"
+            className={cn(
+              'flex-shrink-0',
+              isImmersive ? 'h-11 w-11 rounded-xl' : 'h-8 w-8'
+            )}
+          >
+            {composerBusy ? <InlineSkeleton /> : <Send className="h-4 w-4" />}
+          </Button>
+        )}
       </div>
     </div>
   )

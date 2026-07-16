@@ -78,7 +78,7 @@ make api
 
 ### 6. Start Worker
 
-Source and note processing (content extraction, embedding, insights) is dispatched
+Source and note processing (content extraction and embedding) is dispatched
 as background jobs that a **separate worker** process consumes. Without it, every
 source stays stuck at `Source processing status: CommandStatus.NEW` forever.
 

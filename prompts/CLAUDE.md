@@ -15,7 +15,7 @@ Centralized prompt repository using `ai_prompter` library to:
 **Template Organization by Workflow**:
 - **`ask/`**: Multi-stage search synthesis (entry → query_process → final_answer)
 - **`chat/`**: Conversational agent with project context (system prompt only)
-- **`source_chat/`**: Source-focused chat with insight injection (system prompt only)
+- **`source_chat/`**: Source-focused chat with source content injection (system prompt only)
 - **`podcast/`**: Podcast generation pipeline (outline → transcript)
 
 **Rendering Pattern** (all workflows):
@@ -66,12 +66,12 @@ Templates accept optional variables for context assembly:
 {% endif %}
 ```
 
-Enabled by Jinja2's conditional blocks. Critical for podcast outline (handles list or string context) and source_chat (injects variable project/insight data).
+Enabled by Jinja2's conditional blocks. Critical for podcast outline (handles list or string context) and source_chat (injects variable project/source data).
 
 ### 3. Repeated Emphasis on Citation Format (Ask & Chat)
 
 All response-generating templates emphasize source citation rules:
-- Document ID syntax: `[source:id]`, `[note:id]`, `[insight:id]`
+- Document ID syntax: `[source:id]`, `[note:id]`
 - "Do not make up document IDs" repeated multiple times
 - Example citations provided inline
 

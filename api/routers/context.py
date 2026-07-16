@@ -5,13 +5,42 @@ from api.models import ContextRequest, ContextResponse
 from construction_os.domain.project import Note, Project, Source
 from construction_os.exceptions import InvalidInputError
 from construction_os.utils import token_count
+from construction_os.utils.context_mode import (
+    is_note_included,
+    is_source_included,
+    normalize_inclusion_status,
+)
 
 router = APIRouter()
 
+# Deprecated: the frontend uses POST /chat/context for context preview.
+# This route remains registered for external API consumers until 2026-12-31;
+# prefer POST /chat/context for new integrations.
+DEPRECATED_CONTEXT_SUNSET = "2026-12-31"
 
-@router.post("/projects/{project_id}/context", response_model=ContextResponse)
+
+@router.post(
+    "/projects/{project_id}/context",
+    response_model=ContextResponse,
+    deprecated=True,
+    summary="Full project context dump (deprecated)",
+    description=(
+        "Deprecated — sunset **2026-12-31**. The Next.js UI uses "
+        "`POST /chat/context` for token-preview estimates. This route dumps "
+        "configured sources/notes without retrieval ranking for legacy API clients."
+    ),
+)
 async def get_project_context(project_id: str, context_request: ContextRequest):
-    """Get context for a Project based on configuration."""
+    """Full project context dump for API clients and legacy integrations.
+
+    The Next.js project chat UI uses ``POST /chat/context`` for token-preview
+    estimates and passes ``context_config`` on execute for runtime retrieval
+    (``build_relevance_context``). This route dumps configured sources/notes
+    without retrieval ranking; keep it until external usage is confirmed zero.
+
+    .. deprecated::
+        Prefer ``POST /chat/context`` for new integrations.
+    """
     try:
         # Verify Project exists
         project = await Project.get(project_id)
@@ -25,8 +54,9 @@ async def get_project_context(project_id: str, context_request: ContextRequest):
         if context_request.context_config:
             # Process sources
             for source_id, status in context_request.context_config.sources.items():
-                if "not in" in status:
+                if not is_source_included(status):
                     continue
+                status = normalize_inclusion_status(status)
 
                 try:
                     # Add table prefix if not present
@@ -41,19 +71,18 @@ async def get_project_context(project_id: str, context_request: ContextRequest):
                     except Exception:
                         continue
 
-                    # Legacy "insights" mode treated as full content
-                    if "insights" in status or "full content" in status:
-                        source_context = await source.get_context(context_size="long")
-                        context_data["source"].append(source_context)
-                        total_content += str(source_context)
+                    source_context = await source.get_context(context_size="long")
+                    context_data["source"].append(source_context)
+                    total_content += str(source_context)
                 except Exception as e:
                     logger.warning(f"Error processing source {source_id}: {str(e)}")
                     continue
 
             # Process notes
             for note_id, status in context_request.context_config.notes.items():
-                if "not in" in status:
+                if not is_note_included(status):
                     continue
+                status = normalize_inclusion_status(status)
 
                 try:
                     # Add table prefix if not present
@@ -64,10 +93,9 @@ async def get_project_context(project_id: str, context_request: ContextRequest):
                     if not note:
                         continue
 
-                    if "full content" in status:
-                        note_context = note.get_context(context_size="long")
-                        context_data["note"].append(note_context)
-                        total_content += str(note_context)
+                    note_context = note.get_context(context_size="long")
+                    context_data["note"].append(note_context)
+                    total_content += str(note_context)
                 except Exception as e:
                     logger.warning(f"Error processing note {note_id}: {str(e)}")
                     continue

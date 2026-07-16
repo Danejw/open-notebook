@@ -5,7 +5,7 @@ import { getApiUrl } from '@/lib/config'
 // The base URL is fetched from the API config endpoint on first request
 //
 // Request timeout defaults to 10 minutes (600000ms) to accommodate slow LLM
-// operations (artifacts, insights, synchronous chat) on slower hardware
+// operations (artifacts, synchronous chat) on slower hardware
 // (Ollama, LM Studio). Configure it via NEXT_PUBLIC_API_TIMEOUT_MS for models
 // that can take longer than 10 minutes to respond (#880).
 // Note: value is in milliseconds; an explicit 0 disables the timeout entirely.
@@ -17,6 +17,29 @@ const parsedTimeout = rawTimeout && rawTimeout.trim() !== '' ? Number(rawTimeout
 const apiTimeout = Number.isFinite(parsedTimeout) && parsedTimeout >= 0
   ? parsedTimeout
   : DEFAULT_API_TIMEOUT_MS
+
+const AUTH_STORAGE_KEY = 'auth-storage'
+
+/**
+ * Read the Bearer token from Zustand-persisted auth storage (browser only).
+ * Used by SSE fetch callers that bypass the Axios interceptor.
+ */
+export function getAuthToken(): string | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+  const authStorage = localStorage.getItem(AUTH_STORAGE_KEY)
+  if (!authStorage) {
+    return null
+  }
+  try {
+    const { state } = JSON.parse(authStorage) as { state?: { token?: unknown } }
+    return typeof state?.token === 'string' ? state.token : null
+  } catch (error) {
+    console.error('Error parsing auth storage:', error)
+    return null
+  }
+}
 
 export const apiClient = axios.create({
   timeout: apiTimeout,
@@ -33,7 +56,7 @@ export function handleUnauthorizedResponse(): void {
   if (typeof window === 'undefined') {
     return
   }
-  localStorage.removeItem('auth-storage')
+  localStorage.removeItem(AUTH_STORAGE_KEY)
   if (window.location.pathname !== '/login') {
     window.location.href = '/login'
   }
@@ -47,18 +70,9 @@ apiClient.interceptors.request.use(async (config) => {
     config.baseURL = `${apiUrl}/api`
   }
 
-  if (typeof window !== 'undefined') {
-    const authStorage = localStorage.getItem('auth-storage')
-    if (authStorage) {
-      try {
-        const { state } = JSON.parse(authStorage)
-        if (state?.token) {
-          config.headers.Authorization = `Bearer ${state.token}`
-        }
-      } catch (error) {
-        console.error('Error parsing auth storage:', error)
-      }
-    }
+  const token = getAuthToken()
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
   }
 
   // Handle FormData vs JSON content types

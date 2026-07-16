@@ -143,6 +143,12 @@ git merge upstream/main
 git push origin main
 ```
 
+### Dead-code and unused-import hygiene
+
+- **Python:** CI runs a blocking `ruff check --select F401` job (`backend-lint-unused`). Local check: `uv run ruff check . --select F401`. `F401` is no longer ignored in `pyproject.toml`.
+- **Frontend:** Prefer deleting unused exports when you touch a file; `npm test` includes hook/unit coverage. Run `npm run knip` to surface unused exports and dependencies (CI reports via `frontend-knip`, warn-only until backlog is cleared).
+- **Do not** reintroduce Streamlit-era HTTP wrapper services (`api/client.py`, `*_service.py`); routers call domain code directly.
+
 ## Pull Request Process
 
 When you create a pull request:

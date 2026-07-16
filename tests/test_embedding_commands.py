@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from surreal_commands import registry
 
-import commands
 import commands.embedding_commands as embedding_commands
 from construction_os.exceptions import ConfigurationError
 

@@ -11,18 +11,22 @@ import type {
   ChatQueueResponse,
 } from '@/lib/types/chat-queue'
 
-vi.mock('@/lib/api/client', () => ({
-  default: {
-    delete: vi.fn(),
-    get: vi.fn(),
-    patch: vi.fn(),
-    post: vi.fn(),
-    put: vi.fn(),
-  },
-  handleUnauthorizedResponse: vi.fn(() => {
-    localStorage.removeItem('auth-storage')
-  }),
-}))
+vi.mock('@/lib/api/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/api/client')>()
+  return {
+    ...actual,
+    default: {
+      delete: vi.fn(),
+      get: vi.fn(),
+      patch: vi.fn(),
+      post: vi.fn(),
+      put: vi.fn(),
+    },
+    handleUnauthorizedResponse: vi.fn(() => {
+      localStorage.removeItem('auth-storage')
+    }),
+  }
+})
 
 const mockedApiClient = vi.mocked(apiClient)
 const mockedHandleUnauthorizedResponse = vi.mocked(handleUnauthorizedResponse)

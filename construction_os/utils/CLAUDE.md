@@ -4,12 +4,12 @@ Utility functions and helpers for context building, text processing, chunking, e
 
 ## Purpose
 
-Provides cross-cutting concerns: building LLM context from sources/insights, content-type aware text chunking, unified embedding generation with mean pooling, token counting, and version management.
+Provides cross-cutting concerns: building LLM context from sources and notes, content-type aware text chunking, unified embedding generation with mean pooling, token counting, and version management.
 
 ## Architecture Overview
 
 **Six core utilities**:
-1. **context_builder.py**: Flexible context assembly from sources, notes, insights with token budgeting
+1. **context_builder.py**: Flexible context assembly from sources and notes with token budgeting
 2. **chunking.py**: Content-type detection and smart text chunking for embedding operations
 3. **embedding.py**: Unified embedding generation with mean pooling for large content
 4. **text_utils.py**: Text cleaning and thinking content extraction
@@ -46,19 +46,18 @@ Note: Changes require restart of the application.
 
 ### context_builder.py
 - **ContextItem**: Dataclass for individual context piece (id, type, content, priority, token_count)
-- **ContextConfig**: Configuration for context building (sources/notes/insights selection, max tokens, priority weights)
+- **ContextConfig**: Configuration for context building (sources/notes selection, max tokens, priority weights)
 - **ContextBuilder**: Main class assembling context
   - `add_source()`: Include source by ID with inclusion level
   - `add_note()`: Include note by ID
-  - `add_insight()`: Include insight by ID
   - `build()`: Assemble context respecting token budget and priorities
-  - Uses vector_search to fetch source/insight content from SurrealDB
+  - Uses vector_search to fetch source content from SurrealDB
   - Returns list of ContextItem objects sorted by priority
 
 **Key behavior**:
 - Token counting is automatic (calculated in ContextItem.__post_init__)
 - Max token enforcement via priority weighting (higher priority items included first)
-- Type-specific fetching: sources → Source.full_text, notes → Note.content, insights → SourceInsight.content
+- Type-specific fetching: sources → Source.full_text, notes → Note.content
 - Raises DatabaseOperationError if source/note fetch fails
 
 ### chunking.py
@@ -125,7 +124,7 @@ Note: Changes require restart of the application.
 
 ## Key Dependencies
 
-- `construction_os.domain.project`: Project, Source, Note, SourceInsight models; vector_search function
+- `construction_os.domain.project`: Project, Source, Note models; vector_search function
 - `construction_os.ai.models`: model_manager for embedding model access
 - `construction_os.exceptions`: DatabaseOperationError, NotFoundError
 - `langchain_text_splitters`: HTMLHeaderTextSplitter, MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
@@ -140,7 +139,7 @@ Note: Changes require restart of the application.
 - **Default chunk size**: The token-based default is 400 — leaves ~20% margin below the 512-token ceiling of BERT-family embedders (e.g. mxbai-embed-large) to absorb tokenizer mismatch (we measure with `o200k_base`, they tokenize with WordPiece), splitter overshoot, and special tokens
 - **Content type detection order**: Extension checked first, then heuristics; high-confidence heuristics (≥0.8) can override PLAIN extensions
 - **Mean pooling normalization**: Each embedding normalized before mean, result normalized after
-- **Priority weights default**: If not specified, ContextConfig uses default weights (source=1, note=0.8, insight=1.2)
+- **Priority weights default**: If not specified, ContextConfig uses default weights (source=1, note=0.8)
 - **Vector search required**: ContextBuilder uses vector_search from domain.project for text search fallback
 - **Circular import risk**: context_builder imports from domain.project; avoid domain importing utils
 - **Max tokens hard limit**: ContextBuilder stops adding items once max_tokens exceeded (not prorated)

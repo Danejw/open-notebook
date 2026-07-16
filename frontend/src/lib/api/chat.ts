@@ -1,4 +1,4 @@
-import apiClient from '@/lib/api/client'
+import apiClient, { getAuthToken } from '@/lib/api/client'
 import {
   ProjectChatSession,
   ProjectChatSessionWithMessages,
@@ -12,23 +12,6 @@ import {
 } from '@/lib/types/api'
 
 const GUEST_KEY_HEADER = 'X-Guest-Key'
-
-function getAuthToken(): string | null {
-  if (typeof window === 'undefined') {
-    return null
-  }
-  const authStorage = localStorage.getItem('auth-storage')
-  if (!authStorage) {
-    return null
-  }
-  try {
-    const { state } = JSON.parse(authStorage)
-    return state?.token ?? null
-  } catch (error) {
-    console.error('Error parsing auth storage:', error)
-    return null
-  }
-}
 
 function guestHeaders(guestKey?: string | null): Record<string, string> {
   if (!guestKey) return {}

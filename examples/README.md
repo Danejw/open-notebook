@@ -145,11 +145,8 @@ volumes:
 See [Reverse Proxy Guide](../docs/5-CONFIGURATION/reverse-proxy.md)
 
 ### Add Basic Auth
-Add to `construction_os` service environment:
-```yaml
-- BASIC_AUTH_USERNAME=admin
-- BASIC_AUTH_PASSWORD=your-secure-password
-```
+
+Use `CONSTRUCTION_OS_PASSWORD` (Bearer token) on API requests. See `.env.example` and `CONFIGURATION.md`.
 
 ---
 

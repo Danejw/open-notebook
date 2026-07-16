@@ -1,0 +1,7 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": ["src/app/**/*.{tsx,ts}", "src/proxy.ts"],
+  "project": ["src/**/*.{tsx,ts}"],
+  "ignore": ["**/*.test.ts", "**/*.test.tsx", "**/vitest.setup.ts"],
+  "ignoreDependencies": ["eslint-config-next", "tw-animate-css"]
+}

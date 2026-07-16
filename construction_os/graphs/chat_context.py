@@ -9,6 +9,7 @@ from loguru import logger
 from construction_os.domain.project import Note
 from construction_os.retrieval import retrieve
 from construction_os.retrieval.types import EvidenceItem
+from construction_os.utils.context_mode import is_note_included, is_source_included
 from construction_os.utils.token_utils import token_count
 
 CHAT_CONTEXT_MAX_TOKENS = 12_000
@@ -22,15 +23,12 @@ def eligible_source_ids(context_config: Optional[dict]) -> Set[str]:
     sources = (context_config or {}).get("sources") or {}
     eligible: Set[str] = set()
     for source_id, status in sources.items():
-        status_l = str(status).lower()
-        if "not in" in status_l:
+        if not is_source_included(status):
             continue
-        # Legacy "insights" context mode is treated as full content
-        if "insights" in status_l or "full content" in status_l:
-            sid = str(source_id)
-            if not sid.startswith("source:"):
-                sid = f"source:{sid}"
-            eligible.add(sid)
+        sid = str(source_id)
+        if not sid.startswith("source:"):
+            sid = f"source:{sid}"
+        eligible.add(sid)
     return eligible
 
 
@@ -39,14 +37,12 @@ def eligible_note_ids(context_config: Optional[dict]) -> Set[str]:
     notes = (context_config or {}).get("notes") or {}
     eligible: Set[str] = set()
     for note_id, status in notes.items():
-        status_l = str(status).lower()
-        if "not in" in status_l:
+        if not is_note_included(status):
             continue
-        if "full content" in status_l:
-            nid = str(note_id)
-            if not nid.startswith("note:"):
-                nid = f"note:{nid}"
-            eligible.add(nid)
+        nid = str(note_id)
+        if not nid.startswith("note:"):
+            nid = f"note:{nid}"
+        eligible.add(nid)
     return eligible
 
 
@@ -148,12 +144,10 @@ async def build_relevance_context(
     empty = {
         "sources": [],
         "notes": [],
-        "insights": [],
         "formatted": None,
         "total_tokens": 0,
         "sourceCount": 0,
         "noteCount": 0,
-        "insightCount": 0,
         "tokenCount": 0,
     }
 

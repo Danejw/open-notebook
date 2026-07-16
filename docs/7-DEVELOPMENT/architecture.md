@@ -68,7 +68,7 @@ Construction OS is built on a **three-tier, async-first architecture** designed 
 - Handle user interactions (create, read, update, delete operations)
 - Manage complex UI state (modals, file uploads, real-time search)
 - Stream responses from API (chat, podcast generation)
-- Display embeddings, vector search results, and insights
+- Display embeddings and vector search results
 
 **Communication Pattern**:
 - All data fetched via REST API (async requests to port 5055)
@@ -168,9 +168,8 @@ Response ← Pydantic serialization ← Service ← Result
 | `note` | User-created research notes | id, title, content, note_type (human/ai), created, updated |
 | `chat_session` | Conversation session | id, project_id, title, messages (JSON), created, updated |
 | `artifact` | Custom artifact rules | id, name, description, prompt, created, updated |
-| `source_insight` | Artifact output | id, source_id, insight_type, content, created, updated |
 | `reference` | Relationship: source → project | out (source), in (project) |
-| `artifact` | Relationship: note → project | out (note), in (project) |
+| `project_note` | Relationship: note → project | out (note), in (project) |
 
 **Relationship Graph**:
 ```
@@ -178,8 +177,7 @@ Project
   ↓ (referenced_by)
 Source
   ├→ SourceEmbedding (1:many for chunked text)
-  ├→ SourceInsight (1:many for artifact outputs)
-  └→ Note (via artifact relationship)
+  └→ Note (via project_note relationship)
     ├→ Embedding (semantic search)
     └→ Topics (tags)
 
@@ -273,7 +271,7 @@ LangGraph is a state machine library that orchestrates multi-step AI workflows. 
 
 ### 1. **Source Processing Workflow** (`construction_os/graphs/source.py`)
 
-**Purpose**: Ingest content (PDF, URL, text) and prepare for search/insights.
+**Purpose**: Ingest content (PDF, URL, text) and prepare for search and chat.
 
 **Flow**:
 ```
@@ -394,11 +392,11 @@ Output (final answer)
 
 ### 4. **Artifact Workflow** (`construction_os/graphs/artifact.py`)
 
-**Purpose**: Apply custom artifacts to sources (extract summaries, key points, etc).
+**Purpose**: Apply a custom artifact prompt to input text (summaries, key points, structured extracts). Output is returned to the caller; persist as a note via chat or the notes API when desired.
 
 **Flow**:
 ```
-Source + Artifact Rule
+Input text + Artifact Rule
   ↓
 Generate Prompt (Jinja2 template)
   ↓
@@ -406,9 +404,7 @@ Call LLM
   ↓
 Parse Output
   ↓
-Create SourceInsight record
-  ↓
-Output (insight with type + content)
+Output (structured text)
 ```
 
 **Example Artifacts**:
@@ -417,7 +413,7 @@ Output (insight with type + content)
 - Quotes (notable excerpts)
 - Q&A (generated questions and answers)
 
-**Invoked By**: Sources API (`POST /sources/{id}/insights`)
+**Invoked By**: Artifacts API (`POST /artifacts/execute`); primary UX runs templates through project chat
 
 ---
 
@@ -516,7 +512,7 @@ result = await graph.ainvoke(
 - `Source`: Content item (PDF, URL, text) with embeddings
 - `Note`: User-created or AI-generated research note
 - `ChatSession`: Conversation history for a project
-- `Artifact`: Custom rule for extracting insights
+- `Artifact`: Custom prompt template for structured analysis
 
 **Repository Pattern**:
 - Database access layer (`construction_os/database/repository.py`)
@@ -560,20 +556,27 @@ async def create_source(source_data: SourceCreate):
 
 ### 3. **Service Pattern**
 
-Services orchestrate domain objects, repositories, and workflows:
+Domain-first services orchestrate domain objects, repositories, and workflows. Routers call domain models and graphs directly; there is no in-process HTTP client layer.
 
 ```python
-# api/project_service.py
-class ProjectService:
-    async def get_project_with_stats(project_id: str):
-        project = await Project.get(project_id)
-        sources = await project.get_sources()
-        notes = await project.get_notes()
-        return {
-            "project": project,
-            "source_count": len(sources),
-            "note_count": len(notes),
-        }
+# api/credentials_service.py (example)
+async def migrate_from_env() -> dict:
+    for provider in PROVIDER_ENV_CONFIG:
+        if not check_env_configured(provider):
+            continue
+        cred = create_credential_from_env(provider)
+        await cred.save()
+    return {"migrated": migrated, ...}
+```
+
+```python
+# api/routers/projects.py (typical CRUD router)
+@router.get("/projects/{project_id}")
+async def get_project(project_id: str):
+    project = await Project.get(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return ProjectResponse.from_domain(project)
 ```
 
 **Responsibilities**:
@@ -692,8 +695,7 @@ status = await response.json()  # returns { status: "running|queued|completed|fa
 - SourceEmbeddings (vector chunks)
 - Notes (user-created + AI-generated)
 - ChatSessions (conversation history)
-- Artifacts (custom rules)
-- SourceInsights (artifact outputs)
+- Artifacts (custom prompt templates)
 - Relationships (project→source, project→note)
 
 **Migrations**:
@@ -713,7 +715,6 @@ Project
 
 Source
   → source_embedding (one:many)
-  → source_insight (one:many)
   → embedding (via source_embedding)
 
 ChatSession
@@ -721,7 +722,7 @@ ChatSession
   → project_id (reference to Project)
 
 Artifact
-  → source_insight (one:many)
+  → (prompt templates; executed via chat or `/artifacts/execute`)
 ```
 
 **Query Example** (get all sources in a project with counts):

@@ -9,7 +9,7 @@ The [Model Context Protocol](https://modelcontextprotocol.io) is an open standar
 - 📚 **Access your projects** directly from Claude Desktop or VS Code
 - 🔍 **Search your research content** without leaving your AI assistant
 - 💬 **Create and manage chat sessions** with your research as context
-- 📝 **Generate notes** and insights on-the-fly
+- 📝 **Generate notes** on-the-fly
 - 🤖 **Automate workflows** using the full Construction OS API
 
 ## Quick Setup

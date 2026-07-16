@@ -1,4 +1,4 @@
-# Working with Notes - Capturing and Organizing Insights
+# Working with Notes - Capturing and Organizing Findings
 
 Notes are your processed knowledge. This guide covers how to create, organize, and use them effectively.
 
@@ -6,11 +6,11 @@ Notes are your processed knowledge. This guide covers how to create, organize, a
 
 ## What Are Notes?
 
-Notes are your **research output** — the insights you capture from analyzing sources. They can be:
+Notes are your **research output** — the findings you capture from analyzing sources. They can be:
 
 - **Manual** — You write them yourself
 - **AI-Generated** — From Chat responses, Ask results, or Artifacts
-- **Hybrid** — AI insight + your edits and additions
+- **Hybrid** — AI output + your edits and additions
 
 Unlike sources (which never change), notes are mutable — you edit, refine, and organize them.
 
@@ -23,7 +23,7 @@ Unlike sources (which never change), notes are mutable — you edit, refine, and
 ```
 1. In your project, go to "Notes" section
 2. Click "Create New Note"
-3. Give it a title: "Key insights from source X"
+3. Give it a title: "Key findings from source X"
 4. Write your content (markdown supported)
 5. Click "Save"
 6. Done! Note appears in your project
@@ -189,7 +189,7 @@ When to use:
 
 ---
 
-## Using Artifacts for Batch Insights
+## Using Artifacts for Batch Extraction
 
 ### Built-in Artifacts
 
@@ -218,7 +218,7 @@ Best for: Academic sources, methodology review
 
 **Takeaways**
 ```
-Extracts: Actionable insights, recommendations
+Extracts: Actionable takeaways, recommendations
 Output: What you should do with this information
 Best for: Practical/business sources
 ```
@@ -279,13 +279,13 @@ Benefit: Groups by subject matter
 ```
 SUMMARY: Paper on X
 QUESTION: What about Y?
-INSIGHT: Connection between Z and W
+FINDING: Connection between Z and W
 Benefit: Easy to filter by type
 ```
 
 **Option 4: Source-based**
 ```
-From: Paper A - Main insights
+From: Paper A - Main findings
 From: Video B - Interesting implications
 Benefit: Easy to trace back to sources
 ```
@@ -305,7 +305,7 @@ Example tags:
   - "primary-research" (direct source analysis)
   - "background" (supporting material)
   - "methodology" (about research methods)
-  - "insights" (your original thinking)
+  - "analysis" (your original thinking)
   - "questions" (open questions raised)
   - "follow-up" (needs more work)
   - "published" (ready to share/use)
@@ -438,7 +438,7 @@ Good for: Publishing publicly (if desired)
 
 **Phase 2: Deep Dive**
 - Detailed analysis
-- Comparative insights
+- Comparative findings
 - Methodology reviews
 
 **Phase 3: Synthesis**
@@ -458,7 +458,7 @@ Good for: Publishing publicly (if desired)
 - Things to research more
 - Gaps to fill
 
-**Insights**
+**Analysis**
 - Your original analysis
 - Connections made
 - Conclusions reached

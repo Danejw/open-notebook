@@ -6,8 +6,7 @@ import json
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Any, Callable, Optional
-from urllib.parse import urlparse
+from typing import Any, Optional
 
 
 class FakeMcpState:

@@ -33,13 +33,12 @@ Two base classes support different persistence patterns: **ObjectModel** (mutabl
   - `get_status()`, `get_processing_progress()`: Track job via surreal_commands
   - `get_context()`: Returns summary for LLM context
   - `add_to_project()`: Link source to a project via `reference`
-  - `add_insight()`: Submit async insight creation via `create_insight_command` (fire-and-forget, returns command_id)
 
 - **Note**: Standalone or linked notes
   - `save()`: Submits `embed_note` command after save (fire-and-forget)
   - `add_to_project()`: Link note to project via `project_note`
 
-- **SourceInsight, SourceEmbedding**: Derived content models
+- **SourceEmbedding**: Chunk embedding model for sources
 - **ChatSession**: Conversation container with optional model_override
   - `relate_to_project()`: Link session to project via `refers_to`
 - **Asset**: File/URL reference helper
@@ -87,7 +86,7 @@ Two base classes support different persistence patterns: **ObjectModel** (mutabl
 - `pydantic`: Validation and field_validator decorators
 - `construction_os.database.repository`: CRUD and relationship functions
 - `construction_os.ai.models`: ModelManager for embeddings
-- `surreal_commands`: Async job submission (vectorization, insights)
+- `surreal_commands`: Async job submission (vectorization)
 - `loguru`: Logging
 
 ## Quirks & Gotchas
@@ -99,7 +98,6 @@ Two base classes support different persistence patterns: **ObjectModel** (mutabl
 - **Auto-embedding behavior**:
   - `Note.save()` → auto-submits `embed_note` command
   - `Source.save()` → does NOT auto-submit (must call `vectorize()` explicitly)
-  - `Source.add_insight()` → submits `create_insight_command` which handles DB insert + `embed_insight` command (all fire-and-forget)
 - **Relationship strings**: Must match SurrealDB schema (reference, project_note, refers_to)
 
 ## How to Add New Model

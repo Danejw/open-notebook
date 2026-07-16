@@ -15,11 +15,11 @@ Construction OS organizes research in three connected layers. Understanding this
 │  ├─ alignment_video.mp4             │
 │  └─ prompt_injection_article.html   │
 │                                     │
-│  NOTES (The Processed Insights)     │
+│  NOTES (Processed Outputs)          │
 │  ├─ AI Summary (auto-generated)     │
-│  ├─ Key Concepts (artifact)   │
+│  ├─ Key Concepts (artifact)         │
 │  ├─ My Research Notes (manual)      │
-│  └─ Chat Insights (from conversation)
+│  └─ Chat Capture (from conversation)
 │                                     │
 └─────────────────────────────────────┘
 ```
@@ -38,7 +38,7 @@ Think of it like a physical project: everything inside is about the same topic, 
 
 - **A description** — "This project collects research on X topic"
 - **Sources** — The raw materials you add
-- **Notes** — Your insights and outputs
+- **Notes** — Your analysis and outputs
 - **Conversation history** — Your chats and questions
 
 ### Why This Matters
@@ -127,7 +127,7 @@ What happens:
 
 ---
 
-## 3. NOTES - The Processed Insights
+## 3. NOTES - Processed Outputs
 
 ### What Is a Note?
 
@@ -147,7 +147,7 @@ Created by applying AI processing to sources:
 - **Chat Responses** — Answers you saved from conversations
 - **Ask Results** — Comprehensive answers saved to your project
 
-#### Captured Insights
+#### Captured Findings
 Notes you explicitly saved from interactions:
 - "Save this response as a note"
 - "Save this artifact result"
@@ -166,7 +166,7 @@ Notes you explicitly saved from interactions:
 
 **Searchable**: Notes are searchable along with sources. "Find everything about X" includes your notes, not just sources.
 
-**Citable**: Notes can cite sources, creating an audit trail of where insights came from.
+**Citable**: Notes can cite sources, creating an audit trail of where findings came from.
 
 **Shareable**: Notes are your outputs. You can share them, publish them, or build on them in other projects.
 
@@ -185,7 +185,7 @@ YOU
  ├─→ Search Sources (text or semantic)
  │    └─→ System: Find relevant chunks
  │
- ├─→ Apply Artifacts (extract insights)
+ ├─→ Apply Artifacts (structured extracts → notes)
  │    └─→ Creates Notes
  │
  ├─→ Chat with Sources (explore with context control)

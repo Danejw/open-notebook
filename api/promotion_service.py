@@ -52,7 +52,7 @@ async def promote_text_to_source(
     if not project_ids:
         raise InvalidInputError("At least one project ID is required")
 
-    # artifact_ids accepted for API compatibility but ignored (insights removed)
+    # artifact_ids accepted for API compatibility but ignored
     await _validate_projects(project_ids)
 
     source = Source(

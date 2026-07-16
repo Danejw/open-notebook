@@ -10,7 +10,7 @@ All functions raise ValueError for business errors (router converts to HTTPExcep
 import ipaddress
 import os
 import socket
-from typing import Dict, List, Optional
+from typing import Dict, List
 from urllib.parse import urlparse
 
 import httpx
@@ -19,49 +19,13 @@ from pydantic import SecretStr
 
 from api.models import CredentialResponse
 from construction_os.ai.model_discovery import classify_model_type
+from construction_os.ai.provider_env_map import PROVIDER_ENV_CONFIG
 from construction_os.domain.credential import Credential
 from construction_os.utils.encryption import get_secret_from_env
 
 # =============================================================================
 # Constants
 # =============================================================================
-
-# Provider environment variable configuration.
-# - "required": ALL listed env vars must be set for the provider to be considered configured.
-# - "required_any": at least ONE of the listed env vars must be set.
-# - "optional": additional env vars used during migration but not required.
-PROVIDER_ENV_CONFIG: Dict[str, dict] = {
-    "openai": {"required": ["OPENAI_API_KEY"]},
-    "anthropic": {"required": ["ANTHROPIC_API_KEY"]},
-    "google": {"required_any": ["GOOGLE_API_KEY", "GEMINI_API_KEY"]},
-    "groq": {"required": ["GROQ_API_KEY"]},
-    "mistral": {"required": ["MISTRAL_API_KEY"]},
-    "deepseek": {"required": ["DEEPSEEK_API_KEY"]},
-    "xai": {"required": ["XAI_API_KEY"]},
-    "openrouter": {"required": ["OPENROUTER_API_KEY"]},
-    "voyage": {"required": ["VOYAGE_API_KEY"]},
-    "elevenlabs": {"required": ["ELEVENLABS_API_KEY"]},
-    "deepgram": {"required": ["DEEPGRAM_API_KEY"]},
-    "ollama": {"required": ["OLLAMA_API_BASE"]},
-    "vertex": {
-        "required": ["VERTEX_PROJECT", "VERTEX_LOCATION"],
-        "optional": ["GOOGLE_APPLICATION_CREDENTIALS"],
-    },
-    "azure": {
-        "required": ["AZURE_OPENAI_API_KEY", "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_VERSION"],
-        "optional": [
-            "AZURE_OPENAI_ENDPOINT_LLM",
-            "AZURE_OPENAI_ENDPOINT_EMBEDDING",
-            "AZURE_OPENAI_ENDPOINT_STT",
-            "AZURE_OPENAI_ENDPOINT_TTS",
-        ],
-    },
-    "openai_compatible": {
-        "required_any": ["OPENAI_COMPATIBLE_BASE_URL", "OPENAI_COMPATIBLE_API_KEY"],
-    },
-    "dashscope": {"required": ["DASHSCOPE_API_KEY"]},
-    "minimax": {"required": ["MINIMAX_API_KEY"]},
-}
 
 PROVIDER_MODALITIES: Dict[str, List[str]] = {
     "openai": ["language", "embedding", "speech_to_text", "text_to_speech"],

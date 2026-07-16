@@ -10,7 +10,6 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
-from loguru import logger
 from typing_extensions import TypedDict
 
 from construction_os.ai.provision import provision_langchain_model

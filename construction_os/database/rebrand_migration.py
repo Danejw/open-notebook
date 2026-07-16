@@ -11,7 +11,7 @@ from typing import Any
 
 from loguru import logger
 
-from construction_os.database.repository import repo_create, repo_query, repo_relate, repo_update
+from construction_os.database.repository import repo_query, repo_relate, repo_update
 
 NOTEBOOK_ID_RE = re.compile(r"notebook:[A-Za-z0-9_]+")
 

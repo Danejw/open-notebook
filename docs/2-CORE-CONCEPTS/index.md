@@ -5,9 +5,9 @@ Before diving into how to use Construction OS, it's important to understand **ho
 ## The Five Mental Models
 
 ### 1. [Projects, Sources, and Notes](projects-sources-notes.md)
-How Construction OS organizes your research. Understand the three-tier container structure and how information flows from raw materials to finished insights.
+How Construction OS organizes your research. Understand the three-tier container structure and how information flows from raw materials to finished notes.
 
-**Key idea**: A project is a scoped research container. Sources are inputs (PDFs, URLs, etc.). Notes are outputs (your insights, AI-generated summaries, captured responses).
+**Key idea**: A project is a scoped research container. Sources are inputs (PDFs, URLs, etc.). Notes are outputs (your analysis, AI-generated summaries, captured chat responses).
 
 ---
 
@@ -21,7 +21,7 @@ How Construction OS makes AI aware of your research - two different approaches.
 ### 3. [Chat vs. Artifacts](chat-vs-artifacts.md)
 Why Construction OS has different interaction modes and when to use each one.
 
-**Key idea**: Chat is conversational exploration (you control context). Artifacts are insight extractions. They reduced content to smaller bits of concentrated/dense information, which is much more suitable for an AI to use. 
+**Key idea**: Chat is conversational exploration (you control context). Artifacts are reusable prompt templates. They reduce content to smaller, denser structured outputs that are easier for you and for AI to reuse.
 
 ---
 
@@ -35,7 +35,7 @@ Your control panel for privacy and cost. Decide what data actually reaches AI.
 ### 5. [Podcasts Explained](podcasts-explained.md)
 Why Construction OS can turn research into audio and why this matters.
 
-**Key idea**: Podcasts transform your research into a different consumption format. Instead of reading, someone can listen and absorb your insights passively.
+**Key idea**: Podcasts transform your research into a different consumption format. Instead of reading, someone can listen and absorb your findings passively.
 
 ---
 

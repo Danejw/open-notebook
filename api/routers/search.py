@@ -11,6 +11,10 @@ from construction_os.exceptions import DatabaseOperationError, InvalidInputError
 from construction_os.graphs.ask import graph as ask_graph
 from construction_os.retrieval import retrieve
 
+# Deprecated: the frontend uses POST /search/ask (SSE streaming) for search Q&A.
+# This non-streaming route remains for external API clients until 2026-12-31.
+DEPRECATED_ASK_SIMPLE_SUNSET = "2026-12-31"
+
 router = APIRouter()
 
 
@@ -138,7 +142,17 @@ async def ask_knowledge_base(ask_request: AskRequest):
         raise HTTPException(status_code=500, detail=f"Ask operation failed: {str(e)}")
 
 
-@router.post("/search/ask/simple", response_model=AskResponse)
+@router.post(
+    "/search/ask/simple",
+    response_model=AskResponse,
+    deprecated=True,
+    summary="Ask knowledge base (non-streaming, deprecated)",
+    description=(
+        "Deprecated — sunset **2026-12-31**. Returns a single JSON response after "
+        "the ask graph completes. The Next.js UI uses `POST /search/ask` (SSE) "
+        "instead. Retained for simple API clients and scripts."
+    ),
+)
 async def ask_knowledge_base_simple(ask_request: AskRequest):
     """Ask the knowledge base a question and return a simple response (non-streaming)."""
     try:

@@ -72,17 +72,9 @@ Both leverage connection context manager for lifecycle management and automatic 
 - `bump_version()`: INSERT new entry into _sbl_migrations with version + applied_at timestamp
 - `lower_version()`: DELETE latest migration record (rollback)
 
-### migrate.py
-
-**Backward Compatibility**
-- `MigrationManager`: Sync wrapper around AsyncMigrationManager
-  - `get_current_version()`: Wraps async call with asyncio.run()
-  - `needs_migration` property: Checks if migration pending
-  - `run_migration_up()`: Execute migrations synchronously
-
 ## Common Patterns
 
-- **Async-first design**: All operations async via AsyncSurreal; sync wrapper provided for legacy code
+- **Async-first design**: All operations async via AsyncSurreal; use AsyncMigrationManager directly
 - **Connection per operation**: Each repo_* function opens/closes connection (no pooling); designed for serverless/stateless API
 - **Auto-timestamping**: repo_create() and repo_update() auto-set `created`/`updated` fields
 - **Error resilience**: RuntimeError for transaction conflicts (retriable, logged at DEBUG level); catches and re-raises other exceptions
@@ -117,7 +109,7 @@ Both leverage connection context manager for lifecycle management and automatic 
 - **API startup** (api/main.py): FastAPI lifespan handler calls AsyncMigrationManager.run_migration_up() on server start
 - **Domain models** (domain/*.py): All models call repo_* functions for persistence
 - **Commands** (commands/*.py): Background jobs use repo_* for state updates
-- **Streamlit UI** (pages/*.py): Deprecated migration check; relies on API to run migrations
+- **Streamlit UI** (removed): Migrations run on API startup only
 
 ## Usage Example
 

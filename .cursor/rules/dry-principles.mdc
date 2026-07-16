@@ -1,0 +1,45 @@
+---
+description: DRY — reuse shared helpers, avoid parallel stacks, extract when logic repeats
+alwaysApply: true
+---
+
+# DRY Principles
+
+Prefer one source of truth. Do not copy-paste logic across layers, scopes, or file pairs.
+
+## Rules
+
+1. **One implementation per concern** — Shared behavior lives in one module; callers import it. Do not fork “almost the same” project vs source, API vs frontend, or router vs service copies.
+2. **Extract on the second use** — If the same logic appears (or is about to appear) in two places, pull it into a shared util/hook/service before shipping. Do not wait for a third copy.
+3. **Compose, don’t clone** — Prefer thin adapters over duplicated stacks (e.g. shared chat stream turn + scope adapters, not two full chat pipelines).
+4. **Reuse existing primitives** — Search the codebase for helpers, types, hooks, and UI components before writing new ones. Match naming and location of existing shared modules.
+5. **Single config / mapping** — Provider maps, auth token parsing, env lookups, and URL builders have one canonical module. Do not re-parse or re-map in feature files.
+
+## Where shared code lives
+
+| Layer | Prefer |
+| --- | --- |
+| Backend domain/util | `construction_os/utils/`, `construction_os/domain/` |
+| API | Shared helpers in services/routers; avoid near-duplicate routers |
+| Frontend API/hooks | `frontend/src/lib/api/`, `frontend/src/lib/hooks/` |
+| Frontend UI | `frontend/src/components/ui/` then feature components |
+
+## Do
+
+- Extend an existing shared helper when adding a variant
+- Pass scope/config as parameters instead of duplicating functions
+- Delete the old copy when consolidating (no “legacy twin” left behind)
+
+## Do not
+
+- Copy a function and rename it for a sibling feature
+- Maintain parallel project/source (or similar) stacks that differ only in IDs/endpoints
+- Duplicate auth, embedding, provider, or stream-parsing logic in components
+- Add a second “temporary” implementation without a plan to merge
+
+## Before finishing
+
+- [ ] Searched for an existing helper/type/hook/component
+- [ ] No new near-duplicate of an existing stack
+- [ ] Shared logic has one owner module; call sites are thin
+- [ ] Removed superseded copies after extraction

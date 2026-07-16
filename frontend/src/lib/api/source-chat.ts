@@ -1,4 +1,4 @@
-import apiClient from './client'
+import apiClient, { getAuthToken } from '@/lib/api/client'
 import {
   SourceChatSession,
   SourceChatSessionWithMessages,
@@ -52,21 +52,7 @@ export const sourceChatApi = {
     data: SendMessageRequest,
     signal?: AbortSignal
   ) => {
-    // Get auth token using the same logic as apiClient interceptor
-    let token = null
-    if (typeof window !== 'undefined') {
-      const authStorage = localStorage.getItem('auth-storage')
-      if (authStorage) {
-        try {
-          const { state } = JSON.parse(authStorage)
-          if (state?.token) {
-            token = state.token
-          }
-        } catch (error) {
-          console.error('Error parsing auth storage:', error)
-        }
-      }
-    }
+    const token = getAuthToken()
 
     // Use relative URL to leverage Next.js rewrites
     // This works both in dev (Next.js proxy) and production (Docker network)

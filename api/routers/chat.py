@@ -15,19 +15,25 @@ from api.chat_queue_service import (
     chat_queue_service,
 )
 from construction_os.ai.provision import provision_langchain_model
-from construction_os.database.repository import ensure_record_id, repo_query
-from construction_os.domain.artifact import Artifact
-from construction_os.domain.html_document import HtmlTemplate
 from construction_os.domain.project import ChatSession, Project, Source
 from construction_os.exceptions import (
     NotFoundError,
 )
 from construction_os.graphs import chat as chat_graph_module
+from construction_os.utils.chat_session import (
+    get_refers_to_out_id,
+    hydrate_langgraph_messages,
+    normalize_chat_session_id,
+    resolve_artifact_meta,
+    resolve_html_template_meta,
+    resolve_session_html_template_id,
+    resolve_session_skill_ids,
+    session_record_fields,
+)
 from construction_os.utils.graph_utils import (
     get_session_message_count,
     truncate_messages_from_id,
 )
-from construction_os.utils.html_media import expand_image_tokens
 from construction_os.utils.text_utils import (
     clean_thinking_content,
     extract_text_content,
@@ -67,15 +73,9 @@ def _session_response(
     message_count: Optional[int] = None,
 ) -> "ChatSessionResponse":
     return ChatSessionResponse(
-        id=session.id or "",
-        title=session.title or "Untitled Session",
+        **session_record_fields(session),
         project_id=project_id,
-        created=str(session.created),
-        updated=str(session.updated),
         message_count=message_count,
-        model_override=getattr(session, "model_override", None),
-        skill_ids=getattr(session, "skill_ids", None) or [],
-        html_template_id=getattr(session, "html_template_id", None),
         guest_key=_session_guest_key(session),
     )
 
@@ -412,11 +412,7 @@ async def get_session(
     """Get a specific session with its messages."""
     try:
         guest_key = _normalize_guest_key(x_guest_key)
-        full_session_id = (
-            session_id
-            if session_id.startswith("chat_session:")
-            else f"chat_session:{session_id}"
-        )
+        full_session_id = normalize_chat_session_id(session_id)
         session = await ChatSession.get(full_session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
@@ -428,31 +424,13 @@ async def get_session(
         )
 
         messages: list[ChatMessage] = []
-        a2ui_by_message_id: dict = {}
         if thread_state and thread_state.values:
-            raw_a2ui = thread_state.values.get("a2ui_by_message_id") or {}
-            if isinstance(raw_a2ui, dict):
-                a2ui_by_message_id = raw_a2ui
-            if "messages" in thread_state.values:
-                for msg in thread_state.values["messages"]:
-                    msg_id = getattr(msg, "id", f"msg_{len(messages)}")
-                    payload = a2ui_by_message_id.get(str(msg_id))
-                    messages.append(
-                        ChatMessage(
-                            id=msg_id,
-                            type=msg.type if hasattr(msg, "type") else "unknown",
-                            content=msg.content if hasattr(msg, "content") else str(msg),
-                            timestamp=None,
-                            a2ui_payload=payload if isinstance(payload, list) else None,
-                        )
-                    )
+            for entry in hydrate_langgraph_messages(
+                thread_state.values, include_a2ui=True
+            ):
+                messages.append(ChatMessage(**entry))
 
-        project_query = await repo_query(
-            "SELECT out FROM refers_to WHERE in = $session_id",
-            {"session_id": ensure_record_id(full_session_id)},
-        )
-
-        project_id = project_query[0]["out"] if project_query else None
+        project_id = await get_refers_to_out_id(full_session_id)
 
         if not project_id:
             logger.warning(
@@ -484,11 +462,7 @@ async def update_session(
     """Update session title."""
     try:
         guest_key = _normalize_guest_key(x_guest_key)
-        full_session_id = (
-            session_id
-            if session_id.startswith("chat_session:")
-            else f"chat_session:{session_id}"
-        )
+        full_session_id = normalize_chat_session_id(session_id)
         session = await ChatSession.get(full_session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
@@ -512,11 +486,7 @@ async def update_session(
 
         await session.save()
 
-        project_query = await repo_query(
-            "SELECT out FROM refers_to WHERE in = $session_id",
-            {"session_id": ensure_record_id(full_session_id)},
-        )
-        project_id = project_query[0]["out"] if project_query else None
+        project_id = await get_refers_to_out_id(full_session_id)
 
         msg_count = await get_session_message_count(
             chat_graph_module.graph, full_session_id
@@ -542,11 +512,7 @@ async def delete_session(
     """Delete a chat session."""
     try:
         guest_key = _normalize_guest_key(x_guest_key)
-        full_session_id = (
-            session_id
-            if session_id.startswith("chat_session:")
-            else f"chat_session:{session_id}"
-        )
+        full_session_id = normalize_chat_session_id(session_id)
         session = await ChatSession.get(full_session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
@@ -578,26 +544,18 @@ async def execute_chat(
     """Execute a chat request and stream AG-UI events."""
     try:
         guest_key = _normalize_guest_key(x_guest_key)
-        full_session_id = (
-            request.session_id
-            if request.session_id.startswith("chat_session:")
-            else f"chat_session:{request.session_id}"
-        )
+        full_session_id = normalize_chat_session_id(request.session_id)
         session = await ChatSession.get(full_session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
 
         _assert_session_guest_access(session, guest_key)
 
-        project_query = await repo_query(
-            "SELECT out FROM refers_to WHERE in = $session_id",
-            {"session_id": ensure_record_id(full_session_id)},
-        )
+        project_id = await get_refers_to_out_id(full_session_id)
         project = None
-        project_id = None
         project_meta = None
-        if project_query:
-            project = await Project.get(project_query[0]["out"])
+        if project_id:
+            project = await Project.get(project_id)
             if project:
                 project_id = getattr(project, "id", None)
                 project_meta = {
@@ -623,51 +581,19 @@ async def execute_chat(
                 else getattr(session, "model_override", None)
             )
 
-            if request.skill_ids is not None:
-                skill_ids = list(request.skill_ids)
-                session.skill_ids = skill_ids
-            else:
-                skill_ids = list(getattr(session, "skill_ids", None) or [])
-
-            if request.html_template_id is not None:
-                html_template_id = request.html_template_id or None
-                session.html_template_id = html_template_id
-            else:
-                html_template_id = getattr(session, "html_template_id", None)
-
-            html_template_meta = None
-            if html_template_id:
-                try:
-                    tmpl = await HtmlTemplate.get(html_template_id)
-                    # Expand {{image:slug}} so the model sees concrete library img tags
-                    # and is less likely to invent relative logo paths.
-                    html_body = await expand_image_tokens(tmpl.html_body)
-                    html_template_meta = {
-                        "id": tmpl.id,
-                        "name": tmpl.name,
-                        "category": tmpl.category,
-                        "html_body": html_body,
-                    }
-                except NotFoundError:
-                    html_template_id = None
-                    session.html_template_id = None
-                    html_template_meta = None
+            skill_ids = resolve_session_skill_ids(session, request.skill_ids)
+            html_template_id = resolve_session_html_template_id(
+                session, request.html_template_id
+            )
+            html_template_id, html_template_meta = await resolve_html_template_meta(
+                html_template_id,
+                session=session,
+            )
 
             mcp_tool_ids = list(request.mcp_tool_ids or [])
-            artifact_id = request.artifact_id
-            artifact_meta = None
-            if artifact_id:
-                artifact = await Artifact.get(artifact_id)
-                if artifact:
-                    artifact_meta = {
-                        "id": artifact.id,
-                        "name": artifact.name,
-                        "title": artifact.title,
-                        "description": artifact.description,
-                        "prompt": artifact.prompt,
-                    }
-                else:
-                    artifact_id = None
+            artifact_id, artifact_meta = await resolve_artifact_meta(
+                request.artifact_id
+            )
 
         if request.edit_message_id:
             try:
@@ -728,7 +654,7 @@ async def build_context(request: BuildContextRequest):
 
     UI selections are a search pool. Actual chat messages retrieve top-K
     evidence (capped), so this endpoint returns a retrieval-sized estimate
-    instead of dumping every insight/full text.
+    instead of dumping every source/full text.
     """
     try:
         from construction_os.graphs.chat_context import (

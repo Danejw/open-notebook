@@ -66,16 +66,17 @@ class ChatQueueSubmissionError(ChatQueueServiceError):
         self.uncertain = uncertain
 
 
+from construction_os.utils.chat_session import normalize_chat_session_id as _base_normalize_chat_session_id
+
+
 def normalize_chat_session_id(session_id: str) -> str:
     """Normalize a bare session identifier to its SurrealDB record ID."""
     normalized = session_id.strip()
     if not normalized:
         raise ChatQueueValidationError("Session ID cannot be empty")
-    if normalized.startswith("chat_session:"):
-        return normalized
-    if ":" in normalized:
+    if ":" in normalized and not normalized.startswith("chat_session:"):
         raise ChatQueueValidationError("Session ID must identify a chat_session")
-    return f"chat_session:{normalized}"
+    return _base_normalize_chat_session_id(normalized)
 
 
 def normalize_chat_queue_item_id(item_id: str) -> str:

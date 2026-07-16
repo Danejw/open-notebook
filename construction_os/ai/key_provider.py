@@ -17,60 +17,8 @@ from typing import Optional
 
 from loguru import logger
 
+from construction_os.ai.provider_env_map import PROVIDER_CONFIG
 from construction_os.domain.credential import Credential
-
-# =============================================================================
-# Provider Configuration Mapping
-# =============================================================================
-# Maps provider names to their environment variable names.
-# This is the single source of truth for provider-to-env-var mapping.
-
-PROVIDER_CONFIG = {
-    # Simple providers (just API key)
-    "openai": {
-        "env_var": "OPENAI_API_KEY",
-    },
-    "anthropic": {
-        "env_var": "ANTHROPIC_API_KEY",
-    },
-    "google": {
-        "env_var": "GOOGLE_API_KEY",
-    },
-    "groq": {
-        "env_var": "GROQ_API_KEY",
-    },
-    "mistral": {
-        "env_var": "MISTRAL_API_KEY",
-    },
-    "deepseek": {
-        "env_var": "DEEPSEEK_API_KEY",
-    },
-    "xai": {
-        "env_var": "XAI_API_KEY",
-    },
-    "openrouter": {
-        "env_var": "OPENROUTER_API_KEY",
-    },
-    "voyage": {
-        "env_var": "VOYAGE_API_KEY",
-    },
-    "elevenlabs": {
-        "env_var": "ELEVENLABS_API_KEY",
-    },
-    "deepgram": {
-        "env_var": "DEEPGRAM_API_KEY",
-    },
-    # URL-based providers
-    "ollama": {
-        "env_var": "OLLAMA_API_BASE",
-    },
-    "dashscope": {
-        "env_var": "DASHSCOPE_API_KEY",
-    },
-    "minimax": {
-        "env_var": "MINIMAX_API_KEY",
-    },
-}
 
 
 async def _get_default_credential(provider: str) -> Optional[Credential]:

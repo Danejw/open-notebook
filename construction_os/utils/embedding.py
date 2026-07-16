@@ -49,7 +49,7 @@ EMBEDDING_RETRY_DELAY = 2  # seconds
 # Lazy import to avoid circular dependency:
 # utils -> embedding -> models -> key_provider -> provider_config -> utils
 if TYPE_CHECKING:
-    from construction_os.ai.models import ModelManager
+    pass
 
 
 async def mean_pool_embeddings(embeddings: List[List[float]]) -> List[float]:

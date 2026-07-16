@@ -89,7 +89,7 @@ Step 3: Verify the claim
         Any nuance missed?
 
 Step 4: Trust or correct
-        ✓ Accurate → Use the insight
+        ✓ Accurate → Use the finding
         ✗ Wrong → Ask AI to correct
 ```
 
@@ -267,7 +267,7 @@ Solution:
 
 1. **Verify before sharing** - Check claims clients will see
 2. **Keep citation trail** - Save notes with sources linked
-3. **Be transparent** - Note when insights are AI-assisted
+3. **Be transparent** - Note when findings are AI-assisted
 
 ---
 
@@ -281,7 +281,7 @@ How to use:
 2. Note citation markers [1], [2], etc.
 3. Click to see original source
 4. Verify claim matches source
-5. Trust verified insights
+5. Trust verified findings
 
 When citations fail:
 - Ask for specific quotes

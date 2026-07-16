@@ -1,5 +1,5 @@
 import asyncio
-from typing import AsyncGenerator, List, Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Path
 from langchain_core.runnables import RunnableConfig
@@ -12,15 +12,34 @@ from api.chat_queue_service import (
     ChatQueueNotFoundError,
     chat_queue_service,
 )
-from construction_os.database.repository import ensure_record_id, repo_query
-from construction_os.domain.html_document import HtmlTemplate
 from construction_os.domain.project import ChatSession, Source
 from construction_os.exceptions import NotFoundError
 from construction_os.graphs import source_chat as source_chat_module
+from construction_os.utils.chat_session import (
+    hydrate_langgraph_messages,
+    list_chat_sessions_for_out,
+    normalize_chat_session_id,
+    normalize_source_id,
+    resolve_html_template_meta,
+    resolve_session_html_template_id,
+    resolve_session_skill_ids,
+    session_record_fields,
+    session_refers_to,
+)
 from construction_os.utils.graph_utils import get_session_message_count
-from construction_os.utils.html_media import expand_image_tokens
 
 router = APIRouter()
+
+
+async def _assert_source_session_relation(
+    session_id: str,
+    source_id: str,
+) -> None:
+    """Raise 404 when the session is not linked to the source."""
+    if not await session_refers_to(session_id, source_id):
+        raise HTTPException(
+            status_code=404, detail="Session not found for this source"
+        )
 
 
 # Request/Response models
@@ -114,6 +133,19 @@ class SuccessResponse(BaseModel):
     message: str = Field(..., description="Success message")
 
 
+def _source_session_response(
+    session: ChatSession,
+    *,
+    source_id: str,
+    message_count: Optional[int] = None,
+) -> SourceChatSessionResponse:
+    return SourceChatSessionResponse(
+        **session_record_fields(session),
+        source_id=source_id,
+        message_count=message_count,
+    )
+
+
 @router.post(
     "/sources/{source_id}/chat/sessions", response_model=SourceChatSessionResponse
 )
@@ -124,9 +156,7 @@ async def create_source_chat_session(
     """Create a new chat session for a source."""
     try:
         # Verify source exists
-        full_source_id = (
-            source_id if source_id.startswith("source:") else f"source:{source_id}"
-        )
+        full_source_id = normalize_source_id(source_id)
         source = await Source.get(full_source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
@@ -143,15 +173,9 @@ async def create_source_chat_session(
         # Relate session to source using "refers_to" relation
         await session.relate("refers_to", full_source_id)
 
-        return SourceChatSessionResponse(
-            id=session.id or "",
-            title=session.title or "Untitled Session",
+        return _source_session_response(
+            session,
             source_id=source_id,
-            model_override=session.model_override,
-            skill_ids=session.skill_ids or [],
-            html_template_id=getattr(session, "html_template_id", None),
-            created=str(session.created),
-            updated=str(session.updated),
             message_count=0,
         )
     except NotFoundError:
@@ -170,53 +194,30 @@ async def get_source_chat_sessions(source_id: str = Path(..., description="Sourc
     """Get all chat sessions for a source."""
     try:
         # Verify source exists
-        full_source_id = (
-            source_id if source_id.startswith("source:") else f"source:{source_id}"
-        )
+        full_source_id = normalize_source_id(source_id)
         source = await Source.get(full_source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
 
-        # Get sessions that refer to this source - first get relations, then sessions
-        relations = await repo_query(
-            "SELECT in FROM refers_to WHERE out = $source_id",
-            {"source_id": ensure_record_id(full_source_id)},
-        )
+        sessions = await list_chat_sessions_for_out(full_source_id)
 
-        sessions = []
-        for relation in relations:
-            session_id_raw = relation.get("in")
-            if session_id_raw:
-                session_id = str(session_id_raw)
-
-                session_result = await repo_query(
-                    "SELECT * FROM $id", {"id": ensure_record_id(session_id)}
+        results: List[SourceChatSessionResponse] = []
+        for session in sessions:
+            session_id = str(session.id)
+            msg_count = await get_session_message_count(
+                source_chat_module.source_chat_graph, session_id
+            )
+            results.append(
+                _source_session_response(
+                    session,
+                    source_id=source_id,
+                    message_count=msg_count,
                 )
-                if session_result and len(session_result) > 0:
-                    session_data = session_result[0]
-
-                    # Get message count from LangGraph state
-                    msg_count = await get_session_message_count(
-                        source_chat_module.source_chat_graph, session_id
-                    )
-
-                    sessions.append(
-                        SourceChatSessionResponse(
-                            id=session_data.get("id") or "",
-                            title=session_data.get("title") or "Untitled Session",
-                            source_id=source_id,
-                            model_override=session_data.get("model_override"),
-                            skill_ids=session_data.get("skill_ids") or [],
-                            html_template_id=session_data.get("html_template_id"),
-                            created=str(session_data.get("created")),
-                            updated=str(session_data.get("updated")),
-                            message_count=msg_count,
-                        )
-                    )
+            )
 
         # Sort sessions by created date (newest first)
-        sessions.sort(key=lambda x: x.created, reverse=True)
-        return sessions
+        results.sort(key=lambda item: item.created, reverse=True)
+        return results
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Source not found")
     except Exception as e:
@@ -237,36 +238,18 @@ async def get_source_chat_session(
     """Get a specific source chat session with its messages."""
     try:
         # Verify source exists
-        full_source_id = (
-            source_id if source_id.startswith("source:") else f"source:{source_id}"
-        )
+        full_source_id = normalize_source_id(source_id)
         source = await Source.get(full_source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
 
         # Get session
-        full_session_id = (
-            session_id
-            if session_id.startswith("chat_session:")
-            else f"chat_session:{session_id}"
-        )
+        full_session_id = normalize_chat_session_id(session_id)
         session = await ChatSession.get(full_session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
 
-        # Verify session is related to this source
-        relation_query = await repo_query(
-            "SELECT * FROM refers_to WHERE in = $session_id AND out = $source_id",
-            {
-                "session_id": ensure_record_id(full_session_id),
-                "source_id": ensure_record_id(full_source_id),
-            },
-        )
-
-        if not relation_query:
-            raise HTTPException(
-                status_code=404, detail="Session not found for this source"
-            )
+        await _assert_source_session_relation(full_session_id, full_source_id)
 
         # Get session state from LangGraph to retrieve messages
         thread_state = await source_chat_module.source_chat_graph.aget_state(
@@ -278,19 +261,8 @@ async def get_source_chat_session(
         context_indicators = None
 
         if thread_state and thread_state.values:
-            # Extract messages
-            if "messages" in thread_state.values:
-                for msg in thread_state.values["messages"]:
-                    messages.append(
-                        ChatMessage(
-                            id=getattr(msg, "id", f"msg_{len(messages)}"),
-                            type=msg.type if hasattr(msg, "type") else "unknown",
-                            content=msg.content
-                            if hasattr(msg, "content")
-                            else str(msg),
-                            timestamp=None,  # LangChain messages don't have timestamps by default
-                        )
-                    )
+            for entry in hydrate_langgraph_messages(thread_state.values):
+                messages.append(ChatMessage(**entry))
 
             # Extract context indicators from the last state
             if "context_indicators" in thread_state.values:
@@ -301,15 +273,11 @@ async def get_source_chat_session(
                 )
 
         return SourceChatSessionWithMessagesResponse(
-            id=session.id or "",
-            title=session.title or "Untitled Session",
-            source_id=source_id,
-            model_override=getattr(session, "model_override", None),
-            skill_ids=getattr(session, "skill_ids", None) or [],
-            html_template_id=getattr(session, "html_template_id", None),
-            created=str(session.created),
-            updated=str(session.updated),
-            message_count=len(messages),
+            **_source_session_response(
+                session,
+                source_id=source_id,
+                message_count=len(messages),
+            ).model_dump(),
             messages=messages,
             context_indicators=context_indicators,
         )
@@ -334,36 +302,18 @@ async def update_source_chat_session(
     """Update source chat session title and/or model override."""
     try:
         # Verify source exists
-        full_source_id = (
-            source_id if source_id.startswith("source:") else f"source:{source_id}"
-        )
+        full_source_id = normalize_source_id(source_id)
         source = await Source.get(full_source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
 
         # Get session
-        full_session_id = (
-            session_id
-            if session_id.startswith("chat_session:")
-            else f"chat_session:{session_id}"
-        )
+        full_session_id = normalize_chat_session_id(session_id)
         session = await ChatSession.get(full_session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
 
-        # Verify session is related to this source
-        relation_query = await repo_query(
-            "SELECT * FROM refers_to WHERE in = $session_id AND out = $source_id",
-            {
-                "session_id": ensure_record_id(full_session_id),
-                "source_id": ensure_record_id(full_source_id),
-            },
-        )
-
-        if not relation_query:
-            raise HTTPException(
-                status_code=404, detail="Session not found for this source"
-            )
+        await _assert_source_session_relation(full_session_id, full_source_id)
 
         # Update session fields
         if request.title is not None:
@@ -380,15 +330,9 @@ async def update_source_chat_session(
         # Get message count from LangGraph state
         msg_count = await get_session_message_count(source_chat_module.source_chat_graph, full_session_id)
 
-        return SourceChatSessionResponse(
-            id=session.id or "",
-            title=session.title or "Untitled Session",
+        return _source_session_response(
+            session,
             source_id=source_id,
-            model_override=getattr(session, "model_override", None),
-            skill_ids=getattr(session, "skill_ids", None) or [],
-            html_template_id=getattr(session, "html_template_id", None),
-            created=str(session.created),
-            updated=str(session.updated),
             message_count=msg_count,
         )
     except NotFoundError:
@@ -410,36 +354,18 @@ async def delete_source_chat_session(
     """Delete a source chat session."""
     try:
         # Verify source exists
-        full_source_id = (
-            source_id if source_id.startswith("source:") else f"source:{source_id}"
-        )
+        full_source_id = normalize_source_id(source_id)
         source = await Source.get(full_source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
 
         # Get session
-        full_session_id = (
-            session_id
-            if session_id.startswith("chat_session:")
-            else f"chat_session:{session_id}"
-        )
+        full_session_id = normalize_chat_session_id(session_id)
         session = await ChatSession.get(full_session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
 
-        # Verify session is related to this source
-        relation_query = await repo_query(
-            "SELECT * FROM refers_to WHERE in = $session_id AND out = $source_id",
-            {
-                "session_id": ensure_record_id(full_session_id),
-                "source_id": ensure_record_id(full_source_id),
-            },
-        )
-
-        if not relation_query:
-            raise HTTPException(
-                status_code=404, detail="Session not found for this source"
-            )
+        await _assert_source_session_relation(full_session_id, full_source_id)
 
         try:
             await chat_queue_service.delete_session(full_session_id)
@@ -462,32 +388,6 @@ async def delete_source_chat_session(
         )
 
 
-async def stream_source_chat_response(
-    session_id: str,
-    source_id: str,
-    message: str,
-    model_override: Optional[str] = None,
-    skill_ids: Optional[List[str]] = None,
-) -> AsyncGenerator[str, None]:
-    """Stream the source chat response as AG-UI Server-Sent Events."""
-    run_input = ag_ui_agents.build_run_input(
-        thread_id=session_id,
-        message=message,
-        forwarded_props={
-            "source_id": source_id,
-            "model_override": model_override,
-            "skill_ids": skill_ids or [],
-        },
-    )
-
-    async for chunk in ag_ui_agents.stream_agent_events(
-        ag_ui_agents.source_chat_agent,
-        run_input,
-        configurable={"model_id": model_override},
-    ):
-        yield chunk
-
-
 @router.post("/sources/{source_id}/chat/sessions/{session_id}/messages")
 async def send_message_to_source_chat(
     request: SendMessageRequest,
@@ -497,36 +397,18 @@ async def send_message_to_source_chat(
     """Send a message to source chat session with AG-UI SSE streaming response."""
     try:
         # Verify source exists
-        full_source_id = (
-            source_id if source_id.startswith("source:") else f"source:{source_id}"
-        )
+        full_source_id = normalize_source_id(source_id)
         source = await Source.get(full_source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
 
         # Verify session exists and is related to source
-        full_session_id = (
-            session_id
-            if session_id.startswith("chat_session:")
-            else f"chat_session:{session_id}"
-        )
+        full_session_id = normalize_chat_session_id(session_id)
         session = await ChatSession.get(full_session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
 
-        # Verify session is related to this source
-        relation_query = await repo_query(
-            "SELECT * FROM refers_to WHERE in = $session_id AND out = $source_id",
-            {
-                "session_id": ensure_record_id(full_session_id),
-                "source_id": ensure_record_id(full_source_id),
-            },
-        )
-
-        if not relation_query:
-            raise HTTPException(
-                status_code=404, detail="Session not found for this source"
-            )
+        await _assert_source_session_relation(full_session_id, full_source_id)
 
         if not request.message:
             raise HTTPException(status_code=400, detail="Message content is required")
@@ -536,33 +418,14 @@ async def send_message_to_source_chat(
             session, "model_override", None
         )
 
-        if request.skill_ids is not None:
-            skill_ids = list(request.skill_ids)
-            session.skill_ids = skill_ids
-        else:
-            skill_ids = list(getattr(session, "skill_ids", None) or [])
-
-        if request.html_template_id is not None:
-            html_template_id = request.html_template_id or None
-            session.html_template_id = html_template_id
-        else:
-            html_template_id = getattr(session, "html_template_id", None)
-
-        html_template_meta = None
-        if html_template_id:
-            try:
-                tmpl = await HtmlTemplate.get(html_template_id)
-                html_body = await expand_image_tokens(tmpl.html_body)
-                html_template_meta = {
-                    "id": tmpl.id,
-                    "name": tmpl.name,
-                    "category": tmpl.category,
-                    "html_body": html_body,
-                }
-            except NotFoundError:
-                html_template_id = None
-                session.html_template_id = None
-                html_template_meta = None
+        skill_ids = resolve_session_skill_ids(session, request.skill_ids)
+        html_template_id = resolve_session_html_template_id(
+            session, request.html_template_id
+        )
+        html_template_id, html_template_meta = await resolve_html_template_meta(
+            html_template_id,
+            session=session,
+        )
 
         # Update session timestamp (and skill_ids / html_template_id if changed)
         await session.save()

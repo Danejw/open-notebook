@@ -13,9 +13,9 @@ Construction OS uses a clean three-panel layout. This guide shows you where ever
 │              │              │                               │
 │   SOURCES    │    NOTES     │           CHAT                │
 │              │              │                               │
-│  Your docs   │  Your        │   Talk to AI about            │
-│  PDFs, URLs  │  insights    │   your sources                │
-│  Videos      │  summaries   │                               │
+│  Your docs   │  notes &     │   Talk to AI about            │
+│  PDFs, URLs  │  summaries   │   your sources                │
+│  Videos      │              │                               │
 │              │              │                               │
 │  [+Add]      │  [+Write]    │   [Type here...]              │
 │              │              │                               │
@@ -85,7 +85,7 @@ Click to add:
 
 ## Middle Panel: Notes
 
-Your insights and AI-generated content.
+Your notes and AI-generated content.
 
 ### What You'll See
 
@@ -119,7 +119,7 @@ Your insights and AI-generated content.
 
 Click to:
 - Create manual note
-- Add your own insights
+- Add your own analysis
 - Markdown supported
 
 ---

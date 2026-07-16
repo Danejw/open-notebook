@@ -1,0 +1,52 @@
+---
+description: Use strict typing in every language — no loose/any/untyped escapes
+alwaysApply: true
+---
+
+# Strict typing
+
+Use strict typing in every language we use (TypeScript, Python, and any other). Prefer explicit types at boundaries; do not weaken the type system to save a few lines.
+
+## TypeScript / JavaScript
+
+- Keep `strict` mode on. Do not disable strict compiler flags to silence errors.
+- Avoid `any`. Prefer `unknown` and narrow, or a concrete type / generic.
+- Type public APIs: function params/returns, props, hook results, API request/response shapes.
+- Prefer `satisfies` and discriminated unions over loose object bags.
+- Exhaustive `switch` on unions/enums (use a `never` default).
+
+```typescript
+// ❌ BAD
+function parse(data: any) {
+  return data.items;
+}
+
+// ✅ GOOD
+function parse(data: unknown): Item[] {
+  const parsed = schema.parse(data);
+  return parsed.items;
+}
+```
+
+## Python
+
+- Annotate public functions, methods, and dataclasses with types.
+- Prefer `TypedDict` / Pydantic models / domain models over bare `dict`.
+- Avoid untyped `*args` / `**kwargs` on public APIs; type them or structure the input.
+- Use `list[T]`, `dict[K, V]`, `|` unions (3.10+) — not untyped containers at boundaries.
+
+```python
+# ❌ BAD
+def create_session(payload):
+    return payload.get("id")
+
+# ✅ GOOD
+def create_session(payload: SessionCreate) -> str:
+    return payload.id
+```
+
+## Do not
+
+- Cast/assert away type errors without fixing the underlying type
+- Add `# type: ignore` / `@ts-ignore` / `as any` unless truly unavoidable and documented
+- Ship untyped public interfaces “for later”

@@ -94,6 +94,8 @@ export function SourceDetailContent({
   const [selectedInsight, setSelectedInsight] = useState<SourceInsightResponse | null>(null)
   const [insightToDelete, setInsightToDelete] = useState<string | null>(null)
   const [deletingInsight, setDeletingInsight] = useState(false)
+  const [sourceDeleteOpen, setSourceDeleteOpen] = useState(false)
+  const [deletingSource, setDeletingSource] = useState(false)
 
   const fetchSource = useCallback(async () => {
     try {
@@ -350,18 +352,20 @@ export function SourceDetailContent({
     [contentText]
   )
 
-  const handleDelete = async () => {
+  const handleDeleteSource = async () => {
     if (!source) return
 
-    if (confirm(t('sources.deleteSourceConfirm') || t('common.confirm'))) {
-      try {
-        await sourcesApi.delete(source.id)
-        toast.success(t('common.success'))
-        onClose?.()
-      } catch (error) {
-        console.error('Failed to delete source:', error)
-        toast.error(t('common.error'))
-      }
+    try {
+      setDeletingSource(true)
+      await sourcesApi.delete(source.id)
+      toast.success(t('common.success'))
+      setSourceDeleteOpen(false)
+      onClose?.()
+    } catch (error) {
+      console.error('Failed to delete source:', error)
+      toast.error(t('common.error'))
+    } finally {
+      setDeletingSource(false)
     }
   }
 
@@ -439,7 +443,7 @@ export function SourceDetailContent({
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive"
-              onClick={handleDelete}
+              onClick={() => setSourceDeleteOpen(true)}
             >
               <Trash2 className="mr-2 h-4 w-4" />
               {t('sources.deleteSource')}
@@ -765,6 +769,17 @@ export function SourceDetailContent({
         confirmVariant="destructive"
         isLoading={deletingInsight}
         onConfirm={handleDeleteInsight}
+      />
+
+      <ConfirmDialog
+        open={sourceDeleteOpen}
+        onOpenChange={setSourceDeleteOpen}
+        title={t('sources.deleteSource')}
+        description={t('sources.deleteSourceConfirm') || t('common.confirm')}
+        confirmText={t('common.delete')}
+        confirmVariant="destructive"
+        isLoading={deletingSource}
+        onConfirm={handleDeleteSource}
       />
     </div>
   )

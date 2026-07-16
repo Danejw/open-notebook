@@ -257,6 +257,8 @@ export const zhTW = {
     "viewAllProjects": "View all projects",
     "runArtifact": "Run artifact in project",
     "expandSidebar": "展開側邊欄",
+    "expandColumn": "展開{label}",
+    "collapseColumn": "摺疊{label}",
     "collapseSidebar": "摺疊側邊欄"
   },
   "images": {

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ChevronLeft, LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useTranslation } from '@/lib/hooks/use-translation'
 
 interface CollapsibleColumnProps {
   isCollapsed: boolean
@@ -21,7 +22,10 @@ export function CollapsibleColumn({
   collapsedLabel,
   children,
 }: CollapsibleColumnProps) {
-  const isCJK = /[\u4e00-\u9fa5\u3040-\u30ff\uac00-\ud7af]/.test(collapsedLabel);
+  const { t } = useTranslation()
+  const isCJK = /[\u4e00-\u9fa5\u3040-\u30ff\uac00-\ud7af]/.test(collapsedLabel)
+  const expandLabel = t('navigation.expandColumn').replace('{label}', collapsedLabel)
+  const collapseLabel = t('navigation.collapseColumn').replace('{label}', collapsedLabel)
 
   if (isCollapsed) {
     return (
@@ -39,7 +43,7 @@ export function CollapsibleColumn({
                 'cursor-pointer group',
                 'py-6'
               )}
-              aria-label={`Expand ${collapsedLabel}`}
+              aria-label={expandLabel}
             >
               <CollapsedIcon className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0" />
               <div
@@ -51,7 +55,7 @@ export function CollapsibleColumn({
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">
-            <p>Expand {collapsedLabel}</p>
+            <p>{expandLabel}</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -67,6 +71,13 @@ export function CollapsibleColumn({
 
 // Factory function to create a collapse button for card headers
 export function createCollapseButton(onToggle: () => void, label: string) {
+  return <CollapseButton onToggle={onToggle} label={label} />
+}
+
+function CollapseButton({ onToggle, label }: { onToggle: () => void; label: string }) {
+  const { t } = useTranslation()
+  const collapseLabel = t('navigation.collapseColumn').replace('{label}', label)
+
   return (
     <div className="hidden lg:block">
       <TooltipProvider>
@@ -80,13 +91,13 @@ export function createCollapseButton(onToggle: () => void, label: string) {
                 onToggle()
               }}
               className="h-6 w-6 p-0 hover:bg-accent"
-              aria-label={`Collapse ${label}`}
+              aria-label={collapseLabel}
             >
               <ChevronLeft className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Collapse {label}</p>
+            <p>{collapseLabel}</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>

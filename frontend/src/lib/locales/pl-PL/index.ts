@@ -257,6 +257,8 @@ export const plPL = {
     "viewAllProjects": "View all projects",
     "runArtifact": "Run artifact in project",
     "expandSidebar": "Rozwiń pasek boczny",
+    "expandColumn": "Rozwiń {label}",
+    "collapseColumn": "Zwiń {label}",
     "collapseSidebar": "Zwiń pasek boczny"
   },
   "images": {

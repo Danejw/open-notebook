@@ -257,6 +257,8 @@ export const jaJP = {
     "viewAllProjects": "View all projects",
     "runArtifact": "Run artifact in project",
     "expandSidebar": "サイドバーを展開",
+    "expandColumn": "{label}を展開",
+    "collapseColumn": "{label}を折りたたむ",
     "collapseSidebar": "サイドバーを折りたたむ"
   },
   "images": {

@@ -218,7 +218,7 @@ export function RebuildEmbeddings() {
                 {status.status === 'queued' && <Clock className="h-5 w-5 text-yellow-500" />}
                 {status.status === 'running' && <Skeleton className="h-5 w-5 rounded-sm" />}
                 {status.status === 'completed' && <CheckCircle2 className="h-5 w-5 text-green-500" />}
-                {status.status === 'failed' && <XCircle className="h-5 w-5 text-red-500" />}
+                {status.status === 'failed' && <XCircle className="h-5 w-5 text-destructive" />}
                 <div className="flex flex-col">
                   <span className="font-medium">
                     {status.status === 'queued' && t('advanced.rebuild.queued')}

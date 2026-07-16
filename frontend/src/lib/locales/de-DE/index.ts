@@ -257,6 +257,8 @@ export const deDE = {
     "viewAllProjects": "View all projects",
     "runArtifact": "Run artifact in project",
     "expandSidebar": "Seitenleiste erweitern",
+    "expandColumn": "{label} erweitern",
+    "collapseColumn": "{label} einklappen",
     "collapseSidebar": "Seitenleiste einklappen"
   },
   "images": {

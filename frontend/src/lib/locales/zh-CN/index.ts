@@ -257,6 +257,8 @@ export const zhCN = {
     "viewAllProjects": "View all projects",
     "runArtifact": "Run artifact in project",
     "expandSidebar": "展开侧边栏",
+    "expandColumn": "展开{label}",
+    "collapseColumn": "折叠{label}",
     "collapseSidebar": "折叠侧边栏"
   },
   "images": {

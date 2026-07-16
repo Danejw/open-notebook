@@ -257,6 +257,8 @@ export const itIT = {
     "viewAllProjects": "View all projects",
     "runArtifact": "Run artifact in project",
     "expandSidebar": "Espandi barra laterale",
+    "expandColumn": "Espandi {label}",
+    "collapseColumn": "Comprimi {label}",
     "collapseSidebar": "Comprimi barra laterale"
   },
   "images": {

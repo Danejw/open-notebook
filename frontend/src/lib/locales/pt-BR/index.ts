@@ -257,6 +257,8 @@ export const ptBR = {
     "viewAllProjects": "View all projects",
     "runArtifact": "Run artifact in project",
     "expandSidebar": "Expandir barra lateral",
+    "expandColumn": "Expandir {label}",
+    "collapseColumn": "Recolher {label}",
     "collapseSidebar": "Recolher barra lateral"
   },
   "images": {

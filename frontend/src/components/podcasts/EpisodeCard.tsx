@@ -52,11 +52,11 @@ const getSTATUS_META = (t: TFunction): Record<
   },
   failed: {
     label: t('podcasts.failedLabel'),
-    className: 'bg-red-100 text-red-800 border-red-200',
+    className: 'bg-destructive/10 text-destructive border-destructive/20',
   },
   error: {
     label: t('podcasts.failedLabel'),
-    className: 'bg-red-100 text-red-800 border-red-200',
+    className: 'bg-destructive/10 text-destructive border-destructive/20',
   },
   pending: {
     label: t('podcasts.pendingLabel'),
@@ -399,9 +399,9 @@ export function EpisodeCard({ episode, onDelete, deleting, onRetry, retrying }: 
         ) : null}
 
         {isFailed && episode.error_message ? (
-          <div className="rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/30">
-            <p className="text-xs font-medium text-red-800 dark:text-red-300">{t('podcasts.errorDetails')}</p>
-            <p className="mt-1 text-xs whitespace-pre-wrap text-red-700 dark:text-red-400">{episode.error_message}</p>
+          <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3">
+            <p className="text-xs font-medium text-destructive">{t('podcasts.errorDetails')}</p>
+            <p className="mt-1 text-xs whitespace-pre-wrap text-destructive/90">{episode.error_message}</p>
           </div>
         ) : null}
       </CardContent>

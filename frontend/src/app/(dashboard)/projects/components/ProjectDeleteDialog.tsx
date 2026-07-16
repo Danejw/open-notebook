@@ -15,6 +15,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
+import { buttonVariants } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProjectDeletePreview, useDeleteProject } from '@/lib/hooks/use-projects'
 import { useRouter } from 'next/navigation'
@@ -160,7 +161,7 @@ export function ProjectDeleteDialog({
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={isDeleting || isLoadingPreview}
-            className="bg-red-600 hover:bg-red-700"
+            className={buttonVariants({ variant: 'destructive' })}
           >
             {isDeleting ? (
               <>

@@ -132,7 +132,7 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
             <Button
               variant="outline"
               size="sm"
-              className="h-7 px-2 text-xs text-red-600 hover:text-red-700"
+              className="h-7 px-2 text-xs text-destructive hover:text-destructive"
               onClick={() => setShowDeleteDialog(true)}
             >
               <Trash2 className="h-3.5 w-3.5 sm:mr-1.5" />

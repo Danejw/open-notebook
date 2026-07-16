@@ -257,6 +257,8 @@ export const frFR = {
     "viewAllProjects": "View all projects",
     "runArtifact": "Run artifact in project",
     "expandSidebar": "Développer la barre latérale",
+    "expandColumn": "Développer {label}",
+    "collapseColumn": "Réduire {label}",
     "collapseSidebar": "Réduire la barre latérale"
   },
   "images": {

@@ -62,11 +62,11 @@ export function ProjectActionsMenu({ project }: ProjectActionsMenuProps) {
             )}
           </DropdownMenuItem>
           <DropdownMenuItem
+            variant="destructive"
             onClick={(e) => {
               e.stopPropagation()
               setShowDeleteDialog(true)
             }}
-            className="text-red-600"
           >
             <Trash2 className="mr-2 h-3.5 w-3.5" />
             {t('common.delete')}

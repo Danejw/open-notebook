@@ -20,6 +20,7 @@ export interface SourcesTableRowProps {
   untitledLabel: string
   yesLabel: string
   noLabel: string
+  deleteLabel: string
   onRowClick: (index: number, sourceId: string) => void
   onMouseEnter: (index: number) => void
   onDeleteClick: (e: React.MouseEvent, source: SourceListResponse) => void
@@ -38,6 +39,7 @@ function SourcesTableRowImpl({
   untitledLabel,
   yesLabel,
   noLabel,
+  deleteLabel,
   onRowClick,
   onMouseEnter,
   onDeleteClick,
@@ -104,6 +106,7 @@ function SourcesTableRowImpl({
           size="icon"
           onClick={(e) => onDeleteClick(e, source)}
           className="h-7 w-7 text-destructive hover:text-destructive"
+          aria-label={deleteLabel}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>

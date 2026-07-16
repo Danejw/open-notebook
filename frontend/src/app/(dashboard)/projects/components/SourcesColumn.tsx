@@ -582,7 +582,7 @@ export function SourcesColumn({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-7 text-red-600 hover:text-red-600"
+                      className="h-7 text-destructive hover:text-destructive"
                       onClick={() => setBulkDeleteOpen(true)}
                     >
                       <Trash2 className="mr-1 h-3.5 w-3.5" />

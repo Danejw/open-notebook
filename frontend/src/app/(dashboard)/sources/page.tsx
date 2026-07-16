@@ -75,6 +75,7 @@ export default function SourcesPage() {
       untitledLabel: t('sources.untitledSource'),
       yesLabel: t('sources.yes'),
       noLabel: t('sources.no'),
+      deleteLabel: t('sources.deleteSource'),
     }),
     [t]
   )

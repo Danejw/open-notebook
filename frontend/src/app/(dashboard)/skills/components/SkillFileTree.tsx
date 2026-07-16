@@ -78,7 +78,7 @@ export function SkillFileTree({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className={cn('h-7 w-7 text-red-600', listActionTriggerClassName)}
+                    className={cn('h-7 w-7 text-destructive', listActionTriggerClassName)}
                     onClick={() => onDelete(file.path)}
                     aria-label={t('skills.deleteFile')}
                     disabled={file.path === 'SKILL.md'}

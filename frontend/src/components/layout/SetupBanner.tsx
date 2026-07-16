@@ -39,18 +39,18 @@ export function SetupBanner() {
   if (!encryptionReady) {
     return (
       <div className="px-4 pt-3">
-        <Alert className="border-red-500/50 bg-red-50 dark:bg-red-950/20">
-          <ShieldAlert className="h-4 w-4 text-red-600 dark:text-red-400" />
-          <AlertTitle className="text-red-800 dark:text-red-200">
+        <Alert variant="destructive">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>
             {t('setupBanner.encryptionRequired')}
           </AlertTitle>
-          <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-red-700 dark:text-red-300">
+          <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <span>{t('setupBanner.encryptionRequiredDescription')}</span>
             <a
               href="https://github.com/lfnovo/construction-os/blob/main/docs/3-USER-GUIDE/api-configuration.md#encryption-setup"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center shrink-0 text-sm font-medium underline underline-offset-2 hover:text-red-900 dark:hover:text-red-100"
+              className="inline-flex items-center shrink-0 text-sm font-medium underline underline-offset-2 hover:text-destructive"
             >
               {t('setupBanner.viewDocs')}
               <ExternalLink className="ml-1 h-3 w-3" />

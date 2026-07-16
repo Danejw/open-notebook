@@ -257,6 +257,8 @@ export const bnIN = {
     "viewAllProjects": "View all projects",
     "runArtifact": "Run artifact in project",
     "expandSidebar": "সাইডবার প্রসারিত করুন",
+    "expandColumn": "{label} প্রসারিত করুন",
+    "collapseColumn": "{label} সংকুচিত করুন",
     "collapseSidebar": "সাইডবার সংকুচিত করুন"
   },
   "images": {

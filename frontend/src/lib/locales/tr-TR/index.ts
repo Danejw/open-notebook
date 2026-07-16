@@ -257,6 +257,8 @@ export const trTR = {
     "viewAllProjects": "View all projects",
     "runArtifact": "Run artifact in project",
     "expandSidebar": "Kenar çubuğunu genişlet",
+    "expandColumn": "{label} genişlet",
+    "collapseColumn": "{label} daralt",
     "collapseSidebar": "Kenar çubuğunu daralt"
   },
   "images": {

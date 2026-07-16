@@ -257,6 +257,8 @@ export const esES = {
     "viewAllProjects": "View all projects",
     "runArtifact": "Run artifact in project",
     "expandSidebar": "Expandir barra lateral",
+    "expandColumn": "Expandir {label}",
+    "collapseColumn": "Contraer {label}",
     "collapseSidebar": "Contraer barra lateral"
   },
   "images": {

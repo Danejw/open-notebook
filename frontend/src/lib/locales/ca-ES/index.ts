@@ -257,6 +257,8 @@ export const caES = {
     "viewAllProjects": "View all projects",
     "runArtifact": "Run artifact in project",
     "expandSidebar": "Expandir la barra lateral",
+    "expandColumn": "Expandir {label}",
+    "collapseColumn": "Replegar {label}",
     "collapseSidebar": "Replegar la barra lateral"
   },
   "images": {

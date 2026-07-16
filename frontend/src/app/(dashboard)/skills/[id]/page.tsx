@@ -79,6 +79,8 @@ export default function SkillDetailPage() {
   const [renameFrom, setRenameFrom] = useState<string | null>(null)
   const [renameTo, setRenameTo] = useState('')
   const [validation, setValidation] = useState<ValidationResult | null>(null)
+  const [pendingFilePath, setPendingFilePath] = useState<string | null>(null)
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
 
   useEffect(() => {
     if (!skill) return
@@ -128,13 +130,24 @@ export default function SkillDetailPage() {
 
   const selectFile = useCallback(
     (path: string) => {
-      if (dirty && !window.confirm(t('skills.unsavedWarning'))) {
+      if (path === selectedPath) return
+      if (dirty) {
+        setPendingFilePath(path)
+        setShowUnsavedDialog(true)
         return
       }
       setSelectedPath(path)
     },
-    [dirty, t]
+    [dirty, selectedPath]
   )
+
+  const handleDiscardUnsaved = () => {
+    if (pendingFilePath !== null) {
+      setSelectedPath(pendingFilePath)
+      setPendingFilePath(null)
+    }
+    setShowUnsavedDialog(false)
+  }
 
   const handleSaveMetadata = async () => {
     if (!skill) return
@@ -474,6 +487,20 @@ export default function SkillDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={showUnsavedDialog}
+        onOpenChange={(open) => {
+          setShowUnsavedDialog(open)
+          if (!open) {
+            setPendingFilePath(null)
+          }
+        }}
+        title={t('skills.unsavedChanges')}
+        description={t('skills.unsavedWarning')}
+        confirmText={t('common.confirm')}
+        onConfirm={handleDiscardUnsaved}
+      />
 
       <ConfirmDialog
         open={showDeleteSkill}

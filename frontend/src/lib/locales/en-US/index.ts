@@ -257,6 +257,8 @@ export const enUS = {
     "viewAllProjects": "View all projects",
     "runArtifact": "Run artifact in project",
     "expandSidebar": "Expand sidebar",
+    "expandColumn": "Expand {label}",
+    "collapseColumn": "Collapse {label}",
     "collapseSidebar": "Collapse sidebar"
   },
   "images": {

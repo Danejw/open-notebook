@@ -260,7 +260,9 @@ export const trTR = {
     "theme": "Tema",
     "ask": "Sor",
     "viewAllProjects": "View all projects",
-    "runArtifact": "Run artifact in project"
+    "runArtifact": "Run artifact in project",
+    "expandSidebar": "Kenar çubuğunu genişlet",
+    "collapseSidebar": "Kenar çubuğunu daralt"
   },
   "images": {
     "title": "Images",

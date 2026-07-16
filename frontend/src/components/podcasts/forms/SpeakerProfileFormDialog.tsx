@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect } from 'react'
+import { useCallback } from 'react'
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
 import type { FieldErrorsImpl } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -12,12 +12,7 @@ import {
   useCreateSpeakerProfile,
   useUpdateSpeakerProfile,
 } from '@/lib/hooks/use-podcasts'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { PodcastProfileFormDialogShell } from '@/components/podcasts/forms/PodcastProfileFormDialogShell'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -119,13 +114,6 @@ export function SpeakerProfileFormDialog({
     errors.speakers as FieldErrorsImpl<{ root?: { message?: string } }> | undefined
   )?.root?.message
 
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-    reset(getDefaults())
-  }, [open, reset, getDefaults])
-
   const onSubmit = async (values: SpeakerProfileFormValues) => {
     const payload = {
       ...values,
@@ -149,19 +137,17 @@ export function SpeakerProfileFormDialog({
   }
 
   const isSubmitting = createProfile.isPending || updateProfile.isPending
-  const disableSubmit = isSubmitting
-  const isEdit = mode === 'edit'
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {isEdit ? t('podcasts.editSpeakerProfile') : t('podcasts.createSpeakerProfile')}
-          </DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 px-1 py-1">
+    <PodcastProfileFormDialogShell
+      open={open}
+      onOpenChange={onOpenChange}
+      title={mode === 'edit' ? t('podcasts.editSpeakerProfile') : t('podcasts.createSpeakerProfile')}
+      isSubmitting={isSubmitting}
+      mode={mode}
+      onOpen={() => reset(getDefaults())}
+      onSubmit={handleSubmit(onSubmit)}
+    >
           <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="name">{t('podcasts.profileName')} *</Label>
@@ -309,24 +295,6 @@ export function SpeakerProfileFormDialog({
             <FieldError message={speakersArrayError} />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              {t('common.cancel')}
-            </Button>
-            <Button type="submit" disabled={disableSubmit}>
-              {isSubmitting
-                ? t('common.saving')
-                : isEdit
-                  ? t('common.saveChanges')
-                  : t('podcasts.createProfile')}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+    </PodcastProfileFormDialogShell>
   )
 }

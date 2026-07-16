@@ -2,15 +2,15 @@
 
 import { useState } from 'react'
 import { PageHeader, pageContentClassName, pageSectionGapClassName } from '@/components/layout/PageHeader'
+import { PageRefreshButton } from '@/components/layout/PageRefreshButton'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DefaultPromptEditor } from './components/DefaultPromptEditor'
 import { ArtifactsList } from './components/ArtifactsList'
 import { ArtifactPlayground } from './components/ArtifactPlayground'
 import { useArtifacts } from '@/lib/hooks/use-artifacts'
 import { Artifact } from '@/lib/types/artifacts'
-import { Wand2, Play, RefreshCw } from 'lucide-react'
+import { Wand2, Play } from 'lucide-react'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
 export default function ArtifactsPage() {
@@ -30,9 +30,7 @@ export default function ArtifactsPage() {
         <PageHeader
           title={t('artifacts.title')}
           actions={
-            <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => refetch()} aria-label={t('common.refresh')}>
-              <RefreshCw className="h-3.5 w-3.5" />
-            </Button>
+            <PageRefreshButton onClick={() => refetch()} />
           }
         />
 

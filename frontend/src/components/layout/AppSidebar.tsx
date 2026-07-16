@@ -209,6 +209,8 @@ export function AppSidebar() {
                 size="icon"
                 onClick={toggleCollapse}
                 className={cn(collapsedSidebarButtonClassName, 'absolute opacity-0 transition-opacity hover:bg-sidebar-accent group-hover:opacity-100')}
+                aria-label={t('navigation.expandSidebar')}
+                data-testid="sidebar-toggle"
               >
                 <Menu className="h-3.5 w-3.5" />
               </Button>
@@ -226,6 +228,7 @@ export function AppSidebar() {
                 size="icon"
                 onClick={toggleCollapse}
                 className="h-7 w-7 shrink-0 text-sidebar-foreground hover:bg-sidebar-accent"
+                aria-label={t('navigation.collapseSidebar')}
                 data-testid="sidebar-toggle"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />

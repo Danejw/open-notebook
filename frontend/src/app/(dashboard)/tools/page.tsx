@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Wrench, RefreshCw } from 'lucide-react'
+import { Wrench } from 'lucide-react'
 import { PageHeader, pageContentClassName, pageSectionGapClassName } from '@/components/layout/PageHeader'
+import { PageRefreshButton } from '@/components/layout/PageRefreshButton'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -34,15 +35,7 @@ export default function ToolsPage() {
             title={t('tools.title')}
             actions={
               <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 w-7 p-0"
-                  onClick={() => refetch()}
-                  aria-label={t('common.refresh')}
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                </Button>
+                <PageRefreshButton onClick={() => refetch()} />
                 <McpConnectionCreateDialog />
               </div>
             }

@@ -260,7 +260,9 @@ export const ptBR = {
     "theme": "Tema",
     "ask": "Perguntar",
     "viewAllProjects": "View all projects",
-    "runArtifact": "Run artifact in project"
+    "runArtifact": "Run artifact in project",
+    "expandSidebar": "Expandir barra lateral",
+    "collapseSidebar": "Recolher barra lateral"
   },
   "images": {
     "title": "Images",

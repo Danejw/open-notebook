@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Copy, Download, Image as ImageIcon, Pencil, Save, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { DetailPageSkeleton } from '@/components/common/LoadingSkeletons'
 import { ImageLibraryPicker } from '@/components/media/ImageLibraryPicker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -55,6 +57,7 @@ export default function DocumentWorkspacePage() {
   const [imagePickerOpen, setImagePickerOpen] = useState(false)
   const [replaceImgIndex, setReplaceImgIndex] = useState<number | null>(null)
   const [replaceSlug, setReplaceSlug] = useState<string | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
   useEffect(() => {
@@ -263,16 +266,20 @@ export default function DocumentWorkspacePage() {
 
   const handleDelete = async () => {
     if (!document) return
-    if (!window.confirm(t('documents.confirmDeleteDocument'))) return
     const projectId = document.project_id
     await deleteDocument.mutateAsync({ id: documentId, projectId })
+    setDeleteOpen(false)
     router.push(`/projects/${projectId}`)
   }
 
-  if (isLoading || !document) {
+  if (isLoading) {
+    return <DetailPageSkeleton />
+  }
+
+  if (!document) {
     return (
       <div className="p-6 py-8">
-        <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+        <p className="text-sm text-muted-foreground">{t('common.error')}</p>
       </div>
     )
   }
@@ -337,7 +344,7 @@ export default function DocumentWorkspacePage() {
                 variant="ghost"
                 className="h-7 gap-1 text-destructive"
                 disabled={deleteDocument.isPending}
-                onClick={() => void handleDelete()}
+                onClick={() => setDeleteOpen(true)}
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 {t('common.delete')}
@@ -521,6 +528,17 @@ export default function DocumentWorkspacePage() {
             ? t('documents.replaceImage')
             : t('documents.insertImage')
         }
+      />
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={t('common.delete')}
+        description={t('documents.confirmDeleteDocument')}
+        confirmText={t('common.delete')}
+        confirmVariant="destructive"
+        isLoading={deleteDocument.isPending}
+        onConfirm={() => void handleDelete()}
       />
     </div>
   )

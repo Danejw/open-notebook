@@ -260,7 +260,9 @@ export const plPL = {
     "theme": "Motyw",
     "ask": "Pytaj",
     "viewAllProjects": "View all projects",
-    "runArtifact": "Run artifact in project"
+    "runArtifact": "Run artifact in project",
+    "expandSidebar": "Rozwiń pasek boczny",
+    "collapseSidebar": "Zwiń pasek boczny"
   },
   "images": {
     "title": "Images",

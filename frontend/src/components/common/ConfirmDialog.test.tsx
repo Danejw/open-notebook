@@ -48,4 +48,12 @@ describe('ConfirmDialog', () => {
     expect(confirmBtn).toBeDisabled()
     expect(cancelBtn).toBeDisabled()
   })
+
+  it('should apply destructive design tokens when confirmVariant is destructive', () => {
+    render(<ConfirmDialog {...defaultProps} confirmVariant="destructive" />)
+
+    const confirmBtn = screen.getByText('common.confirm').closest('button')
+    expect(confirmBtn).toHaveClass('bg-destructive')
+    expect(confirmBtn).not.toHaveClass('bg-red-600')
+  })
 })

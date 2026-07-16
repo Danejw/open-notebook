@@ -260,7 +260,9 @@ export const enUS = {
     "theme": "Theme",
     "ask": "Ask",
     "viewAllProjects": "View all projects",
-    "runArtifact": "Run artifact in project"
+    "runArtifact": "Run artifact in project",
+    "expandSidebar": "Expand sidebar",
+    "collapseSidebar": "Collapse sidebar"
   },
   "images": {
     "title": "Images",

@@ -48,6 +48,7 @@ import {
 import { useProjectColumnsStore } from '@/lib/stores/project-columns-store'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { cn } from '@/lib/utils'
+import { listActionTriggerClassName } from '@/lib/utils/list-action-trigger'
 import { setArtifactDragData, clearArtifactDragData } from '@/lib/utils/artifact-drag'
 import { downloadNoteMarkdown, normalizeNoteId } from '@/lib/utils/export-note'
 import { notesApi } from '@/lib/api/notes'
@@ -746,7 +747,7 @@ function ArtifactListRow({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 w-7 p-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+                className={cn('h-7 w-7 p-0', listActionTriggerClassName)}
                 onClick={(e) => e.stopPropagation()}
                 aria-label={t('common.actions')}
               >

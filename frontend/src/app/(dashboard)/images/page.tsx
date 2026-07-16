@@ -1,8 +1,9 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { Copy, Image as ImageIcon, Pencil, RefreshCw, Trash2, Upload } from 'lucide-react'
+import { Copy, Image as ImageIcon, Pencil, Trash2, Upload } from 'lucide-react'
 import { PageHeader, pageContentClassName, pageSectionGapClassName } from '@/components/layout/PageHeader'
+import { PageRefreshButton } from '@/components/layout/PageRefreshButton'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ColumnCardsSkeleton } from '@/components/common/LoadingSkeletons'
 import { MediaThumbnail } from '@/components/media/MediaThumbnail'
@@ -108,15 +109,7 @@ export default function ImagesPage() {
           title={t('images.title')}
           actions={
             <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 w-7 p-0"
-                onClick={() => refetch()}
-                aria-label={t('common.refresh')}
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-              </Button>
+              <PageRefreshButton onClick={() => refetch()} />
               <input
                 ref={fileInputRef}
                 type="file"

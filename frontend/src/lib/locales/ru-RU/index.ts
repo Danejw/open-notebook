@@ -260,7 +260,9 @@ export const ruRU = {
     "theme": "Тема",
     "ask": "Запрос",
     "viewAllProjects": "View all projects",
-    "runArtifact": "Run artifact in project"
+    "runArtifact": "Run artifact in project",
+    "expandSidebar": "Развернуть боковую панель",
+    "collapseSidebar": "Свернуть боковую панель"
   },
   "images": {
     "title": "Images",

@@ -10,6 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { buttonVariants } from '@/components/ui/button'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
 
@@ -63,7 +64,11 @@ export function ConfirmDialog({
               handleOpenChange(false)
             }}
             disabled={isLoading}
-            className={confirmVariant === 'destructive' ? 'bg-red-600 hover:bg-red-700' : ''}
+            className={
+              confirmVariant === 'destructive'
+                ? buttonVariants({ variant: 'destructive' })
+                : undefined
+            }
           >
             {isLoading ? (
               <>

@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Controller } from "react-hook-form"
+import { FieldError } from "@/components/common/FieldError"
 
 interface CreateSourceFormData {
   type: 'link' | 'upload' | 'text'
@@ -199,9 +200,7 @@ export function SourceTypeStep({ control, register, setValue, errors, urlValidat
                       <p className="text-xs text-muted-foreground">
                         {t('sources.batchUrlHint')}
                       </p>
-                      {errors.url && (
-                        <p className="text-sm text-destructive">{errors.url.message}</p>
-                      )}
+                      <FieldError message={errors.url?.message} />
                       {urlValidationErrors && urlValidationErrors.length > 0 && (
                         <div className="p-[2px] bg-destructive/10 rounded-md border border-destructive/20 space-y-[2px]">
                           <p className="text-sm font-medium text-destructive">
@@ -262,9 +261,7 @@ export function SourceTypeStep({ control, register, setValue, errors, urlValidat
                           </ul>
                         </div>
                       )}
-                      {errors.file && (
-                        <p className="text-sm text-destructive">{errors.file.message}</p>
-                      )}
+                      <FieldError message={errors.file?.message} />
                       {isOverLimit && selectedType === 'upload' && (
                         <p className="text-sm text-destructive">
                           {t('sources.maxFilesAllowed').replace('{count}', MAX_BATCH_SIZE.toString())}
@@ -290,9 +287,7 @@ export function SourceTypeStep({ control, register, setValue, errors, urlValidat
                         rows={6}
                         onPaste={handleTextPaste}
                       />
-                      {errors.content && (
-                        <p className="text-sm text-destructive">{errors.content.message}</p>
-                      )}
+                      <FieldError message={errors.content?.message} />
                     </div>
                   )}
                 </TabsContent>
@@ -300,9 +295,7 @@ export function SourceTypeStep({ control, register, setValue, errors, urlValidat
             </Tabs>
           )}
         />
-        {errors.type && (
-          <p className="text-sm text-destructive">{errors.type.message}</p>
-        )}
+        <FieldError message={errors.type?.message} />
       </div>
 
       {/* Hide title field in batch mode - titles will be auto-generated */}
@@ -322,9 +315,7 @@ export function SourceTypeStep({ control, register, setValue, errors, urlValidat
               ? t('sources.titleRequired')
               : t('sources.titleGenerated')}
           </p>
-          {errors.title && (
-            <p className="text-sm text-destructive">{errors.title.message}</p>
-          )}
+          <FieldError message={errors.title?.message} />
         </div>
       )}
 

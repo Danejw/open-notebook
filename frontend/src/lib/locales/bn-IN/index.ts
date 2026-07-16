@@ -260,7 +260,9 @@ export const bnIN = {
     "theme": "থিম",
     "ask": "জিজ্ঞাসা",
     "viewAllProjects": "View all projects",
-    "runArtifact": "Run artifact in project"
+    "runArtifact": "Run artifact in project",
+    "expandSidebar": "সাইডবার প্রসারিত করুন",
+    "collapseSidebar": "সাইডবার সংকুচিত করুন"
   },
   "images": {
     "title": "Images",

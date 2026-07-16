@@ -48,9 +48,39 @@ describe('AppSidebar', () => {
 
     renderSidebar(<AppSidebar />)
 
-    fireEvent.click(screen.getByTestId('sidebar-toggle'))
+    fireEvent.click(screen.getByRole('button', { name: 'navigation.collapseSidebar' }))
 
     expect(toggleCollapse).toHaveBeenCalled()
+  })
+
+  it('exposes an accessible name on the expanded sidebar toggle', () => {
+    vi.mocked(useSidebarStore).mockReturnValue({
+      isCollapsed: false,
+      toggleCollapse: vi.fn(),
+    } as any)
+
+    renderSidebar(<AppSidebar />)
+
+    expect(screen.getByRole('button', { name: 'navigation.collapseSidebar' })).toBeDefined()
+    expect(screen.getByTestId('sidebar-toggle')).toHaveAttribute(
+      'aria-label',
+      'navigation.collapseSidebar'
+    )
+  })
+
+  it('exposes an accessible name on the collapsed sidebar toggle', () => {
+    vi.mocked(useSidebarStore).mockReturnValue({
+      isCollapsed: true,
+      toggleCollapse: vi.fn(),
+    } as any)
+
+    renderSidebar(<AppSidebar />)
+
+    expect(screen.getByRole('button', { name: 'navigation.expandSidebar' })).toBeDefined()
+    expect(screen.getByTestId('sidebar-toggle')).toHaveAttribute(
+      'aria-label',
+      'navigation.expandSidebar'
+    )
   })
 
   it('shows collapsed view when isCollapsed is true', () => {

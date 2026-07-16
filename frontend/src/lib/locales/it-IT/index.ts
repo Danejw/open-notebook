@@ -260,7 +260,9 @@ export const itIT = {
     "theme": "Tema",
     "ask": "Chiedi",
     "viewAllProjects": "View all projects",
-    "runArtifact": "Run artifact in project"
+    "runArtifact": "Run artifact in project",
+    "expandSidebar": "Espandi barra laterale",
+    "collapseSidebar": "Comprimi barra laterale"
   },
   "images": {
     "title": "Images",

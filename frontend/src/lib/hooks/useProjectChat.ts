@@ -1,33 +1,33 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
-import { getApiErrorMessage } from '@/lib/utils/error-handler'
-import { useTranslation } from '@/lib/hooks/use-translation'
+import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { chatApi } from '@/lib/api/chat'
 import { QUERY_KEYS } from '@/lib/api/query-client'
-import { readAgUiSseStream } from '@/lib/ag-ui/events'
-import { createAgUiChatSseHandler } from '@/lib/hooks/chat-sse-handlers'
 import {
-  deriveQueueActivityLog,
-  deriveQueueHasWork,
-  deriveQueueStreamStatus,
-  getQueueCurrentItem,
-} from '@/lib/hooks/chat-queue-status'
-import { useChatSessionSelection } from '@/lib/hooks/useChatSessionSelection'
-import {
-  ProjectChatMessage,
   CreateProjectChatSessionRequest,
   UpdateProjectChatSessionRequest,
   SourceListResponse,
-  NoteResponse
+  NoteResponse,
+  ProjectChatMessage,
 } from '@/lib/types/api'
 import type { ContextSelections } from '@/lib/types/project-context'
 import type { Artifact } from '@/lib/types/artifacts'
+import { useTranslation } from '@/lib/hooks/use-translation'
+import { getApiErrorMessage } from '@/lib/utils/error-handler'
+import { toast } from 'sonner'
 import { useChatQueue } from '@/lib/hooks/useChatQueue'
 import { useChatStreamingBuffer } from '@/lib/hooks/useChatStreamingBuffer'
-import { mergeActiveQueueMessages } from '@/lib/utils/chat-queue-messages'
+import { useChatSessionSelection } from '@/lib/hooks/useChatSessionSelection'
+import { useChatSessionMutations } from '@/lib/hooks/useChatSessionMutations'
+import { useChatSkillSelection } from '@/lib/hooks/useChatSkillSelection'
+import { useChatSendTurn } from '@/lib/hooks/useChatSendTurn'
+import {
+  applyAutoCreatedSessionSideEffects,
+  useChatEnqueueMessage,
+} from '@/lib/hooks/useChatEnqueueMessage'
+import { useChatQueuePresentation } from '@/lib/hooks/useChatQueuePresentation'
+import { ensureChatSessionForMessage } from '@/lib/hooks/chat-session-utils'
 import { isA2uiChatEnabled } from '@/lib/a2ui/constants'
 import { hydrateA2uiFromMessages } from '@/lib/a2ui/hydrate'
 import { formatA2uiActionMessage } from '@/lib/a2ui/format-action-message'
@@ -59,60 +59,32 @@ export function useProjectChat({
   const queryClient = useQueryClient()
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ProjectChatMessage[]>([])
-  const [isSending, setIsSending] = useState(false)
   const [tokenCount, setTokenCount] = useState<number>(0)
   const [charCount, setCharCount] = useState<number>(0)
-  // Pending model override for when user changes model before a session exists
-  const [pendingModelOverride, setPendingModelOverride] = useState<string | null>(null)
-  const [selectedSkillIds, setSelectedSkillIdsState] = useState<string[]>([])
-  const [pendingSkillIds, setPendingSkillIds] = useState<string[] | null>(null)
-  const [selectedHtmlTemplateId, setSelectedHtmlTemplateIdState] = useState<string | null>(null)
-  const [pendingHtmlTemplateId, setPendingHtmlTemplateId] = useState<string | null | undefined>(undefined)
-  const [selectedMcpToolIds, setSelectedMcpToolIdsState] = useState<string[]>([])
-  // Refs keep selector values readable by send/enqueue in the same tick as applyArtifactDefaults.
-  const selectedSkillIdsRef = useRef(selectedSkillIds)
-  const selectedHtmlTemplateIdRef = useRef(selectedHtmlTemplateId)
-  const selectedMcpToolIdsRef = useRef(selectedMcpToolIds)
-  selectedSkillIdsRef.current = selectedSkillIds
-  selectedHtmlTemplateIdRef.current = selectedHtmlTemplateId
-  selectedMcpToolIdsRef.current = selectedMcpToolIds
-  const {
-    streamContentRef,
-    streamRafRef,
-    flushStreamingContent,
-    appendStreamingDelta,
-    clearStreamingBuffers,
-    streamStatus,
-    setStreamStatus,
-    activityLog,
-    setActivityLog,
-    liveMcpToolCalls,
-    setLiveMcpToolCalls,
-  } = useChatStreamingBuffer(setMessages)
+  const [pendingModelOverride, setPendingModelOverride] = useState<string | null>(
+    null
+  )
+
+  const streaming = useChatStreamingBuffer(setMessages)
+  const { streamStatus, activityLog, liveMcpToolCalls } = streaming
 
   const sessionsQueryKey = QUERY_KEYS.projectChatSessions(projectId, guestKey)
   const sessionQueryKey = useCallback(
-    (sessionId: string) =>
-      QUERY_KEYS.projectChatSession(sessionId, guestKey),
+    (sessionId: string) => QUERY_KEYS.projectChatSession(sessionId, guestKey),
     [guestKey]
   )
 
-  // Fetch sessions for this project
   const {
     data: sessions = [],
     isLoading: loadingSessions,
-    refetch: refetchSessions
+    refetch: refetchSessions,
   } = useQuery({
     queryKey: sessionsQueryKey,
     queryFn: () => chatApi.listSessions(projectId, guestKey),
     enabled: !!projectId && (!sharedMode || !!guestKey),
   })
 
-  // Fetch current session with messages
-  const {
-    data: currentSession,
-    refetch: refetchCurrentSession
-  } = useQuery({
+  const { data: currentSession, refetch: refetchCurrentSession } = useQuery({
     queryKey: sessionQueryKey(currentSessionId!),
     queryFn: () => chatApi.getSession(currentSessionId!, guestKey),
     enabled: !!projectId && !!currentSessionId && (!sharedMode || !!guestKey),
@@ -146,307 +118,388 @@ export function useProjectChat({
     prefetchSession,
   })
 
-  // Restore skill / template selection from the active session (or pending)
-  useEffect(() => {
-    if (sharedMode) {
-      setSelectedSkillIdsState([])
-      setSelectedMcpToolIdsState([])
-      setSelectedHtmlTemplateIdState(null)
-      return
-    }
-    if (!currentSessionId) {
-      setSelectedSkillIdsState(pendingSkillIds ?? [])
-      setSelectedHtmlTemplateIdState(
-        pendingHtmlTemplateId === undefined ? null : pendingHtmlTemplateId
-      )
-      return
-    }
-    // Active session owns selection; pending was only for pre-session picks
-    if (pendingSkillIds !== null) {
-      setPendingSkillIds(null)
-    }
-    if (pendingHtmlTemplateId !== undefined) {
-      setPendingHtmlTemplateId(undefined)
-    }
-    if (currentSession) {
-      setSelectedSkillIdsState(currentSession.skill_ids ?? [])
-      setSelectedHtmlTemplateIdState(currentSession.html_template_id ?? null)
-    }
-  }, [currentSession, currentSessionId, pendingSkillIds, pendingHtmlTemplateId, sharedMode])
-
-  // Create session mutation
-  const createSessionMutation = useMutation({
-    mutationFn: (data: CreateProjectChatSessionRequest) =>
-      chatApi.createSession(
-        sharedMode
-          ? { ...data, skill_ids: [], model_override: undefined, html_template_id: null }
-          : data,
-        guestKey
-      ),
-    onSuccess: (newSession) => {
-      queryClient.invalidateQueries({
-        queryKey: sessionsQueryKey,
-      })
-      setCurrentSessionId(newSession.id)
-      if (!sharedMode) {
-        toast.success(t('chat.sessionCreated'))
-      }
-    },
-    onError: (err: unknown) => {
-      const error = err as { response?: { data?: { detail?: string } }, message?: string };
-      toast.error(getApiErrorMessage(error.response?.data?.detail || error.message, (key) => t(key), 'apiErrors.failedToCreateSession'))
-    }
+  const skillSelection = useChatSkillSelection({
+    currentSessionId,
+    currentSession,
+    disabled: sharedMode,
+    sessionsQueryKey,
+    sessionQueryKey,
+    persistSession: (sessionId, data) =>
+      chatApi.updateSession(sessionId, data, guestKey),
   })
 
-  // Update session mutation
-  const updateSessionMutation = useMutation({
-    mutationFn: ({ sessionId, data }: {
-      sessionId: string
-      data: UpdateProjectChatSessionRequest
-    }) => chatApi.updateSession(sessionId, data, guestKey),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: sessionsQueryKey,
-      })
-      queryClient.invalidateQueries({
-        queryKey: sessionQueryKey(currentSessionId!),
-      })
-      toast.success(t('chat.sessionUpdated'))
+  const {
+    selectedSkillIds,
+    selectedHtmlTemplateId,
+    selectedMcpToolIds,
+    selectedSkillIdsRef,
+    selectedHtmlTemplateIdRef,
+    selectedMcpToolIdsRef,
+    setSelectedSkillIds,
+    setSelectedHtmlTemplateId,
+    setSelectedMcpToolIds,
+    clearPending,
+    clearPendingOnSessionCreated,
+  } = skillSelection
+
+  const {
+    updateSessionMutation,
+    createSession: mutateCreateSession,
+    updateSession,
+    deleteSession,
+    switchSession: switchSessionBase,
+  } = useChatSessionMutations({
+    sessionsQueryKey,
+    sessionQueryKey,
+    currentSessionId,
+    setCurrentSessionId,
+    setMessages,
+    toastOnCreate: !sharedMode,
+    api: {
+      create: (data: CreateProjectChatSessionRequest) =>
+        chatApi.createSession(
+          sharedMode
+            ? {
+                ...data,
+                skill_ids: [],
+                model_override: undefined,
+                html_template_id: null,
+              }
+            : data,
+          guestKey
+        ),
+      update: (sessionId, data: UpdateProjectChatSessionRequest) =>
+        chatApi.updateSession(sessionId, data, guestKey),
+      delete: (sessionId) => chatApi.deleteSession(sessionId, guestKey),
     },
-    onError: (err: unknown) => {
-      const error = err as { response?: { data?: { detail?: string } }, message?: string };
-      toast.error(getApiErrorMessage(error.response?.data?.detail || error.message, (key) => t(key), 'apiErrors.failedToUpdateSession'))
-    }
   })
 
-  // Delete session mutation
-  const deleteSessionMutation = useMutation({
-    mutationFn: (sessionId: string) =>
-      chatApi.deleteSession(sessionId, guestKey),
-    onSuccess: (_, deletedId) => {
-      queryClient.invalidateQueries({
-        queryKey: sessionsQueryKey,
-      })
-      if (currentSessionId === deletedId) {
-        setCurrentSessionId(null)
-        setMessages([])
-      }
-      toast.success(t('chat.sessionDeleted'))
-    },
-    onError: (err: unknown) => {
-      const error = err as { response?: { data?: { detail?: string } }, message?: string };
-      toast.error(getApiErrorMessage(error.response?.data?.detail || error.message, (key) => t(key), 'apiErrors.failedToDeleteSession'))
-    }
-  })
+  const applyCreatedSession = useMemo(
+    () =>
+      applyAutoCreatedSessionSideEffects({
+        setCurrentSessionId,
+        clearPendingOnSessionCreated,
+        invalidateSessionsList: () => {
+          void queryClient.invalidateQueries({ queryKey: sessionsQueryKey })
+        },
+        clearPendingModelOverride: () => setPendingModelOverride(null),
+      }),
+    [clearPendingOnSessionCreated, queryClient, sessionsQueryKey]
+  )
 
-  // Build context from sources and notes based on user selections
   const buildContextConfig = useCallback(() => {
-    const context_config: { sources: Record<string, string>, notes: Record<string, string> } = {
+    const context_config: {
+      sources: Record<string, string>
+      notes: Record<string, string>
+    } = {
       sources: {},
-      notes: {}
+      notes: {},
     }
 
-    sources.forEach(source => {
+    sources.forEach((source) => {
       const mode = contextSelections.sources[source.id]
-      if (mode === 'full') {
-        context_config.sources[source.id] = 'full content'
-      } else {
-        context_config.sources[source.id] = 'not in'
-      }
+      context_config.sources[source.id] =
+        mode === 'full' ? 'full content' : 'not in'
     })
 
-    notes.forEach(note => {
+    notes.forEach((note) => {
       const mode = contextSelections.notes[note.id]
-      if (mode === 'full') {
-        context_config.notes[note.id] = 'full content'
-      } else {
-        context_config.notes[note.id] = 'not in'
-      }
+      context_config.notes[note.id] =
+        mode === 'full' ? 'full content' : 'not in'
     })
 
     return context_config
   }, [sources, notes, contextSelections])
 
-  // Build context from sources and notes based on user selections (token counts for UI)
   const buildContext = useCallback(async () => {
     const context_config = buildContextConfig()
-
     const response = await chatApi.buildContext({
       project_id: projectId,
-      context_config
+      context_config,
     })
-
     setTokenCount(response.token_count)
     setCharCount(response.char_count)
-
     return response.context
   }, [projectId, buildContextConfig])
 
-  // Send message (synchronous, no streaming)
-  const sendMessage = useCallback(async (
-    message: string,
-    modelOverride?: string,
-    editMessageId?: string,
-  ) => {
-    let sessionId = currentSessionId
-
-    // Auto-create session if none exists
-    if (!sessionId) {
+  const ensureSession = useCallback(
+    async (message: string): Promise<string | null> => {
       try {
-        const defaultTitle = message.length > 30
-          ? `${message.substring(0, 30)}...`
-          : message
-        const newSession = await chatApi.createSession({
-          project_id: projectId,
-          title: defaultTitle,
-          model_override: sharedMode ? undefined : (pendingModelOverride ?? undefined),
-          skill_ids: sharedMode ? [] : selectedSkillIdsRef.current,
-          html_template_id: sharedMode ? null : selectedHtmlTemplateIdRef.current,
-          guest_key: guestKey ?? undefined,
-        }, guestKey)
-        sessionId = newSession.id
-        setCurrentSessionId(sessionId)
-        // Clear pending overrides now that they're applied to the session
-        setPendingModelOverride(null)
-        setPendingSkillIds(null)
-        setPendingHtmlTemplateId(undefined)
-        queryClient.invalidateQueries({
-          queryKey: sessionsQueryKey,
+        const result = await ensureChatSessionForMessage({
+          currentSessionId,
+          message,
+          createSession: (title) =>
+            chatApi.createSession(
+              {
+                project_id: projectId,
+                title,
+                model_override: sharedMode
+                  ? undefined
+                  : (pendingModelOverride ?? undefined),
+                skill_ids: sharedMode ? [] : selectedSkillIdsRef.current,
+                html_template_id: sharedMode
+                  ? null
+                  : selectedHtmlTemplateIdRef.current,
+                guest_key: guestKey ?? undefined,
+              },
+              guestKey
+            ),
         })
+        if (result.created) {
+          applyCreatedSession(result.sessionId)
+        }
+        return result.sessionId
       } catch (err: unknown) {
-        const error = err as { response?: { data?: { detail?: string } }, message?: string };
-        toast.error(getApiErrorMessage(error.response?.data?.detail || error.message, (key) => t(key), 'apiErrors.failedToCreateSession'))
-        return
+        const error = err as {
+          response?: { data?: { detail?: string } }
+          message?: string
+        }
+        toast.error(
+          getApiErrorMessage(
+            error.response?.data?.detail || error.message,
+            (key) => t(key),
+            'apiErrors.failedToCreateSession'
+          )
+        )
+        return null
       }
-    }
+    },
+    [
+      applyCreatedSession,
+      currentSessionId,
+      guestKey,
+      pendingModelOverride,
+      projectId,
+      selectedHtmlTemplateIdRef,
+      selectedSkillIdsRef,
+      sharedMode,
+      t,
+    ]
+  )
 
-    // Add user message optimistically
-    const userMessage: ProjectChatMessage = {
-      id: `temp-${Date.now()}`,
-      type: 'human',
-      content: message,
-      timestamp: new Date().toISOString()
-    }
-
-    if (editMessageId) {
-      const editIndex = messages.findIndex((msg) => msg.id === editMessageId)
-      if (editIndex >= 0) {
-        setMessages([...messages.slice(0, editIndex), userMessage])
-      } else {
-        setMessages((prev) => [...prev, userMessage])
-      }
-    } else {
-      setMessages(prev => [...prev, userMessage])
-    }
-    setIsSending(true)
-    setStreamStatus(null)
-    setActivityLog([])
-    setLiveMcpToolCalls([])
-
-    try {
-      // Pass context_config so the graph streams retrieving_context as an AG-UI step.
-      // Refresh token counts in the background without blocking the stream.
+  const buildSendRequest = useCallback(
+    async ({
+      sessionId,
+      message,
+      modelOverride,
+      editMessageId,
+    }: {
+      sessionId: string
+      message: string
+      modelOverride?: string
+      editMessageId?: string
+    }) => {
       const context_config = buildContextConfig()
       void buildContext().catch(() => {})
-      const body = await chatApi.sendMessage({
-        session_id: sessionId,
-        message,
-        context_config,
-        model_override: sharedMode
-          ? undefined
-          : (modelOverride ?? (currentSession?.model_override ?? undefined)),
-        skill_ids: sharedMode ? [] : selectedSkillIdsRef.current,
-        mcp_tool_ids: sharedMode ? [] : selectedMcpToolIdsRef.current,
-        html_template_id: sharedMode ? null : selectedHtmlTemplateIdRef.current,
-        edit_message_id: editMessageId,
-        artifact_id: sharedMode ? undefined : (activeArtifactId ?? undefined),
-      }, guestKey)
-
-      const aiMessageIdRef = { current: null as string | null }
-      const handleAgUiEvent = createAgUiChatSseHandler<ProjectChatMessage>(
+      return chatApi.sendMessage(
         {
-          aiMessageIdRef,
-          streamContentRef,
-          streamRafRef,
-          setMessages,
-          setStreamStatus,
-          setActivityLog,
-          setLiveMcpToolCalls,
-          appendStreamingDelta,
-          flushStreamingContent,
-          clearStreamingBuffers,
-          t,
-          createAiMessage: (id, content) => ({
-            id,
-            type: 'ai',
-            content,
-            timestamp: new Date().toISOString(),
-          }),
+          session_id: sessionId,
+          message,
+          context_config,
+          model_override: sharedMode
+            ? undefined
+            : (modelOverride ?? currentSession?.model_override ?? undefined),
+          skill_ids: sharedMode ? [] : selectedSkillIdsRef.current,
+          mcp_tool_ids: sharedMode ? [] : selectedMcpToolIdsRef.current,
+          html_template_id: sharedMode ? null : selectedHtmlTemplateIdRef.current,
+          edit_message_id: editMessageId,
+          artifact_id: sharedMode ? undefined : (activeArtifactId ?? undefined),
         },
-        {
-          flushOnTextMessageEnd: true,
-          clearBuffersOnRunFinished: true,
-        }
+        guestKey
       )
+    },
+    [
+      activeArtifactId,
+      buildContext,
+      buildContextConfig,
+      currentSession?.model_override,
+      guestKey,
+      selectedHtmlTemplateIdRef,
+      selectedMcpToolIdsRef,
+      selectedSkillIdsRef,
+      sharedMode,
+    ]
+  )
 
-      await readAgUiSseStream(body, handleAgUiEvent)
-
-      // Refetch current session to get updated data
-      await refetchCurrentSession()
-      if (sessionId) {
-        await queryClient.invalidateQueries({
-          queryKey: QUERY_KEYS.mcpSessionToolCalls(sessionId),
-        })
-      }
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } }, message?: string };
-      console.error('Error sending message:', error)
-      toast.error(getApiErrorMessage(error.response?.data?.detail || error.message, (key) => t(key), 'apiErrors.failedToSendMessage'))
-      if (editMessageId) {
-        await refetchCurrentSession()
-      } else {
-        // Remove optimistic message on error
-        setMessages(prev => prev.filter(msg => !msg.id.startsWith('temp-')))
-      }
-    } finally {
-      setIsSending(false)
-      setStreamStatus(null)
-      setActivityLog([])
-      setLiveMcpToolCalls([])
-      // Start deferred queue items now that the live turn released the session.
-      try {
-        await chatQueue.ensureRunner()
-      } catch (ensureError) {
-        console.error('Error ensuring chat queue runner:', ensureError)
-      }
-    }
-  }, [
-    projectId,
+  const { sendMessage, isSending } = useChatSendTurn<ProjectChatMessage>({
     currentSessionId,
-    currentSession,
-    pendingModelOverride,
-    activeArtifactId,
     messages,
-    buildContext,
-    buildContextConfig,
-    appendStreamingDelta,
-    clearStreamingBuffers,
-    flushStreamingContent,
+    setMessages,
     refetchCurrentSession,
     queryClient,
     chatQueue,
+    streaming,
     t,
-    guestKey,
-    sharedMode,
-    sessionsQueryKey,
-    setActivityLog,
-    setLiveMcpToolCalls,
-    setStreamStatus,
-    streamContentRef,
-    streamRafRef,
-  ])
+    ensureSession,
+    buildSendRequest,
+    supportsEditResend: true,
+    sseHandlerOptions: {
+      flushOnTextMessageEnd: true,
+      clearBuffersOnRunFinished: true,
+    },
+  })
 
-  // Hydrate A2UI surfaces when session history loads / switches.
+  const ensureSessionForEnqueue = useCallback(
+    async (message: string): Promise<string> => {
+      const sessionId = await ensureSession(message)
+      if (!sessionId) {
+        throw new Error('Failed to create chat session')
+      }
+      return sessionId
+    },
+    [ensureSession]
+  )
+
+  const buildEnqueuePayload = useCallback(
+    ({
+      message,
+      modelOverride,
+      loopCount,
+      scheduleRunner,
+    }: {
+      message: string
+      modelOverride?: string
+      loopCount: number
+      scheduleRunner?: boolean
+    }) => ({
+      prompt: message,
+      loop_count: loopCount,
+      schedule_runner: scheduleRunner,
+      model_id:
+        modelOverride ??
+        currentSession?.model_override ??
+        pendingModelOverride ??
+        undefined,
+      skill_ids: selectedSkillIdsRef.current,
+      tool_ids: selectedMcpToolIdsRef.current,
+      html_template_id: selectedHtmlTemplateIdRef.current,
+      artifact_id: activeArtifactId ?? undefined,
+      context_config: buildContextConfig(),
+    }),
+    [
+      activeArtifactId,
+      buildContextConfig,
+      currentSession?.model_override,
+      pendingModelOverride,
+      selectedHtmlTemplateIdRef,
+      selectedMcpToolIdsRef,
+      selectedSkillIdsRef,
+    ]
+  )
+
+  const { enqueueMessage } = useChatEnqueueMessage({
+    currentSessionId,
+    chatQueue,
+    t,
+    ensureSession: ensureSessionForEnqueue,
+    buildEnqueuePayload,
+    fallbackToSend: sharedMode ? sendMessage : undefined,
+  })
+
+  const {
+    queueMessages,
+    queueCurrentItem,
+    queueStreamStatus,
+    queueActivityLog,
+    queueHasWork,
+  } = useChatQueuePresentation({
+    messages,
+    queue: chatQueue.queue,
+    streamStatus,
+    activityLog,
+    includeFailed: true,
+  })
+
+  const switchSession = useCallback(
+    (sessionId: string) => switchSessionBase(sessionId, clearPending),
+    [clearPending, switchSessionBase]
+  )
+
+  const createSession = useCallback(
+    (title?: string) => {
+      clearPending()
+      return mutateCreateSession({
+        project_id: projectId,
+        title,
+        skill_ids: sharedMode ? [] : selectedSkillIdsRef.current,
+        html_template_id: sharedMode ? null : selectedHtmlTemplateIdRef.current,
+        guest_key: guestKey ?? undefined,
+      })
+    },
+    [
+      clearPending,
+      guestKey,
+      mutateCreateSession,
+      projectId,
+      selectedHtmlTemplateIdRef,
+      selectedSkillIdsRef,
+      sharedMode,
+    ]
+  )
+
+  const setModelOverride = useCallback(
+    (model: string | null) => {
+      if (sharedMode) {
+        return
+      }
+      if (currentSessionId) {
+        updateSessionMutation.mutate({
+          sessionId: currentSessionId,
+          data: { model_override: model },
+        })
+      } else {
+        setPendingModelOverride(model)
+      }
+    },
+    [currentSessionId, sharedMode, updateSessionMutation]
+  )
+
+  const applyArtifactDefaults = useCallback(
+    (artifact: Artifact) => {
+      if (sharedMode) {
+        return
+      }
+
+      const artifactSkillIds = artifact.skill_ids ?? []
+      if (artifactSkillIds.length > 0) {
+        const nextSkills = Array.from(
+          new Set([...selectedSkillIdsRef.current, ...artifactSkillIds])
+        )
+        setSelectedSkillIds(nextSkills)
+      }
+
+      const artifactToolIds = artifact.mcp_tool_ids ?? []
+      if (artifactToolIds.length > 0) {
+        const nextTools = Array.from(
+          new Set([...selectedMcpToolIdsRef.current, ...artifactToolIds])
+        )
+        setSelectedMcpToolIds(nextTools)
+      }
+
+      if (artifact.html_template_id) {
+        setSelectedHtmlTemplateId(artifact.html_template_id)
+      }
+    },
+    [
+      setSelectedHtmlTemplateId,
+      setSelectedMcpToolIds,
+      setSelectedSkillIds,
+      sharedMode,
+      selectedMcpToolIdsRef,
+      selectedSkillIdsRef,
+    ]
+  )
+
+  const editAndResend = useCallback(
+    async (messageId: string, content: string, modelOverride?: string) => {
+      if (!content.trim()) {
+        return
+      }
+      await sendMessage(content.trim(), modelOverride, messageId)
+    },
+    [sendMessage]
+  )
+
   useEffect(() => {
     if (!isA2uiChatEnabled()) {
       return
@@ -460,7 +513,6 @@ export function useProjectChat({
     }
   }, [currentSession, currentSessionId])
 
-  // Route A2UI AskUser actions back through the normal chat send path.
   useEffect(() => {
     if (!isA2uiChatEnabled()) {
       return
@@ -474,7 +526,6 @@ export function useProjectChat({
     }
   }, [sendMessage])
 
-  // Dev fixture: ?a2ui_fixture=1 injects a recorded AskUser surface without the agent.
   useEffect(() => {
     if (!isA2uiChatEnabled() || typeof window === 'undefined') {
       return
@@ -502,278 +553,6 @@ export function useProjectChat({
       .applyMessages(fixtureId, loadAskUserFixture())
   }, [])
 
-  const editAndResend = useCallback(async (messageId: string, content: string, modelOverride?: string) => {
-    if (!content.trim()) {
-      return
-    }
-    await sendMessage(content.trim(), modelOverride, messageId)
-  }, [sendMessage])
-
-  const enqueueMessage = useCallback(
-    async (
-      message: string,
-      options: {
-        modelOverride?: string
-        loopCount: number
-        scheduleRunner?: boolean
-      }
-    ) => {
-      if (sharedMode) {
-        await sendMessage(message, options.modelOverride)
-        return
-      }
-
-      try {
-        let sessionId = currentSessionId
-        if (!sessionId) {
-          const defaultTitle =
-            message.length > 30 ? `${message.substring(0, 30)}...` : message
-          const newSession = await chatApi.createSession({
-            project_id: projectId,
-            title: defaultTitle,
-            model_override: pendingModelOverride ?? undefined,
-            skill_ids: selectedSkillIdsRef.current,
-            html_template_id: selectedHtmlTemplateIdRef.current,
-          })
-          sessionId = newSession.id
-          setCurrentSessionId(sessionId)
-          setPendingModelOverride(null)
-          setPendingSkillIds(null)
-          setPendingHtmlTemplateId(undefined)
-          await queryClient.invalidateQueries({ queryKey: sessionsQueryKey })
-        }
-
-        await chatQueue.enqueueForSession(sessionId, {
-          prompt: message,
-          loop_count: options.loopCount,
-          schedule_runner: options.scheduleRunner,
-          model_id:
-            options.modelOverride ??
-            currentSession?.model_override ??
-            pendingModelOverride ??
-            undefined,
-          skill_ids: selectedSkillIdsRef.current,
-          tool_ids: selectedMcpToolIdsRef.current,
-          html_template_id: selectedHtmlTemplateIdRef.current,
-          artifact_id: activeArtifactId ?? undefined,
-          context_config: buildContextConfig(),
-        })
-      } catch (err: unknown) {
-        const error = err as {
-          response?: { data?: { detail?: string } }
-          message?: string
-        }
-        console.error('Error enqueueing message:', error)
-        toast.error(
-          getApiErrorMessage(
-            error.response?.data?.detail || error.message || error,
-            (key) => t(key),
-            'apiErrors.failedToSendMessage'
-          )
-        )
-        throw err
-      }
-    },
-    [
-      activeArtifactId,
-      buildContextConfig,
-      chatQueue,
-      currentSession?.model_override,
-      currentSessionId,
-      pendingModelOverride,
-      projectId,
-      queryClient,
-      sendMessage,
-      sessionsQueryKey,
-      sharedMode,
-      t,
-    ]
-  )
-
-  const queueMessages = useMemo(
-    () => mergeActiveQueueMessages(messages, chatQueue.queue),
-    [chatQueue.queue, messages]
-  )
-  const queueCurrentItem = getQueueCurrentItem(chatQueue.queue)
-  const queueHasWork = deriveQueueHasWork(chatQueue.queue, { includeFailed: true })
-  const queueStreamStatus = deriveQueueStreamStatus(queueCurrentItem, streamStatus)
-  const queueActivityLog = deriveQueueActivityLog(queueCurrentItem, activityLog)
-
-  // Switch session
-  const switchSession = useCallback((sessionId: string) => {
-    setPendingSkillIds(null)
-    setPendingHtmlTemplateId(undefined)
-    setCurrentSessionId(sessionId)
-  }, [])
-
-  // Create session
-  const createSession = useCallback((title?: string) => {
-    setPendingSkillIds(null)
-    setPendingHtmlTemplateId(undefined)
-    return createSessionMutation.mutate({
-      project_id: projectId,
-      title,
-      skill_ids: sharedMode ? [] : selectedSkillIdsRef.current,
-      html_template_id: sharedMode ? null : selectedHtmlTemplateIdRef.current,
-      guest_key: guestKey ?? undefined,
-    })
-  }, [createSessionMutation, projectId, sharedMode, guestKey])
-
-  // Update session
-  const updateSession = useCallback((sessionId: string, data: UpdateProjectChatSessionRequest) => {
-    return updateSessionMutation.mutate({
-      sessionId,
-      data
-    })
-  }, [updateSessionMutation])
-
-  // Delete session
-  const deleteSession = useCallback((sessionId: string) => {
-    return deleteSessionMutation.mutate(sessionId)
-  }, [deleteSessionMutation])
-
-  // Set model override - handles both existing sessions and pending state
-  const setModelOverride = useCallback((model: string | null) => {
-    if (sharedMode) {
-      return
-    }
-    if (currentSessionId) {
-      // Session exists - update it directly
-      updateSessionMutation.mutate({
-        sessionId: currentSessionId,
-        data: { model_override: model }
-      })
-    } else {
-      // No session yet - store as pending
-      setPendingModelOverride(model)
-    }
-  }, [currentSessionId, sharedMode, updateSessionMutation])
-
-  // Persist skill selection on the session so it survives across messages
-  const setSelectedSkillIds = useCallback((ids: string[]) => {
-    if (sharedMode) {
-      selectedSkillIdsRef.current = []
-      setSelectedSkillIdsState([])
-      return
-    }
-    selectedSkillIdsRef.current = ids
-    setSelectedSkillIdsState(ids)
-    if (currentSessionId) {
-      void (async () => {
-        try {
-          await chatApi.updateSession(currentSessionId, { skill_ids: ids }, guestKey)
-          queryClient.invalidateQueries({
-            queryKey: sessionsQueryKey,
-          })
-          queryClient.invalidateQueries({
-            queryKey: sessionQueryKey(currentSessionId),
-          })
-        } catch (err: unknown) {
-          const error = err as { response?: { data?: { detail?: string } }, message?: string }
-          toast.error(getApiErrorMessage(error.response?.data?.detail || error.message, (key) => t(key), 'apiErrors.failedToUpdateSession'))
-        }
-      })()
-      setPendingSkillIds(null)
-    } else {
-      setPendingSkillIds(ids)
-    }
-  }, [
-    currentSessionId,
-    guestKey,
-    queryClient,
-    sessionQueryKey,
-    sessionsQueryKey,
-    sharedMode,
-    t,
-  ])
-
-  const setSelectedHtmlTemplateId = useCallback((id: string | null) => {
-    if (sharedMode) {
-      selectedHtmlTemplateIdRef.current = null
-      setSelectedHtmlTemplateIdState(null)
-      return
-    }
-    selectedHtmlTemplateIdRef.current = id
-    setSelectedHtmlTemplateIdState(id)
-    if (currentSessionId) {
-      void (async () => {
-        try {
-          await chatApi.updateSession(
-            currentSessionId,
-            { html_template_id: id },
-            guestKey
-          )
-          queryClient.invalidateQueries({
-            queryKey: sessionsQueryKey,
-          })
-          queryClient.invalidateQueries({
-            queryKey: sessionQueryKey(currentSessionId),
-          })
-        } catch (err: unknown) {
-          const error = err as { response?: { data?: { detail?: string } }, message?: string }
-          toast.error(getApiErrorMessage(error.response?.data?.detail || error.message, (key) => t(key), 'apiErrors.failedToUpdateSession'))
-        }
-      })()
-      setPendingHtmlTemplateId(undefined)
-    } else {
-      setPendingHtmlTemplateId(id)
-    }
-  }, [
-    currentSessionId,
-    guestKey,
-    queryClient,
-    sessionQueryKey,
-    sessionsQueryKey,
-    sharedMode,
-    t,
-  ])
-
-  const setSelectedMcpToolIds = useCallback((ids: string[]) => {
-    if (sharedMode) {
-      selectedMcpToolIdsRef.current = []
-      setSelectedMcpToolIdsState([])
-      return
-    }
-    selectedMcpToolIdsRef.current = ids
-    setSelectedMcpToolIdsState(ids)
-  }, [sharedMode])
-
-  /**
-   * Apply artifact-linked chat defaults before auto-send.
-   * Skills and tools are appended (union); HTML template replaces when set.
-   * Refs are updated immediately so the same-tick auto-send reads the new values.
-   */
-  const applyArtifactDefaults = useCallback((artifact: Artifact) => {
-    if (sharedMode) {
-      return
-    }
-
-    const artifactSkillIds = artifact.skill_ids ?? []
-    if (artifactSkillIds.length > 0) {
-      const nextSkills = Array.from(new Set([...selectedSkillIdsRef.current, ...artifactSkillIds]))
-      selectedSkillIdsRef.current = nextSkills
-      setSelectedSkillIds(nextSkills)
-    }
-
-    const artifactToolIds = artifact.mcp_tool_ids ?? []
-    if (artifactToolIds.length > 0) {
-      const nextTools = Array.from(new Set([...selectedMcpToolIdsRef.current, ...artifactToolIds]))
-      selectedMcpToolIdsRef.current = nextTools
-      setSelectedMcpToolIds(nextTools)
-    }
-
-    if (artifact.html_template_id) {
-      selectedHtmlTemplateIdRef.current = artifact.html_template_id
-      setSelectedHtmlTemplateId(artifact.html_template_id)
-    }
-  }, [
-    setSelectedHtmlTemplateId,
-    setSelectedMcpToolIds,
-    setSelectedSkillIds,
-    sharedMode,
-  ])
-
-  // Update token/char counts when context selections change (debounced)
   useEffect(() => {
     const timer = window.setTimeout(() => {
       buildContext().catch((error) => {
@@ -784,9 +563,8 @@ export function useProjectChat({
   }, [buildContext])
 
   return {
-    // State
     sessions,
-    currentSession: currentSession || sessions.find(s => s.id === currentSessionId),
+    currentSession: currentSession || sessions.find((s) => s.id === currentSessionId),
     currentSessionId,
     messages: sharedMode ? messages : queueMessages,
     isSending: sharedMode
@@ -806,8 +584,6 @@ export function useProjectChat({
     queueHasWork,
     queueStreamError: chatQueue.streamError,
     isDirectSending: isSending,
-
-    // Actions
     createSession,
     updateSession,
     deleteSession,
@@ -826,6 +602,6 @@ export function useProjectChat({
     setSelectedHtmlTemplateId,
     setSelectedMcpToolIds,
     applyArtifactDefaults,
-    refetchSessions
+    refetchSessions,
   }
 }

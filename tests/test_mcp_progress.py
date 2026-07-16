@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from construction_os.domain.mcp import ChatToolCall
 from construction_os.mcp.progress import MCP_TOOL_CALL_EVENT, emit_mcp_tool_call

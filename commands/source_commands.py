@@ -35,7 +35,7 @@ class SourceProcessingInput(CommandInput):
     source_id: str
     content_state: Dict[str, Any]
     project_ids: List[str]
-    # Accepted for API compatibility; ignored — insights feature removed
+    # Accepted for API compatibility; ignored (unused)
     artifacts: List[str] = []
     embed: bool
 
@@ -93,7 +93,7 @@ async def process_source_command(
         # Always embed so vector search and knowledge graph run after upload
         embed = True
 
-        # 2. Process source with all projects (artifacts ignored — insights removed)
+        # 2. Process source with all projects
         logger.info(f"Processing source with {len(input_data.project_ids)} projects")
 
         result = await source_graph.ainvoke(
@@ -150,7 +150,7 @@ class IngestTextSourceInput(CommandInput):
     content: str
     title: str
     project_ids: List[str]
-    # Accepted for API compatibility; ignored — insights feature removed
+    # Accepted for API compatibility; ignored (unused)
     artifacts: List[str] = []
     embed: bool
 
@@ -181,7 +181,7 @@ async def ingest_text_source_command(
     Set full_text on an existing source and embed.
 
     Skips content-core extraction for promoted notes and playground output.
-    Artifacts list is ignored (insights feature removed).
+    Artifacts list is accepted for API compatibility but ignored.
     """
     start_time = time.time()
 

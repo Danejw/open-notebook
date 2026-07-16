@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { ChatPanel } from '@/components/source/ChatPanel'
+import { ChatWorkspace } from '@/components/chat/ChatWorkspace'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProject } from '@/lib/hooks/use-projects'
 import { useProjectChat } from '@/lib/hooks/useProjectChat'
@@ -102,7 +102,7 @@ export default function SharedProjectChatPage() {
 
   return (
     <div className="flex h-dvh w-full flex-col bg-background">
-      <ChatPanel
+      <ChatWorkspace
         title={project?.name || t('share.chatTitle')}
         contextType="project"
         projectId={projectId}

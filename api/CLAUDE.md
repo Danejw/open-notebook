@@ -20,15 +20,16 @@ FastAPI application serving three architectural layers: routes (HTTP endpoints),
 - Run podcast profile data migration (legacy string to model registry conversion)
 - Register all routers
 
-**Key services**:
-- `chat_service.py`: Invokes chat graph with messages, context
-- `podcast_service.py`: Orchestrates outline + transcript generation
-- `sources_service.py`: Content ingestion, vectorization, metadata
-- `notes_service.py`: Note creation, linking to projects/sources
-- `artifacts_service.py`: Applies Artifacts to content
-- `models_service.py`: Manages AI provider/model configuration
-- `episode_profiles_service.py`: Manages podcast speaker/episode profiles
-- `project_service.py`: Project CRUD via API client
+**Key services** (domain-first — call `construction_os.domain` and graphs directly):
+- `chat_queue_service.py`: Async chat job queue (lease, idempotency, worker integration)
+- `credentials_service.py`: Credential CRUD, migrate-from-env, connection testing
+- `podcast_service.py`: Podcast episode generation via Surreal-Commands job queue
+- `promotion_service.py`: Source promotion workflows
+- `command_service.py`: Command/job status tracking
+- `skills_service.py`: Chat skill definitions and retrieval
+- `mcp_service.py`: MCP server integration for tool use
+
+Routers for CRUD (projects, sources, notes, etc.) call domain models and repository functions directly — not HTTP wrapper services.
 
 ## Component Catalog
 
@@ -38,14 +39,18 @@ FastAPI application serving three architectural layers: routes (HTTP endpoints),
 - **Auth middleware**: PasswordAuthMiddleware protects endpoints (password-based access control)
 
 ### Services (Business Logic)
-- **chat_service.py**: Invokes chat.py graph; handles message history via SqliteSaver
-- **podcast_service.py**: Generates outline (outline.jinja), then transcript (transcript.jinja) for episodes
-- **sources_service.py**: Ingests files/URLs (content_core), extracts text, vectorizes, saves to SurrealDB
-- **artifacts_service.py**: Applies Artifacts via artifact.py graph
-- **models_service.py**: Manages ModelManager config (AI provider overrides)
-- **episode_profiles_service.py**: CRUD for EpisodeProfile and SpeakerProfile models
-- **notes_service.py**: Creates notes linked to projects/sources
-- **project_service.py**: Project CRUD via API client
+
+Domain-first services orchestrate domain models, database, graphs, and job queues:
+
+- **chat_queue_service.py**: Chat queue submit/lease/complete; integrates with Surreal-Commands worker
+- **credentials_service.py**: Credential CRUD, migrate-from-env, provider status, model discovery
+- **podcast_service.py**: Submits podcast generation jobs to Surreal-Commands
+- **promotion_service.py**: Source promotion pipeline
+- **command_service.py**: Polls command/job status
+- **skills_service.py**: Skill catalog for chat sessions
+- **mcp_service.py**: MCP tool server wiring
+
+Routers import domain models (`Project`, `Source`, `Note`, etc.) and LangGraph workflows directly. There is no HTTP client layer calling the API from within the API process.
 
 ### Models (Schemas)
 - **models.py**: Pydantic schemas for request/response validation
@@ -66,14 +71,15 @@ FastAPI application serving three architectural layers: routes (HTTP endpoints),
 - **routers/auth.py**: POST /auth/password (password-based auth)
 - **routers/languages.py**: GET /languages (available podcast languages via pycountry+babel)
 - **routers/commands.py**: GET /commands/{command_id} (job status tracking)
-- **routers/context.py**: POST /projects/{id}/context
+- **routers/context.py**: POST /projects/{id}/context (**deprecated** — sunset 2026-12-31; use POST /chat/context)
+- **routers/search.py**: POST /search/ask (SSE), POST /search/ask/simple (**deprecated** — sunset 2026-12-31)
 
 ## Common Patterns
 
 - **Service injection via FastAPI**: Routers import services directly; no DI framework
 - **Async/await throughout**: All DB queries, graph invocations, AI calls are async
 - **SurrealDB transactions**: Services use repo_query, repo_create, repo_upsert from database layer
-- **Config override pattern**: Models/config override via models_service passed to graph.ainvoke(config=...)
+- **Config override pattern**: Model config override via RunnableConfig is per-request only (not persistent)
 - **Error handling**: Custom exception hierarchy (`construction_os.exceptions`) with global FastAPI exception handlers mapping to HTTP status codes (see Error Handling section below). LangGraph nodes use `classify_error()` to convert raw LLM provider errors into typed exceptions with user-friendly messages.
 - **Logging**: loguru logger in main.py; services expected to log key operations
 - **Response normalization**: All responses follow standard schema (data + metadata structure)
@@ -138,9 +144,9 @@ The frontend `getApiErrorMessage()` helper (`lib/utils/error-handler.ts`) tries 
 
 1. Create router file in `routers/` (e.g., `routers/new_feature.py`)
 2. Import router into `main.py` and register: `app.include_router(new_feature.router, tags=["new_feature"])`
-3. Create service in `new_feature_service.py` with business logic
+3. Add business logic in a domain-first service (`*_service.py`) if orchestration is non-trivial, or call domain models/graphs from the router
 4. Define request/response schemas in `models.py` (or create `new_feature_models.py`)
-5. Implement router functions calling service methods
+5. Implement router functions calling service methods or domain APIs
 6. Test with `uv run uvicorn api.main:app --host 0.0.0.0 --port 5055`
 
 ## Testing Patterns
@@ -192,6 +198,8 @@ Individual credential records replacing the old `ProviderConfig` singleton. Each
 - Provider-specific config (base_url, endpoint, api_version, etc.)
 
 ### Integration with Key Provider (`construction_os/ai/key_provider.py`)
+
+Provider env var names are defined once in `construction_os/ai/provider_env_map.py` and shared with `credentials_service`.
 
 The `key_provider` module provisions DB-stored credentials into environment variables for Esperanto compatibility:
 

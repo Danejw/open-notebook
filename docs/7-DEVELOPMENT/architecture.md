@@ -556,20 +556,27 @@ async def create_source(source_data: SourceCreate):
 
 ### 3. **Service Pattern**
 
-Services orchestrate domain objects, repositories, and workflows:
+Domain-first services orchestrate domain objects, repositories, and workflows. Routers call domain models and graphs directly; there is no in-process HTTP client layer.
 
 ```python
-# api/project_service.py
-class ProjectService:
-    async def get_project_with_stats(project_id: str):
-        project = await Project.get(project_id)
-        sources = await project.get_sources()
-        notes = await project.get_notes()
-        return {
-            "project": project,
-            "source_count": len(sources),
-            "note_count": len(notes),
-        }
+# api/credentials_service.py (example)
+async def migrate_from_env() -> dict:
+    for provider in PROVIDER_ENV_CONFIG:
+        if not check_env_configured(provider):
+            continue
+        cred = create_credential_from_env(provider)
+        await cred.save()
+    return {"migrated": migrated, ...}
+```
+
+```python
+# api/routers/projects.py (typical CRUD router)
+@router.get("/projects/{project_id}")
+async def get_project(project_id: str):
+    project = await Project.get(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return ProjectResponse.from_domain(project)
 ```
 
 **Responsibilities**:

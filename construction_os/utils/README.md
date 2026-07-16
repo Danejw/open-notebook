@@ -1,6 +1,6 @@
 # ContextBuilder
 
-A flexible and generic ContextBuilder class for the Construction OS project that can handle any parameters and build context from sources, projects, insights, and notes.
+A flexible ContextBuilder for Construction OS that assembles LLM context from sources, projects, and notes.
 
 ## Features
 
@@ -8,7 +8,7 @@ A flexible and generic ContextBuilder class for the Construction OS project that
 - **Priority-based Management**: Automatic prioritization and sorting of context items
 - **Token Counting**: Built-in token counting and truncation to fit limits
 - **Deduplication**: Automatic removal of duplicate items based on ID
-- **Type-based Grouping**: Separates sources, notes, and insights in output
+- **Type-based Grouping**: Separates sources and notes in output
 - **Async Support**: Fully async for database operations
 
 ## Basic Usage
@@ -20,10 +20,9 @@ from construction_os.utils.context_builder import ContextBuilder, ContextConfig
 builder = ContextBuilder(project_id="project:123")
 context = await builder.build()
 
-# Single source with insights
+# Single source
 builder = ContextBuilder(
     source_id="source:456",
-    include_insights=True,
     max_tokens=2000
 )
 context = await builder.build()
@@ -47,7 +46,6 @@ context = await build_project_context(
 # Build single source context
 context = await build_source_context(
     source_id="source:456",
-    include_insights=True
 )
 
 # Build mixed context
@@ -66,20 +64,17 @@ from construction_os.utils.context_builder import ContextConfig
 # Custom configuration
 config = ContextConfig(
     sources={
-        "source:doc1": "insights",
-        "source:doc2": "full content", 
-        "source:doc3": "not in"  # Exclude
+        "source:doc1": "full content",
+        "source:doc2": "not in"  # Exclude
     },
     notes={
         "note:summary": "full content",
         "note:draft": "not in"  # Exclude
     },
-    include_insights=True,
     max_tokens=3000,
     priority_weights={
         "source": 120,  # Higher priority
-        "note": 80,     # Medium priority  
-        "insight": 100  # High priority
+        "note": 80,     # Medium priority
     }
 )
 
@@ -89,6 +84,8 @@ builder = ContextBuilder(
 )
 context = await builder.build()
 ```
+
+Legacy stored context modes such as `"insights"` are normalized to full source content.
 
 ## Programmatic Item Management
 
@@ -114,26 +111,6 @@ builder.truncate_to_fit(1000)
 context = builder._format_response()
 ```
 
-## Flexible Parameters
-
-The ContextBuilder accepts any parameters via `**kwargs`, making it extensible for future features:
-
-```python
-builder = ContextBuilder(
-    project_id="project:123",
-    include_insights=True,
-    max_tokens=2000,
-    
-    # Custom parameters for future extensions
-    user_id="user:456",
-    custom_filter="advanced",
-    experimental_feature=True
-)
-
-# Access custom parameters
-user_id = builder.params.get('user_id')
-```
-
 ## Output Format
 
 The ContextBuilder returns a structured response:
@@ -141,17 +118,14 @@ The ContextBuilder returns a structured response:
 ```python
 {
     "sources": [...],           # List of source contexts
-    "notes": [...],             # List of note contexts  
-    "insights": [...],          # List of insight contexts
+    "notes": [...],             # List of note contexts
     "total_tokens": 1234,       # Total token count
     "total_items": 10,          # Total number of items
     "project_id": "project:123",  # If provided
     "metadata": {
         "source_count": 5,
         "note_count": 3,
-        "insight_count": 2,
         "config": {
-            "include_insights": true,
             "include_notes": true,
             "max_tokens": 2000
         }
@@ -177,12 +151,3 @@ The ContextBuilder integrates seamlessly with the existing Construction OS archi
 - Leverages the repository pattern for database access
 - Follows the same async patterns as other services
 - Integrates with the token counting utilities
-
-## Error Handling
-
-The ContextBuilder handles errors gracefully:
-
-- Missing projects/sources/notes are logged but don't stop execution
-- Database errors are wrapped in `DatabaseOperationError`
-- Invalid parameters raise `InvalidInputError`
-- All errors include detailed context information

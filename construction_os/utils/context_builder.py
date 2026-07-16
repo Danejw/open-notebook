@@ -14,6 +14,11 @@ from loguru import logger
 
 from construction_os.domain.project import Note, Project, Source
 from construction_os.exceptions import DatabaseOperationError, NotFoundError
+from construction_os.utils.context_mode import (
+    is_excluded,
+    is_note_included,
+    normalize_inclusion_status,
+)
 
 from .token_utils import token_count
 
@@ -145,11 +150,9 @@ class ContextBuilder:
             source_id: ID of the source
             inclusion_level: "full content", "insights" (legacy→full), or "not in"
         """
-        if inclusion_level == "not in":
+        if is_excluded(inclusion_level):
             return
-        # Legacy context mode "insights" maps to full source content
-        if "insights" in inclusion_level and "full content" not in inclusion_level:
-            inclusion_level = "full content"
+        inclusion_level = normalize_inclusion_status(inclusion_level)
 
 
         try:
@@ -217,8 +220,10 @@ class ContextBuilder:
                 config_notes = self.context_config.notes
                 if config_notes:
                     for note_id, status in config_notes.items():
-                        if "not in" not in status:
-                            await self._add_note_context(note_id, status)
+                        if is_note_included(status):
+                            await self._add_note_context(
+                                note_id, normalize_inclusion_status(status)
+                            )
                 else:
                     # Default: get all notes with short content
                     notes = await project.get_notes()

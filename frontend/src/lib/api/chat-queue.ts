@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import apiClient, { handleUnauthorizedResponse } from '@/lib/api/client'
+import apiClient, { getAuthToken, handleUnauthorizedResponse } from '@/lib/api/client'
 import type {
   ChatQueueItemEnqueuePayload,
   ChatQueueItemResponse,
@@ -266,26 +266,6 @@ export function consumeChatQueueSseBuffer(
     const frame = remaining.slice(0, delimiter.index)
     remaining = remaining.slice(delimiter.index + delimiter[0].length)
     parseSseFrame(frame, onEvent)
-  }
-}
-
-function getAuthToken(): string | null {
-  if (typeof window === 'undefined') {
-    return null
-  }
-  const authStorage = localStorage.getItem('auth-storage')
-  if (!authStorage) {
-    return null
-  }
-  try {
-    const parsed = JSON.parse(authStorage) as {
-      state?: { token?: unknown }
-    }
-    return typeof parsed.state?.token === 'string'
-      ? parsed.state.token
-      : null
-  } catch {
-    return null
   }
 }
 

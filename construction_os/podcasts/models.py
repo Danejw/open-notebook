@@ -1,6 +1,5 @@
 from typing import Any, ClassVar, Dict, List, Optional, Tuple, Union
 
-from loguru import logger
 from pydantic import ConfigDict, Field, field_validator
 from surrealdb import RecordID
 

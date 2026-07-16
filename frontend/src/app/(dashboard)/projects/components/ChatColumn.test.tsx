@@ -6,8 +6,8 @@ import { useProjectChat } from '@/lib/hooks/useProjectChat'
 const { chatPanelSpy } = vi.hoisted(() => ({ chatPanelSpy: vi.fn() }))
 
 vi.mock('@/lib/hooks/useProjectChat')
-vi.mock('@/components/source/ChatPanel', () => ({
-  ChatPanel: (props: unknown) => {
+vi.mock('@/components/chat/ChatWorkspace', () => ({
+  ChatWorkspace: (props: unknown) => {
     chatPanelSpy(props)
     return <div data-testid="chat-panel" />
   },

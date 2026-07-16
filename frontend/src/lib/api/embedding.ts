@@ -39,10 +39,8 @@ export interface RebuildProgress {
 export interface RebuildStats {
   sources_processed?: number
   notes_processed?: number
-  insights_processed?: number
   sources?: number
   notes?: number
-  insights?: number
   failed?: number
   failed_items?: number
   processing_time?: number

@@ -1,0 +1,258 @@
+'use client'
+
+import { type ReactNode } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
+import {
+  SourceChatMessage,
+  SourceChatContextIndicator,
+  BaseChatSession,
+} from '@/lib/types/api'
+import { ChatToolCall } from '@/lib/types/mcp'
+import { useTranslation } from '@/lib/hooks/use-translation'
+import { cn } from '@/lib/utils'
+import { columnCardClassName } from '@/components/projects/ColumnHeader'
+import type { Artifact } from '@/lib/types/artifacts'
+import {
+  ChatQueuePanel,
+  type ChatQueuePanelProps,
+} from '@/components/source/ChatQueuePanel'
+import type {
+  ChatQueueItemUpdatePayload,
+  ChatQueueResponse,
+} from '@/lib/types/chat-queue'
+import { ChatSessionHeader } from '@/components/source/ChatSessionHeader'
+import { ChatPanelMessages } from '@/components/source/ChatPanelMessages'
+import { ChatContextStrip } from '@/components/source/ChatContextStrip'
+import { ChatComposer } from '@/components/source/ChatComposer'
+
+export type ChatScope = 'project' | 'source'
+
+export interface ProjectContextStats {
+  sourcesFull: number
+  notesCount: number
+  tokenCount?: number
+  charCount?: number
+}
+
+export interface ChatWorkspaceProps {
+  messages: SourceChatMessage[]
+  isStreaming: boolean
+  /**
+   * True only while a live AG-UI turn (not a queue drain) owns the session.
+   * Used to defer queue runner scheduling until that turn ends.
+   */
+  isDirectStreaming?: boolean
+  streamStatus?: string | null
+  activityLog?: string[]
+  contextIndicators?: SourceChatContextIndicator | null
+  onSendMessage: (message: string, modelOverride?: string) => void
+  onEnqueueMessage?: (
+    message: string,
+    options: {
+      modelOverride?: string
+      loopCount: number
+      scheduleRunner?: boolean
+    }
+  ) => void | Promise<unknown>
+  onEditMessage?: (messageId: string, content: string, modelOverride?: string) => void
+  /** Source chat: abort an in-flight AG-UI stream. */
+  onCancelStreaming?: () => void
+  historyEditDisabled?: boolean
+  composerDisabled?: boolean
+  modelOverride?: string
+  onModelChange?: (model?: string) => void
+  sessions?: BaseChatSession[]
+  currentSessionId?: string | null
+  onCreateSession?: (title: string) => void
+  onSelectSession?: (sessionId: string) => void
+  onDeleteSession?: (sessionId: string) => void
+  onUpdateSession?: (sessionId: string, title: string) => void
+  loadingSessions?: boolean
+  title?: string
+  contextType?: ChatScope
+  projectContextStats?: ProjectContextStats
+  projectId?: string
+  sourceId?: string
+  guestKey?: string | null
+  enableSuggestions?: boolean
+  selectedSkillIds?: string[]
+  onSkillIdsChange?: (ids: string[]) => void
+  selectedHtmlTemplateId?: string | null
+  onHtmlTemplateIdChange?: (id: string | null) => void
+  selectedMcpToolIds?: string[]
+  onMcpToolIdsChange?: (ids: string[]) => void
+  liveMcpToolCalls?: ChatToolCall[]
+  activeArtifact?: Artifact
+  noteSaveTitle?: string
+  artifactPrefillKey?: number
+  headerActions?: ReactNode
+  contextStripSlot?: ReactNode
+  variant?: 'column' | 'immersive'
+  queue?: ChatQueueResponse
+  onPauseQueue?: ChatQueuePanelProps['onPause']
+  onResumeQueue?: ChatQueuePanelProps['onResume']
+  onEditQueueItem?: (
+    itemId: string,
+    payload: ChatQueueItemUpdatePayload
+  ) => void | Promise<unknown>
+  onDeleteQueueItem?: ChatQueuePanelProps['onDeleteItem']
+  onRetryQueueItem?: ChatQueuePanelProps['onRetryItem']
+  onReorderQueue?: ChatQueuePanelProps['onReorder']
+}
+
+export function ChatWorkspace({
+  messages,
+  isStreaming,
+  isDirectStreaming = false,
+  streamStatus,
+  activityLog = [],
+  contextIndicators = null,
+  onSendMessage,
+  onEnqueueMessage,
+  onEditMessage,
+  onCancelStreaming,
+  historyEditDisabled,
+  composerDisabled = false,
+  modelOverride,
+  onModelChange,
+  sessions = [],
+  currentSessionId,
+  onCreateSession,
+  onSelectSession,
+  onDeleteSession,
+  onUpdateSession,
+  loadingSessions = false,
+  title,
+  contextType = 'source',
+  projectContextStats,
+  projectId,
+  sourceId,
+  guestKey = null,
+  enableSuggestions = true,
+  selectedSkillIds,
+  onSkillIdsChange,
+  selectedHtmlTemplateId,
+  onHtmlTemplateIdChange,
+  selectedMcpToolIds,
+  onMcpToolIdsChange,
+  liveMcpToolCalls = [],
+  activeArtifact,
+  noteSaveTitle,
+  artifactPrefillKey = 0,
+  headerActions,
+  contextStripSlot,
+  variant = 'column',
+  queue,
+  onPauseQueue,
+  onResumeQueue,
+  onEditQueueItem,
+  onDeleteQueueItem,
+  onRetryQueueItem,
+  onReorderQueue,
+}: ChatWorkspaceProps) {
+  const { t } = useTranslation()
+  const isImmersive = variant === 'immersive'
+  const resolvedTitle =
+    title ||
+    (contextType === 'source'
+      ? t('chat.chatWith').replace('{name}', t('navigation.sources'))
+      : t('chat.chatWith').replace('{name}', t('common.project')))
+
+  const hasQueueControls = Boolean(
+    queue &&
+      onPauseQueue &&
+      onResumeQueue &&
+      onEditQueueItem &&
+      onDeleteQueueItem &&
+      onRetryQueueItem &&
+      onReorderQueue
+  )
+
+  return (
+    <Card
+      className={cn(
+        columnCardClassName,
+        isImmersive && 'rounded-none border-0 bg-transparent shadow-none ring-0'
+      )}
+    >
+      <ChatSessionHeader
+        title={resolvedTitle}
+        variant={variant}
+        sessions={sessions}
+        currentSessionId={currentSessionId}
+        onCreateSession={onCreateSession}
+        onSelectSession={onSelectSession}
+        onDeleteSession={onDeleteSession}
+        onUpdateSession={onUpdateSession}
+        loadingSessions={loadingSessions}
+        headerActions={headerActions}
+      />
+
+      <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+        <ChatPanelMessages
+          messages={messages}
+          isStreaming={isStreaming}
+          streamStatus={streamStatus}
+          activityLog={activityLog}
+          currentSessionId={currentSessionId}
+          projectId={projectId}
+          noteSaveTitle={noteSaveTitle}
+          htmlTemplateId={selectedHtmlTemplateId ?? null}
+          liveMcpToolCalls={liveMcpToolCalls}
+          onEditMessage={onEditMessage}
+          historyEditDisabled={historyEditDisabled}
+          modelOverride={modelOverride}
+          contextType={contextType}
+          variant={variant}
+        />
+
+        {hasQueueControls ? (
+          <ChatQueuePanel
+            queue={queue!}
+            onPause={onPauseQueue!}
+            onResume={onResumeQueue!}
+            onEditItem={onEditQueueItem!}
+            onDeleteItem={onDeleteQueueItem!}
+            onRetryItem={onRetryQueueItem!}
+            onReorder={onReorderQueue!}
+          />
+        ) : null}
+
+        {contextStripSlot ?? (
+          <ChatContextStrip
+            contextIndicators={contextIndicators}
+            projectContextStats={projectContextStats}
+          />
+        )}
+
+        <ChatComposer
+          variant={variant}
+          isStreaming={isStreaming}
+          isDirectStreaming={isDirectStreaming}
+          composerDisabled={composerDisabled}
+          onSendMessage={onSendMessage}
+          onEnqueueMessage={onEnqueueMessage}
+          onCancelStreaming={onCancelStreaming}
+          modelOverride={modelOverride}
+          onModelChange={onModelChange}
+          selectedSkillIds={selectedSkillIds}
+          onSkillIdsChange={onSkillIdsChange}
+          selectedHtmlTemplateId={selectedHtmlTemplateId}
+          onHtmlTemplateIdChange={onHtmlTemplateIdChange}
+          selectedMcpToolIds={selectedMcpToolIds}
+          onMcpToolIdsChange={onMcpToolIdsChange}
+          activeArtifact={activeArtifact}
+          artifactPrefillKey={artifactPrefillKey}
+          enableSuggestions={enableSuggestions}
+          contextType={contextType}
+          projectId={projectId}
+          sourceId={sourceId}
+          guestKey={guestKey}
+          currentSessionId={currentSessionId}
+          messageCount={messages.length}
+          queue={queue}
+        />
+      </CardContent>
+    </Card>
+  )
+}

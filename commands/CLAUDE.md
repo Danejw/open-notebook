@@ -12,7 +12,7 @@
 
 ### Other Commands
 
-- **`process_source_command`**: Ingests content through `source_graph` and creates embeddings (optional). Artifact IDs are accepted for API compatibility but ignored (source insights removed). Retries on transaction conflicts (exp. jitter, max 15×, 1-120s). Permanent failures (`ValueError`, e.g. unextractable content) are **re-raised** so the job is marked `failed` (and the source becomes retryable from the UI) rather than completing with a failure payload.
+- **`process_source_command`**: Ingests content through `source_graph` and creates embeddings (optional). Artifact IDs are accepted for API compatibility but ignored. Retries on transaction conflicts (exp. jitter, max 15×, 1-120s). Permanent failures (`ValueError`, e.g. unextractable content) are **re-raised** so the job is marked `failed` (and the source becomes retryable from the UI) rather than completing with a failure payload.
 - **`generate_podcast_command`**: Creates podcasts via podcast-creator library. Resolves model registry references and credentials for all profiles before invoking podcast-creator. Validates that outline_llm, transcript_llm, and voice_model are configured.
 - **`process_text_command`** (example): Test fixture for text operations (uppercase, lowercase, reverse, word_count).
 - **`analyze_data_command`** (example): Test fixture for numeric aggregations.

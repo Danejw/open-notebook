@@ -10,6 +10,13 @@ import { QUERY_KEYS } from '@/lib/api/query-client'
 import { readAgUiSseStream } from '@/lib/ag-ui/events'
 import { createAgUiChatSseHandler } from '@/lib/hooks/chat-sse-handlers'
 import {
+  createDefaultAiMessage,
+  createOptimisticHumanMessage,
+  defaultSessionTitleFromMessage,
+  ensureChatSessionForMessage,
+  resetStreamTurnState,
+} from '@/lib/hooks/chat-stream-turn'
+import {
   deriveQueueActivityLog,
   deriveQueueHasWork,
   deriveQueueStreamStatus,
@@ -293,18 +300,23 @@ export function useProjectChat({
     // Auto-create session if none exists
     if (!sessionId) {
       try {
-        const defaultTitle = message.length > 30
-          ? `${message.substring(0, 30)}...`
-          : message
-        const newSession = await chatApi.createSession({
-          project_id: projectId,
-          title: defaultTitle,
-          model_override: sharedMode ? undefined : (pendingModelOverride ?? undefined),
-          skill_ids: sharedMode ? [] : selectedSkillIdsRef.current,
-          html_template_id: sharedMode ? null : selectedHtmlTemplateIdRef.current,
-          guest_key: guestKey ?? undefined,
-        }, guestKey)
-        sessionId = newSession.id
+        const ensured = await ensureChatSessionForMessage({
+          currentSessionId: sessionId,
+          message,
+          createSession: (title) =>
+            chatApi.createSession(
+              {
+                project_id: projectId,
+                title,
+                model_override: sharedMode ? undefined : (pendingModelOverride ?? undefined),
+                skill_ids: sharedMode ? [] : selectedSkillIdsRef.current,
+                html_template_id: sharedMode ? null : selectedHtmlTemplateIdRef.current,
+                guest_key: guestKey ?? undefined,
+              },
+              guestKey
+            ),
+        })
+        sessionId = ensured.sessionId
         setCurrentSessionId(sessionId)
         // Clear pending overrides now that they're applied to the session
         setPendingModelOverride(null)
@@ -321,12 +333,7 @@ export function useProjectChat({
     }
 
     // Add user message optimistically
-    const userMessage: ProjectChatMessage = {
-      id: `temp-${Date.now()}`,
-      type: 'human',
-      content: message,
-      timestamp: new Date().toISOString()
-    }
+    const userMessage = createOptimisticHumanMessage(message)
 
     if (editMessageId) {
       const editIndex = messages.findIndex((msg) => msg.id === editMessageId)
@@ -339,9 +346,7 @@ export function useProjectChat({
       setMessages(prev => [...prev, userMessage])
     }
     setIsSending(true)
-    setStreamStatus(null)
-    setActivityLog([])
-    setLiveMcpToolCalls([])
+    resetStreamTurnState({ setStreamStatus, setActivityLog, setLiveMcpToolCalls })
 
     try {
       // Pass context_config so the graph streams retrieving_context as an AG-UI step.
@@ -376,12 +381,8 @@ export function useProjectChat({
           flushStreamingContent,
           clearStreamingBuffers,
           t,
-          createAiMessage: (id, content) => ({
-            id,
-            type: 'ai',
-            content,
-            timestamp: new Date().toISOString(),
-          }),
+          createAiMessage: (id, content) =>
+            createDefaultAiMessage<ProjectChatMessage>(id, content),
         },
         {
           flushOnTextMessageEnd: true,
@@ -526,16 +527,19 @@ export function useProjectChat({
       try {
         let sessionId = currentSessionId
         if (!sessionId) {
-          const defaultTitle =
-            message.length > 30 ? `${message.substring(0, 30)}...` : message
-          const newSession = await chatApi.createSession({
-            project_id: projectId,
-            title: defaultTitle,
-            model_override: pendingModelOverride ?? undefined,
-            skill_ids: selectedSkillIdsRef.current,
-            html_template_id: selectedHtmlTemplateIdRef.current,
+          const ensured = await ensureChatSessionForMessage({
+            currentSessionId: sessionId,
+            message,
+            createSession: (title) =>
+              chatApi.createSession({
+                project_id: projectId,
+                title,
+                model_override: pendingModelOverride ?? undefined,
+                skill_ids: selectedSkillIdsRef.current,
+                html_template_id: selectedHtmlTemplateIdRef.current,
+              }),
           })
-          sessionId = newSession.id
+          sessionId = ensured.sessionId
           setCurrentSessionId(sessionId)
           setPendingModelOverride(null)
           setPendingSkillIds(null)

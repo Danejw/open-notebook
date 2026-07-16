@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 FRONTEND_SRC = Path("frontend/src")

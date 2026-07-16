@@ -4,9 +4,8 @@ import { useRouter, useParams } from 'next/navigation'
 import { useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
-import { useSourceChat } from '@/lib/hooks/useSourceChat'
 import { useSource } from '@/lib/hooks/use-sources'
-import { ChatPanel } from '@/components/source/ChatPanel'
+import { SourceChatColumn } from '@/components/chat/SourceChatColumn'
 import { useNavigation } from '@/lib/hooks/use-navigation'
 import { SourceDetailContent } from '@/components/source/SourceDetailContent'
 
@@ -22,8 +21,6 @@ export default function SourceDetailPage() {
     if (linked.length === 0) return undefined
     return linked[0]
   }, [source?.projects])
-
-  const chat = useSourceChat(sourceId)
 
   const handleBack = useCallback(() => {
     const returnPath = navigation.getReturnPath()
@@ -54,44 +51,10 @@ export default function SourceDetailPage() {
         </div>
 
         <div className="overflow-y-auto px-4 pb-6">
-          <ChatPanel
-            messages={chat.messages}
-            isStreaming={chat.isStreaming}
-            isDirectStreaming={chat.isDirectSending}
-            streamStatus={chat.streamStatus}
-            activityLog={chat.activityLog}
-            contextIndicators={chat.contextIndicators}
-            onSendMessage={(message, model) => chat.sendMessage(message, model)}
-            onEnqueueMessage={chat.enqueueMessage}
-            queue={chat.queue}
-            onPauseQueue={chat.pauseQueue}
-            onResumeQueue={chat.resumeQueue}
-            onEditQueueItem={chat.editQueueItem}
-            onDeleteQueueItem={chat.deleteQueueItem}
-            onRetryQueueItem={chat.retryQueueItem}
-            onReorderQueue={chat.reorderQueue}
-            modelOverride={chat.currentSession?.model_override}
-            onModelChange={(model) => {
-              if (chat.currentSessionId) {
-                chat.updateSession(chat.currentSessionId, { model_override: model })
-              }
-            }}
-            selectedSkillIds={chat.selectedSkillIds}
-            onSkillIdsChange={chat.setSelectedSkillIds}
-            selectedHtmlTemplateId={chat.selectedHtmlTemplateId}
-            onHtmlTemplateIdChange={chat.setSelectedHtmlTemplateId}
-            selectedMcpToolIds={chat.selectedMcpToolIds}
-            onMcpToolIdsChange={chat.setSelectedMcpToolIds}
-            liveMcpToolCalls={chat.liveMcpToolCalls}
-            sessions={chat.sessions}
-            currentSessionId={chat.currentSessionId}
-            onCreateSession={(title) => chat.createSession({ title })}
-            onSelectSession={chat.switchSession}
-            onUpdateSession={(sessionId, title) => chat.updateSession(sessionId, { title })}
-            onDeleteSession={chat.deleteSession}
-            loadingSessions={chat.loadingSessions}
-            projectId={projectId}
+          <SourceChatColumn
             sourceId={sourceId}
+            projectId={projectId}
+            sourceTitle={source?.title}
           />
         </div>
       </div>

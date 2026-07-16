@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ComponentProps } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { ChatPanel } from '@/components/source/ChatPanel'
+import { ChatWorkspace } from '@/components/chat/ChatWorkspace'
 import type { ChatQueueResponse } from '@/lib/types/chat-queue'
 
 vi.mock('@/components/source/ChatMessageList', () => ({
@@ -54,7 +54,7 @@ const emptyQueue: ChatQueueResponse = {
 }
 
 type EnqueueHandler = NonNullable<
-  ComponentProps<typeof ChatPanel>['onEnqueueMessage']
+  ComponentProps<typeof ChatWorkspace>['onEnqueueMessage']
 >
 
 function queueProps(onEnqueueMessage: EnqueueHandler) {
@@ -70,12 +70,12 @@ function queueProps(onEnqueueMessage: EnqueueHandler) {
   }
 }
 
-describe('ChatPanel queue composer', () => {
+describe('ChatWorkspace queue composer', () => {
   it('enqueues while another turn runs and defers the runner', async () => {
     const onEnqueueMessage = vi.fn<EnqueueHandler>().mockResolvedValue(undefined)
     const onSendMessage = vi.fn()
     render(
-      <ChatPanel
+      <ChatWorkspace
         messages={[]}
         isStreaming
         isDirectStreaming
@@ -104,7 +104,7 @@ describe('ChatPanel queue composer', () => {
   it('defers scheduling while a queue drain owns the session', async () => {
     const onEnqueueMessage = vi.fn<EnqueueHandler>().mockResolvedValue(undefined)
     render(
-      <ChatPanel
+      <ChatWorkspace
         messages={[]}
         isStreaming
         isDirectStreaming={false}
@@ -132,7 +132,7 @@ describe('ChatPanel queue composer', () => {
     const onEnqueueMessage = vi.fn<EnqueueHandler>().mockResolvedValue(undefined)
     const onSendMessage = vi.fn()
     render(
-      <ChatPanel
+      <ChatWorkspace
         messages={[]}
         isStreaming={false}
         contextIndicators={null}
@@ -158,7 +158,7 @@ describe('ChatPanel queue composer', () => {
     const onSendMessage = vi.fn()
     const props = queueProps(onEnqueueMessage)
     render(
-      <ChatPanel
+      <ChatWorkspace
         messages={[]}
         isStreaming={false}
         contextIndicators={null}
@@ -183,7 +183,7 @@ describe('ChatPanel queue composer', () => {
     const onEnqueueMessage = vi.fn<EnqueueHandler>().mockResolvedValue(undefined)
     const onSendMessage = vi.fn()
     render(
-      <ChatPanel
+      <ChatWorkspace
         messages={[]}
         isStreaming={false}
         contextIndicators={null}
@@ -252,7 +252,7 @@ describe('ChatPanel queue composer', () => {
   it('preserves the legacy direct-send path when no queue is provided', () => {
     const onSendMessage = vi.fn()
     render(
-      <ChatPanel
+      <ChatWorkspace
         messages={[]}
         isStreaming={false}
         contextIndicators={null}
@@ -275,7 +275,7 @@ describe('ChatPanel queue composer', () => {
       .fn<EnqueueHandler>()
       .mockRejectedValue(new Error('Queue unavailable'))
     render(
-      <ChatPanel
+      <ChatWorkspace
         messages={[]}
         isStreaming
         contextIndicators={null}

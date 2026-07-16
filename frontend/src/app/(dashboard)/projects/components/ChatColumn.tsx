@@ -3,7 +3,7 @@
 import { useLayoutEffect, useMemo, useRef, type ReactNode } from 'react'
 import { AlertCircle, MessageSquare } from 'lucide-react'
 import { useProjectChat } from '@/lib/hooks/useProjectChat'
-import { ChatPanel } from '@/components/source/ChatPanel'
+import { ChatWorkspace } from '@/components/chat/ChatWorkspace'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 import type { ContextSelections } from '@/lib/types/project-context'
@@ -121,7 +121,7 @@ export function ChatColumn({
     )
   } else {
     content = (
-      <ChatPanel
+      <ChatWorkspace
         title={chatTitle}
         contextType="project"
         messages={chat.messages}

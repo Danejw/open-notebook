@@ -133,7 +133,7 @@ User interactions trigger mutations/queries via hooks, which communicate with th
 
 **Root layout** (`app/layout.tsx`) wraps app with (outermost → innermost):
 1. `ErrorBoundary` — React error boundary (catches all render errors)
-2. `ThemeProvider` — next-themes for light/dark mode
+2. `ThemeProvider` — Zustand `theme-store` for light/dark mode
 3. `QueryProvider` — TanStack Query client
 4. `I18nProvider` — i18next initialization and language loading overlay
 5. `ConnectionGuard` — checks backend connectivity on startup

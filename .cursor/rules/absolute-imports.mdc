@@ -1,0 +1,25 @@
+---
+description: Use absolute path aliases (@/) for imports — never relative paths
+globs: frontend/**/*.{ts,tsx,js,jsx}
+alwaysApply: false
+---
+
+# Absolute path aliases
+
+Always import with the `@/` path alias. Never use relative imports (`./` or `../`).
+
+```typescript
+// ❌ BAD
+import { useProjectChat } from "../../lib/hooks/useProjectChat";
+import { Button } from "../ui/button";
+
+// ✅ GOOD
+import { useProjectChat } from "@/lib/hooks/useProjectChat";
+import { Button } from "@/components/ui/button";
+```
+
+## Rules
+
+- Resolve modules from `frontend/src` via `@/` (see `frontend/tsconfig.json` paths)
+- Same-directory siblings still use `@/` — do not use `./foo`
+- Do not introduce new relative import styles when editing existing files

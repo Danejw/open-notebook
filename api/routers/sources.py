@@ -14,7 +14,7 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse, Response
 from loguru import logger
-from surreal_commands import execute_command_sync, get_command_status, submit_command
+from surreal_commands import execute_command_sync, get_command_status
 
 from api.command_service import CommandService
 from api.models import (
@@ -30,7 +30,6 @@ from commands.source_commands import SourceProcessingInput
 from construction_os.config import UPLOADS_FOLDER
 from construction_os.database.repository import ensure_record_id, repo_query
 from construction_os.domain.project import Asset, Project, Source
-from construction_os.domain.artifact import Artifact
 from construction_os.exceptions import InvalidInputError, NotFoundError
 from construction_os.knowledge.pipeline import (
     ACTIVE_PIPELINE_STAGES,
@@ -401,7 +400,7 @@ async def create_source(
                 detail="Invalid source type. Must be link, upload, or text",
             )
 
-        # Artifacts list ignored — SourceInsight feature removed
+        # Artifacts list ignored — no longer applied during source ingest
         artifact_ids: list = []
 
         # Branch based on processing mode

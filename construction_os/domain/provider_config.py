@@ -13,7 +13,7 @@ stored as plain text with a warning logged.
 from datetime import datetime
 from typing import ClassVar, Dict, List, Optional
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr
 
 from construction_os.database.repository import ensure_record_id, repo_query, repo_upsert
 from construction_os.domain.base import RecordModel

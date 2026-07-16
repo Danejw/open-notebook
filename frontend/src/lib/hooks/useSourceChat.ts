@@ -10,6 +10,12 @@ import { QUERY_KEYS } from '@/lib/api/query-client'
 import { readAgUiSseStream } from '@/lib/ag-ui/events'
 import { createAgUiChatSseHandler } from '@/lib/hooks/chat-sse-handlers'
 import {
+  createDefaultAiMessage,
+  createOptimisticHumanMessage,
+  ensureChatSessionForMessage,
+  resetStreamTurnState,
+} from '@/lib/hooks/chat-stream-turn'
+import {
   deriveQueueActivityLog,
   deriveQueueHasWork,
   deriveQueueStreamStatus,
@@ -39,6 +45,7 @@ export function useSourceChat(sourceId: string) {
   const [selectedHtmlTemplateId, setSelectedHtmlTemplateIdState] = useState<string | null>(null)
   const [pendingHtmlTemplateId, setPendingHtmlTemplateId] = useState<string | null | undefined>(undefined)
   const [selectedMcpToolIds, setSelectedMcpToolIdsState] = useState<string[]>([])
+  const [pendingModelOverride, setPendingModelOverride] = useState<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const {
     streamContentRef,
@@ -173,14 +180,20 @@ export function useSourceChat(sourceId: string) {
     // Auto-create session if none exists
     if (!sessionId) {
       try {
-        const defaultTitle = message.length > 30 ? `${message.substring(0, 30)}...` : message
-        const newSession = await sourceChatApi.createSession(sourceId, {
-          title: defaultTitle,
-          skill_ids: selectedSkillIds,
-          html_template_id: selectedHtmlTemplateId,
+        const ensured = await ensureChatSessionForMessage({
+          currentSessionId: sessionId,
+          message,
+          createSession: (title) =>
+            sourceChatApi.createSession(sourceId, {
+              title,
+              model_override: pendingModelOverride ?? undefined,
+              skill_ids: selectedSkillIds,
+              html_template_id: selectedHtmlTemplateId,
+            }),
         })
-        sessionId = newSession.id
+        sessionId = ensured.sessionId
         setCurrentSessionId(sessionId)
+        setPendingModelOverride(null)
         setPendingSkillIds(null)
         setPendingHtmlTemplateId(undefined)
         queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sourceChatSessions(sourceId) })
@@ -193,17 +206,10 @@ export function useSourceChat(sourceId: string) {
     }
 
     // Add user message optimistically
-    const userMessage: SourceChatMessage = {
-      id: `temp-${Date.now()}`,
-      type: 'human',
-      content: message,
-      timestamp: new Date().toISOString()
-    }
+    const userMessage = createOptimisticHumanMessage(message)
     setMessages(prev => [...prev, userMessage])
     setIsStreaming(true)
-    setStreamStatus(null)
-    setActivityLog([])
-    setLiveMcpToolCalls([])
+    resetStreamTurnState({ setStreamStatus, setActivityLog, setLiveMcpToolCalls })
 
     clearStreamingBuffers()
     abortControllerRef.current?.abort()
@@ -216,7 +222,7 @@ export function useSourceChat(sourceId: string) {
         sessionId,
         {
           message,
-          model_override: modelOverride,
+          model_override: modelOverride ?? currentSession?.model_override ?? pendingModelOverride ?? undefined,
           skill_ids: selectedSkillIds,
           mcp_tool_ids: selectedMcpToolIds,
           html_template_id: selectedHtmlTemplateId,
@@ -242,12 +248,8 @@ export function useSourceChat(sourceId: string) {
           flushStreamingContent,
           clearStreamingBuffers,
           t,
-          createAiMessage: (id, content) => ({
-            id,
-            type: 'ai',
-            content,
-            timestamp: new Date().toISOString(),
-          }),
+          createAiMessage: (id, content) =>
+            createDefaultAiMessage<SourceChatMessage>(id, content),
         },
         {
           onStateSnapshot: (snapshot) => {
@@ -298,6 +300,7 @@ export function useSourceChat(sourceId: string) {
     selectedSkillIds,
     selectedMcpToolIds,
     selectedHtmlTemplateId,
+    pendingModelOverride,
     refetchCurrentSession,
     queryClient,
     chatQueue,
@@ -332,15 +335,20 @@ export function useSourceChat(sourceId: string) {
       try {
         let sessionId = currentSessionId
         if (!sessionId) {
-          const defaultTitle =
-            message.length > 30 ? `${message.substring(0, 30)}...` : message
-          const newSession = await sourceChatApi.createSession(sourceId, {
-            title: defaultTitle,
-            skill_ids: selectedSkillIds,
-            html_template_id: selectedHtmlTemplateId,
+          const ensured = await ensureChatSessionForMessage({
+            currentSessionId: sessionId,
+            message,
+            createSession: (title) =>
+              sourceChatApi.createSession(sourceId, {
+                title,
+                model_override: pendingModelOverride ?? undefined,
+                skill_ids: selectedSkillIds,
+                html_template_id: selectedHtmlTemplateId,
+              }),
           })
-          sessionId = newSession.id
+          sessionId = ensured.sessionId
           setCurrentSessionId(sessionId)
+          setPendingModelOverride(null)
           setPendingSkillIds(null)
           setPendingHtmlTemplateId(undefined)
           await queryClient.invalidateQueries({
@@ -353,7 +361,10 @@ export function useSourceChat(sourceId: string) {
           loop_count: options.loopCount,
           schedule_runner: options.scheduleRunner,
           model_id:
-            options.modelOverride ?? currentSession?.model_override ?? undefined,
+            options.modelOverride ??
+            currentSession?.model_override ??
+            pendingModelOverride ??
+            undefined,
           skill_ids: selectedSkillIds,
           tool_ids: selectedMcpToolIds,
           html_template_id: selectedHtmlTemplateId,
@@ -378,6 +389,7 @@ export function useSourceChat(sourceId: string) {
       chatQueue,
       currentSession?.model_override,
       currentSessionId,
+      pendingModelOverride,
       queryClient,
       selectedHtmlTemplateId,
       selectedMcpToolIds,
@@ -476,6 +488,17 @@ export function useSourceChat(sourceId: string) {
     setSelectedMcpToolIdsState(ids)
   }, [])
 
+  const setModelOverride = useCallback((model: string | null) => {
+    if (currentSessionId) {
+      updateSessionMutation.mutate({
+        sessionId: currentSessionId,
+        data: { model_override: model },
+      })
+    } else {
+      setPendingModelOverride(model)
+    }
+  }, [currentSessionId, updateSessionMutation])
+
   return {
     // State
     sessions,
@@ -488,6 +511,7 @@ export function useSourceChat(sourceId: string) {
     activityLog: queueActivityLog,
     contextIndicators,
     loadingSessions,
+    pendingModelOverride,
     selectedSkillIds,
     selectedHtmlTemplateId,
     selectedMcpToolIds,
@@ -514,5 +538,6 @@ export function useSourceChat(sourceId: string) {
     setSelectedSkillIds,
     setSelectedHtmlTemplateId,
     setSelectedMcpToolIds,
+    setModelOverride,
   }
 }

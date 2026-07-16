@@ -1,15 +1,8 @@
 'use client'
 
-import { useEffect, type FormEventHandler, type ReactNode } from 'react'
+import { type FormEventHandler, type ReactNode } from 'react'
 
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import { FormDialogShell } from '@/components/common/FormDialogShell'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
 export interface PodcastProfileFormDialogShellProps {
@@ -45,45 +38,24 @@ export function PodcastProfileFormDialogShell({
   const { t } = useTranslation()
   const isEdit = mode === 'edit'
 
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-    onOpen?.()
-  }, [open, onOpen])
-
-  const saveLabel = isSubmitting
-    ? t('common.saving')
-    : isEdit
-      ? t('common.saveChanges')
-      : (createLabel ?? t('podcasts.createProfile'))
+  const submitLabel = isEdit
+    ? t('common.saveChanges')
+    : (createLabel ?? t('podcasts.createProfile'))
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-
-        {beforeForm}
-
-        <form onSubmit={onSubmit} className="space-y-3 px-1 py-1">
-          {children}
-
-          <DialogFooter className="pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              {t('common.cancel')}
-            </Button>
-            <Button type="submit" disabled={disableSubmit || isSubmitting}>
-              {saveLabel}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FormDialogShell
+      open={open}
+      onOpenChange={onOpenChange}
+      title={title}
+      isSubmitting={isSubmitting}
+      onSubmit={onSubmit}
+      onOpen={onOpen}
+      beforeForm={beforeForm}
+      disableSubmit={disableSubmit}
+      submitLabel={submitLabel}
+      contentClassName="max-w-2xl overflow-y-auto"
+    >
+      {children}
+    </FormDialogShell>
   )
 }

@@ -10,14 +10,8 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { FormDialogShell } from '@/components/common/FormDialogShell'
 import { TemplateHtmlPreview } from '@/components/templates/TemplateHtmlPreview'
 import {
   useCreateHtmlTemplate,
@@ -174,55 +168,38 @@ export default function TemplatesPage() {
         </details>
       </div>
 
-      <Dialog
+      <FormDialogShell
         open={Boolean(renaming)}
         onOpenChange={(open) => {
           if (!open) setRenaming(null)
         }}
+        title={t('templates.renameTemplate')}
+        isSubmitting={updateTemplate.isPending}
+        compactFooter
+        contentClassName="sm:max-w-2xl"
+        disableSubmit={!renameValue.trim()}
+        onSubmit={(event) => {
+          event.preventDefault()
+          void handleRename()
+        }}
       >
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{t('templates.renameTemplate')}</DialogTitle>
-          </DialogHeader>
-          <form
-            className="space-y-3 px-1 py-1"
-            onSubmit={(event) => {
-              event.preventDefault()
-              void handleRename()
-            }}
-          >
-            <div className="space-y-1.5">
-              <Label htmlFor="template-rename-name">{t('common.name')}</Label>
-              <Input
-                id="template-rename-name"
-                value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                autoFocus
-              />
-            </div>
-            {renaming?.html_body ? (
-              <TemplateHtmlPreview
-                html={renaming.html_body}
-                title={renaming.name}
-                maxHeightPx={360}
-              />
-            ) : null}
-            <DialogFooter>
-              <Button type="button" variant="outline" size="sm" className="h-7" onClick={() => setRenaming(null)}>
-                {t('common.cancel')}
-              </Button>
-              <Button
-                type="submit"
-                size="sm"
-                className="h-7"
-                disabled={!renameValue.trim() || updateTemplate.isPending}
-              >
-                {t('common.save')}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+        <div className="space-y-1.5">
+          <Label htmlFor="template-rename-name">{t('common.name')}</Label>
+          <Input
+            id="template-rename-name"
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            autoFocus
+          />
+        </div>
+        {renaming?.html_body ? (
+          <TemplateHtmlPreview
+            html={renaming.html_body}
+            title={renaming.name}
+            maxHeightPx={360}
+          />
+        ) : null}
+      </FormDialogShell>
 
       <ConfirmDialog
         open={Boolean(deleting)}

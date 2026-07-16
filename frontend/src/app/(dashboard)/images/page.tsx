@@ -11,13 +11,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { FormDialogShell } from '@/components/common/FormDialogShell'
 import {
   useDeleteMediaAsset,
   useMediaAssets,
@@ -201,57 +195,40 @@ export default function ImagesPage() {
         </details>
       </div>
 
-      <Dialog
+      <FormDialogShell
         open={Boolean(editing)}
         onOpenChange={(open) => {
           if (!open) setEditing(null)
         }}
+        title={t('images.edit')}
+        isSubmitting={updateAsset.isPending}
+        compactFooter
+        contentClassName="sm:max-w-md"
+        disableSubmit={!editName.trim() || !editSlug.trim()}
+        onSubmit={(event) => {
+          event.preventDefault()
+          void handleEdit()
+        }}
       >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('images.edit')}</DialogTitle>
-          </DialogHeader>
-          <form
-            className="space-y-3 px-1 py-1"
-            onSubmit={(event) => {
-              event.preventDefault()
-              void handleEdit()
-            }}
-          >
-            <div className="space-y-1.5">
-              <Label htmlFor="media-edit-name">{t('common.name')}</Label>
-              <Input
-                id="media-edit-name"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                autoFocus
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="media-edit-slug">{t('images.slug')}</Label>
-              <Input
-                id="media-edit-slug"
-                value={editSlug}
-                onChange={(e) => setEditSlug(e.target.value)}
-              />
-              <p className="text-[11px] text-muted-foreground">{t('images.slugHint')}</p>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" size="sm" className="h-7" onClick={() => setEditing(null)}>
-                {t('common.cancel')}
-              </Button>
-              <Button
-                type="submit"
-                size="sm"
-                className="h-7"
-                disabled={!editName.trim() || !editSlug.trim() || updateAsset.isPending}
-              >
-                {t('common.save')}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+        <div className="space-y-1.5">
+          <Label htmlFor="media-edit-name">{t('common.name')}</Label>
+          <Input
+            id="media-edit-name"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            autoFocus
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="media-edit-slug">{t('images.slug')}</Label>
+          <Input
+            id="media-edit-slug"
+            value={editSlug}
+            onChange={(e) => setEditSlug(e.target.value)}
+          />
+          <p className="text-[11px] text-muted-foreground">{t('images.slugHint')}</p>
+        </div>
+      </FormDialogShell>
 
       <ConfirmDialog
         open={Boolean(deleting)}

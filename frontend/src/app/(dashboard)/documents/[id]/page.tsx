@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Copy, Download, Image as ImageIcon, Pencil, Save, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { FormDialogShell } from '@/components/common/FormDialogShell'
 import { DetailPageSkeleton } from '@/components/common/LoadingSkeletons'
 import { ImageLibraryPicker } from '@/components/media/ImageLibraryPicker'
 import { Button } from '@/components/ui/button'
@@ -477,41 +478,29 @@ export default function DocumentWorkspacePage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('documents.renameDocument')}</DialogTitle>
-          </DialogHeader>
-          <form
-            className="space-y-4"
-            onSubmit={(event) => {
-              event.preventDefault()
-              void handleRename()
-            }}
-          >
-            <div className="space-y-2">
-              <Label htmlFor="document-rename-title">{t('common.title')}</Label>
-              <Input
-                id="document-rename-title"
-                value={renameTitle}
-                onChange={(e) => setRenameTitle(e.target.value)}
-                autoFocus
-              />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setRenameOpen(false)}>
-                {t('common.cancel')}
-              </Button>
-              <Button
-                type="submit"
-                disabled={!renameTitle.trim() || updateDocument.isPending}
-              >
-                {t('common.save')}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <FormDialogShell
+        open={renameOpen}
+        onOpenChange={setRenameOpen}
+        title={t('documents.renameDocument')}
+        isSubmitting={updateDocument.isPending}
+        contentClassName="sm:max-w-md"
+        formClassName="space-y-4"
+        disableSubmit={!renameTitle.trim()}
+        onSubmit={(event) => {
+          event.preventDefault()
+          void handleRename()
+        }}
+      >
+        <div className="space-y-2">
+          <Label htmlFor="document-rename-title">{t('common.title')}</Label>
+          <Input
+            id="document-rename-title"
+            value={renameTitle}
+            onChange={(e) => setRenameTitle(e.target.value)}
+            autoFocus
+          />
+        </div>
+      </FormDialogShell>
 
       <ImageLibraryPicker
         open={imagePickerOpen}

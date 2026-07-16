@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect } from 'react'
+import { useCallback } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -12,14 +12,8 @@ import {
   useLanguages,
 } from '@/lib/hooks/use-podcasts'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
+import { PodcastProfileFormDialogShell } from '@/components/podcasts/forms/PodcastProfileFormDialogShell'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -110,13 +104,6 @@ export function EpisodeProfileFormDialog({
     defaultValues: getDefaults(),
   })
 
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-    reset(getDefaults())
-  }, [open, reset, getDefaults])
-
   const onSubmit = async (values: EpisodeProfileFormValues) => {
     const payload = {
       ...values,
@@ -137,28 +124,29 @@ export function EpisodeProfileFormDialog({
   }
 
   const isSubmitting = createProfile.isPending || updateProfile.isPending
-  const disableSubmit = isSubmitting || speakerProfiles.length === 0
-  const isEdit = mode === 'edit'
+  const disableSubmit = speakerProfiles.length === 0
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {isEdit ? t('podcasts.editEpisodeProfile') : t('podcasts.createEpisodeProfile')}
-          </DialogTitle>
-        </DialogHeader>
-
-        {speakerProfiles.length === 0 ? (
+    <PodcastProfileFormDialogShell
+      open={open}
+      onOpenChange={onOpenChange}
+      title={mode === 'edit' ? t('podcasts.editEpisodeProfile') : t('podcasts.createEpisodeProfile')}
+      isSubmitting={isSubmitting}
+      disableSubmit={disableSubmit}
+      mode={mode}
+      onOpen={() => reset(getDefaults())}
+      onSubmit={handleSubmit(onSubmit)}
+      beforeForm={
+        speakerProfiles.length === 0 ? (
           <Alert className="mx-1 border-amber-200 bg-amber-50 text-amber-900">
             <AlertTitle>{t('podcasts.noSpeakerProfilesAvailable')}</AlertTitle>
             <AlertDescription>
               {t('podcasts.noSpeakerProfilesDesc')}
             </AlertDescription>
           </Alert>
-        ) : null}
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 px-1 py-1">
+        ) : null
+      }
+    >
           <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="name">{t('podcasts.profileName')} *</Label>
@@ -316,24 +304,6 @@ export function EpisodeProfileFormDialog({
             <FieldError message={errors.default_briefing?.message} />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              {t('common.cancel')}
-            </Button>
-            <Button type="submit" disabled={disableSubmit}>
-              {isSubmitting
-                ? t('common.saving')
-                : isEdit
-                  ? t('common.saveChanges')
-                  : t('podcasts.createProfile')}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+    </PodcastProfileFormDialogShell>
   )
 }

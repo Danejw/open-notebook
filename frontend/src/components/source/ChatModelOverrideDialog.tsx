@@ -21,7 +21,7 @@ import {
 import { Settings2 } from 'lucide-react'
 import { useModelDefaults, useModels } from '@/lib/hooks/use-models'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { InlineSkeleton, SelectMenuSkeleton } from '@/components/common/LoadingSkeletons'
+import { SelectMenuSkeleton } from '@/components/common/LoadingSkeletons'
 
 interface ChatModelOverrideDialogProps {
   currentModel?: string
@@ -66,7 +66,7 @@ export function ChatModelOverrideDialog({
       return defaultModel.name
     }
     return t('common.default')
-  }, [currentModel, languageModels, defaultModel, t('common.default')])
+  }, [currentModel, languageModels, defaultModel, t])
 
   const handleSave = () => {
     onModelChange(selectedModel === 'default' ? undefined : selectedModel)

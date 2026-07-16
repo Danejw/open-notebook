@@ -362,7 +362,24 @@ export function useSourceChat(sourceId: string) {
         console.error('Error ensuring chat queue runner:', ensureError)
       }
     }
-  }, [sourceId, currentSessionId, selectedSkillIds, selectedMcpToolIds, selectedHtmlTemplateId, refetchCurrentSession, queryClient, chatQueue, t, appendStreamingDelta, flushStreamingContent, clearStreamingBuffers])
+  }, [
+    sourceId,
+    currentSessionId,
+    selectedSkillIds,
+    selectedMcpToolIds,
+    selectedHtmlTemplateId,
+    refetchCurrentSession,
+    queryClient,
+    chatQueue,
+    t,
+    appendStreamingDelta,
+    flushStreamingContent,
+    clearStreamingBuffers,
+    setActivityLog,
+    setLiveMcpToolCalls,
+    setStreamStatus,
+    streamContentRef,
+  ])
 
   // Cancel streaming
   const cancelStreaming = useCallback(() => {

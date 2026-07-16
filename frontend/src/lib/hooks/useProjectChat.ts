@@ -513,6 +513,11 @@ export function useProjectChat({
     guestKey,
     sharedMode,
     sessionsQueryKey,
+    setActivityLog,
+    setLiveMcpToolCalls,
+    setStreamStatus,
+    streamContentRef,
+    streamRafRef,
   ])
 
   const editAndResend = useCallback(async (messageId: string, content: string, modelOverride?: string) => {

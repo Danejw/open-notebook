@@ -1,11 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { createElement } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { AppSidebar } from './AppSidebar'
 import { useSidebarStore } from '@/lib/stores/sidebar-store'
 
 vi.mock('@/lib/hooks/use-route-prefetch', () => ({
   useRoutePrefetch: () => vi.fn(),
+}))
+
+vi.mock('@/lib/hooks/use-projects', () => ({
+  useProjects: () => ({ data: [], isLoading: false }),
 }))
 
 // Mock Tooltip components to avoid Radix UI async issues in tests
@@ -16,9 +22,16 @@ vi.mock('@/components/ui/tooltip', () => ({
   TooltipContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
 
+function renderSidebar(ui: React.ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    createElement(QueryClientProvider, { client }, ui)
+  )
+}
+
 describe('AppSidebar', () => {
   it('renders correctly when expanded', () => {
-    render(<AppSidebar />)
+    renderSidebar(<AppSidebar />)
 
     // With mocked t() returning keys, check for translation key strings
     expect(screen.getByText('common.appName')).toBeDefined()
@@ -33,7 +46,7 @@ describe('AppSidebar', () => {
       toggleCollapse,
     } as any)
 
-    render(<AppSidebar />)
+    renderSidebar(<AppSidebar />)
 
     fireEvent.click(screen.getByTestId('sidebar-toggle'))
 
@@ -46,7 +59,7 @@ describe('AppSidebar', () => {
       toggleCollapse: vi.fn(),
     } as any)
 
-    render(<AppSidebar />)
+    renderSidebar(<AppSidebar />)
 
     // In collapsed mode, app name shouldn't be visible (as text)
     expect(screen.queryByText('common.appName')).toBeNull()

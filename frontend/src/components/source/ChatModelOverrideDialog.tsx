@@ -1,15 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
+import { ModelSelector } from '@/components/common/ModelSelector'
 import {
   Dialog,
   DialogContent,
@@ -21,7 +14,6 @@ import {
 import { Settings2 } from 'lucide-react'
 import { useModelDefaults, useModels } from '@/lib/hooks/use-models'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { SelectMenuSkeleton } from '@/components/common/LoadingSkeletons'
 
 interface ChatModelOverrideDialogProps {
   currentModel?: string
@@ -37,7 +29,7 @@ export function ChatModelOverrideDialog({
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [selectedModel, setSelectedModel] = useState(currentModel || 'default')
-  const { data: models, isLoading } = useModels()
+  const { data: models } = useModels()
   const { data: defaults } = useModelDefaults()
 
   useEffect(() => {
@@ -99,44 +91,22 @@ export function ChatModelOverrideDialog({
           <DialogTitle>{t('common.modelConfiguration')}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3 px-1 py-1">
-          <div className="grid gap-1.5">
-            <Label htmlFor="model">{t('common.model')}</Label>
-            <Select value={selectedModel} onValueChange={setSelectedModel}>
-              <SelectTrigger id="model">
-                <SelectValue placeholder={t('models.selectModelPlaceholder')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="default">
-                  <div className="flex items-center justify-between w-full">
-                    <span>
-                      {defaultModel
-                        ? `${t('common.default')} (${defaultModel.name})`
-                        : t('artifacts.systemDefault')}
-                    </span>
-                    {defaultModel?.provider && (
-                      <span className="text-xs text-muted-foreground ml-2">
-                        {defaultModel.provider}
-                      </span>
-                    )}
-                  </div>
-                </SelectItem>
-                {isLoading ? (
-                  <SelectMenuSkeleton rows={3} />
-                ) : (
-                  languageModels.map((model) => (
-                    <SelectItem key={model.id} value={model.id}>
-                      <div className="flex items-center justify-between w-full">
-                        <span>{model.name}</span>
-                        <span className="text-xs text-muted-foreground ml-2">
-                          {model.provider}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
+          <ModelSelector
+            id="model"
+            label={t('common.model')}
+            modelType="language"
+            value={selectedModel}
+            onChange={setSelectedModel}
+            sortByName
+            placeholder={t('models.selectModelPlaceholder')}
+            defaultOption={{
+              value: 'default',
+              label: defaultModel
+                ? `${t('common.default')} (${defaultModel.name})`
+                : t('artifacts.systemDefault'),
+              provider: defaultModel?.provider,
+            }}
+          />
           {selectedModel && selectedModel !== 'default' && (
             <div className="rounded-lg bg-muted p-3">
               <p className="text-sm text-muted-foreground">

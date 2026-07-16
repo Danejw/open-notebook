@@ -57,6 +57,7 @@ import { Credential, CreateCredentialRequest, UpdateCredentialRequest, Discovere
 import { Model, ModelDefaults } from '@/lib/types/models'
 import { MigrationBanner, ModelTestResultDialog } from '@/components/settings'
 import { EmbeddingModelChangeDialog } from '@/components/settings/EmbeddingModelChangeDialog'
+import { ModelSelector } from '@/components/common/ModelSelector'
 
 type ModelType = 'language' | 'embedding' | 'text_to_speech' | 'speech_to_text'
 
@@ -930,6 +931,7 @@ function CredentialItem({
                             className="opacity-0 group-hover/model:opacity-60 hover:!opacity-100 hover:text-destructive transition-opacity"
                             onClick={() => deleteModel.mutate(model.id)}
                             title={deleteModelLabel}
+                            aria-label={deleteModelLabel}
                           >
                             <X className="h-3 w-3" />
                           </button>
@@ -1198,48 +1200,31 @@ function DefaultModelSelectors({
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {primaryConfigs.map(config => {
             const available = getModelsForType(config.modelType)
-            const currentValue = watch(config.key) || undefined
+            const currentValue = watch(config.key) || ''
             const isValid = currentValue && available.some(m => m.id === currentValue)
 
             return (
-              <div key={config.key} className="space-y-1">
-                <Label htmlFor={config.id} className="text-xs">
-                  {config.label}
-                  {config.required && <span className="text-destructive ml-0.5">*</span>}
-                </Label>
-                <div className="flex gap-1">
-                  <Select
-                    value={currentValue || ""}
-                    onValueChange={(v) => handleChange(config.key, v)}
-                  >
-                    <SelectTrigger
-                      id={config.id}
-                      className={`h-8 text-xs ${config.required && !isValid && available.length > 0 ? 'border-destructive' : ''}`}
-                    >
-                      <SelectValue placeholder={
-                        config.required && !isValid && available.length > 0
-                          ? t('models.requiredModelPlaceholder')
-                          : t('models.selectModelPlaceholder')
-                      } />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {available.sort((a, b) => a.name.localeCompare(b.name)).map(model => (
-                        <SelectItem key={model.id} value={model.id}>
-                          <div className="flex items-center justify-between w-full">
-                            <span>{model.name}</span>
-                            <span className="text-xs text-muted-foreground ml-2">{model.provider}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {!config.required && currentValue && (
-                    <Button variant="ghost" size="icon" onClick={() => handleChange(config.key, "")} className="h-8 w-8 shrink-0">
-                      <X className="h-3 w-3" />
-                    </Button>
-                  )}
-                </div>
-              </div>
+              <ModelSelector
+                key={config.key}
+                id={config.id}
+                label={config.label}
+                labelClassName="text-xs"
+                modelType={config.modelType}
+                models={models}
+                value={currentValue}
+                onChange={(v) => handleChange(config.key, v)}
+                size="compact"
+                required={config.required}
+                invalid={Boolean(config.required && !isValid && available.length > 0)}
+                allowClear={!config.required}
+                onClear={() => handleChange(config.key, '')}
+                sortByName
+                placeholder={
+                  config.required && !isValid && available.length > 0
+                    ? t('models.requiredModelPlaceholder')
+                    : t('models.selectModelPlaceholder')
+                }
+              />
             )
           })}
         </div>
@@ -1250,49 +1235,32 @@ function DefaultModelSelectors({
             <div className="grid gap-3 sm:grid-cols-3">
               {advancedConfigs.map(config => {
                 const available = getModelsForType(config.modelType)
-                const currentValue = watch(config.key) || undefined
+                const currentValue = watch(config.key) || ''
                 const isValid = currentValue && available.some(m => m.id === currentValue)
 
                 return (
-                  <div key={config.key} className="space-y-1">
-                    <Label htmlFor={config.id} className="text-xs">
-                      {config.label}
-                      {config.required && <span className="text-destructive ml-0.5">*</span>}
-                    </Label>
-                    <div className="flex gap-1">
-                      <Select
-                        value={currentValue || ""}
-                        onValueChange={(v) => handleChange(config.key, v)}
-                      >
-                        <SelectTrigger
-                          id={config.id}
-                          className={`h-8 text-xs ${config.required && !isValid && available.length > 0 ? 'border-destructive' : ''}`}
-                        >
-                          <SelectValue placeholder={
-                            config.required && !isValid && available.length > 0
-                              ? t('models.requiredModelPlaceholder')
-                              : t('models.selectModelPlaceholder')
-                          } />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {available.sort((a, b) => a.name.localeCompare(b.name)).map(model => (
-                            <SelectItem key={model.id} value={model.id}>
-                              <div className="flex items-center justify-between w-full">
-                                <span>{model.name}</span>
-                                <span className="text-xs text-muted-foreground ml-2">{model.provider}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {!config.required && currentValue && (
-                        <Button variant="ghost" size="icon" onClick={() => handleChange(config.key, "")} className="h-8 w-8 shrink-0">
-                          <X className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground leading-tight">{config.description}</p>
-                  </div>
+                  <ModelSelector
+                    key={config.key}
+                    id={config.id}
+                    label={config.label}
+                    labelClassName="text-xs"
+                    modelType={config.modelType}
+                    models={models}
+                    value={currentValue}
+                    onChange={(v) => handleChange(config.key, v)}
+                    size="compact"
+                    required={config.required}
+                    invalid={Boolean(config.required && !isValid && available.length > 0)}
+                    allowClear={!config.required}
+                    onClear={() => handleChange(config.key, '')}
+                    sortByName
+                    description={config.description}
+                    placeholder={
+                      config.required && !isValid && available.length > 0
+                        ? t('models.requiredModelPlaceholder')
+                        : t('models.selectModelPlaceholder')
+                    }
+                  />
                 )
               })}
             </div>
@@ -1382,11 +1350,11 @@ export default function ApiKeysPage() {
 
           {/* Encryption warning */}
           {!encryptionReady && (
-            <Alert className="border-red-500/50 bg-red-50 dark:bg-red-950/20">
-              <ShieldAlert className="h-4 w-4 text-red-600 dark:text-red-400" />
-              <AlertTitle className="text-red-800 dark:text-red-200">{t('apiKeys.encryptionRequired')}</AlertTitle>
-              <AlertDescription className="text-red-700 dark:text-red-300">
-                <code className="text-xs bg-red-100 dark:bg-red-900/30 px-1 py-0.5 rounded">
+            <Alert variant="destructive">
+              <ShieldAlert className="h-4 w-4" />
+              <AlertTitle>{t('apiKeys.encryptionRequired')}</AlertTitle>
+              <AlertDescription>
+                <code className="text-xs bg-destructive/10 px-1 py-0.5 rounded">
                   {t('apiKeys.encryptionRequiredDescription')}
                 </code>
               </AlertDescription>

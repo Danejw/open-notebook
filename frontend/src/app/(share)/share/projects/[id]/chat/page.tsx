@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { ChatPanel } from '@/components/source/ChatPanel'
 import { bindSharedProjectChatPanelProps } from '@/components/source/bindChatPanelProps'
-import { Skeleton } from '@/components/ui/skeleton'
+import { ChatPanelSkeleton } from '@/components/common/LoadingSkeletons'
+import { PageError } from '@/components/common/PageError'
 import { useProject } from '@/lib/hooks/use-projects'
 import { useProjectChat } from '@/lib/hooks/useProjectChat'
 import { useNotes } from '@/lib/hooks/use-notes'
@@ -78,27 +79,13 @@ export default function SharedProjectChatPage() {
   if (projectError || (!projectLoading && !project)) {
     return (
       <div className="flex h-dvh w-full items-center justify-center p-6">
-        <p className="text-muted-foreground">{t('share.projectNotFound')}</p>
+        <PageError title={t('share.projectNotFound')} tone="muted" centered />
       </div>
     )
   }
 
   if (pageLoading) {
-    return (
-      <div className="flex h-dvh w-full flex-col bg-background">
-        <div className="shrink-0 border-b border-border/60 px-5 py-4 sm:px-6 sm:py-5">
-          <Skeleton className="h-7 w-56 sm:h-8 sm:w-72" />
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pt-5 sm:px-6 sm:pt-6 md:px-10 lg:px-14">
-          <Skeleton className="ml-auto h-10 w-2/5 max-w-md rounded-2xl" />
-          <Skeleton className="h-24 w-3/4 max-w-2xl rounded-2xl" />
-          <Skeleton className="h-16 w-2/3 max-w-xl rounded-2xl" />
-        </div>
-        <div className="shrink-0 border-t border-border/60 px-4 py-3 sm:px-6 sm:py-4 md:px-10 lg:px-14">
-          <Skeleton className="h-11 w-full rounded-xl" />
-        </div>
-      </div>
-    )
+    return <ChatPanelSkeleton immersive className="h-dvh" />
   }
 
   return (

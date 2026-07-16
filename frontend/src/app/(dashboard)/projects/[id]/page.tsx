@@ -7,6 +7,8 @@ import { ProjectHeader } from '../components/ProjectHeader'
 import { SourcesColumn } from '../components/SourcesColumn'
 import { ArtifactsColumn } from '../components/ArtifactsColumn'
 import { ChatColumn } from '../components/ChatColumn'
+import { DashboardContentSkeleton } from '@/components/layout/DashboardContentSkeleton'
+import { PageError } from '@/components/common/PageError'
 import { useProject } from '@/lib/hooks/use-projects'
 import { useProjectSources } from '@/lib/hooks/use-sources'
 import { useNotes } from '@/lib/hooks/use-notes'
@@ -284,32 +286,17 @@ function ProjectPageContent() {
   }
 
   if (projectLoading && !project) {
-    return (
-              <div className="flex flex-col flex-1 min-h-0">
-          <div className="flex-shrink-0 px-2 pt-px pb-0">
-            <div className="h-10 w-64 animate-pulse rounded-md bg-muted" />
-          </div>
-          <div
-            className={cn(
-              'flex min-h-0 flex-1 flex-col',
-              projectPageInsetClassName,
-              projectPageStackGapClassName
-            )}
-          >
-            <div className="flex-[28] animate-pulse rounded-lg bg-muted min-h-[200px]" />
-            <div className="flex-[28] animate-pulse rounded-lg bg-muted min-h-[200px]" />
-            <div className="flex-[44] animate-pulse rounded-lg bg-muted min-h-[200px]" />
-          </div>
-        </div>
-    )
+    return <DashboardContentSkeleton projectDetail />
   }
 
   if (!project) {
     return (
-              <div className="p-6">
-          <h1 className="text-2xl font-bold mb-4">{t('projects.notFound')}</h1>
-          <p className="text-muted-foreground">{t('projects.notFoundDesc')}</p>
-        </div>
+      <PageError
+        title={t('projects.notFound')}
+        description={t('projects.notFoundDesc')}
+        tone="muted"
+        className="p-6"
+      />
     )
   }
 

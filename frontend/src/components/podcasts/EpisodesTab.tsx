@@ -4,11 +4,11 @@ import { useCallback, useState } from 'react'
 import { AlertCircle, ListMusic } from 'lucide-react'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
+import { PageError } from '@/components/common/PageError'
 import { PageRefreshButton } from '@/components/layout/PageRefreshButton'
 
 import { useDeletePodcastEpisode, usePodcastEpisodes, useRetryPodcastEpisode } from '@/lib/hooks/use-podcasts'
 import { EpisodeCard } from '@/components/podcasts/EpisodeCard'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -114,13 +114,11 @@ export function EpisodesTab() {
       </div>
 
       {isError ? (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>{t('podcasts.loadErrorTitle')}</AlertTitle>
-          <AlertDescription>
-            {t('podcasts.loadErrorDesc')}
-          </AlertDescription>
-        </Alert>
+        <PageError
+          title={t('podcasts.loadErrorTitle')}
+          description={t('podcasts.loadErrorDesc')}
+          icon={AlertCircle}
+        />
       ) : null}
 
       {isLoading ? (

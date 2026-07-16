@@ -6,7 +6,7 @@ import { PageError } from '@/components/common/PageError'
 import { useProjectChat } from '@/lib/hooks/useProjectChat'
 import { ChatPanel } from '@/components/source/ChatPanel'
 import { bindProjectChatPanelProps } from '@/components/source/bindChatPanelProps'
-import { Skeleton } from '@/components/ui/skeleton'
+import { ChatPanelSkeleton } from '@/components/common/LoadingSkeletons'
 import { Card, CardContent } from '@/components/ui/card'
 import type { ContextSelections } from '@/lib/types/project-context'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -102,10 +102,8 @@ export function ChatColumn({
   if (showChatSkeleton) {
     content = (
       <Card className="flex h-full flex-col">
-        <CardContent className="flex flex-1 flex-col gap-3 p-3">
-          <Skeleton className="h-8 w-40" />
-          <Skeleton className="flex-1 rounded-lg" />
-          <Skeleton className="h-10 w-full" />
+        <CardContent className="flex flex-1 flex-col p-3">
+          <ChatPanelSkeleton />
         </CardContent>
       </Card>
     )

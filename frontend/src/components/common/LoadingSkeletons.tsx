@@ -90,6 +90,41 @@ export function PickerDialogSkeleton({ rows = 5 }: { rows?: number }) {
   )
 }
 
+/** Chat panel loading placeholder for project columns and immersive share chat. */
+export function ChatPanelSkeleton({
+  immersive = false,
+  className,
+}: {
+  immersive?: boolean
+  className?: string
+}) {
+  if (immersive) {
+    return (
+      <div className={cn('flex w-full flex-col bg-background', className)}>
+        <div className="shrink-0 border-b border-border/60 px-5 py-4 sm:px-6 sm:py-5">
+          <Skeleton className="h-7 w-56 sm:h-8 sm:w-72" />
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pt-5 sm:px-6 sm:pt-6 md:px-10 lg:px-14">
+          <Skeleton className="ml-auto h-10 w-2/5 max-w-md rounded-2xl" />
+          <Skeleton className="h-24 w-3/4 max-w-2xl rounded-2xl" />
+          <Skeleton className="h-16 w-2/3 max-w-xl rounded-2xl" />
+        </div>
+        <div className="shrink-0 border-t border-border/60 px-4 py-3 sm:px-6 sm:py-4 md:px-10 lg:px-14">
+          <Skeleton className="h-11 w-full rounded-xl" />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={cn('flex h-full flex-col gap-3', className)}>
+      <Skeleton className="h-8 w-40" />
+      <Skeleton className="min-h-0 flex-1 rounded-lg" />
+      <Skeleton className="h-10 w-full" />
+    </div>
+  )
+}
+
 export function SourceDetailSkeleton() {
   return (
     <div className="flex h-full flex-col">

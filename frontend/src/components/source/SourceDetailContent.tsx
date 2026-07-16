@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { PageError } from '@/components/common/PageError'
 import {
   Link as LinkIcon,
   ExternalLink,
@@ -255,11 +256,11 @@ export function SourceDetailContent({
 
   if (isError || !source) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 p-4">
-        <p className="text-sm text-destructive">
-          {isError ? t('sources.loadFailed') : t('sources.notFound')}
-        </p>
-      </div>
+      <PageError
+        title={isError ? t('sources.loadFailed') : t('sources.notFound')}
+        centered
+        className="h-full p-4"
+      />
     )
   }
 

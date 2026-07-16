@@ -4,7 +4,10 @@ import type { Dispatch, SetStateAction } from 'react'
 import type { TFunction } from 'i18next'
 import { toast } from 'sonner'
 import { readAgUiSseStream } from '@/lib/ag-ui/events'
-import { useChatSendTurn } from './useChatSendTurn'
+import {
+  useChatSendTurn,
+  type UseChatSendTurnOptions,
+} from './useChatSendTurn'
 import type { ChatStreamMessage } from './chat-sse-handlers'
 
 vi.mock('@/lib/ag-ui/events', () => ({
@@ -59,8 +62,8 @@ function makeStreaming() {
 }
 
 function makeHookOptions(
-  overrides: Partial<Parameters<typeof useChatSendTurn<TestMessage>>[0]> = {},
-) {
+  overrides: Partial<UseChatSendTurnOptions<TestMessage>> = {},
+): UseChatSendTurnOptions<TestMessage> {
   const setMessages = overrides.setMessages ?? makeSetMessages()
   const streaming = overrides.streaming ?? makeStreaming()
 
@@ -79,7 +82,7 @@ function makeHookOptions(
     ensureSession: vi.fn().mockResolvedValue('session-1'),
     buildSendRequest: vi.fn().mockResolvedValue(new ReadableStream<Uint8Array>()),
     ...overrides,
-  }
+  } as UseChatSendTurnOptions<TestMessage>
 }
 
 describe('useChatSendTurn', () => {

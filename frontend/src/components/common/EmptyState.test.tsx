@@ -39,4 +39,17 @@ describe('EmptyState', () => {
 
     expect(screen.getByRole('button', { name: 'Create item' })).toBeInTheDocument()
   })
+
+  it('should render a subtle variant without icon or dashed border', () => {
+    render(
+      <EmptyState
+        variant="subtle"
+        title="Start a conversation"
+        className="px-2 py-3"
+      />
+    )
+
+    expect(screen.getByText('Start a conversation')).toBeInTheDocument()
+    expect(screen.queryByRole('heading')).not.toBeInTheDocument()
+  })
 })

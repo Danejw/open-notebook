@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { EmptyState } from '@/components/common/EmptyState'
 import { PickerDialogSkeleton } from '@/components/common/LoadingSkeletons'
 import { useMcpSelectableTools } from '@/lib/hooks/use-mcp'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -119,9 +120,12 @@ export function ToolPicker({ selectedToolIds, onChange, disabled = false }: Tool
           {isLoading ? (
             <PickerDialogSkeleton rows={5} />
           ) : groupedTools.length === 0 ? (
-            <p className="py-4 text-center text-xs text-muted-foreground">
-              {t('tools.pickerEmpty')}
-            </p>
+            <EmptyState
+              variant="subtle"
+              title={t('tools.pickerEmpty')}
+              className="py-4"
+              titleClassName="text-xs"
+            />
           ) : (
             groupedTools.map((group) => (
               <div key={group.connectionName} className="space-y-1.5">

@@ -1,17 +1,15 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { EmptyState } from '@/components/common/EmptyState'
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+  PickerDialogActions,
+  PickerDialogShell,
+  usePickerDialogDraft,
+} from '@/components/common/PickerDialogShell'
 import { PickerDialogSkeleton } from '@/components/common/LoadingSkeletons'
 import { useSkillsCatalog } from '@/lib/hooks/use-skills'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -25,8 +23,8 @@ interface SkillPickerProps {
 
 export function SkillPicker({ selectedSkillIds, onChange, disabled = false }: SkillPickerProps) {
   const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
-  const [draftIds, setDraftIds] = useState<string[]>(selectedSkillIds)
+  const { open, draft, setDraft, handleOpenChange, close } =
+    usePickerDialogDraft(selectedSkillIds)
   const { data: catalog, isLoading } = useSkillsCatalog({ enabled: open })
 
   const activeSkills = useMemo(
@@ -34,15 +32,8 @@ export function SkillPicker({ selectedSkillIds, onChange, disabled = false }: Sk
     [catalog]
   )
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen) {
-      setDraftIds(selectedSkillIds)
-    }
-    setOpen(nextOpen)
-  }
-
   const toggleSkill = (id: string, checked: boolean) => {
-    setDraftIds((prev) => {
+    setDraft((prev) => {
       if (checked) {
         return prev.includes(id) ? prev : [...prev, id]
       }
@@ -51,16 +42,19 @@ export function SkillPicker({ selectedSkillIds, onChange, disabled = false }: Sk
   }
 
   const handleSave = () => {
-    onChange(draftIds)
-    setOpen(false)
+    onChange(draft)
+    close()
   }
 
   const selectedCount = selectedSkillIds.length
-  const draftCount = draftIds.length
+  const draftCount = draft.length
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
+    <PickerDialogShell
+      open={open}
+      onOpenChange={handleOpenChange}
+      title={t('skills.pickerTitle')}
+      trigger={
         <Button
           type="button"
           variant="outline"
@@ -76,69 +70,59 @@ export function SkillPicker({ selectedSkillIds, onChange, disabled = false }: Sk
         >
           <Sparkles className={cn('h-4 w-4', selectedCount > 0 && 'text-primary')} />
         </Button>
-      </DialogTrigger>
-      <DialogContent className="max-h-[70vh] max-w-md gap-0 overflow-hidden p-0 sm:max-w-md">
-        <DialogHeader className="border-b">
-          <DialogTitle>{t('skills.pickerTitle')}</DialogTitle>
-        </DialogHeader>
-
-        <div className="max-h-64 overflow-y-auto hide-scrollbar">
-          {isLoading ? (
-            <PickerDialogSkeleton rows={4} />
-          ) : activeSkills.length === 0 ? (
-            <p className="px-1 py-4 text-center text-xs text-muted-foreground">
-              {t('skills.pickerEmpty')}
-            </p>
-          ) : (
-            <div className="divide-y">
-              {activeSkills.map((skill) => {
-                const checked = draftIds.includes(skill.id)
-                const checkboxId = `skill-picker-${skill.id}`
-                return (
-                  <label
-                    key={skill.id}
-                    htmlFor={checkboxId}
-                    className="flex cursor-pointer items-start gap-2 px-1 py-1.5 hover:bg-muted/50"
-                  >
-                    <Checkbox
-                      id={checkboxId}
-                      checked={checked}
-                      className="mt-0.5"
-                      onCheckedChange={(value) => toggleSkill(skill.id, value === true)}
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium leading-snug">
-                        {skill.name}
-                      </span>
-                      {skill.description ? (
-                        <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-                          {skill.description}
-                        </span>
-                      ) : null}
+      }
+      footerLeft={
+        <span className="text-[11px] text-muted-foreground">
+          {draftCount > 0
+            ? t('skills.pickerSelected').replace('{count}', draftCount.toString())
+            : '\u00a0'}
+        </span>
+      }
+      actions={
+        <PickerDialogActions
+          cancelLabel={t('common.cancel')}
+          saveLabel={t('common.save')}
+          onCancel={close}
+          onSave={handleSave}
+        />
+      }
+    >
+      {isLoading ? (
+        <PickerDialogSkeleton rows={4} />
+      ) : activeSkills.length === 0 ? (
+        <EmptyState variant="subtle" title={t('skills.pickerEmpty')} titleClassName="text-xs" />
+      ) : (
+        <div className="divide-y">
+          {activeSkills.map((skill) => {
+            const checked = draft.includes(skill.id)
+            const checkboxId = `skill-picker-${skill.id}`
+            return (
+              <label
+                key={skill.id}
+                htmlFor={checkboxId}
+                className="flex cursor-pointer items-start gap-2 px-1 py-1.5 hover:bg-muted/50"
+              >
+                <Checkbox
+                  id={checkboxId}
+                  checked={checked}
+                  className="mt-0.5"
+                  onCheckedChange={(value) => toggleSkill(skill.id, value === true)}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium leading-snug">
+                    {skill.name}
+                  </span>
+                  {skill.description ? (
+                    <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                      {skill.description}
                     </span>
-                  </label>
-                )
-              })}
-            </div>
-          )}
+                  ) : null}
+                </span>
+              </label>
+            )
+          })}
         </div>
-
-        <DialogFooter className="flex-row items-center border-t sm:justify-between">
-          <span className="text-[11px] text-muted-foreground">
-            {draftCount > 0
-              ? t('skills.pickerSelected').replace('{count}', draftCount.toString())
-              : '\u00a0'}
-          </span>
-          <div className="flex gap-1">
-            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setOpen(false)}>
-              {t('common.cancel')}
-            </Button>
-            <Button type="button" size="sm" className="h-7 px-2 text-xs" onClick={handleSave}>
-              {t('common.save')}
-            </Button>
-          </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      )}
+    </PickerDialogShell>
   )
 }

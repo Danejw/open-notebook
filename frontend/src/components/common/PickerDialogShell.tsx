@@ -24,10 +24,13 @@ export const pickerDialogFooterClassName = 'flex-row items-center border-t sm:ju
 interface PickerDialogShellProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  trigger: ReactNode
+  /** Optional trigger; omit for externally controlled dialogs (e.g. column actions). */
+  trigger?: ReactNode
   title: ReactNode
   footerLeft?: ReactNode
   actions: ReactNode
+  /** Content rendered above the scrollable body (e.g. search). */
+  beforeBody?: ReactNode
   afterBody?: ReactNode
   contentClassName?: string
   headerClassName?: string
@@ -43,6 +46,7 @@ export function PickerDialogShell({
   title,
   footerLeft,
   actions,
+  beforeBody,
   afterBody,
   contentClassName,
   headerClassName,
@@ -52,11 +56,13 @@ export function PickerDialogShell({
 }: PickerDialogShellProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
       <DialogContent className={cn(pickerDialogContentClassName, contentClassName)}>
         <DialogHeader className={cn(pickerDialogHeaderClassName, headerClassName)}>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
+
+        {beforeBody}
 
         <div className={cn(pickerDialogBodyClassName, bodyClassName)}>{children}</div>
 
@@ -76,6 +82,8 @@ interface PickerDialogActionsProps {
   saveLabel: string
   onCancel: () => void
   onSave: () => void
+  cancelDisabled?: boolean
+  saveDisabled?: boolean
 }
 
 export function PickerDialogActions({
@@ -83,6 +91,8 @@ export function PickerDialogActions({
   saveLabel,
   onCancel,
   onSave,
+  cancelDisabled = false,
+  saveDisabled = false,
 }: PickerDialogActionsProps) {
   return (
     <div className="flex gap-1">
@@ -92,10 +102,17 @@ export function PickerDialogActions({
         size="sm"
         className="h-7 px-2 text-xs"
         onClick={onCancel}
+        disabled={cancelDisabled}
       >
         {cancelLabel}
       </Button>
-      <Button type="button" size="sm" className="h-7 px-2 text-xs" onClick={onSave}>
+      <Button
+        type="button"
+        size="sm"
+        className="h-7 px-2 text-xs"
+        onClick={onSave}
+        disabled={saveDisabled}
+      >
         {saveLabel}
       </Button>
     </div>

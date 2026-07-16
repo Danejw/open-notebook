@@ -26,6 +26,39 @@ describe('PickerDialogShell', () => {
     expect(screen.getByText('2 selected')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Apply' })).toBeInTheDocument()
   })
+
+  it('renders beforeBody content above the body', () => {
+    render(
+      <PickerDialogShell
+        open
+        onOpenChange={vi.fn()}
+        title="Select items"
+        beforeBody={<input aria-label="Search items" />}
+        actions={<button type="button">Apply</button>}
+      >
+        <p>Picker body</p>
+      </PickerDialogShell>,
+    )
+
+    expect(screen.getByLabelText('Search items')).toBeInTheDocument()
+    expect(screen.getByText('Picker body')).toBeInTheDocument()
+  })
+
+  it('works without a trigger for externally controlled dialogs', () => {
+    render(
+      <PickerDialogShell
+        open
+        onOpenChange={vi.fn()}
+        title="External open"
+        actions={<button type="button">Apply</button>}
+      >
+        <p>Body</p>
+      </PickerDialogShell>,
+    )
+
+    expect(screen.getByText('External open')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Open picker' })).not.toBeInTheDocument()
+  })
 })
 
 describe('PickerDialogActions', () => {
@@ -47,6 +80,20 @@ describe('PickerDialogActions', () => {
 
     expect(onCancel).toHaveBeenCalledTimes(1)
     expect(onSave).toHaveBeenCalledTimes(1)
+  })
+
+  it('disables save when saveDisabled is true', () => {
+    render(
+      <PickerDialogActions
+        cancelLabel="Cancel"
+        saveLabel="Save"
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        saveDisabled
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
   })
 })
 

@@ -3,27 +3,21 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useDebounce } from 'use-debounce'
 import { Search, FileText, Link as LinkIcon, Upload } from 'lucide-react'
+import { EmptyState } from '@/components/common/EmptyState'
 import { InlineSkeleton, PickerDialogSkeleton } from '@/components/common/LoadingSkeletons'
+import { PickerCheckboxRow } from '@/components/common/PickerCheckboxRow'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  dialogBodyClassName,
-  dialogLargeContentClassName,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+  PickerDialogActions,
+  PickerDialogShell,
+} from '@/components/common/PickerDialogShell'
 import { Input } from '@/components/ui/input'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { searchApi } from '@/lib/api/search'
 import { sourcesApi } from '@/lib/api/sources'
 import { useSources, useAddSourcesToProject } from '@/lib/hooks/use-sources'
 import { SourceListResponse } from '@/lib/types/api'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { cn } from '@/lib/utils'
+import { dialogLargeContentClassName } from '@/components/ui/dialog'
 
 interface AddExistingSourceDialogProps {
   open: boolean
@@ -46,10 +40,9 @@ export function AddExistingSourceDialog({
   const [filteredSources, setFilteredSources] = useState<SourceListResponse[]>([])
   const [isSearching, setIsSearching] = useState(false)
 
-  // Get sources already in this project
   const { data: currentProjectSources } = useSources(projectId)
   const currentSourceIds = useMemo(
-    () => new Set(currentProjectSources?.map(s => s.id) || []),
+    () => new Set(currentProjectSources?.map((s) => s.id) || []),
     [currentProjectSources]
   )
 
@@ -58,7 +51,6 @@ export function AddExistingSourceDialog({
   const loadAllSources = useCallback(async () => {
     try {
       setIsSearching(true)
-      // Use sources API directly to get all sources (max 100 per API limit)
       const sources = await sourcesApi.list({
         limit: 100,
         offset: 0,
@@ -77,7 +69,6 @@ export function AddExistingSourceDialog({
 
   const performSearch = useCallback(async () => {
     if (!debouncedSearchQuery.trim()) {
-      // Empty query - show all sources
       setFilteredSources(allSources)
       setIsSearching(false)
       return
@@ -94,9 +85,7 @@ export function AddExistingSourceDialog({
         minimum_score: 0.01,
       })
 
-      // Since we set search_sources=true and search_notes=false,
-      // the API only returns sources, no need to filter
-      const sources = response.results.map(r => ({
+      const sources = response.results.map((r) => ({
         id: r.parent_id,
         title: r.title || 'Untitled',
         topics: [],
@@ -110,21 +99,21 @@ export function AddExistingSourceDialog({
       setFilteredSources(sources)
     } catch (error) {
       console.error('Error searching sources:', error)
-      // On error, fall back to showing all sources
       setFilteredSources(allSources)
     } finally {
       setIsSearching(false)
     }
   }, [debouncedSearchQuery, allSources])
 
-  // Load all sources initially
   useEffect(() => {
     if (open) {
       loadAllSources()
+    } else {
+      setSelectedSourceIds([])
+      setSearchQuery('')
     }
   }, [open, loadAllSources])
 
-  // Filter sources when search query changes
   useEffect(() => {
     if (!debouncedSearchQuery) {
       setFilteredSources(allSources)
@@ -135,12 +124,13 @@ export function AddExistingSourceDialog({
     performSearch()
   }, [debouncedSearchQuery, allSources, performSearch])
 
-  const handleToggleSource = (sourceId: string) => {
-    setSelectedSourceIds(prev =>
-      prev.includes(sourceId)
-        ? prev.filter(id => id !== sourceId)
-        : [...prev, sourceId]
-    )
+  const handleToggleSource = (sourceId: string, checked: boolean) => {
+    setSelectedSourceIds((prev) => {
+      if (checked) {
+        return prev.includes(sourceId) ? prev : [...prev, sourceId]
+      }
+      return prev.filter((id) => id !== sourceId)
+    })
   }
 
   const handleAddSelected = async () => {
@@ -152,19 +142,16 @@ export function AddExistingSourceDialog({
         sourceIds: selectedSourceIds,
       })
 
-      // Reset state
       setSelectedSourceIds([])
       setSearchQuery('')
       onOpenChange(false)
       onSuccess?.()
     } catch (error) {
-      // Error handled by the hook's onError
       console.error('Error adding sources:', error)
     }
   }
 
   const getSourceIcon = (source: SourceListResponse) => {
-    // Derive type from asset
     if (source.asset?.url) {
       return <LinkIcon className="h-4 w-4" />
     }
@@ -183,14 +170,14 @@ export function AddExistingSourceDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn(dialogLargeContentClassName, 'flex flex-col overflow-hidden')}>
-        <DialogHeader>
-          <DialogTitle>{t('sources.addExistingTitle')}</DialogTitle>
-        </DialogHeader>
-
-        <div className={cn(dialogBodyClassName, 'flex flex-col space-y-3')}>
-          {/* Search Input */}
+    <PickerDialogShell
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t('sources.addExistingTitle')}
+      contentClassName={dialogLargeContentClassName}
+      bodyClassName="max-h-[400px] border rounded-md"
+      beforeBody={
+        <div className="space-y-3 border-b px-3 py-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -199,104 +186,87 @@ export function AddExistingSourceDialog({
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-7 pl-9 text-xs"
             />
-            {isSearching && (
+            {isSearching ? (
               <InlineSkeleton className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2" />
-            )}
+            ) : null}
           </div>
-
-          {/* Source List */}
-          <ScrollArea className="h-[400px] border rounded-md">
-            {isSearching && filteredSources.length === 0 ? (
-              <div className="p-4">
-                <PickerDialogSkeleton rows={4} />
-              </div>
-            ) : filteredSources.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
-                <FileText className="h-12 w-12 mb-2 opacity-50" />
-                <p>{t('sources.noProjectsFound')}</p>
-              </div>
-            ) : (
-              <div className="space-y-2 p-4">
-                {filteredSources.map((source) => {
-                  const isAlreadyLinked = currentSourceIds.has(source.id)
-                  const isSelected = selectedSourceIds.includes(source.id)
-
-                  return (
-                    <div
-                      key={source.id}
-                      className={`flex items-start gap-3 p-3 rounded-lg border transition-colors min-w-0 ${
-                        isSelected ? 'bg-accent border-accent-foreground/20' : 'hover:bg-accent/50'
-                      }`}
-                    >
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => handleToggleSource(source.id)}
-                        disabled={isAlreadyLinked}
-                        className="mt-1"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start gap-2 mb-1">
-                          <div className="shrink-0 mt-0.5">
-                            {getSourceIcon(source)}
-                          </div>
-                          <h4 className="font-medium text-sm break-words line-clamp-2 flex-1 min-w-0">
-                            {source.title}
-                          </h4>
-                          {isAlreadyLinked && (
-                            <Badge variant="secondary" className="text-xs shrink-0">
-                              {t('common.linked')}
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {t('sources.added').replace('{date}', formatDate(source.created))}
-                        </p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </ScrollArea>
-
-          {/* Truncation Warning */}
-          {allSources.length >= 100 && !debouncedSearchQuery && (
-            <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded-md">
+          {allSources.length >= 100 && !debouncedSearchQuery ? (
+            <div className="rounded-md bg-muted/50 p-2 text-xs text-muted-foreground">
               {t('sources.showingFirst100')}
             </div>
-          )}
-
-          {/* Selection Summary */}
-          {selectedSourceIds.length > 0 && (
-            <div className="text-sm text-muted-foreground">
-              {t('sources.selectedCount').replace('{count}', selectedSourceIds.length.toString())}
-            </div>
-          )}
+          ) : null}
         </div>
+      }
+      footerLeft={
+        <span className="text-[11px] text-muted-foreground">
+          {selectedSourceIds.length > 0
+            ? t('sources.selectedCount').replace(
+                '{count}',
+                selectedSourceIds.length.toString()
+              )
+            : '\u00a0'}
+        </span>
+      }
+      actions={
+        <PickerDialogActions
+          cancelLabel={t('common.cancel')}
+          saveLabel={
+            addSources.isPending ? t('common.adding') : t('common.addSelected')
+          }
+          onCancel={() => onOpenChange(false)}
+          onSave={() => {
+            void handleAddSelected()
+          }}
+          cancelDisabled={addSources.isPending}
+          saveDisabled={selectedSourceIds.length === 0 || addSources.isPending}
+        />
+      }
+    >
+      {isSearching && filteredSources.length === 0 ? (
+        <div className="p-2">
+          <PickerDialogSkeleton rows={4} />
+        </div>
+      ) : filteredSources.length === 0 ? (
+        <EmptyState
+          variant="subtle"
+          title={t('sources.noProjectsFound')}
+          className="py-10"
+          titleClassName="text-xs"
+        />
+      ) : (
+        <div className="divide-y p-1">
+          {filteredSources.map((source) => {
+            const isAlreadyLinked = currentSourceIds.has(source.id)
+            const isSelected = selectedSourceIds.includes(source.id)
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={addSources.isPending}
-          >
-            {t('common.cancel')}
-          </Button>
-          <Button
-            onClick={handleAddSelected}
-            disabled={selectedSourceIds.length === 0 || addSources.isPending}
-          >
-            {addSources.isPending ? (
-              <>
-                <InlineSkeleton className="mr-2" />
-                {t('common.adding')}
-              </>
-            ) : (
-              <>{t('common.addSelected')}</>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            return (
+              <PickerCheckboxRow
+                key={source.id}
+                id={source.id}
+                checked={isSelected}
+                disabled={isAlreadyLinked}
+                onCheckedChange={(checked) => handleToggleSource(source.id, checked)}
+                leading={getSourceIcon(source)}
+                title={source.title}
+                meta={
+                  isAlreadyLinked ? (
+                    <Badge variant="secondary" className="text-xs shrink-0">
+                      {t('common.linked')}
+                    </Badge>
+                  ) : null
+                }
+                description={t('sources.added').replace(
+                  '{date}',
+                  formatDate(source.created)
+                )}
+                className={
+                  isSelected ? 'bg-accent border-accent-foreground/20' : undefined
+                }
+              />
+            )
+          })}
+        </div>
+      )}
+    </PickerDialogShell>
   )
 }

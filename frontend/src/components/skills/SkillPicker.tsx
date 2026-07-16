@@ -3,8 +3,8 @@
 import { useMemo } from 'react'
 import { Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { EmptyState } from '@/components/common/EmptyState'
+import { PickerCheckboxRow } from '@/components/common/PickerCheckboxRow'
 import {
   PickerDialogActions,
   PickerDialogShell,
@@ -93,34 +93,16 @@ export function SkillPicker({ selectedSkillIds, onChange, disabled = false }: Sk
         <EmptyState variant="subtle" title={t('skills.pickerEmpty')} titleClassName="text-xs" />
       ) : (
         <div className="divide-y">
-          {activeSkills.map((skill) => {
-            const checked = draft.includes(skill.id)
-            const checkboxId = `skill-picker-${skill.id}`
-            return (
-              <label
-                key={skill.id}
-                htmlFor={checkboxId}
-                className="flex cursor-pointer items-start gap-2 px-1 py-1.5 hover:bg-muted/50"
-              >
-                <Checkbox
-                  id={checkboxId}
-                  checked={checked}
-                  className="mt-0.5"
-                  onCheckedChange={(value) => toggleSkill(skill.id, value === true)}
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium leading-snug">
-                    {skill.name}
-                  </span>
-                  {skill.description ? (
-                    <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-                      {skill.description}
-                    </span>
-                  ) : null}
-                </span>
-              </label>
-            )
-          })}
+          {activeSkills.map((skill) => (
+            <PickerCheckboxRow
+              key={skill.id}
+              id={skill.id}
+              title={skill.name}
+              description={skill.description || undefined}
+              checked={draft.includes(skill.id)}
+              onCheckedChange={(checked) => toggleSkill(skill.id, checked)}
+            />
+          ))}
         </div>
       )}
     </PickerDialogShell>

@@ -3,16 +3,16 @@
 import { useMemo } from 'react'
 import { Wrench } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
-import { Label } from '@/components/ui/label'
 import { EmptyState } from '@/components/common/EmptyState'
+import { PickerCheckboxRow } from '@/components/common/PickerCheckboxRow'
 import {
   PickerDialogActions,
   PickerDialogShell,
   usePickerDialogDraft,
 } from '@/components/common/PickerDialogShell'
 import { PickerDialogSkeleton } from '@/components/common/LoadingSkeletons'
+import { McpToolRiskBadge } from '@/components/mcp/McpToolRiskBadge'
 import { useMcpSelectableTools } from '@/lib/hooks/use-mcp'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { McpTool } from '@/lib/types/mcp'
@@ -26,21 +26,6 @@ interface ToolPickerProps {
 
 function isToolSelectable(tool: McpTool): boolean {
   return tool.available && tool.executable && tool.risk_level === 'read'
-}
-
-function riskBadgeVariant(risk: McpTool['risk_level']): 'default' | 'secondary' | 'destructive' | 'outline' {
-  switch (risk) {
-    case 'read':
-      return 'secondary'
-    case 'action':
-      return 'destructive'
-    case 'unknown':
-      return 'outline'
-    default: {
-      const _exhaustive: never = risk
-      return _exhaustive
-    }
-  }
 }
 
 export function ToolPicker({ selectedToolIds, onChange, disabled = false }: ToolPickerProps) {
@@ -156,51 +141,32 @@ export function ToolPicker({ selectedToolIds, onChange, disabled = false }: Tool
               <div className="space-y-1.5">
                 {group.tools.map((tool) => {
                   const selectable = isToolSelectable(tool)
-                  const checked = draft.includes(tool.id)
-                  const checkboxId = `tool-picker-${tool.id}`
                   return (
-                    <div
+                    <PickerCheckboxRow
                       key={tool.id}
-                      className={cn(
-                        'flex items-start gap-2 rounded-md border px-2 py-1.5',
-                        !selectable && 'opacity-60'
-                      )}
-                    >
-                      <Checkbox
-                        id={checkboxId}
-                        checked={checked}
-                        disabled={!selectable}
-                        onCheckedChange={(value) => toggleTool(tool.id, value === true)}
-                      />
-                      <div className="min-w-0 flex-1 space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Label
-                            htmlFor={checkboxId}
-                            className={cn(
-                              'font-medium',
-                              selectable ? 'cursor-pointer' : 'cursor-not-allowed'
-                            )}
-                          >
-                            {tool.title || tool.name}
-                          </Label>
-                          <Badge variant={riskBadgeVariant(tool.risk_level)} className="text-[10px]">
-                            {t(`tools.risk.${tool.risk_level}`)}
-                          </Badge>
-                        </div>
-                        {tool.description && (
-                          <p className="text-xs text-muted-foreground line-clamp-2">
-                            {tool.description}
-                          </p>
-                        )}
-                        {!selectable && (
+                      id={tool.id}
+                      bordered
+                      title={tool.title || tool.name}
+                      description={tool.description || undefined}
+                      checked={draft.includes(tool.id)}
+                      disabled={!selectable}
+                      onCheckedChange={(checked) => toggleTool(tool.id, checked)}
+                      meta={
+                        <McpToolRiskBadge
+                          risk={tool.risk_level}
+                          className="text-[10px]"
+                        />
+                      }
+                      footer={
+                        !selectable ? (
                           <p className="text-xs text-muted-foreground">
                             {tool.risk_level !== 'read'
                               ? t('tools.pickerReadOnlyNote')
                               : t('tools.pickerUnavailableNote')}
                           </p>
-                        )}
-                      </div>
-                    </div>
+                        ) : null
+                      }
+                    />
                   )
                 })}
               </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, KeyRound, RefreshCw, Zap } from 'lucide-react'
@@ -9,24 +9,10 @@ import { PageRefreshButton } from '@/components/layout/PageRefreshButton'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { FormDialogShell } from '@/components/common/FormDialogShell'
 import { DetailPageSkeleton, ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
+import { McpAuthFields } from '@/components/mcp/McpAuthFields'
+import { McpToolRiskBadge } from '@/components/mcp/McpToolRiskBadge'
 import {
   useMcpConnection,
   useMcpConnectionTools,
@@ -35,23 +21,8 @@ import {
   useUpdateMcpConnectionAuth,
 } from '@/lib/hooks/use-mcp'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { McpAuthType, McpTool } from '@/lib/types/mcp'
+import { McpAuthType } from '@/lib/types/mcp'
 import { cn } from '@/lib/utils'
-
-function riskBadgeVariant(risk: McpTool['risk_level']): 'default' | 'secondary' | 'destructive' | 'outline' {
-  switch (risk) {
-    case 'read':
-      return 'secondary'
-    case 'action':
-      return 'destructive'
-    case 'unknown':
-      return 'outline'
-    default: {
-      const _exhaustive: never = risk
-      return _exhaustive
-    }
-  }
-}
 
 function JsonBlock({ value }: { value: object | null | undefined }) {
   if (!value || Object.keys(value).length === 0) {
@@ -91,9 +62,6 @@ export default function ToolConnectionDetailPage() {
   const testConnection = useTestMcpConnection()
   const syncConnection = useSyncMcpConnection()
   const updateAuth = useUpdateMcpConnectionAuth()
-
-  const authTypeId = useId()
-  const tokenId = useId()
 
   const [authOpen, setAuthOpen] = useState(false)
   const [authType, setAuthType] = useState<McpAuthType>('bearer')
@@ -290,9 +258,7 @@ export default function ToolConnectionDetailPage() {
                           )}
                         </div>
                         <div className="flex flex-wrap gap-1.5">
-                          <Badge variant={riskBadgeVariant(tool.risk_level)}>
-                            {t(`tools.risk.${tool.risk_level}`)}
-                          </Badge>
+                          <McpToolRiskBadge risk={tool.risk_level} />
                           <Badge variant={tool.available ? 'secondary' : 'outline'}>
                             {tool.available ? t('tools.available') : t('tools.unavailable')}
                           </Badge>
@@ -321,50 +287,28 @@ export default function ToolConnectionDetailPage() {
         </div>
       </div>
 
-      <Dialog open={authOpen} onOpenChange={setAuthOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('tools.replaceAuth')}</DialogTitle>
-            <DialogDescription>{t('tools.replaceAuthDesc')}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor={authTypeId}>{t('tools.authType')}</Label>
-              <Select value={authType} onValueChange={(value: McpAuthType) => setAuthType(value)}>
-                <SelectTrigger id={authTypeId}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">{t('tools.authNone')}</SelectItem>
-                  <SelectItem value="bearer">{t('tools.authBearer')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {authType === 'bearer' && (
-              <div className="space-y-2">
-                <Label htmlFor={tokenId}>{t('tools.newBearerToken')}</Label>
-                <Input
-                  id={tokenId}
-                  type="password"
-                  value={bearerToken}
-                  onChange={(e) => setBearerToken(e.target.value)}
-                  placeholder={t('tools.bearerTokenPlaceholder')}
-                  autoComplete="new-password"
-                />
-                <p className="text-xs text-muted-foreground">{t('tools.tokenNotShown')}</p>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAuthOpen(false)}>
-              {t('common.cancel')}
-            </Button>
-            <Button onClick={handleSaveAuth} disabled={updateAuth.isPending}>
-              {updateAuth.isPending ? t('common.saving') : t('common.save')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <FormDialogShell
+        open={authOpen}
+        onOpenChange={setAuthOpen}
+        title={t('tools.replaceAuth')}
+        description={t('tools.replaceAuthDesc')}
+        isSubmitting={updateAuth.isPending}
+        onSubmit={(event) => {
+          event.preventDefault()
+          void handleSaveAuth()
+        }}
+      >
+        <McpAuthFields
+          authType={authType}
+          onAuthTypeChange={setAuthType}
+          bearerToken={bearerToken}
+          onBearerTokenChange={setBearerToken}
+          tokenLabel={t('tools.newBearerToken')}
+          tokenHint={t('tools.tokenNotShown')}
+          tokenAutoComplete="new-password"
+          className="space-y-4"
+        />
+      </FormDialogShell>
     </>
   )
 }

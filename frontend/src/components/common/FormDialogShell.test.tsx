@@ -64,4 +64,25 @@ describe('FormDialogShell', () => {
 
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
+
+  it('renders footerLeft content alongside cancel and save', () => {
+    render(
+      <FormDialogShell
+        {...defaultProps}
+        footerLeft={<button type="button">Reset</button>}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Reset' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'common.cancel' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'common.save' })).toBeInTheDocument()
+  })
+
+  it('renders description when provided', () => {
+    render(
+      <FormDialogShell {...defaultProps} description="Rename the selected file" />,
+    )
+
+    expect(screen.getByText('Rename the selected file')).toBeInTheDocument()
+  })
 })

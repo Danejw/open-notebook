@@ -17,15 +17,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { FormDialogShell } from '@/components/common/FormDialogShell'
 import { DetailPageSkeleton } from '@/components/common/LoadingSkeletons'
 import { SkillFileTree } from '../components/SkillFileTree'
 import { SkillEditorPanel } from '../components/SkillEditorPanel'
@@ -434,59 +427,54 @@ export default function SkillDetailPage() {
         </div>
       </div>
 
-      <Dialog open={createFileOpen} onOpenChange={setCreateFileOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('skills.newFile')}</DialogTitle>
-            <DialogDescription>{t('skills.newFileDesc')}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor={newFileId}>{t('skills.filePath')}</Label>
-            <Input
-              id={newFileId}
-              value={newFilePath}
-              onChange={(e) => setNewFilePath(e.target.value)}
-              placeholder="references/example.md"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateFileOpen(false)}>
-              {t('common.cancel')}
-            </Button>
-            <Button onClick={handleCreateFile} disabled={!newFilePath.trim() || upsertFile.isPending}>
-              {t('skills.createFile')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <FormDialogShell
+        open={createFileOpen}
+        onOpenChange={setCreateFileOpen}
+        title={t('skills.newFile')}
+        description={t('skills.newFileDesc')}
+        submitLabel={t('skills.createFile')}
+        isSubmitting={upsertFile.isPending}
+        disableSubmit={!newFilePath.trim()}
+        onSubmit={(event) => {
+          event.preventDefault()
+          void handleCreateFile()
+        }}
+      >
+        <div className="space-y-2">
+          <Label htmlFor={newFileId}>{t('skills.filePath')}</Label>
+          <Input
+            id={newFileId}
+            value={newFilePath}
+            onChange={(e) => setNewFilePath(e.target.value)}
+            placeholder="references/example.md"
+          />
+        </div>
+      </FormDialogShell>
 
-      <Dialog open={!!renameFrom} onOpenChange={(open) => !open && setRenameFrom(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('skills.renameFile')}</DialogTitle>
-            <DialogDescription>{t('skills.renameFileDesc')}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor={renameFileId}>{t('skills.filePath')}</Label>
-            <Input
-              id={renameFileId}
-              value={renameTo}
-              onChange={(e) => setRenameTo(e.target.value)}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRenameFrom(null)}>
-              {t('common.cancel')}
-            </Button>
-            <Button
-              onClick={handleRenameFile}
-              disabled={!renameTo.trim() || moveFile.isPending}
-            >
-              {t('skills.renameFile')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <FormDialogShell
+        open={!!renameFrom}
+        onOpenChange={(open) => {
+          if (!open) setRenameFrom(null)
+        }}
+        title={t('skills.renameFile')}
+        description={t('skills.renameFileDesc')}
+        submitLabel={t('skills.renameFile')}
+        isSubmitting={moveFile.isPending}
+        disableSubmit={!renameTo.trim()}
+        onSubmit={(event) => {
+          event.preventDefault()
+          void handleRenameFile()
+        }}
+      >
+        <div className="space-y-2">
+          <Label htmlFor={renameFileId}>{t('skills.filePath')}</Label>
+          <Input
+            id={renameFileId}
+            value={renameTo}
+            onChange={(e) => setRenameTo(e.target.value)}
+          />
+        </div>
+      </FormDialogShell>
 
       <ConfirmDialog
         open={showUnsavedDialog}

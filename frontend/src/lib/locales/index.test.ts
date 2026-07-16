@@ -62,6 +62,18 @@ describe('Locale Parity', () => {
 })
 
 describe('Unused Key Detection', () => {
+  // Keys with these prefixes are composed dynamically at runtime via template
+  // literals (e.g. `tools.risk.${level}`) and cannot be detected by a static
+  // string search.  Add a prefix here only when you can confirm the pattern in
+  // source code.
+  const DYNAMIC_KEY_PREFIXES = [
+    'agentSteps.',        // agentStepI18nKey() → `agentSteps.${stepName}`
+    'tools.risk.',        // t(`tools.risk.${tool.risk_level}`)
+    'tools.status.',      // t(`tools.status.${connection.status}`)
+    'tools.toolCallStatus.', // t(`tools.toolCallStatus.${toolCall.status}`)
+    'projects.artifactPhases.', // t(`projects.artifactPhases.${phase}`)
+  ]
+
   it(
     'all en-US leaf keys should be referenced in source files',
     () => {
@@ -82,7 +94,11 @@ describe('Unused Key Detection', () => {
         .replace(/\?\./g, '.')
 
       const leafKeys = getKeys(enUS)
-      const unused = leafKeys.filter(key => !corpus.includes(key))
+      const unused = leafKeys.filter(
+        key =>
+          !corpus.includes(key) &&
+          !DYNAMIC_KEY_PREFIXES.some(prefix => key.startsWith(prefix)),
+      )
 
       expect(
         unused,

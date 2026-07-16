@@ -1,0 +1,11 @@
+-- Rollback migration 43
+
+REMOVE FIELD tool_source ON chat_tool_call;
+REMOVE FIELD performed_write ON chat_tool_call;
+REMOVE FIELD started_at ON chat_tool_call;
+REMOVE FIELD completed_at ON chat_tool_call;
+REMOVE FIELD duration_ms ON chat_tool_call;
+REMOVE FIELD error_category ON chat_tool_call;
+
+REMOVE INDEX note_save_idempotency_key ON note;
+REMOVE FIELD save_idempotency_key ON note;

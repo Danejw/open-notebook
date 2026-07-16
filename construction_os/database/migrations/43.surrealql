@@ -1,0 +1,12 @@
+-- Migration 43: extend chat_tool_call for native + MCP unified audit
+
+DEFINE FIELD OVERWRITE tool_source ON chat_tool_call TYPE option<string>;
+DEFINE FIELD OVERWRITE performed_write ON chat_tool_call TYPE option<bool>;
+DEFINE FIELD OVERWRITE started_at ON chat_tool_call TYPE option<string>;
+DEFINE FIELD OVERWRITE completed_at ON chat_tool_call TYPE option<string>;
+DEFINE FIELD OVERWRITE duration_ms ON chat_tool_call TYPE option<int>;
+DEFINE FIELD OVERWRITE error_category ON chat_tool_call TYPE option<string>;
+
+-- Project Artifact save idempotency key (native tool retries)
+DEFINE FIELD OVERWRITE save_idempotency_key ON note TYPE option<string>;
+DEFINE INDEX OVERWRITE note_save_idempotency_key ON note FIELDS save_idempotency_key;

@@ -1,0 +1,8 @@
+-- Migration 42: normalize note_type to Project Artifact kinds
+-- manual | ai | generated (legacy: human/note → manual, artifact → generated)
+
+UPDATE note SET note_type = 'manual'
+WHERE note_type IN ['human', 'note'] OR note_type IS NONE;
+
+UPDATE note SET note_type = 'generated'
+WHERE note_type = 'artifact';

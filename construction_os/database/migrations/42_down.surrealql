@@ -1,0 +1,6 @@
+-- Reverse kind normalization (best-effort; cannot distinguish former human vs note)
+UPDATE note SET note_type = 'note'
+WHERE note_type = 'manual';
+
+UPDATE note SET note_type = 'artifact'
+WHERE note_type = 'generated';

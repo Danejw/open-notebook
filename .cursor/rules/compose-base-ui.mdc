@@ -1,0 +1,73 @@
+---
+description: Compose shadcn/ui base components for all frontend UI — no one-off primitives
+globs: frontend/**/*.{tsx,ts,css}
+alwaysApply: false
+---
+
+# Compose base UI (mandatory for frontend)
+
+Whenever you create or edit frontend UI, build from existing design-system primitives. Do not invent one-off controls, layouts, or visual languages that drift from the app.
+
+## Source of truth
+
+**Base primitives**: `frontend/src/components/ui/*`
+
+Use these first: Button, Input, Textarea, Select, Label, Checkbox, CheckboxList, RadioGroup, Badge, Card, Dialog, AlertDialog, Alert, Accordion, Tabs, Popover, Tooltip, DropdownMenu, Command, FormSection, WizardContainer, Separator, Skeleton, Progress, ScrollArea, Slider, Collapsible, Resizable, MarkdownEditor, Sonner.
+
+Feature UI belongs in `frontend/src/components/<feature>/` and **must compose** the primitives above (and existing feature components). It must not reimplement them.
+
+## Rules
+
+1. **Search before create** — Before adding any new component or styled control, search `components/ui` and neighboring feature folders for an existing match or near-match.
+2. **Compose, don’t invent** — Build screens from Button, Input, Card, Dialog, FormSection, etc. Prefer `variant` / `size` / props over new wrappers that restyle from scratch.
+3. **Extend the base when shared** — If a pattern will be reused (or already appears twice), add or extend a primitive in `components/ui` (or a shared feature component). Do not leave a third visual dialect in a feature folder.
+4. **Match neighbors** — Copy structure, spacing tokens, and control choices from the closest existing similar surface. Same jobs → same components.
+5. **className is for layout, not a new design system** — Use `className` for placement/flex/truncate. Do not use it to rebuild buttons, inputs, badges, or dialogs with raw borders, shadows, and custom heights.
+
+## Do
+
+- Import from `@/components/ui/...`
+- Reuse FormSection for labeled form blocks; Dialog/AlertDialog for modals; Card only when interaction needs a container
+- Add a missing variant to the existing primitive when one size/style is insufficient
+- Extract a shared feature component when two feature screens need the same composed block
+
+## Do not
+
+- Hand-roll `<button>`, `<input>`, or modal markup when a ui primitive exists
+- Create `FancyButton`, `MyModal`, `CustomBadge`, or similar that duplicates ui/* with different padding/radius/colors
+- Fork a second visual style for project vs source (or any sibling) screens
+- Copy-paste a large JSX block and tweak colors/spacing instead of sharing a component
+- Introduce a new color palette, radius scale, or control height outside existing tokens / ui defaults
+
+## Examples
+
+```tsx
+// ❌ BAD — one-off control
+button className="rounded-xl bg-indigo-600 px-4 py-2 text-sm shadow-lg"
+
+// ✅ GOOD — compose the primitive
+<Button variant="default" size="sm">Save</Button>
+```
+
+```tsx
+// ❌ BAD — custom modal shell
+div className="fixed inset-0 ..."; div className="rounded-2xl border bg-white p-6 ..."
+
+// ✅ GOOD
+<Dialog>
+  <DialogContent>...</DialogContent>
+</Dialog>
+```
+
+```tsx
+// ❌ BAD — ad-hoc form layout with raw labels/inputs
+// ✅ GOOD — FormSection + Label + Input/Select from ui/*
+```
+
+## Before finishing a UI change
+
+- [ ] Searched `components/ui` and nearby feature components for an existing primitive
+- [ ] New UI is composed from base/feature components, not hand-rolled controls
+- [ ] No new parallel button/input/modal/badge implementation
+- [ ] Any reusable pattern lives in `components/ui` or a shared feature component
+- [ ] Visual density/tokens still match `compact-ui` and existing neighbors

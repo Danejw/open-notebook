@@ -36,6 +36,7 @@ import {
 } from '@/components/projects/ColumnHeader'
 import { useProjectColumnsStore } from '@/lib/stores/project-columns-store'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { useListSelection } from '@/lib/hooks/useListSelection'
 import {
   clearArtifactDragData,
   getActiveArtifactDragPayload,
@@ -89,32 +90,24 @@ export function SourcesColumn({
   const [sourceToDelete, setSourceToDelete] = useState<string | null>(null)
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false)
   const [sourceToRemove, setSourceToRemove] = useState<string | null>(null)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkRemoveOpen, setBulkRemoveOpen] = useState(false)
   const [bulkBusy, setBulkBusy] = useState(false)
 
-  const selectionMode = selectedIds.size > 0
-  const selectedList = useMemo(() => Array.from(selectedIds), [selectedIds])
+  const {
+    selectedIds,
+    selectionMode,
+    selectedList,
+    clearSelection,
+    enterSelection,
+    toggleSelect,
+    selectAllVisible,
+    isSelected,
+  } = useListSelection()
 
-  const clearSelection = useCallback(() => setSelectedIds(new Set()), [])
-
-  const enterSelection = useCallback((sourceId: string) => {
-    setSelectedIds(new Set([sourceId]))
-  }, [])
-
-  const toggleSelect = useCallback((sourceId: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(sourceId)) next.delete(sourceId)
-      else next.add(sourceId)
-      return next
-    })
-  }, [])
-
-  const selectAllVisible = useCallback(() => {
-    setSelectedIds(new Set((sources ?? []).map((s) => s.id)))
-  }, [sources])
+  const handleSelectAllVisible = useCallback(() => {
+    selectAllVisible((sources ?? []).map((s) => s.id))
+  }, [selectAllVisible, sources])
 
   const applyBulkContext = useCallback(
     (mode: ContextMode) => {
@@ -530,7 +523,7 @@ export function SourcesColumn({
                       String(selectedIds.size)
                     )}
                     onClear={clearSelection}
-                    onSelectAll={selectAllVisible}
+                    onSelectAll={handleSelectAllVisible}
                   >
                     {onContextModeChange && (
                       <Button
@@ -615,7 +608,7 @@ export function SourcesColumn({
                       : undefined
                     }
                     selectionMode={selectionMode}
-                    selected={selectedIds.has(source.id)}
+                    selected={isSelected(source.id)}
                     onToggleSelect={toggleSelect}
                     onEnterSelection={enterSelection}
                   />

@@ -34,6 +34,7 @@ import { useDeleteNote, useExportNotePdf, useNote, useUpdateNote } from '@/lib/h
 import { useArtifacts } from '@/lib/hooks/use-artifacts'
 import { useIngestAsSource } from '@/lib/hooks/use-sources'
 import { useLongPress } from '@/lib/hooks/use-long-press'
+import { useListSelection } from '@/lib/hooks/useListSelection'
 import { useToast } from '@/lib/hooks/use-toast'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { CollapsibleColumn, createCollapseButton } from '@/components/projects/CollapsibleColumn'
@@ -97,29 +98,24 @@ export function ArtifactsColumn({
   const [renamingNote, setRenamingNote] = useState<NoteResponse | null>(null)
   const [renameTitle, setRenameTitle] = useState('')
   const [draggingNoteId, setDraggingNoteId] = useState<string | null>(null)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkBusy, setBulkBusy] = useState(false)
   const suppressClickRef = useRef(false)
 
-  const selectionMode = selectedIds.size > 0
-  const selectedList = useMemo(() => Array.from(selectedIds), [selectedIds])
+  const {
+    selectedIds,
+    selectionMode,
+    selectedList,
+    clearSelection,
+    enterSelection,
+    toggleSelect,
+    selectAllVisible,
+    isSelected,
+  } = useListSelection()
 
-  const clearSelection = useCallback(() => setSelectedIds(new Set()), [])
-  const enterSelection = useCallback((noteId: string) => {
-    setSelectedIds(new Set([noteId]))
-  }, [])
-  const toggleSelect = useCallback((noteId: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(noteId)) next.delete(noteId)
-      else next.add(noteId)
-      return next
-    })
-  }, [])
-  const selectAllVisible = useCallback(() => {
-    setSelectedIds(new Set((notes ?? []).map((n) => n.id)))
-  }, [notes])
+  const handleSelectAllVisible = useCallback(() => {
+    selectAllVisible((notes ?? []).map((n) => n.id))
+  }, [selectAllVisible, notes])
 
   const applyBulkNoteContext = useCallback(
     (mode: NoteContextMode) => {
@@ -344,7 +340,7 @@ export function ArtifactsColumn({
                       String(selectedIds.size)
                     )}
                     onClear={clearSelection}
-                    onSelectAll={selectAllVisible}
+                    onSelectAll={handleSelectAllVisible}
                   >
                     {onContextModeChange && (
                       <>
@@ -388,7 +384,7 @@ export function ArtifactsColumn({
                     note={note}
                     t={t}
                     selectionMode={selectionMode}
-                    selected={selectedIds.has(note.id)}
+                    selected={isSelected(note.id)}
                     contextMode={contextSelections?.[note.id]}
                     onContextModeChange={onContextModeChange}
                     onEnterSelection={enterSelection}

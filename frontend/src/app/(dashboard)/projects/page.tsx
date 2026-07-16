@@ -3,9 +3,10 @@
 import { useMemo, useState, useDeferredValue, useEffect } from 'react'
 
 import { PageHeader, pageContentClassName, pageSectionGapClassName } from '@/components/layout/PageHeader'
+import { PageRefreshButton } from '@/components/layout/PageRefreshButton'
 import { ProjectList } from './components/ProjectList'
 import { Button } from '@/components/ui/button'
-import { Plus, RefreshCw, LayoutGrid, List } from 'lucide-react'
+import { Plus, LayoutGrid, List } from 'lucide-react'
 import { useProjects } from '@/lib/hooks/use-projects'
 import { CreateProjectDialog } from '@/components/projects/CreateProjectDialog'
 import { Input } from '@/components/ui/input'
@@ -70,9 +71,7 @@ export default function ProjectsPage() {
           title={t('projects.title')}
           actions={
             <div className="flex items-center gap-1">
-              <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => refetch()} aria-label={t('common.refresh')}>
-                <RefreshCw className="h-3.5 w-3.5" />
-              </Button>
+              <PageRefreshButton onClick={() => refetch()} />
               <div className="flex items-center rounded-md border p-0.5">
                 <Button
                   variant={viewMode === 'tile' ? 'secondary' : 'ghost'}

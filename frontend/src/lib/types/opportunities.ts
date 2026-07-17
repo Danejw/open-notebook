@@ -22,6 +22,26 @@ export type HawaiiIsland =
   | 'Pacific'
   | 'Unknown'
 
+export type FitRecommendation = 'pursue' | 'review' | 'no_bid'
+
+export interface OpportunityScoreCategory {
+  label: string
+  score: number
+  max_score: number
+  detail: string
+}
+
+export interface OpportunityAddendumImpact {
+  classification: 'none' | 'favorable' | 'neutral' | 'review' | 'high_risk'
+  score_delta: number
+  summary: string
+  items: Array<{
+    kind: string
+    points: number
+    summary: string
+  }>
+}
+
 export interface Opportunity {
   id: string
   source_key: string
@@ -59,6 +79,11 @@ export interface Opportunity {
   fit_score: number | null
   fit_reasons: string[]
   risk_flags: string[]
+  fit_recommendation: FitRecommendation
+  fit_breakdown: Record<string, OpportunityScoreCategory>
+  addendum_impact: OpportunityAddendumImpact
+  score_version: string
+  score_updated_at: string | null
   extraction_confidence: number | null
   project_id: string | null
   archived: boolean

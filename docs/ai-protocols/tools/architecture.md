@@ -104,5 +104,4 @@ Failed / rejected calls return a short error string to the model (do not retry u
 
 ## Related product docs
 
-- Implementation snapshot: [docs/implementation/native-chat-tools-v1.md](../../implementation/native-chat-tools-v1.md)
 - MCP allowlist / risk: [docs/ai-protocols/mcp/client/](../mcp/client/architecture.md)

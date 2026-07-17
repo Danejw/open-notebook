@@ -127,10 +127,12 @@ claude-logs/
 
 
 docs/custom_gpt
-# Optimization docs are tracked; ignore generated measurement artifacts
-docs/optimization/baselines/*.json
-!docs/optimization/baselines/manifest.json
-docs/optimization/runtime/
+docs/articles/
+docs/superpowers/
+docs/summaries/
+docs/optimization/
+docs/lints/
+docs/audits/
 doc_exports/
 
 specs/

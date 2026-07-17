@@ -2,7 +2,7 @@
 
 What native chat tools exist today, what they return, and how they differ from MCP tools.
 
-**Related:** [architecture.md](./architecture.md) · [extending.md](./extending.md) · [implementation note](../../implementation/native-chat-tools-v1.md)
+**Related:** [architecture.md](./architecture.md) · [extending.md](./extending.md)
 
 ---
 

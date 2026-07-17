@@ -103,7 +103,7 @@ If the handler needs new trusted fields, extend `CapabilityRuntimeContext` and p
 ### 6. Tests + docs
 
 1. `tests/test_native_capabilities.py` — registry count/name assertions; behavior tests for gates/filters.
-2. Update [catalog.md](./catalog.md) (and [native-chat-tools-v1.md](../../implementation/native-chat-tools-v1.md) if that snapshot is still maintained).
+2. Update [catalog.md](./catalog.md).
 3. Run:
 
 ```powershell

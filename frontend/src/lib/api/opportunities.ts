@@ -15,6 +15,17 @@ function cleanFilters(filters: OpportunityFilters = {}) {
   )
 }
 
+export interface OpportunitySyncResult {
+  source_key: string
+  fetched: number
+  total_records: number
+  created: number
+  updated: number
+  failed: number
+  posted_from: string
+  posted_to: string
+}
+
 export const opportunitiesApi = {
   list: async (filters: OpportunityFilters = {}) => {
     const response = await apiClient.get<OpportunityListResponse>('/opportunities', {
@@ -42,6 +53,15 @@ export const opportunitiesApi = {
 
   seedSources: async () => {
     const response = await apiClient.post<OpportunitySource[]>('/opportunity-sources/seed')
+    return response.data
+  },
+
+  syncSamGov: async (daysBack = 14) => {
+    const response = await apiClient.post<OpportunitySyncResult>(
+      '/opportunity-sources/sam_gov_hawaii/sync',
+      undefined,
+      { params: { days_back: daysBack } }
+    )
     return response.data
   },
 

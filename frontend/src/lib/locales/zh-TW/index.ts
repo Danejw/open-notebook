@@ -470,6 +470,7 @@ export const zhTW = {
     "untitledSource": "未命名來源",
     "maxItems": "最多 {count} 個",
     "details": "詳情",
+    "drawingTab": "圖紙",
     "detailsTitle": "來源詳情",
     "content": "內容",
     "type": {

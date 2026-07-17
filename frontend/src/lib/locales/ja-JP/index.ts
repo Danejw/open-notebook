@@ -470,6 +470,7 @@ export const jaJP = {
     "untitledSource": "無題のソース",
     "maxItems": "最大{count}件",
     "details": "詳細",
+    "drawingTab": "図面",
     "detailsTitle": "ソース詳細",
     "content": "コンテンツ",
     "type": {

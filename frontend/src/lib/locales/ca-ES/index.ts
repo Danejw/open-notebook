@@ -470,6 +470,7 @@ export const caES = {
     "untitledSource": "Font sense títol",
     "maxItems": "màx. {count}",
     "details": "Detalls",
+    "drawingTab": "Plànol",
     "detailsTitle": "Detalls de la font",
     "content": "Contingut",
     "type": {

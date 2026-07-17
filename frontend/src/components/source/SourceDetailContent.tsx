@@ -42,6 +42,9 @@ import { useTranslation } from '@/lib/hooks/use-translation'
 import { cn } from '@/lib/utils'
 import { ProjectAssociations } from '@/components/source/ProjectAssociations'
 import { SourceKnowledgePanel } from '@/components/source/SourceKnowledgePanel'
+import { DrawingExtractionResultsDialog } from '@/components/sources/DrawingExtractionResultsDialog'
+import { selectInspectableDrawingRun } from '@/lib/drawing/select-inspectable-drawing-run'
+import { useSourceDrawingRuns } from '@/lib/hooks/use-drawing-extraction'
 
 /** OCR / drawing dumps are often one long line — mono + wrap is more scannable than Markdown. */
 function isDensePlainExtraction(text: string): boolean {
@@ -76,6 +79,19 @@ export function SourceDetailContent({
   const [fileAvailable, setFileAvailable] = useState<boolean | null>(null)
   const [sourceDeleteOpen, setSourceDeleteOpen] = useState(false)
   const [deletingSource, setDeletingSource] = useState(false)
+  const [activeTab, setActiveTab] = useState('content')
+  const [drawingResultsOpen, setDrawingResultsOpen] = useState(false)
+
+  const { data: drawingRunsData, isSuccess: drawingRunsReady } =
+    useSourceDrawingRuns(sourceId)
+  const inspectableDrawingRun = useMemo(
+    () =>
+      drawingRunsReady
+        ? selectInspectableDrawingRun(drawingRunsData?.runs)
+        : null,
+    [drawingRunsReady, drawingRunsData?.runs]
+  )
+  const showDrawingTab = Boolean(inspectableDrawingRun)
 
   useEffect(() => {
     if (!source) {
@@ -90,6 +106,12 @@ export function SourceDetailContent({
       setFileAvailable(null)
     }
   }, [source])
+
+  useEffect(() => {
+    if (!showDrawingTab && activeTab === 'drawing') {
+      setActiveTab('content')
+    }
+  }, [showDrawingTab, activeTab])
 
   const handleUpdateTitle = async (title: string) => {
     if (!source || title === source.title) return
@@ -336,10 +358,22 @@ export function SourceDetailContent({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-1">
-        <Tabs defaultValue="content" className="w-full">
-          <TabsList className="sticky top-0 z-10 mt-0.5 grid w-full grid-cols-3">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="w-full"
+        >
+          <TabsList
+            className={cn(
+              'sticky top-0 z-10 mt-0.5 grid w-full',
+              showDrawingTab ? 'grid-cols-4' : 'grid-cols-3'
+            )}
+          >
             <TabsTrigger value="content">{t('sources.content')}</TabsTrigger>
             <TabsTrigger value="knowledge">{t('knowledge.tab')}</TabsTrigger>
+            {showDrawingTab ? (
+              <TabsTrigger value="drawing">{t('sources.drawingTab')}</TabsTrigger>
+            ) : null}
             <TabsTrigger value="details">{t('sources.details')}</TabsTrigger>
           </TabsList>
 
@@ -408,6 +442,54 @@ export function SourceDetailContent({
               projectId={source.projects?.[0]}
             />
           </TabsContent>
+
+          {showDrawingTab && inspectableDrawingRun ? (
+            <TabsContent value="drawing" className="mt-1 space-y-2">
+              <div className="space-y-2 rounded-md border border-border/60 px-1.5 py-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-normal">
+                    {inspectableDrawingRun.status === 'partial'
+                      ? t('sources.drawingStagePartial')
+                      : t('sources.drawingStageCompleted')}
+                  </Badge>
+                  {inspectableDrawingRun.active ? (
+                    <Badge className="h-5 px-1.5 text-[11px] font-normal">
+                      {t('sources.drawingActiveForRetrieval')}
+                    </Badge>
+                  ) : null}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {t('sources.drawingPagesProcessed')
+                    .replace(
+                      '{pages}',
+                      String(inspectableDrawingRun.drawing_page_count ?? 0)
+                    )
+                    .replace(
+                      '{total}',
+                      String(inspectableDrawingRun.page_count ?? 0)
+                    )}
+                </p>
+                {typeof inspectableDrawingRun.stats?.items_extracted === 'number' ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    {t('sources.drawingProgressItems').replace(
+                      '{count}',
+                      String(inspectableDrawingRun.stats.items_extracted)
+                    )}
+                  </p>
+                ) : null}
+                <p className="text-sm text-muted-foreground">
+                  {t('sources.drawingResultsReady')}
+                </p>
+                <Button
+                  size="sm"
+                  className="h-7"
+                  onClick={() => setDrawingResultsOpen(true)}
+                >
+                  {t('sources.drawingInspectResults')}
+                </Button>
+              </div>
+            </TabsContent>
+          ) : null}
 
           <TabsContent value="details" className="mt-1 space-y-2">
             {!source.embedded && (
@@ -551,6 +633,13 @@ export function SourceDetailContent({
         confirmVariant="destructive"
         isLoading={deletingSource}
         onConfirm={handleDeleteSource}
+      />
+
+      <DrawingExtractionResultsDialog
+        open={drawingResultsOpen}
+        onOpenChange={setDrawingResultsOpen}
+        runId={inspectableDrawingRun?.id ?? null}
+        projectId={source.projects?.[0]}
       />
     </div>
   )

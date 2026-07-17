@@ -46,6 +46,7 @@ dependencies = [
     "pymdown-extensions>=10.0",
     "xhtml2pdf>=0.2.16",
     "playwright>=1.61.0",
+    "pymupdf>=1.26.7",
 ]
 
 [tool.setuptools]

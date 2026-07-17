@@ -16,6 +16,10 @@ os.makedirs(checkpoint_folder, exist_ok=True)
 UPLOADS_FOLDER = f"{DATA_FOLDER}/uploads"
 os.makedirs(UPLOADS_FOLDER, exist_ok=True)
 
+# Architectural drawing extraction outputs (renders, crops) — separate from uploads
+DRAWING_EXTRACTION_FOLDER = f"{DATA_FOLDER}/drawing-extractions"
+os.makedirs(DRAWING_EXTRACTION_FOLDER, exist_ok=True)
+
 # MEDIA LIBRARY FOLDER (global template images / logos)
 MEDIA_FOLDER = f"{DATA_FOLDER}/media"
 os.makedirs(MEDIA_FOLDER, exist_ok=True)

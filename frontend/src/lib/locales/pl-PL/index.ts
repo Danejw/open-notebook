@@ -470,6 +470,7 @@ export const plPL = {
     "untitledSource": "Źródło bez tytułu",
     "maxItems": "maks. {count}",
     "details": "Szczegóły",
+    "drawingTab": "Rysunek",
     "detailsTitle": "Szczegóły źródła",
     "content": "Treść",
     "type": {

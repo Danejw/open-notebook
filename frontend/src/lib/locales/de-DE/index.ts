@@ -470,6 +470,7 @@ export const deDE = {
     "untitledSource": "Unbenannte Quelle",
     "maxItems": "max. {count}",
     "details": "Details",
+    "drawingTab": "Zeichnung",
     "detailsTitle": "Quellendetails",
     "content": "Inhalt",
     "type": {

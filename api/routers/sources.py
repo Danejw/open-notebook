@@ -205,7 +205,9 @@ async def get_sources(
                 (SELECT status, error_message, error_type, started_at, finished_at, updated, command_id
                  FROM kg_extraction_run WHERE source_id = $parent.id
                  ORDER BY started_at DESC LIMIT 1)[0] AS latest_kg_run,
-                (SELECT VALUE id FROM source_embedding WHERE source = $parent.id LIMIT 1) != [] AS embedded
+                (SELECT VALUE id FROM source_embedding WHERE source = $parent.id LIMIT 1) != [] AS embedded,
+                (SELECT status, created FROM drawing_extraction_run WHERE source_id = $parent.id
+                 ORDER BY created DESC LIMIT 1)[0] AS latest_drawing_run
                 FROM (select value in from reference where out=$project_id)
                 {order_clause}
                 LIMIT $limit START $offset
@@ -227,7 +229,9 @@ async def get_sources(
                 (SELECT status, error_message, error_type, started_at, finished_at, updated, command_id
                  FROM kg_extraction_run WHERE source_id = $parent.id
                  ORDER BY started_at DESC LIMIT 1)[0] AS latest_kg_run,
-                (SELECT VALUE id FROM source_embedding WHERE source = $parent.id LIMIT 1) != [] AS embedded
+                (SELECT VALUE id FROM source_embedding WHERE source = $parent.id LIMIT 1) != [] AS embedded,
+                (SELECT status, created FROM drawing_extraction_run WHERE source_id = $parent.id
+                 ORDER BY created DESC LIMIT 1)[0] AS latest_drawing_run
                 FROM source
                 {order_clause}
                 LIMIT $limit START $offset
@@ -293,6 +297,11 @@ async def get_sources(
                 stage == "failed" and not processing_failures
             )
 
+            latest_drawing = row.get("latest_drawing_run")
+            drawing_status = None
+            if isinstance(latest_drawing, dict) and latest_drawing.get("status") is not None:
+                drawing_status = str(latest_drawing["status"])
+
             response_list.append(
                 SourceListResponse(
                     id=row["id"],
@@ -317,6 +326,7 @@ async def get_sources(
                     pipeline_stage=pipeline_stage if stage != "failed" else stage,
                     stage=stage,
                     kg_status=kg_status,
+                    drawing_status=drawing_status,
                     processing_failures=processing_failures,
                     failure_details_unavailable=failure_details_unavailable,
                 )

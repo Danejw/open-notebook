@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Database, Network, RefreshCw } from 'lucide-react'
+import { Database, DraftingCompass, Network, RefreshCw, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -21,17 +21,31 @@ import type { SourceProcessingFailure } from '@/lib/types/api'
 
 export type StageActionState = 'idle' | 'running' | 'done' | 'failed'
 
+type StageKind = 'embed' | 'kg' | 'drawing'
+type ConfirmKind =
+  | 'embed'
+  | 'embed-rerun'
+  | 'kg'
+  | 'kg-rerun'
+  | 'drawing'
+  | 'drawing-rerun'
+
 interface SourceStageActionsProps {
   embedState: StageActionState
   kgState: StageActionState
+  drawingState?: StageActionState
   extractReady: boolean
   embedBusy: boolean
   kgBusy: boolean
+  drawingBusy?: boolean
+  drawingEligible?: boolean
   embedFailure?: SourceProcessingFailure
   kgFailure?: SourceProcessingFailure
   failureDetailsUnavailable?: boolean
   onRunEmbeddings: () => void
   onRunKnowledgeGraph: () => void
+  onRunDrawingExtraction?: () => void
+  onInspectDrawing?: () => void
 }
 
 /** Radix DropdownMenu + AlertDialog can leave body pointer-events:none after close. */
@@ -42,31 +56,36 @@ function clearBodyPointerLock() {
 }
 
 /**
- * Compact embeddings + knowledge-graph controls for the source list row.
+ * Compact embeddings + knowledge-graph (+ optional drawing) controls for the source list row.
  * Incomplete/failed → confirm then run. Completed → re-run menu → confirm.
  */
 export function SourceStageActions({
   embedState,
   kgState,
+  drawingState,
   extractReady,
   embedBusy,
   kgBusy,
+  drawingBusy = false,
+  drawingEligible = true,
   embedFailure,
   kgFailure,
   failureDetailsUnavailable = false,
   onRunEmbeddings,
   onRunKnowledgeGraph,
+  onRunDrawingExtraction,
+  onInspectDrawing,
 }: SourceStageActionsProps) {
   const { t } = useTranslation()
-  const [confirmKind, setConfirmKind] = useState<
-    'embed' | 'embed-rerun' | 'kg' | 'kg-rerun' | null
-  >(null)
+  const [confirmKind, setConfirmKind] = useState<ConfirmKind | null>(null)
 
   const confirmOpen = confirmKind !== null
   const confirmBusy =
     confirmKind === 'embed' || confirmKind === 'embed-rerun'
       ? embedBusy
-      : kgBusy
+      : confirmKind === 'kg' || confirmKind === 'kg-rerun'
+        ? kgBusy
+        : drawingBusy
 
   useEffect(() => {
     if (!confirmOpen) {
@@ -74,7 +93,7 @@ export function SourceStageActions({
     }
   }, [confirmOpen])
 
-  const openConfirm = (kind: 'embed' | 'embed-rerun' | 'kg' | 'kg-rerun') => {
+  const openConfirm = (kind: ConfirmKind) => {
     // Let any open dropdown finish unmounting before the dialog locks focus.
     window.setTimeout(() => {
       clearBodyPointerLock()
@@ -93,6 +112,11 @@ export function SourceStageActions({
         onRunEmbeddings()
       } else if (kind === 'kg' || kind === 'kg-rerun') {
         onRunKnowledgeGraph()
+      } else if (
+        (kind === 'drawing' || kind === 'drawing-rerun') &&
+        onRunDrawingExtraction
+      ) {
+        onRunDrawingExtraction()
       }
     }, 0)
   }
@@ -113,10 +137,20 @@ export function SourceStageActions({
               title: t('sources.knowledgeGraphConfirmTitle'),
               description: t('sources.knowledgeGraphConfirmDesc'),
             }
-          : {
-              title: t('sources.knowledgeGraphRerunTitle'),
-              description: t('sources.knowledgeGraphRerunDesc'),
-            }
+          : confirmKind === 'kg-rerun'
+            ? {
+                title: t('sources.knowledgeGraphRerunTitle'),
+                description: t('sources.knowledgeGraphRerunDesc'),
+              }
+            : confirmKind === 'drawing'
+              ? {
+                  title: t('sources.drawingConfirmTitle'),
+                  description: t('sources.drawingConfirmDesc'),
+                }
+              : {
+                  title: t('sources.drawingRerunTitle'),
+                  description: t('sources.drawingRerunDesc'),
+                }
 
   return (
     <>
@@ -163,6 +197,34 @@ export function SourceStageActions({
         onStart={() => openConfirm('kg')}
         onRerun={() => openConfirm('kg-rerun')}
       />
+      {drawingState !== undefined && onRunDrawingExtraction ? (
+        <StageIconButton
+          kind="drawing"
+          state={drawingState}
+          disabled={
+            drawingState === 'running' ||
+            drawingBusy ||
+            (!drawingEligible && drawingState !== 'done')
+          }
+          doneLabel={t('sources.drawingDone')}
+          runningLabel={t('sources.drawingRunning')}
+          failedLabel={t('sources.drawingFailed')}
+          idleLabel={
+            drawingEligible
+              ? t('sources.drawingMissing')
+              : t('sources.drawingPdfOnly')
+          }
+          rerunLabel={t('sources.drawingRerun')}
+          retryLabel={t('sources.retry')}
+          failureDetailsUnavailable={false}
+          unavailableLabel={t('sources.failureDetailsUnavailable')}
+          errorDetailsLabel={t('common.errorDetails')}
+          inspectLabel={t('sources.drawingInspectResults')}
+          onStart={() => openConfirm('drawing')}
+          onRerun={() => openConfirm('drawing-rerun')}
+          onInspect={onInspectDrawing}
+        />
+      ) : null}
       <span
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
@@ -186,6 +248,21 @@ export function SourceStageActions({
   )
 }
 
+function stageIcon(kind: StageKind) {
+  switch (kind) {
+    case 'embed':
+      return Database
+    case 'kg':
+      return Network
+    case 'drawing':
+      return DraftingCompass
+    default: {
+      const _exhaustive: never = kind
+      return _exhaustive
+    }
+  }
+}
+
 function StageIconButton({
   state,
   disabled,
@@ -199,11 +276,13 @@ function StageIconButton({
   failureDetailsUnavailable,
   unavailableLabel,
   errorDetailsLabel,
+  inspectLabel,
   onStart,
   onRerun,
+  onInspect,
   kind,
 }: {
-  kind: 'embed' | 'kg'
+  kind: StageKind
   state: StageActionState
   disabled: boolean
   doneLabel: string
@@ -216,10 +295,12 @@ function StageIconButton({
   failureDetailsUnavailable: boolean
   unavailableLabel: string
   errorDetailsLabel: string
+  inspectLabel?: string
   onStart: () => void
   onRerun: () => void
+  onInspect?: () => void
 }) {
-  const Icon = kind === 'embed' ? Database : Network
+  const Icon = stageIcon(kind)
   const colorClass =
     state === 'done'
       ? 'text-emerald-600'
@@ -330,6 +411,17 @@ function StageIconButton({
             clearBodyPointerLock()
           }}
         >
+          {onInspect && inspectLabel ? (
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault()
+                onInspect()
+              }}
+            >
+              <Eye className="mr-2 h-3.5 w-3.5" />
+              {inspectLabel}
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem
             onSelect={(e) => {
               e.preventDefault()

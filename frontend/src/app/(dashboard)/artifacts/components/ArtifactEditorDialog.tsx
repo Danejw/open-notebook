@@ -27,9 +27,9 @@ const artifactSchema = z.object({
   description: z.string().optional(),
   prompt: z.string().min(1),
   apply_default: z.boolean().optional(),
-  skill_ids: z.array(z.string()).default([]),
-  collection_ids: z.array(z.string()).default([]),
-  mcp_tool_ids: z.array(z.string()).default([]),
+  skill_ids: z.array(z.string()),
+  collection_ids: z.array(z.string()),
+  mcp_tool_ids: z.array(z.string()),
   html_template_id: z.string().nullable().optional(),
 })
 

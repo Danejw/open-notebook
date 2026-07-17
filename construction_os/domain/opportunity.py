@@ -5,9 +5,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, ClassVar, Dict, List, Literal, Optional
 
+from pydantic import Field, field_validator
+
 from construction_os.domain.base import ObjectModel
 from construction_os.exceptions import InvalidInputError
-from pydantic import Field, field_validator
 
 OpportunityStatus = Literal[
     "new",

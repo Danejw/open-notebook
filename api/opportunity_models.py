@@ -7,7 +7,12 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-from construction_os.domain.opportunity import HawaiiIsland, ProcurementType, OpportunityStatus
+from construction_os.domain.opportunity import (
+    FitRecommendation,
+    HawaiiIsland,
+    OpportunityStatus,
+    ProcurementType,
+)
 
 
 class OpportunityCreate(BaseModel):
@@ -137,6 +142,11 @@ class OpportunityResponse(BaseModel):
     fit_score: Optional[int]
     fit_reasons: List[str]
     risk_flags: List[str]
+    fit_recommendation: FitRecommendation
+    fit_breakdown: Dict[str, Dict[str, Any]]
+    addendum_impact: Dict[str, Any]
+    score_version: str
+    score_updated_at: Optional[datetime]
     extraction_confidence: Optional[float]
     project_id: Optional[str]
     archived: bool

@@ -17,7 +17,6 @@ from construction_os.domain.project import Project
 from construction_os.exceptions import InvalidInputError, NotFoundError
 from construction_os.services.project_artifacts import create_project_artifact
 
-
 HAWAII_SOURCE_SEEDS: List[Dict[str, Any]] = [
     {
         "key": "hands",

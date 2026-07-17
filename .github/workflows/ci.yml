@@ -91,6 +91,10 @@ jobs:
             opportunity-backend-lint.log
             opportunity-backend-ruff.diff
             opportunity-backend-tests.log
+            api/routers/opportunities.py
+            construction_os/domain/opportunity.py
+            construction_os/services/opportunities.py
+            construction_os/services/opportunity_collectors.py
           if-no-files-found: ignore
           retention-days: 7
 

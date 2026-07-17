@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from loguru import logger
@@ -21,7 +21,12 @@ from api.opportunity_models import (
     PursueOpportunityResponse,
 )
 from construction_os.domain.opportunity import Opportunity, OpportunitySource
-from construction_os.exceptions import InvalidInputError, NotFoundError
+from construction_os.exceptions import (
+    ConfigurationError,
+    ExternalServiceError,
+    InvalidInputError,
+    NotFoundError,
+)
 from construction_os.services.opportunities import (
     get_opportunity,
     import_opportunities,
@@ -33,6 +38,7 @@ from construction_os.services.opportunities import (
     set_opportunity_status,
     upsert_opportunity,
 )
+from construction_os.services.opportunity_collectors import sync_sam_gov_hawaii
 
 router = APIRouter()
 
@@ -71,6 +77,24 @@ async def seed_hawaii_opportunity_sources():
     except Exception as exc:
         logger.error(f"Error seeding opportunity sources: {exc}")
         raise HTTPException(status_code=500, detail="Failed to seed opportunity sources")
+
+
+@router.post("/opportunity-sources/sam_gov_hawaii/sync", response_model=Dict[str, Any])
+async def sync_sam_gov_hawaii_source(
+    days_back: int = Query(14, ge=1, le=365),
+    limit: int = Query(1000, ge=1, le=1000),
+):
+    """Pull recent federal opportunities whose place of performance is Hawaii."""
+
+    try:
+        return await sync_sam_gov_hawaii(days_back=days_back, limit=limit)
+    except ConfigurationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except ExternalServiceError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"Unexpected SAM.gov sync error: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to sync SAM.gov opportunities")
 
 
 @router.get("/opportunities/dashboard", response_model=OpportunityDashboardResponse)

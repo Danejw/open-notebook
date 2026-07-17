@@ -77,7 +77,7 @@ def test_mismatched_high_risk_opportunity_scores_no_bid():
 
     assert result.score < 50
     assert result.recommendation == "no_bid"
-    assert any("outside the configured service area" in risk for risk in result.risk_flags)
+    assert any("does not currently support work on Kauai" in risk for risk in result.risk_flags)
     assert any("excluded work" in risk for risk in result.risk_flags)
 
 

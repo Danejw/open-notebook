@@ -1,0 +1,127 @@
+name: Construction OS CI
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+  push:
+    branches:
+      - dev
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+
+      - name: Check backend for critical lint errors
+        run: python -m ruff check api construction_os --select E9,F63,F7,F82
+
+      - name: Compile backend modules
+        run: python -m compileall -q api construction_os
+
+      - name: Detect Opportunity Hub tests
+        id: opportunity-hub
+        run: |
+          if [[ -f tests/test_opportunity_collectors.py && -f tests/test_opportunity_scoring.py ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Lint Opportunity Hub backend
+        if: steps.opportunity-hub.outputs.available == 'true'
+        run: |
+          python -m ruff check \
+            api/opportunity_models.py \
+            api/routers/opportunities.py \
+            construction_os/domain/opportunity.py \
+            construction_os/services/opportunities.py \
+            construction_os/services/opportunity_collectors.py \
+            construction_os/services/opportunity_scoring.py \
+            tests/test_opportunity_collectors.py \
+            tests/test_opportunity_scoring.py
+
+      - name: Run Opportunity Hub backend tests
+        if: steps.opportunity-hub.outputs.available == 'true'
+        env:
+          CONSTRUCTION_OS_PASSWORD: ''
+        run: |
+          python -m pytest -q \
+            tests/test_opportunity_collectors.py \
+            tests/test_opportunity_scoring.py
+
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Lint frontend
+        run: npm run lint
+
+      - name: Type-check frontend
+        id: typecheck
+        run: |
+          set -o pipefail
+          npx tsc --noEmit --pretty false 2>&1 | tee typecheck.log
+
+      - name: Upload type-check diagnostics
+        if: failure() && steps.typecheck.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-typecheck-diagnostics
+          path: frontend/typecheck.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Run frontend regression tests
+        run: npm test -- --exclude src/lib/locales/index.test.ts
+
+      - name: Build production frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npm run build

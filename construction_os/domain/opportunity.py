@@ -44,6 +44,8 @@ HawaiiIsland = Literal[
     "Unknown",
 ]
 
+FitRecommendation = Literal["pursue", "review", "no_bid"]
+
 
 class OpportunitySource(ObjectModel):
     """A procurement portal or intake channel that produces opportunities."""
@@ -131,6 +133,11 @@ class Opportunity(ObjectModel):
     fit_score: Optional[int] = None
     fit_reasons: List[str] = Field(default_factory=list)
     risk_flags: List[str] = Field(default_factory=list)
+    fit_recommendation: FitRecommendation = "review"
+    fit_breakdown: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+    addendum_impact: Dict[str, Any] = Field(default_factory=dict)
+    score_version: str = "opportunity-fit-v1"
+    score_updated_at: Optional[datetime] = None
     extraction_confidence: Optional[float] = None
 
     project_id: Optional[str] = None
@@ -155,6 +162,7 @@ class Opportunity(ObjectModel):
         "contact_email",
         "contact_phone",
         "fit_score",
+        "score_updated_at",
         "extraction_confidence",
         "project_id",
     }
@@ -180,3 +188,11 @@ class Opportunity(ObjectModel):
         if value is not None and not 0 <= value <= 1:
             raise InvalidInputError("extraction_confidence must be between 0 and 1")
         return value
+
+    async def save(self) -> None:
+        """Recalculate fit whenever imported metadata or addenda change."""
+
+        from construction_os.services.opportunity_scoring import apply_opportunity_score
+
+        apply_opportunity_score(self)
+        await super().save()

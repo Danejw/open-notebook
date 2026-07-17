@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { opportunitiesApi } from '@/lib/api/opportunities'
 import type { OpportunityFilters, OpportunityStatus } from '@/lib/types/opportunities'
 import { useToast } from '@/lib/hooks/use-toast'
+import { getApiErrorKey } from '@/lib/utils/error-handler'
+import { useTranslation } from '@/lib/hooks/use-translation'
 
 const OPPORTUNITIES_KEY = ['opportunities'] as const
 const OPPORTUNITY_SOURCES_KEY = ['opportunity-sources'] as const
@@ -41,6 +43,31 @@ export function useSeedOpportunitySources() {
       toast({
         title: 'Source registry could not be initialized',
         description: 'The Opportunity Hub is available, but its Hawaii source list was not saved.',
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function useSyncSamGovOpportunities() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: (daysBack: number = 14) => opportunitiesApi.syncSamGov(daysBack),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: OPPORTUNITIES_KEY })
+      queryClient.invalidateQueries({ queryKey: OPPORTUNITY_SOURCES_KEY })
+      toast({
+        title: 'Federal opportunities synchronized',
+        description: `${result.created} new · ${result.updated} refreshed · ${result.failed} failed`,
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: 'SAM.gov synchronization failed',
+        description: t(getApiErrorKey(error, 'Set SAM_GOV_API_KEY and verify the API connection.')),
         variant: 'destructive',
       })
     },

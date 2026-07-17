@@ -98,8 +98,10 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Lint frontend
-        run: npm run lint
+      - name: Lint and type-check frontend
+        run: |
+          npm run lint
+          npx tsc --noEmit --pretty false
 
       - name: Run frontend regression tests
         run: npm test -- --exclude src/lib/locales/index.test.ts

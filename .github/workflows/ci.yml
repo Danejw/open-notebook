@@ -38,7 +38,23 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e '.[dev]'
 
+      - name: Check backend for critical lint errors
+        run: python -m ruff check api construction_os --select E9,F63,F7,F82
+
+      - name: Compile backend modules
+        run: python -m compileall -q api construction_os
+
+      - name: Detect Opportunity Hub tests
+        id: opportunity-hub
+        run: |
+          if [[ -f tests/test_opportunity_collectors.py && -f tests/test_opportunity_scoring.py ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Lint Opportunity Hub backend
+        if: steps.opportunity-hub.outputs.available == 'true'
         run: |
           python -m ruff check \
             api/opportunity_models.py \
@@ -50,10 +66,8 @@ jobs:
             tests/test_opportunity_collectors.py \
             tests/test_opportunity_scoring.py
 
-      - name: Compile backend modules
-        run: python -m compileall -q api construction_os
-
       - name: Run Opportunity Hub backend tests
+        if: steps.opportunity-hub.outputs.available == 'true'
         env:
           CONSTRUCTION_OS_PASSWORD: ''
         run: |

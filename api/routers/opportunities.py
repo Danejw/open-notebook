@@ -39,6 +39,10 @@ from construction_os.services.opportunities import (
     upsert_opportunity,
 )
 from construction_os.services.opportunity_collectors import sync_sam_gov_hawaii
+from construction_os.services.opportunity_scoring import (
+    SCORE_VERSION,
+    load_opportunity_scoring_profile,
+)
 
 router = APIRouter()
 
@@ -104,6 +108,51 @@ async def get_opportunity_dashboard():
     except Exception as exc:
         logger.error(f"Error building opportunity dashboard: {exc}")
         raise HTTPException(status_code=500, detail="Failed to build opportunity dashboard")
+
+
+@router.get("/opportunities/scoring-profile", response_model=Dict[str, Any])
+async def get_opportunity_scoring_profile():
+    """Return the active explainable scoring profile without exposing secrets."""
+
+    profile = load_opportunity_scoring_profile()
+    return {
+        **profile.model_dump(),
+        "profile_ready": profile.is_ready,
+        "score_version": SCORE_VERSION,
+        "weights": {
+            "trade_license": 25,
+            "project_capacity": 20,
+            "location": 15,
+            "schedule": 15,
+            "experience": 15,
+            "risk_addenda": 10,
+        },
+    }
+
+
+@router.post("/opportunities/rescore", response_model=Dict[str, Any])
+async def rescore_all_opportunities(
+    include_archived: bool = Query(False),
+):
+    """Recalculate all stored opportunities with the active company profile."""
+
+    items = await Opportunity.get_all(order_by="updated desc")
+    rescored = 0
+    errors: List[Dict[str, str]] = []
+    for item in items:
+        if item.archived and not include_archived:
+            continue
+        try:
+            await item.save()
+            rescored += 1
+        except Exception as exc:
+            errors.append({"id": item.id or "", "error": str(exc)})
+    return {
+        "rescored": rescored,
+        "failed": len(errors),
+        "errors": errors,
+        "score_version": SCORE_VERSION,
+    }
 
 
 @router.get("/opportunities", response_model=OpportunityListResponse)
@@ -197,6 +246,21 @@ async def update_opportunity(opportunity_id: str, payload: OpportunityUpdate):
     except Exception as exc:
         logger.error(f"Error updating opportunity {opportunity_id}: {exc}")
         raise HTTPException(status_code=500, detail="Failed to update opportunity")
+
+
+@router.post("/opportunities/{opportunity_id}/rescore", response_model=OpportunityResponse)
+async def rescore_opportunity(opportunity_id: str):
+    """Recalculate one opportunity after company profile or addendum changes."""
+
+    try:
+        opportunity = await get_opportunity(opportunity_id)
+        await opportunity.save()
+        return _opportunity_response(opportunity)
+    except NotFoundError:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    except Exception as exc:
+        logger.error(f"Error rescoring opportunity {opportunity_id}: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to rescore opportunity")
 
 
 @router.post(

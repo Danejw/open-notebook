@@ -494,6 +494,8 @@ class SourceListResponse(BaseModel):
     stage: Optional[str] = None
     # Child-job status for per-stage UI (from FETCH'd kg_command)
     kg_status: Optional[str] = None
+    # Latest architectural drawing extraction run status (independent of source pipeline)
+    drawing_status: Optional[str] = None
     processing_failures: Dict[str, ProcessingFailureResponse] = Field(
         default_factory=dict
     )

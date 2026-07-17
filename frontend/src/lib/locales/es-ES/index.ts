@@ -470,6 +470,7 @@ export const esES = {
     "untitledSource": "Fuente sin título",
     "maxItems": "máx. {count}",
     "details": "Detalles",
+    "drawingTab": "Plano",
     "detailsTitle": "Detalles de la fuente",
     "content": "Contenido",
     "type": {

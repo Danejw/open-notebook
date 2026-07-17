@@ -39,6 +39,24 @@ _GRAPH_MAX_NODES = 50
 _GRAPH_MIN_CONFIDENCE = 0.5
 
 
+async def _merge_drawing_evidence(
+    *,
+    query: str,
+    project_id: Optional[str],
+    existing_items: List[EvidenceItem],
+    limit: int,
+) -> tuple[List[EvidenceItem], Optional[str]]:
+    """Lazy-import drawing retrieval to avoid circular imports with domain/AI."""
+    from construction_os.drawing.retrieval import maybe_merge_drawing_evidence
+
+    return await maybe_merge_drawing_evidence(
+        query=query,
+        project_id=project_id,
+        existing_items=existing_items,
+        limit=limit,
+    )
+
+
 def get_graph_rag_mode() -> str:
     """Return CONSTRUCTION_OS_GRAPH_RAG_MODE: off | shadow | on."""
     return os.getenv("CONSTRUCTION_OS_GRAPH_RAG_MODE", "off").strip().lower()
@@ -232,10 +250,17 @@ async def retrieve(
 
     if resolved == "vector":
         items = await vector_task
+        items, drawing_note = await _merge_drawing_evidence(
+            query=query,
+            project_id=project_id,
+            existing_items=items[:limit],
+            limit=limit,
+        )
         return EvidenceBundle(
             items=items[:limit],
             paths=[],
             retrieval_mode_used="vector",
+            fallback_reason=drawing_note,
         )
 
     # hybrid and graph both start with lexical + vector
@@ -250,10 +275,17 @@ async def retrieve(
     fused = reciprocal_rank_fusion([vector_items, text_items])[:limit]
 
     if resolved == "hybrid":
+        fused, drawing_note = await _merge_drawing_evidence(
+            query=query,
+            project_id=project_id,
+            existing_items=fused,
+            limit=limit,
+        )
         return EvidenceBundle(
             items=fused,
             paths=[],
             retrieval_mode_used="hybrid",
+            fallback_reason=drawing_note,
         )
 
     # graph mode (or shadow comparison)
@@ -268,26 +300,44 @@ async def retrieve(
             graph_n=len(graph_items),
             path_n=len(paths),
         )
+        fused, drawing_note = await _merge_drawing_evidence(
+            query=query,
+            project_id=project_id,
+            existing_items=fused,
+            limit=limit,
+        )
         return EvidenceBundle(
             items=fused,
             paths=paths,
             retrieval_mode_used="hybrid",
-            fallback_reason="shadow_mode",
+            fallback_reason=drawing_note or "shadow_mode",
         )
 
     if not graph_items:
         fallback_reason = "graph_empty_or_unavailable"
+        fused, drawing_note = await _merge_drawing_evidence(
+            query=query,
+            project_id=project_id,
+            existing_items=fused,
+            limit=limit,
+        )
         return EvidenceBundle(
             items=fused,
             paths=[],
             retrieval_mode_used="hybrid",
-            fallback_reason=fallback_reason,
+            fallback_reason=drawing_note or fallback_reason,
         )
 
     final = reciprocal_rank_fusion([fused, graph_items])[:limit]
+    final, drawing_note = await _merge_drawing_evidence(
+        query=query,
+        project_id=project_id,
+        existing_items=final,
+        limit=limit,
+    )
     return EvidenceBundle(
         items=final,
         paths=paths,
         retrieval_mode_used="graph",
-        fallback_reason=fallback_reason,
+        fallback_reason=drawing_note or fallback_reason,
     )

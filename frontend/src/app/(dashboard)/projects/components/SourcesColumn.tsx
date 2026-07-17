@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useMemo, useRef, useCallback, useEffect } from 'react'
+import { Suspense, useState, useMemo, useRef, useCallback, useEffect, useDeferredValue } from 'react'
 import { SourceListResponse } from '@/lib/types/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -11,20 +11,33 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Plus, FileText, Link2, ChevronDown, ListChecks, Trash2, Unlink, Network, List, Waypoints, RefreshCw } from 'lucide-react'
+import { Plus, FileText, Link2, ChevronDown, ListChecks, Trash2, Unlink, Network, List, Waypoints, RefreshCw, DraftingCompass } from 'lucide-react'
 import { ColumnCardsSkeleton, CompactListRowSkeleton } from '@/components/common/LoadingSkeletons'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ListSelectionBar } from '@/components/common/ListSelectionBar'
 import { AddSourceDialog } from '@/components/sources/AddSourceDialog'
 import { AddExistingSourceDialog } from '@/components/sources/AddExistingSourceDialog'
 import { SourceCard } from '@/components/sources/SourceCard'
+import { SourcesFilterBar } from '@/components/sources/SourcesFilterBar'
+import { DrawingExtractionResultsDialog } from '@/components/sources/DrawingExtractionResultsDialog'
 import { KnowledgeGraphView } from '@/components/knowledge-graph/KnowledgeGraphView'
 import { useDeleteSource, useRetrySource, useBulkRetrySources, useRemoveSourceFromProject, useIngestAsSource } from '@/lib/hooks/use-sources'
 import { useBulkExtractKnowledge } from '@/lib/hooks/use-knowledge'
+import {
+  useExtractArchitecturalDrawings,
+  useProjectDrawingRuns,
+} from '@/lib/hooks/use-drawing-extraction'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { useModalManager } from '@/lib/hooks/use-modal-manager'
 import type { ContextMode } from '@/lib/types/project-context'
 import type { SourceBulkAction } from '@/lib/utils/source-context'
+import {
+  collectSourceExtensions,
+  DEFAULT_SOURCE_LIST_FILTERS,
+  isSourceListFilterActive,
+  matchesSourceFilters,
+  type SourceListFilterState,
+} from '@/lib/utils/source-filters'
 import { CollapsibleColumn, createCollapseButton } from '@/components/projects/CollapsibleColumn'
 import {
   ColumnHeader,
@@ -93,6 +106,14 @@ export function SourcesColumn({
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkRemoveOpen, setBulkRemoveOpen] = useState(false)
   const [bulkBusy, setBulkBusy] = useState(false)
+  const [drawingResultsRunId, setDrawingResultsRunId] = useState<string | null>(
+    null
+  )
+  const [drawingResultsOpen, setDrawingResultsOpen] = useState(false)
+  const [sourceFilters, setSourceFilters] = useState<SourceListFilterState>(
+    DEFAULT_SOURCE_LIST_FILTERS
+  )
+  const deferredFilterQuery = useDeferredValue(sourceFilters.query)
 
   const {
     selectedIds,
@@ -105,20 +126,6 @@ export function SourcesColumn({
     isSelected,
   } = useListSelection()
 
-  const handleSelectAllVisible = useCallback(() => {
-    selectAllVisible((sources ?? []).map((s) => s.id))
-  }, [selectAllVisible, sources])
-
-  const applyBulkContext = useCallback(
-    (mode: ContextMode) => {
-      if (!onContextModeChange) return
-      for (const id of selectedList) {
-        onContextModeChange(id, mode)
-      }
-    },
-    [onContextModeChange, selectedList]
-  )
-
   const { openModal } = useModalManager()
   const deleteSource = useDeleteSource()
   const retrySource = useRetrySource()
@@ -126,6 +133,110 @@ export function SourcesColumn({
   const removeFromProject = useRemoveSourceFromProject()
   const ingestAsSource = useIngestAsSource()
   const bulkExtractKnowledge = useBulkExtractKnowledge()
+  const extractDrawings = useExtractArchitecturalDrawings()
+  const { data: drawingRunsData } = useProjectDrawingRuns(projectId)
+
+  const selectedSources = useMemo(
+    () => (sources ?? []).filter((s) => selectedIds.has(s.id)),
+    [sources, selectedIds]
+  )
+
+  const canExtractDrawings = useMemo(() => {
+    if (selectedSources.length === 0) return false
+    return selectedSources.every((source) => {
+      const path = source.asset?.file_path || ''
+      return path.toLowerCase().endsWith('.pdf')
+    })
+  }, [selectedSources])
+
+  const handleBulkExtractDrawings = useCallback(async () => {
+    if (selectedList.length === 0 || !canExtractDrawings) return
+    setBulkBusy(true)
+    try {
+      const result = await extractDrawings.mutateAsync({
+        source_ids: selectedList,
+        project_id: projectId,
+        force: false,
+      })
+      const firstRun = result.jobs.find((j) => j.success && j.run_id)?.run_id
+      if (firstRun) {
+        setDrawingResultsRunId(firstRun)
+        setDrawingResultsOpen(true)
+      }
+      clearSelection()
+    } catch (error) {
+      console.error('Failed to queue drawing extractions:', error)
+    } finally {
+      setBulkBusy(false)
+    }
+  }, [
+    selectedList,
+    canExtractDrawings,
+    extractDrawings,
+    projectId,
+    clearSelection,
+  ])
+
+  /** Latest drawing run per source (project poll keeps icons live). */
+  const drawingRunBySourceId = useMemo(() => {
+    const map = new Map<string, { status: string; runId: string }>()
+    for (const run of drawingRunsData?.runs ?? []) {
+      const sourceId = String(run.source_id)
+      if (map.has(sourceId)) continue
+      map.set(sourceId, { status: run.status, runId: run.id })
+    }
+    return map
+  }, [drawingRunsData])
+
+  const effectiveFilters = useMemo(
+    () => ({ ...sourceFilters, query: deferredFilterQuery }),
+    [sourceFilters, deferredFilterQuery]
+  )
+
+  const filteredSources = useMemo(() => {
+    const list = sources ?? []
+    if (!isSourceListFilterActive(effectiveFilters)) return list
+    return list.filter((source) =>
+      matchesSourceFilters(source, effectiveFilters, {
+        drawingStatus:
+          drawingRunBySourceId.get(source.id)?.status ?? source.drawing_status,
+      })
+    )
+  }, [sources, effectiveFilters, drawingRunBySourceId])
+
+  const sourceExtensions = useMemo(
+    () => collectSourceExtensions(sources ?? []),
+    [sources]
+  )
+
+  const handleSelectAllVisible = useCallback(() => {
+    selectAllVisible(filteredSources.map((s) => s.id))
+  }, [selectAllVisible, filteredSources])
+
+  const handleRunDrawingExtraction = useCallback(
+    async (sourceId: string) => {
+      try {
+        const result = await extractDrawings.mutateAsync({
+          source_ids: [sourceId],
+          project_id: projectId,
+          force: true,
+        })
+        const runId = result.jobs.find((j) => j.success && j.run_id)?.run_id
+        if (runId) {
+          setDrawingResultsRunId(runId)
+          setDrawingResultsOpen(true)
+        }
+      } catch (error) {
+        console.error('Failed to queue drawing extraction:', error)
+      }
+    },
+    [extractDrawings, projectId]
+  )
+
+  const handleInspectDrawing = useCallback((runId: string) => {
+    setDrawingResultsRunId(runId)
+    setDrawingResultsOpen(true)
+  }, [])
 
   const handleBulkBuildKnowledgeGraph = useCallback(async () => {
     if (selectedList.length === 0) return
@@ -514,6 +625,19 @@ export function SourcesColumn({
                 description={emptyStateDescription}
               />
             ) : (
+              <div className="flex min-h-0 flex-1 flex-col">
+                <SourcesFilterBar
+                  filters={sourceFilters}
+                  onChange={setSourceFilters}
+                  extensions={sourceExtensions}
+                />
+                {filteredSources.length === 0 ? (
+                  <EmptyState
+                    icon={FileText}
+                    title={t('sources.filterNoMatches')}
+                    description={t('common.tryDifferentSearch')}
+                  />
+                ) : (
               <div className="flex flex-col divide-y divide-border/50">
                 {selectionMode && (
                   <ListSelectionBar
@@ -525,18 +649,6 @@ export function SourcesColumn({
                     onClear={clearSelection}
                     onSelectAll={handleSelectAllVisible}
                   >
-                    {onContextModeChange && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7"
-                        onClick={() => applyBulkContext('full')}
-                      >
-                        <FileText className="mr-1 h-3.5 w-3.5" />
-                        {t('common.contextModes.full')}
-                      </Button>
-                    )}
                     <Button
                       type="button"
                       variant="ghost"
@@ -573,6 +685,28 @@ export function SourcesColumn({
                       variant="ghost"
                       size="sm"
                       className="h-7"
+                      disabled={
+                        bulkBusy ||
+                        extractDrawings.isPending ||
+                        !canExtractDrawings
+                      }
+                      title={
+                        canExtractDrawings
+                          ? t('sources.extractArchitecturalDrawings')
+                          : t('sources.drawingExtractPdfOnly')
+                      }
+                      onClick={() => void handleBulkExtractDrawings()}
+                    >
+                      <DraftingCompass className="mr-1 h-3.5 w-3.5" />
+                      {extractDrawings.isPending
+                        ? t('sources.extractingArchitecturalDrawings')
+                        : t('sources.extractArchitecturalDrawings')}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7"
                       onClick={() => setBulkRemoveOpen(true)}
                     >
                       <Unlink className="mr-1 h-3.5 w-3.5" />
@@ -590,7 +724,7 @@ export function SourcesColumn({
                     </Button>
                   </ListSelectionBar>
                 )}
-                {sources.map((source) => (
+                {filteredSources.map((source) => (
                   <SourceCard
                     key={source.id}
                     source={source}
@@ -611,10 +745,22 @@ export function SourcesColumn({
                     selected={isSelected(source.id)}
                     onToggleSelect={toggleSelect}
                     onEnterSelection={enterSelection}
+                    drawingStatus={
+                      drawingRunBySourceId.get(source.id)?.status ??
+                      source.drawing_status
+                    }
+                    drawingRunId={
+                      drawingRunBySourceId.get(source.id)?.runId ?? null
+                    }
+                    onRunDrawingExtraction={handleRunDrawingExtraction}
+                    onInspectDrawing={handleInspectDrawing}
+                    drawingBusy={extractDrawings.isPending}
                   />
                 ))}
                 {/* Loading indicator for infinite scroll */}
                 {isFetchingNextPage && <CompactListRowSkeleton />}
+              </div>
+                )}
               </div>
             )}
               </>
@@ -678,6 +824,13 @@ export function SourcesColumn({
         onConfirm={handleBulkRemoveConfirm}
         isLoading={bulkBusy}
         confirmVariant="default"
+      />
+
+      <DrawingExtractionResultsDialog
+        open={drawingResultsOpen}
+        onOpenChange={setDrawingResultsOpen}
+        runId={drawingResultsRunId}
+        projectId={projectId}
       />
     </>
   )

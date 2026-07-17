@@ -470,6 +470,7 @@ export const ptBR = {
     "untitledSource": "Fonte Sem Título",
     "maxItems": "máx {count}",
     "details": "Detalhes",
+    "drawingTab": "Desenho",
     "detailsTitle": "Detalhes da Fonte",
     "content": "Conteúdo",
     "type": {

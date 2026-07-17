@@ -470,6 +470,7 @@ export const bnIN = {
     "untitledSource": "শিরোনামহীন উৎস",
     "maxItems": "সর্বোচ্চ {count}",
     "details": "বিবরণ",
+    "drawingTab": "অঙ্কন",
     "detailsTitle": "উৎসের বিবরণ",
     "content": "কন্টেন্ট",
     "type": {

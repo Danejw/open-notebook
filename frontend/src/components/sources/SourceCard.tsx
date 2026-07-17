@@ -28,6 +28,8 @@ import {
   Unlink,
   EyeOff,
   Network,
+  DraftingCompass,
+  Eye,
 } from 'lucide-react'
 import { useSourceStatus, useEmbedSource } from '@/lib/hooks/use-sources'
 import { useExtractKnowledge, useSourceExtractors } from '@/lib/hooks/use-knowledge'
@@ -64,6 +66,12 @@ interface SourceCardProps {
   selected?: boolean
   onToggleSelect?: (sourceId: string) => void
   onEnterSelection?: (sourceId: string) => void
+  /** Live drawing-run status from project polling (overrides list field). */
+  drawingStatus?: string | null
+  drawingRunId?: string | null
+  onRunDrawingExtraction?: (sourceId: string) => void
+  onInspectDrawing?: (runId: string) => void
+  drawingBusy?: boolean
 }
 
 const SOURCE_TYPE_ICONS = {
@@ -82,6 +90,15 @@ const PIPELINE_FILL_PERCENT: Record<string, number> = {
   running: 32,
 }
 
+/** Drawing extraction milestones — same fill-bar treatment as embed / KG. */
+const DRAWING_FILL_PERCENT: Record<string, number> = {
+  queued: 8,
+  inspecting: 18,
+  extracting: 45,
+  validating: 78,
+  publishing: 90,
+}
+
 function resolvePipelineFillPercent(
   pipelineStage: string | undefined,
   currentStatus: string,
@@ -95,6 +112,28 @@ function resolvePipelineFillPercent(
     return Math.min(99, Math.max(apiProgress, stageFloor))
   }
   return stageFloor
+}
+
+function resolveDrawingFillPercent(status: string | null | undefined): number {
+  if (!status) return 16
+  return DRAWING_FILL_PERCENT[status] ?? 16
+}
+
+function drawingProgressLabelKey(status: string | null | undefined): string {
+  switch (status) {
+    case 'queued':
+      return 'sources.drawingStageQueued'
+    case 'inspecting':
+      return 'sources.drawingStageInspecting'
+    case 'extracting':
+      return 'sources.drawingStageExtracting'
+    case 'validating':
+      return 'sources.drawingStageValidating'
+    case 'publishing':
+      return 'sources.drawingStagePublishing'
+    default:
+      return 'sources.drawingRunning'
+  }
 }
 
 const getStatusConfig = (t: TFunction) => ({
@@ -158,6 +197,27 @@ function getSourceTypeLabel(sourceType: 'link' | 'upload' | 'text', t: TFunction
   return t('sources.type.text')
 }
 
+function drawingStageState(status: string | null | undefined): StageActionState {
+  if (!status) return 'idle'
+  switch (status) {
+    case 'completed':
+    case 'partial':
+      return 'done'
+    case 'queued':
+    case 'inspecting':
+    case 'extracting':
+    case 'validating':
+    case 'publishing':
+      return 'running'
+    case 'failed':
+      return 'failed'
+    case 'skipped':
+      return 'idle'
+    default:
+      return 'idle'
+  }
+}
+
 function SourceCardImpl({
   source,
   projectId,
@@ -176,6 +236,11 @@ function SourceCardImpl({
   selected = false,
   onToggleSelect,
   onEnterSelection,
+  drawingStatus,
+  drawingRunId,
+  onRunDrawingExtraction,
+  onInspectDrawing,
+  drawingBusy = false,
 }: SourceCardProps) {
   const { t } = useTranslation()
 
@@ -363,9 +428,6 @@ function SourceCardImpl({
     typeof statusData?.processing_info?.progress === 'number'
       ? Math.round(statusData.processing_info.progress as number)
       : null
-  const fillPercent = isProcessing
-    ? resolvePipelineFillPercent(pipelineStage, currentStatus, apiProgress)
-    : 0
   // Prefer live pipeline message (“Extracting content…”) over generic “Processing”
   const statusLabel =
     isProcessing &&
@@ -459,6 +521,27 @@ function SourceCardImpl({
         ? 'done'
         : 'idle'
 
+  const resolvedDrawingStatus =
+    drawingStatus ?? sourceWithStatus.drawing_status ?? null
+  const drawingState = drawingStageState(resolvedDrawingStatus)
+  const isDrawingProcessing =
+    drawingState === 'running' || Boolean(drawingBusy)
+  const showProgressFill = isProcessing || isDrawingProcessing
+  const fillPercent = isProcessing
+    ? resolvePipelineFillPercent(pipelineStage, currentStatus, apiProgress)
+    : isDrawingProcessing
+      ? resolveDrawingFillPercent(resolvedDrawingStatus)
+      : 0
+  const progressLabel = isProcessing
+    ? statusData?.message || statusLabel
+    : isDrawingProcessing
+      ? t(drawingProgressLabelKey(resolvedDrawingStatus))
+      : statusLabel
+  const drawingEligible = (source.asset?.file_path || '')
+    .toLowerCase()
+    .endsWith('.pdf')
+  const showDrawingActions = Boolean(projectId && onRunDrawingExtraction)
+
   const handleBuildKnowledgeGraph = () => {
     extractKnowledge.mutate({
       extractor: 'generic',
@@ -471,6 +554,16 @@ function SourceCardImpl({
     embedSource.mutate({ sourceId: source.id, chainKg: false })
   }
 
+  const handleRunDrawingExtraction = () => {
+    onRunDrawingExtraction?.(source.id)
+  }
+
+  const handleInspectDrawing = () => {
+    if (drawingRunId) {
+      onInspectDrawing?.(drawingRunId)
+    }
+  }
+
   const { rowProps, selectedClassName } = useSelectableRow({
     selectionMode,
     selected,
@@ -480,7 +573,7 @@ function SourceCardImpl({
       : undefined,
     onActivate: onClick ? () => onClick(source.id) : undefined,
     longPressDisabled: !onEnterSelection && !selectionMode,
-    selectedRingOnly: isProcessing,
+    selectedRingOnly: showProgressFill,
   })
 
   const handleArtifactDragOver = (event: React.DragEvent<HTMLDivElement>) => {
@@ -522,13 +615,13 @@ function SourceCardImpl({
   return (
     <div
       {...rowProps}
-      aria-busy={isProcessing || undefined}
+      aria-busy={showProgressFill || undefined}
       className={cn(
         'group relative flex flex-col gap-0.5 overflow-hidden rounded-md px-1 py-0.5',
         'cursor-pointer transition-colors select-none',
         'hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
         isFailed && 'bg-destructive/5 hover:bg-destructive/10',
-        isProcessing && 'bg-muted/40',
+        showProgressFill && 'bg-muted/40',
         isArtifactDragOver && 'ring-2 ring-primary bg-primary/10',
         selectedClassName,
         className
@@ -540,12 +633,12 @@ function SourceCardImpl({
       title={
         isArtifactDragOver
           ? t('sources.dropArtifactOnSource')
-          : isProcessing
-            ? `${title} — ${statusData?.message || statusLabel}`
+          : showProgressFill
+            ? `${title} — ${progressLabel}`
             : title
       }
     >
-      {isProcessing && (
+      {showProgressFill && (
         <div
           aria-hidden
           className="pointer-events-none absolute inset-y-0 left-0 bg-primary/20 transition-[width] duration-700 ease-out"
@@ -581,14 +674,25 @@ function SourceCardImpl({
             <SourceStageActions
               embedState={embedState}
               kgState={kgState}
+              drawingState={showDrawingActions ? drawingState : undefined}
               extractReady={extractReady}
               embedBusy={embedSource.isPending}
               kgBusy={extractKnowledge.isPending || extractKnowledge.isBuilding}
+              drawingBusy={drawingBusy || drawingState === 'running'}
+              drawingEligible={drawingEligible}
               embedFailure={embedFailure}
               kgFailure={kgFailure}
               failureDetailsUnavailable={failureDetailsUnavailable}
               onRunEmbeddings={handleRunEmbeddings}
               onRunKnowledgeGraph={handleBuildKnowledgeGraph}
+              onRunDrawingExtraction={
+                showDrawingActions ? handleRunDrawingExtraction : undefined
+              }
+              onInspectDrawing={
+                drawingRunId && onInspectDrawing
+                  ? handleInspectDrawing
+                  : undefined
+              }
             />
           )}
           {!isCompleted && pipelineStage === 'extracting' && (
@@ -756,6 +860,85 @@ function SourceCardImpl({
                 </>
               )}
 
+              {showDrawingActions && (
+                <>
+                  {!drawingEligible ? (
+                    <DropdownMenuItem disabled onClick={(e) => e.stopPropagation()}>
+                      <DraftingCompass className="h-4 w-4 mr-2" />
+                      {t('sources.drawingPdfOnly')}
+                    </DropdownMenuItem>
+                  ) : drawingState === 'running' || drawingBusy ? (
+                    <DropdownMenuItem disabled onClick={(e) => e.stopPropagation()}>
+                      <DraftingCompass className="h-4 w-4 mr-2 animate-pulse" />
+                      {t('sources.drawingRunning')}
+                    </DropdownMenuItem>
+                  ) : drawingState === 'failed' ? (
+                    <>
+                      <DropdownMenuItem disabled onClick={(e) => e.stopPropagation()}>
+                        <AlertTriangle className="h-4 w-4 mr-2 text-destructive" />
+                        <span className="text-destructive">
+                          {t('sources.drawingFailed')}
+                        </span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setMenuOpen(false)
+                          handleRunDrawingExtraction()
+                        }}
+                        disabled={drawingBusy}
+                      >
+                        <DraftingCompass className="h-4 w-4 mr-2" />
+                        {t('sources.drawingRerun')}
+                      </DropdownMenuItem>
+                    </>
+                  ) : drawingState === 'done' ? (
+                    <>
+                      <DropdownMenuItem disabled onClick={(e) => e.stopPropagation()}>
+                        <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                        {t('sources.drawingDone')}
+                      </DropdownMenuItem>
+                      {drawingRunId && onInspectDrawing ? (
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setMenuOpen(false)
+                            handleInspectDrawing()
+                          }}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          {t('sources.drawingInspectResults')}
+                        </DropdownMenuItem>
+                      ) : null}
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setMenuOpen(false)
+                          handleRunDrawingExtraction()
+                        }}
+                        disabled={drawingBusy}
+                      >
+                        <DraftingCompass className="h-4 w-4 mr-2" />
+                        {t('sources.drawingRerun')}
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setMenuOpen(false)
+                        handleRunDrawingExtraction()
+                      }}
+                      disabled={drawingBusy}
+                    >
+                      <DraftingCompass className="h-4 w-4 mr-2" />
+                      {t('sources.extractArchitecturalDrawings')}
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                </>
+              )}
+
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation()
@@ -819,6 +1002,7 @@ function areEqual(prev: SourceCardProps, next: SourceCardProps): boolean {
     p.pipeline_stage === n.pipeline_stage &&
     p.embedded === n.embedded &&
     p.kg_status === n.kg_status &&
+    p.drawing_status === n.drawing_status &&
     p.processing_failures === n.processing_failures &&
     p.failure_details_unavailable === n.failure_details_unavailable &&
     p.asset?.url === n.asset?.url &&
@@ -829,7 +1013,10 @@ function areEqual(prev: SourceCardProps, next: SourceCardProps): boolean {
     prev.selected === next.selected &&
     prev.contextMode === next.contextMode &&
     prev.showRemoveFromProject === next.showRemoveFromProject &&
-    prev.className === next.className
+    prev.className === next.className &&
+    prev.drawingStatus === next.drawingStatus &&
+    prev.drawingRunId === next.drawingRunId &&
+    prev.drawingBusy === next.drawingBusy
   )
 }
 

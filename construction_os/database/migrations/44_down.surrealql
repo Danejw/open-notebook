@@ -1,0 +1,12 @@
+-- Rollback migration 44: architectural drawing extraction tables
+
+REMOVE EVENT IF EXISTS source_delete_cleanup_drawing ON TABLE source;
+REMOVE TABLE IF EXISTS drawing_embedding;
+REMOVE TABLE IF EXISTS drawing_semantic_record;
+REMOVE TABLE IF EXISTS drawing_relationship;
+REMOVE TABLE IF EXISTS drawing_item;
+REMOVE TABLE IF EXISTS drawing_region;
+REMOVE TABLE IF EXISTS drawing_page;
+REMOVE TABLE IF EXISTS drawing_extraction_run;
+
+RETURN true;

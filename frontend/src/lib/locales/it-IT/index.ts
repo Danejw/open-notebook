@@ -470,6 +470,7 @@ export const itIT = {
     "untitledSource": "Fonte senza titolo",
     "maxItems": "max {count}",
     "details": "Dettagli",
+    "drawingTab": "Disegno",
     "detailsTitle": "Dettagli fonte",
     "content": "Contenuto",
     "type": {

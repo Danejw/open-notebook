@@ -54,6 +54,7 @@ export interface SourceListResponse {
   pipeline_stage?: string
   stage?: string
   kg_status?: string | null
+  drawing_status?: string | null
   processing_failures?: SourceProcessingFailures
   failure_details_unavailable?: boolean
 }

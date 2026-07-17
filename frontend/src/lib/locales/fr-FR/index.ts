@@ -470,6 +470,7 @@ export const frFR = {
     "untitledSource": "Source sans titre",
     "maxItems": "max {count}",
     "details": "Détails",
+    "drawingTab": "Dessin",
     "detailsTitle": "Détails de la source",
     "content": "Contenu",
     "type": {

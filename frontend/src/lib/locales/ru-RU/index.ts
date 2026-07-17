@@ -470,6 +470,7 @@ export const ruRU = {
     "untitledSource": "Без названия",
     "maxItems": "макс. {count}",
     "details": "Детали",
+    "drawingTab": "Чертёж",
     "detailsTitle": "Детали источника",
     "content": "Содержимое",
     "type": {

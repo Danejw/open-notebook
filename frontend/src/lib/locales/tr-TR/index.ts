@@ -470,6 +470,7 @@ export const trTR = {
     "untitledSource": "Başlıksız Kaynak",
     "maxItems": "en fazla {count}",
     "details": "Ayrıntılar",
+    "drawingTab": "Çizim",
     "detailsTitle": "Kaynak Ayrıntıları",
     "content": "İçerik",
     "type": {

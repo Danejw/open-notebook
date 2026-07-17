@@ -18,7 +18,7 @@ class EvidenceItem(BaseModel):
     score: float = 0.0
     matches: List[Any] = Field(default_factory=list)
     content: Optional[Any] = None
-    source: Literal["vector", "text", "graph"] = "vector"
+    source: Literal["vector", "text", "graph", "drawing"] = "vector"
     raw: Dict[str, Any] = Field(default_factory=dict)
 
     def to_search_result(self) -> Dict[str, Any]:
@@ -39,6 +39,9 @@ class EvidenceItem(BaseModel):
             result.setdefault("similarity", self.score)
         elif self.source == "text":
             result.setdefault("relevance", self.score)
+        elif self.source == "drawing":
+            result.setdefault("similarity", self.score)
+            result.setdefault("drawing", True)
         else:
             result.setdefault("score", self.score)
         return result

@@ -470,6 +470,7 @@ export const zhCN = {
     "untitledSource": "未命名来源",
     "maxItems": "最多 {count} 个",
     "details": "详情",
+    "drawingTab": "图纸",
     "detailsTitle": "来源详情",
     "content": "内容",
     "type": {

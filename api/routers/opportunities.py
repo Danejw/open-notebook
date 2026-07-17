@@ -5,22 +5,6 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
-from loguru import logger
-
-from api.opportunity_models import (
-    OpportunityCreate,
-    OpportunityDashboardResponse,
-    OpportunityImportRequest,
-    OpportunityImportResponse,
-    OpportunityListResponse,
-    OpportunityResponse,
-    OpportunitySourceResponse,
-    OpportunityStatusRequest,
-    OpportunityUpdate,
-    PursueOpportunityResponse,
-)
-from construction_os.domain.opportunity import Opportunity, OpportunitySource
 from construction_os.exceptions import (
     ConfigurationError,
     ExternalServiceError,
@@ -39,6 +23,22 @@ from construction_os.services.opportunities import (
     upsert_opportunity,
 )
 from construction_os.services.opportunity_collectors import sync_sam_gov_hawaii
+from fastapi import APIRouter, HTTPException, Query
+from loguru import logger
+
+from api.opportunity_models import (
+    OpportunityCreate,
+    OpportunityDashboardResponse,
+    OpportunityImportRequest,
+    OpportunityImportResponse,
+    OpportunityListResponse,
+    OpportunityResponse,
+    OpportunitySourceResponse,
+    OpportunityStatusRequest,
+    OpportunityUpdate,
+    PursueOpportunityResponse,
+)
+from construction_os.domain.opportunity import Opportunity, OpportunitySource
 from construction_os.services.opportunity_scoring import (
     SCORE_VERSION,
     load_opportunity_scoring_profile,

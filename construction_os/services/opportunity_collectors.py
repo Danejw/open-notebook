@@ -16,7 +16,10 @@ import httpx
 from construction_os.database.repository import repo_query
 from construction_os.domain.opportunity import HawaiiIsland, OpportunitySource
 from construction_os.exceptions import ConfigurationError, ExternalServiceError
-from construction_os.services.opportunities import import_opportunities, seed_opportunity_sources
+from construction_os.services.opportunities import (
+    import_opportunities,
+    seed_opportunity_sources,
+)
 
 SAM_OPPORTUNITIES_URL = "https://api.sam.gov/opportunities/v2/search"
 

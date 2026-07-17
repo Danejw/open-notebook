@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { opportunitiesApi } from '@/lib/api/opportunities'
 import type { OpportunityFilters, OpportunityStatus } from '@/lib/types/opportunities'
 import { useToast } from '@/lib/hooks/use-toast'
-import { getApiErrorKey } from '@/lib/utils/error-handler'
+import { getApiErrorMessage } from '@/lib/utils/error-handler'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
 const OPPORTUNITIES_KEY = ['opportunities'] as const
@@ -67,7 +67,7 @@ export function useSyncSamGovOpportunities() {
     onError: (error: unknown) => {
       toast({
         title: 'SAM.gov synchronization failed',
-        description: t(getApiErrorKey(error, 'Set SAM_GOV_API_KEY and verify the API connection.')),
+        description: getApiErrorMessage(error, t),
         variant: 'destructive',
       })
     },

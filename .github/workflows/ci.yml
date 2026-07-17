@@ -98,10 +98,23 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Lint and type-check frontend
+      - name: Lint frontend
+        run: npm run lint
+
+      - name: Type-check frontend
+        id: typecheck
         run: |
-          npm run lint
-          npx tsc --noEmit --pretty false
+          set -o pipefail
+          npx tsc --noEmit --pretty false 2>&1 | tee typecheck.log
+
+      - name: Upload type-check diagnostics
+        if: failure() && steps.typecheck.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-typecheck-diagnostics
+          path: frontend/typecheck.log
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Run frontend regression tests
         run: npm test -- --exclude src/lib/locales/index.test.ts

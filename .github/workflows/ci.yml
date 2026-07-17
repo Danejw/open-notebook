@@ -40,11 +40,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e '.[dev]'
 
-      - name: Lint Opportunity Hub backend
+      - name: Check Opportunity Hub backend formatting
         id: backend_lint
         continue-on-error: true
         run: |
-          python -m ruff check \
+          python -m ruff check --fix \
             api/opportunity_models.py \
             api/routers/opportunities.py \
             construction_os/domain/opportunity.py \
@@ -54,6 +54,17 @@ jobs:
             tests/test_opportunity_collectors.py \
             tests/test_opportunity_scoring.py \
             > opportunity-backend-lint.log 2>&1
+          git diff -- \
+            api/opportunity_models.py \
+            api/routers/opportunities.py \
+            construction_os/domain/opportunity.py \
+            construction_os/services/opportunities.py \
+            construction_os/services/opportunity_collectors.py \
+            construction_os/services/opportunity_scoring.py \
+            tests/test_opportunity_collectors.py \
+            tests/test_opportunity_scoring.py \
+            > opportunity-backend-ruff.diff
+          test ! -s opportunity-backend-ruff.diff
 
       - name: Compile backend modules
         id: backend_compile
@@ -78,6 +89,7 @@ jobs:
           name: opportunity-backend-diagnostics
           path: |
             opportunity-backend-lint.log
+            opportunity-backend-ruff.diff
             opportunity-backend-tests.log
           if-no-files-found: ignore
           retention-days: 7
@@ -87,6 +99,8 @@ jobs:
         run: |
           echo '--- Backend lint ---'
           tail -n 200 opportunity-backend-lint.log || true
+          echo '--- Required Ruff changes ---'
+          cat opportunity-backend-ruff.diff || true
           echo '--- Backend tests ---'
           tail -n 200 opportunity-backend-tests.log || true
           exit 1

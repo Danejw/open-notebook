@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Book } from 'lucide-react'
+import { Book, Inbox } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useProjects } from '@/lib/hooks/use-projects'
@@ -24,28 +24,52 @@ export function ProjectArtifactsNav({ isCollapsed }: ProjectArtifactsNavProps) {
   const visibleProjects = projects.slice(0, SIDEBAR_PROJECT_LIMIT)
 
   const isProjectsSectionActive = pathname?.startsWith('/projects') ?? false
+  const isOpportunitiesActive = pathname?.startsWith('/opportunities') ?? false
 
   if (isCollapsed) {
     return (
-      <Button
-        asChild
-        variant={isProjectsSectionActive ? 'secondary' : 'ghost'}
-        size="icon"
-        className={cn(
-          'mx-auto h-7 w-7 shrink-0 justify-center px-0 text-sidebar-foreground sidebar-menu-item',
-          isProjectsSectionActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
-        )}
-      >
-        <Link
-          href="/projects"
-          prefetch={false}
-          onMouseEnter={() => prefetchRoute('/projects')}
-          aria-current={isProjectsSectionActive ? 'page' : undefined}
-          className="flex justify-center"
+      <div className="flex flex-col items-center gap-0.5">
+        <Button
+          asChild
+          variant={isOpportunitiesActive ? 'secondary' : 'ghost'}
+          size="icon"
+          className={cn(
+            'mx-auto h-7 w-7 shrink-0 justify-center px-0 text-sidebar-foreground sidebar-menu-item',
+            isOpportunitiesActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
+          )}
         >
-          <Book className="h-3.5 w-3.5 shrink-0" />
-        </Link>
-      </Button>
+          <Link
+            href="/opportunities"
+            prefetch={false}
+            onMouseEnter={() => prefetchRoute('/opportunities')}
+            aria-current={isOpportunitiesActive ? 'page' : undefined}
+            className="flex justify-center"
+            aria-label="Opportunity Hub"
+          >
+            <Inbox className="h-3.5 w-3.5 shrink-0" />
+          </Link>
+        </Button>
+
+        <Button
+          asChild
+          variant={isProjectsSectionActive ? 'secondary' : 'ghost'}
+          size="icon"
+          className={cn(
+            'mx-auto h-7 w-7 shrink-0 justify-center px-0 text-sidebar-foreground sidebar-menu-item',
+            isProjectsSectionActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
+          )}
+        >
+          <Link
+            href="/projects"
+            prefetch={false}
+            onMouseEnter={() => prefetchRoute('/projects')}
+            aria-current={isProjectsSectionActive ? 'page' : undefined}
+            className="flex justify-center"
+          >
+            <Book className="h-3.5 w-3.5 shrink-0" />
+          </Link>
+        </Button>
+      </div>
     )
   }
 
@@ -56,6 +80,26 @@ export function ProjectArtifactsNav({ isCollapsed }: ProjectArtifactsNavProps) {
       </div>
 
       <div className="flex flex-col">
+        <Button
+          asChild
+          variant={isOpportunitiesActive ? 'secondary' : 'ghost'}
+          size="sm"
+          className={cn(
+            'h-7 w-full justify-start truncate px-1.5 text-sidebar-foreground sidebar-menu-item',
+            isOpportunitiesActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
+          )}
+        >
+          <Link
+            href="/opportunities"
+            prefetch={false}
+            onMouseEnter={() => prefetchRoute('/opportunities')}
+            aria-current={isOpportunitiesActive ? 'page' : undefined}
+          >
+            <Inbox className="mr-1 h-3.5 w-3.5 shrink-0 opacity-80" />
+            <span className="truncate text-[13px] leading-none">Opportunity Hub</span>
+          </Link>
+        </Button>
+
         {visibleProjects.map((project) => {
           const isProjectActive = pathname === `/projects/${project.id}`
 

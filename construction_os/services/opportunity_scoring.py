@@ -269,7 +269,6 @@ def score_opportunity(
         }
         reasons.append(f"{label}: {awarded}/{maximum}. {detail}")
 
-    # 1. Trade and license match, 25 points.
     opportunity_trades = list(getattr(opportunity, "trades", []) or [])
     required_licenses = list(getattr(opportunity, "license_requirements", []) or [])
 
@@ -316,7 +315,6 @@ def score_opportunity(
         f"{trade_detail} {license_detail}",
     )
 
-    # 2. Project value and bonding capacity, 20 points.
     value = getattr(opportunity, "estimated_value_max", None)
     if value is None:
         value = getattr(opportunity, "estimated_value_min", None)
@@ -345,7 +343,6 @@ def score_opportunity(
 
     add_category("project_capacity", "Project size and capacity", value_points, 20, value_detail)
 
-    # 3. Location and travel fit, 15 points.
     island = str(getattr(opportunity, "island", "Unknown") or "Unknown")
     supported = {_normalize(item) for item in profile.supported_islands}
     if island in {"Unknown", "Pacific"}:
@@ -362,8 +359,8 @@ def score_opportunity(
 
     add_category("location", "Location and travel fit", location_points, 15, location_detail)
 
-    # 4. Schedule and bid runway, 15 points.
     due = getattr(opportunity, "bid_due_at", None)
+    deadline_passed = False
     if due is None:
         schedule_points = 7
         schedule_detail = "No bid deadline was provided."
@@ -373,6 +370,7 @@ def score_opportunity(
             due = due.replace(tzinfo=timezone.utc)
         days_remaining = (due - now).total_seconds() / 86_400
         if days_remaining < 0:
+            deadline_passed = True
             schedule_points = 0
             schedule_detail = "The bid deadline has passed."
             risks.append("The opportunity is already overdue.")
@@ -393,7 +391,6 @@ def score_opportunity(
 
     add_category("schedule", "Schedule and bid runway", schedule_points, 15, schedule_detail)
 
-    # 5. Relevant experience and scope, 15 points.
     text = _all_text(opportunity)
     excluded_matches = [keyword for keyword in profile.excluded_keywords if _normalize(keyword) in text]
     preferred_matches = [keyword for keyword in profile.preferred_keywords if _normalize(keyword) in text]
@@ -414,7 +411,6 @@ def score_opportunity(
 
     add_category("experience", "Relevant scope and experience", experience_points, 15, experience_detail)
 
-    # 6. Risk and addendum impact, 10 points.
     risk_points = 10.0
     if getattr(opportunity, "mandatory_site_visit", None) is True:
         risk_points -= 1
@@ -442,8 +438,13 @@ def score_opportunity(
         if item["points"] < 0:
             risks.append(item["summary"])
 
-    risk_detail = addendum_impact["summary"]
-    add_category("risk_addenda", "Risk and addendum impact", risk_points, 10, risk_detail)
+    add_category(
+        "risk_addenda",
+        "Risk and addendum impact",
+        risk_points,
+        10,
+        addendum_impact["summary"],
+    )
 
     score = sum(int(item["score"]) for item in breakdown.values())
     if not profile.is_ready:
@@ -453,7 +454,7 @@ def score_opportunity(
         )
 
     critical_text = " ".join(risks).lower()
-    if score < 50 or "cancel" in critical_text or "deadline has passed" in critical_text:
+    if score < 50 or deadline_passed or "cancel" in critical_text:
         recommendation = "no_bid"
     elif score >= 75 and profile.is_ready:
         recommendation = "pursue"

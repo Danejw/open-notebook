@@ -40,11 +40,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e '.[dev]'
 
-      - name: Check Opportunity Hub backend formatting
-        id: backend_lint
-        continue-on-error: true
+      - name: Lint Opportunity Hub backend
         run: |
-          python -m ruff check --fix \
+          python -m ruff check \
             api/opportunity_models.py \
             api/routers/opportunities.py \
             construction_os/domain/opportunity.py \
@@ -52,62 +50,18 @@ jobs:
             construction_os/services/opportunity_collectors.py \
             construction_os/services/opportunity_scoring.py \
             tests/test_opportunity_collectors.py \
-            tests/test_opportunity_scoring.py \
-            > opportunity-backend-lint.log 2>&1
-          git diff -- \
-            api/opportunity_models.py \
-            api/routers/opportunities.py \
-            construction_os/domain/opportunity.py \
-            construction_os/services/opportunities.py \
-            construction_os/services/opportunity_collectors.py \
-            construction_os/services/opportunity_scoring.py \
-            tests/test_opportunity_collectors.py \
-            tests/test_opportunity_scoring.py \
-            > opportunity-backend-ruff.diff
-          test ! -s opportunity-backend-ruff.diff
+            tests/test_opportunity_scoring.py
 
       - name: Compile backend modules
-        id: backend_compile
-        continue-on-error: true
         run: python -m compileall -q api construction_os
 
       - name: Run Opportunity Hub backend tests
-        id: backend_tests
-        continue-on-error: true
         env:
           CONSTRUCTION_OS_PASSWORD: ''
         run: |
           python -m pytest -q \
             tests/test_opportunity_collectors.py \
-            tests/test_opportunity_scoring.py \
-            > opportunity-backend-tests.log 2>&1
-
-      - name: Upload backend diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: opportunity-backend-diagnostics
-          path: |
-            opportunity-backend-lint.log
-            opportunity-backend-ruff.diff
-            opportunity-backend-tests.log
-            api/routers/opportunities.py
-            construction_os/domain/opportunity.py
-            construction_os/services/opportunities.py
-            construction_os/services/opportunity_collectors.py
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - name: Report backend failure
-        if: steps.backend_lint.outcome != 'success' || steps.backend_compile.outcome != 'success' || steps.backend_tests.outcome != 'success'
-        run: |
-          echo '--- Backend lint ---'
-          tail -n 200 opportunity-backend-lint.log || true
-          echo '--- Required Ruff changes ---'
-          cat opportunity-backend-ruff.diff || true
-          echo '--- Backend tests ---'
-          tail -n 200 opportunity-backend-tests.log || true
-          exit 1
+            tests/test_opportunity_scoring.py
 
   frontend:
     name: Frontend checks
@@ -136,33 +90,9 @@ jobs:
         run: npm run lint
 
       - name: Run frontend regression tests
-        id: frontend_tests
-        continue-on-error: true
-        run: npm test -- --exclude src/lib/locales/index.test.ts > frontend-tests.log 2>&1
+        run: npm test -- --exclude src/lib/locales/index.test.ts
 
       - name: Build production frontend
-        id: frontend_build
-        continue-on-error: true
         env:
           NEXT_TELEMETRY_DISABLED: '1'
-        run: npm run build > frontend-build.log 2>&1
-
-      - name: Upload frontend diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: opportunity-frontend-diagnostics
-          path: |
-            frontend/frontend-tests.log
-            frontend/frontend-build.log
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - name: Report frontend failure
-        if: steps.frontend_tests.outcome != 'success' || steps.frontend_build.outcome != 'success'
-        run: |
-          echo '--- Frontend tests ---'
-          tail -n 150 frontend-tests.log || true
-          echo '--- Frontend build ---'
-          tail -n 150 frontend-build.log || true
-          exit 1
+        run: npm run build

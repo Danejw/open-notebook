@@ -92,6 +92,16 @@ def test_incomplete_profile_caps_score_and_requires_review():
     assert any("capped at 74" in risk for risk in result.risk_flags)
 
 
+def test_expired_strong_match_is_never_recommended_to_pursue():
+    result = score_opportunity(
+        make_opportunity(bid_due_at=datetime.now(timezone.utc) - timedelta(days=1)),
+        profile=ready_profile(),
+    )
+
+    assert result.recommendation == "no_bid"
+    assert any("overdue" in risk.lower() for risk in result.risk_flags)
+
+
 def test_addendum_impact_distinguishes_favorable_and_risky_changes():
     favorable = analyze_addenda(
         [{"title": "Addendum 1: Bid deadline extended to August 30"}]

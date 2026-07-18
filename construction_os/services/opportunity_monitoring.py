@@ -5,7 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from datetime import datetime, timedelta, timezone
+import re
+from datetime import date, datetime, timedelta, timezone
+from html import unescape
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import httpx
@@ -122,6 +124,29 @@ def monitoring_interval(opportunity: Opportunity, now: Optional[datetime] = None
     )
 
 
+def sam_lookup_params(
+    opportunity: Opportunity,
+    api_key: str,
+    *,
+    today: Optional[date] = None,
+) -> Dict[str, str]:
+    """Build a valid SAM.gov notice lookup with the required posting window."""
+
+    today = today or date.today()
+    earliest = today - timedelta(days=364)
+    if opportunity.published_at:
+        published = opportunity.published_at.date()
+        earliest = max(earliest, published - timedelta(days=1))
+    return {
+        "api_key": api_key,
+        "noticeid": opportunity.external_id,
+        "postedFrom": earliest.strftime("%m/%d/%Y"),
+        "postedTo": today.strftime("%m/%d/%Y"),
+        "limit": "10",
+        "offset": "0",
+    }
+
+
 def _json_value(value: Any) -> Any:
     if isinstance(value, datetime):
         parsed = value
@@ -235,6 +260,21 @@ def detect_opportunity_changes(
     }
 
 
+def should_record_change(
+    opportunity: Opportunity,
+    trigger: OpportunityRefreshTrigger,
+    diff: Dict[str, Any],
+) -> bool:
+    """Do not turn the first successful source snapshot into a false update."""
+
+    del trigger
+    establishing_baseline = (
+        opportunity.monitoring_snapshot_hash is None
+        and opportunity.monitoring_last_success_at is None
+    )
+    return bool(diff.get("changed_fields")) and not establishing_baseline
+
+
 def infer_sam_source_state(record: Dict[str, Any]) -> Tuple[str, Optional[str]]:
     """Map SAM.gov lifecycle metadata without changing the internal workflow status."""
 
@@ -275,6 +315,53 @@ def _classify_addenda(documents: Iterable[Dict[str, Any]]) -> List[Dict[str, Any
     return addenda
 
 
+def _compact_text(value: Any) -> str:
+    text = unescape(str(value or ""))
+    text = re.sub(r"<[^>]+>", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _description_from_json(value: Any) -> str:
+    if isinstance(value, str):
+        return _compact_text(value)
+    if isinstance(value, list):
+        return " ".join(filter(None, (_description_from_json(item) for item in value))).strip()
+    if not isinstance(value, dict):
+        return ""
+    for key in ("description", "content", "text", "body"):
+        result = _description_from_json(value.get(key))
+        if result:
+            return result
+    for nested in value.values():
+        result = _description_from_json(nested)
+        if result:
+            return result
+    return ""
+
+
+async def _fetch_sam_description(
+    client: httpx.AsyncClient,
+    record: Dict[str, Any],
+    api_key: str,
+) -> str:
+    value = str(record.get("description") or "").strip()
+    if not value:
+        return ""
+    if not value.lower().startswith(("http://", "https://")):
+        return _compact_text(value)
+
+    try:
+        response = await client.get(value, params={"api_key": api_key})
+        response.raise_for_status()
+        content_type = response.headers.get("content-type", "").lower()
+        if "json" in content_type:
+            return _description_from_json(response.json())
+        return _compact_text(response.text)
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning(f"Could not hydrate SAM.gov description for {record.get('noticeId')}: {exc}")
+        return ""
+
+
 async def fetch_sam_opportunity(opportunity: Opportunity) -> Dict[str, Any]:
     api_key = os.getenv("SAM_GOV_API_KEY", "").strip()
     if not api_key:
@@ -282,17 +369,46 @@ async def fetch_sam_opportunity(opportunity: Opportunity) -> Dict[str, Any]:
             "SAM_GOV_API_KEY is required to monitor SAM.gov opportunities"
         )
 
-    params = {
-        "api_key": api_key,
-        "noticeid": opportunity.external_id,
-        "limit": "10",
-        "offset": "0",
-    }
     try:
         async with httpx.AsyncClient(timeout=45.0, follow_redirects=True) as client:
-            response = await client.get(SAM_OPPORTUNITIES_URL, params=params)
+            response = await client.get(
+                SAM_OPPORTUNITIES_URL,
+                params=sam_lookup_params(opportunity, api_key),
+            )
             response.raise_for_status()
             payload = response.json()
+            records = [
+                item
+                for item in (payload.get("opportunitiesData") or [])
+                if isinstance(item, dict)
+            ]
+            if not records:
+                raise NotFoundError(
+                    "SAM.gov did not return the watched notice. It may be archived, removed, or temporarily unavailable."
+                )
+
+            record = next(
+                (
+                    item
+                    for item in records
+                    if str(item.get("noticeId") or item.get("noticeID") or "").strip()
+                    == opportunity.external_id
+                ),
+                records[0],
+            )
+            hydrated_record = dict(record)
+            hydrated_description = await _fetch_sam_description(client, record, api_key)
+            if hydrated_description:
+                hydrated_record["description"] = hydrated_description
+            elif str(record.get("description") or "").lower().startswith(("http://", "https://")):
+                existing = opportunity.description or opportunity.scope_summary
+                hydrated_record["description"] = (
+                    existing
+                    if existing and not existing.lower().startswith(("http://", "https://"))
+                    else ""
+                )
+    except NotFoundError:
+        raise
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code in {401, 403}:
             raise ConfigurationError(
@@ -304,27 +420,8 @@ async def fetch_sam_opportunity(opportunity: Opportunity) -> Dict[str, Any]:
     except (httpx.HTTPError, ValueError) as exc:
         raise ExternalServiceError(f"SAM.gov opportunity refresh failed: {exc}") from exc
 
-    records = [
-        item
-        for item in (payload.get("opportunitiesData") or [])
-        if isinstance(item, dict)
-    ]
-    if not records:
-        raise NotFoundError(
-            "SAM.gov did not return the watched notice. It may be archived, removed, or temporarily unavailable."
-        )
-
-    record = next(
-        (
-            item
-            for item in records
-            if str(item.get("noticeId") or item.get("noticeID") or "").strip()
-            == opportunity.external_id
-        ),
-        records[0],
-    )
     normalized = normalize_sam_opportunity(
-        record,
+        hydrated_record,
         matched_naics_codes=opportunity.matched_naics_codes,
     )
     source_status, reason = infer_sam_source_state(record)
@@ -428,6 +525,8 @@ async def deactivate_opportunity_monitoring(opportunity_id: str) -> Opportunity:
     opportunity.monitoring_health = "inactive"
     opportunity.monitoring_next_check_at = None
     opportunity.monitoring_lease_until = None
+    if opportunity.status == "watching":
+        opportunity.status = "reviewing"
     await opportunity.save()
     return opportunity
 
@@ -471,7 +570,7 @@ async def refresh_opportunity(
         normalized = await fetch_current_opportunity(opportunity)
         diff = detect_opportunity_changes(opportunity, normalized)
         current_hash = snapshot_hash(normalized)
-        has_changes = bool(diff["changed_fields"])
+        has_changes = should_record_change(opportunity, trigger, diff)
 
         refreshed, _ = await upsert_opportunity(normalized)
         refreshed.monitoring_enabled = True
@@ -540,7 +639,7 @@ async def acknowledge_opportunity_changes(opportunity_id: str) -> Opportunity:
 
 
 async def claim_due_opportunities() -> List[Opportunity]:
-    """Atomically lease every due monitor so multiple scheduler replicas do not duplicate work."""
+    """Atomically lease every due monitor so scheduler replicas do not duplicate work."""
 
     now = utcnow()
     lease_until = now + timedelta(minutes=10)

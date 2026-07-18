@@ -4,6 +4,7 @@ import type {
   OpportunityDashboard,
   OpportunityFilters,
   OpportunityListResponse,
+  OpportunityNaicsCollection,
   OpportunitySource,
   OpportunityStatus,
   PursueOpportunityResponse,
@@ -18,12 +19,22 @@ function cleanFilters(filters: OpportunityFilters = {}) {
 export interface OpportunitySyncResult {
   source_key: string
   fetched: number
+  unique_fetched: number
   total_records: number
   created: number
   updated: number
   failed: number
   posted_from: string
   posted_to: string
+  collection_id: string
+  collection_name: string
+  naics_codes: string[]
+}
+
+export interface OpportunitySyncRequest {
+  daysBack?: number
+  collectionId?: string
+  limit?: number
 }
 
 export const opportunitiesApi = {
@@ -56,11 +67,28 @@ export const opportunitiesApi = {
     return response.data
   },
 
-  syncSamGov: async (daysBack = 14) => {
+  naicsCollections: async () => {
+    const response = await apiClient.get<OpportunityNaicsCollection[]>(
+      '/opportunities/naics-collections'
+    )
+    return response.data
+  },
+
+  syncSamGov: async ({
+    daysBack = 14,
+    collectionId,
+    limit = 1000,
+  }: OpportunitySyncRequest = {}) => {
     const response = await apiClient.post<OpportunitySyncResult>(
       '/opportunity-sources/sam_gov_hawaii/sync',
       undefined,
-      { params: { days_back: daysBack } }
+      {
+        params: {
+          days_back: daysBack,
+          collection_id: collectionId || undefined,
+          limit,
+        },
+      }
     )
     return response.data
   },

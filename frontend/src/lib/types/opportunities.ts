@@ -42,6 +42,13 @@ export interface OpportunityAddendumImpact {
   }>
 }
 
+export interface OpportunityDiscoveryMatch {
+  collection_id: string
+  collection_name: string
+  collection_slug: string
+  naics_codes: string[]
+}
+
 export interface Opportunity {
   id: string
   source_key: string
@@ -58,6 +65,10 @@ export interface Opportunity {
   description: string
   trades: string[]
   license_requirements: string[]
+  naics_code: string | null
+  matched_naics_codes: string[]
+  matched_collection_ids: string[]
+  discovery_matches: OpportunityDiscoveryMatch[]
   published_at: string | null
   questions_due_at: string | null
   prebid_at: string | null
@@ -142,6 +153,24 @@ export interface OpportunitySource {
   last_synced_at: string | null
   last_sync_status: 'success' | 'partial' | 'failed' | null
   last_error: string | null
+}
+
+export interface OpportunityNaicsCollectionItem {
+  code: string
+  title: string
+  description: string
+  priority: number | null
+  item_id: string
+}
+
+export interface OpportunityNaicsCollection {
+  id: string
+  name: string
+  slug: string
+  description: string
+  codes: string[]
+  items: OpportunityNaicsCollectionItem[]
+  is_default: boolean
 }
 
 export interface PursueOpportunityResponse {

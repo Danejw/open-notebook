@@ -30,6 +30,10 @@ class OpportunityCreate(BaseModel):
     description: str = ""
     trades: List[str] = Field(default_factory=list)
     license_requirements: List[str] = Field(default_factory=list)
+    naics_code: Optional[str] = None
+    matched_naics_codes: List[str] = Field(default_factory=list)
+    matched_collection_ids: List[str] = Field(default_factory=list)
+    discovery_matches: List[Dict[str, Any]] = Field(default_factory=list)
     published_at: Optional[datetime] = None
     questions_due_at: Optional[datetime] = None
     prebid_at: Optional[datetime] = None
@@ -81,6 +85,10 @@ class OpportunityUpdate(BaseModel):
     description: Optional[str] = None
     trades: Optional[List[str]] = None
     license_requirements: Optional[List[str]] = None
+    naics_code: Optional[str] = None
+    matched_naics_codes: Optional[List[str]] = None
+    matched_collection_ids: Optional[List[str]] = None
+    discovery_matches: Optional[List[Dict[str, Any]]] = None
     published_at: Optional[datetime] = None
     questions_due_at: Optional[datetime] = None
     prebid_at: Optional[datetime] = None
@@ -121,6 +129,10 @@ class OpportunityResponse(BaseModel):
     description: str
     trades: List[str]
     license_requirements: List[str]
+    naics_code: Optional[str]
+    matched_naics_codes: List[str]
+    matched_collection_ids: List[str]
+    discovery_matches: List[Dict[str, Any]]
     published_at: Optional[datetime]
     questions_due_at: Optional[datetime]
     prebid_at: Optional[datetime]
@@ -219,3 +231,21 @@ class OpportunitySourceResponse(BaseModel):
     last_synced_at: Optional[datetime]
     last_sync_status: Optional[Literal["success", "partial", "failed"]]
     last_error: Optional[str]
+
+
+class OpportunityNaicsCollectionItemResponse(BaseModel):
+    code: str
+    title: str
+    description: str = ""
+    priority: Optional[int] = None
+    item_id: str
+
+
+class OpportunityNaicsCollectionResponse(BaseModel):
+    id: str
+    name: str
+    slug: str
+    description: str
+    codes: List[str]
+    items: List[OpportunityNaicsCollectionItemResponse]
+    is_default: bool = False

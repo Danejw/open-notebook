@@ -97,6 +97,23 @@ async def test_resolve_unwraps_stored_json_envelope_without_fetch():
 
 
 @pytest.mark.asyncio
+async def test_resolve_sam_description_fields_fetches_noticedesc(monkeypatch):
+    async def fake_fetch(url, *, api_key=None, client=None):
+        assert "noticedesc" in url
+        return "Narrative scope from SAM."
+
+    monkeypatch.setattr(
+        "construction_os.services.opportunity_collectors.fetch_sam_description_text",
+        fake_fetch,
+    )
+    text, desc_url = await resolve_sam_description_fields(
+        "https://api.sam.gov/prod/opportunities/v1/noticedesc?noticeid=abc"
+    )
+    assert text == "Narrative scope from SAM."
+    assert desc_url and desc_url.startswith("https://")
+
+
+@pytest.mark.asyncio
 async def test_resolve_sam_attachment_name_uses_filename_in_url():
     from construction_os.services.opportunity_collectors import resolve_sam_attachment_name
 

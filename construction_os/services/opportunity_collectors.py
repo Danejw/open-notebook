@@ -6,6 +6,7 @@ and sends records through the shared idempotent import service.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 from datetime import date, datetime, timedelta, timezone
@@ -19,6 +20,9 @@ from construction_os.exceptions import ConfigurationError, ExternalServiceError
 from construction_os.services.opportunities import (
     import_opportunities,
     seed_opportunity_sources,
+)
+from construction_os.services.opportunity_naics_collections import (
+    resolve_naics_collection,
 )
 
 SAM_OPPORTUNITIES_URL = "https://api.sam.gov/opportunities/v2/search"
@@ -140,7 +144,30 @@ def _extract_contact(record: Dict[str, Any]) -> Dict[str, Optional[str]]:
     }
 
 
-def normalize_sam_opportunity(record: Dict[str, Any]) -> Dict[str, Any]:
+def _record_identity(record: Dict[str, Any]) -> str:
+    identity = _first_text(
+        record.get("noticeId"),
+        record.get("noticeID"),
+        record.get("solicitationNumber"),
+    )
+    if identity:
+        return identity
+    fallback = "|".join(
+        [
+            _first_text(record.get("title")),
+            _first_text(record.get("department"), record.get("office")),
+            _first_text(record.get("postedDate")),
+        ]
+    )
+    return hashlib.sha256(fallback.encode("utf-8")).hexdigest()
+
+
+def normalize_sam_opportunity(
+    record: Dict[str, Any],
+    *,
+    collection_profile: Optional[Dict[str, Any]] = None,
+    matched_naics_codes: Optional[List[str]] = None,
+) -> Dict[str, Any]:
     """Normalize one public SAM.gov opportunity response record."""
 
     notice_id = _first_text(record.get("noticeId"), record.get("noticeID"))
@@ -161,7 +188,9 @@ def normalize_sam_opportunity(record: Dict[str, Any]) -> Dict[str, Any]:
     )
     ui_link = _first_text(record.get("uiLink"))
     source_url = ui_link or (
-        f"https://sam.gov/opp/{notice_id}/view" if notice_id else "https://sam.gov/content/opportunities"
+        f"https://sam.gov/opp/{notice_id}/view"
+        if notice_id
+        else "https://sam.gov/content/opportunities"
     )
 
     documents: List[Dict[str, Any]] = []
@@ -181,6 +210,26 @@ def normalize_sam_opportunity(record: Dict[str, Any]) -> Dict[str, Any]:
                             }
                         )
 
+    record_naics = _first_text(record.get("naicsCode")) or None
+    codes = sorted(
+        {
+            str(code).strip()
+            for code in (matched_naics_codes or []) + ([record_naics] if record_naics else [])
+            if str(code).strip()
+        }
+    )
+    collection_ids = [collection_profile["id"]] if collection_profile else []
+    discovery_matches: List[Dict[str, Any]] = []
+    if collection_profile:
+        discovery_matches.append(
+            {
+                "collection_id": collection_profile["id"],
+                "collection_name": collection_profile["name"],
+                "collection_slug": collection_profile["slug"],
+                "naics_codes": codes,
+            }
+        )
+
     normalized = {
         "source_key": "sam_gov_hawaii",
         "external_id": notice_id or solicitation_number or title,
@@ -192,6 +241,10 @@ def normalize_sam_opportunity(record: Dict[str, Any]) -> Dict[str, Any]:
         "location": place,
         "scope_summary": description,
         "description": description,
+        "naics_code": record_naics,
+        "matched_naics_codes": codes,
+        "matched_collection_ids": collection_ids,
+        "discovery_matches": discovery_matches,
         "published_at": _parse_datetime(record.get("postedDate")),
         "bid_due_at": _parse_datetime(
             record.get("responseDeadLine") or record.get("responseDeadline")
@@ -222,12 +275,54 @@ async def _get_source(source_key: str) -> OpportunitySource:
     return OpportunitySource(**rows[0])
 
 
+async def _fetch_sam_pages_for_naics(
+    client: httpx.AsyncClient,
+    *,
+    api_key: str,
+    posted_from: str,
+    posted_to: str,
+    naics_code: str,
+    max_records: int,
+) -> tuple[List[Dict[str, Any]], int]:
+    records: List[Dict[str, Any]] = []
+    offset = 0
+    total_records = 0
+
+    while len(records) < max_records:
+        page_limit = min(1000, max_records - len(records))
+        params = {
+            "api_key": api_key,
+            "postedFrom": posted_from,
+            "postedTo": posted_to,
+            "state": "HI",
+            "ncode": naics_code,
+            "limit": str(page_limit),
+            "offset": str(offset),
+        }
+        response = await client.get(SAM_OPPORTUNITIES_URL, params=params)
+        response.raise_for_status()
+        payload = response.json()
+        page = [
+            record
+            for record in (payload.get("opportunitiesData") or [])
+            if isinstance(record, dict)
+        ]
+        total_records = int(payload.get("totalRecords") or len(page))
+        records.extend(page)
+        offset += len(page)
+        if not page or offset >= total_records:
+            break
+
+    return records, total_records
+
+
 async def sync_sam_gov_hawaii(
     *,
     days_back: int = 14,
     limit: int = 1000,
+    collection_id: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Import recent federal opportunities with a Hawaii place of performance."""
+    """Import recent Hawaii federal opportunities matching a NAICS Collection."""
 
     api_key = os.getenv("SAM_GOV_API_KEY", "").strip()
     if not api_key:
@@ -236,31 +331,47 @@ async def sync_sam_gov_hawaii(
         )
     if not 1 <= days_back <= 365:
         raise ConfigurationError("days_back must be between 1 and 365")
-    if not 1 <= limit <= 1000:
-        raise ConfigurationError("limit must be between 1 and 1000")
+    if not 1 <= limit <= 5000:
+        raise ConfigurationError("limit must be between 1 and 5000")
 
     source = await _get_source("sam_gov_hawaii")
+    stored_collection_id = str((source.settings or {}).get("naics_collection_id") or "")
+    profile = await resolve_naics_collection(collection_id or stored_collection_id or None)
+
     today = date.today()
-    params = {
-        "api_key": api_key,
-        "postedFrom": (today - timedelta(days=days_back)).strftime("%m/%d/%Y"),
-        "postedTo": today.strftime("%m/%d/%Y"),
-        "state": "HI",
-        "limit": str(limit),
-        "offset": "0",
-    }
+    posted_from = (today - timedelta(days=days_back)).strftime("%m/%d/%Y")
+    posted_to = today.strftime("%m/%d/%Y")
 
     try:
-        async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
-            response = await client.get(SAM_OPPORTUNITIES_URL, params=params)
-            response.raise_for_status()
-            payload = response.json()
+        unique_records: Dict[str, Dict[str, Any]] = {}
+        matches: Dict[str, set[str]] = {}
+        fetched = 0
+        total_records = 0
 
-        records = payload.get("opportunitiesData") or []
+        async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
+            for naics_code in profile["codes"]:
+                records, code_total = await _fetch_sam_pages_for_naics(
+                    client,
+                    api_key=api_key,
+                    posted_from=posted_from,
+                    posted_to=posted_to,
+                    naics_code=naics_code,
+                    max_records=limit,
+                )
+                fetched += len(records)
+                total_records += code_total
+                for record in records:
+                    identity = _record_identity(record)
+                    unique_records[identity] = record
+                    matches.setdefault(identity, set()).add(naics_code)
+
         normalized = [
-            normalize_sam_opportunity(record)
-            for record in records
-            if isinstance(record, dict)
+            normalize_sam_opportunity(
+                record,
+                collection_profile=profile,
+                matched_naics_codes=sorted(matches.get(identity, set())),
+            )
+            for identity, record in unique_records.items()
         ]
         result = await import_opportunities(normalized)
 
@@ -271,15 +382,25 @@ async def sync_sam_gov_hawaii(
             if result["failed"]
             else None
         )
+        source.settings = {
+            **(source.settings or {}),
+            "naics_collection_id": profile["id"],
+            "naics_collection_name": profile["name"],
+            "naics_codes": profile["codes"],
+        }
         await source.save()
 
         return {
             **result,
             "source_key": source.key,
-            "fetched": len(records),
-            "total_records": int(payload.get("totalRecords") or len(records)),
-            "posted_from": params["postedFrom"],
-            "posted_to": params["postedTo"],
+            "fetched": fetched,
+            "unique_fetched": len(unique_records),
+            "total_records": total_records,
+            "posted_from": posted_from,
+            "posted_to": posted_to,
+            "collection_id": profile["id"],
+            "collection_name": profile["name"],
+            "naics_codes": profile["codes"],
         }
     except (httpx.HTTPError, ValueError) as exc:
         source.last_synced_at = datetime.now(timezone.utc)

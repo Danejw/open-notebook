@@ -98,7 +98,7 @@ export function useExtractArchitecturalDrawings() {
       }
     },
     onError: (error) => {
-      toast.error(getApiErrorMessage(error, t('sources.drawingExtractFailed')))
+      toast.error(getApiErrorMessage(error, t, 'sources.drawingExtractFailed'))
     },
   })
 }
@@ -141,7 +141,7 @@ export function useRetryDrawingRun(projectId?: string) {
       }
     },
     onError: (error) => {
-      toast.error(getApiErrorMessage(error, t('sources.drawingExtractFailed')))
+      toast.error(getApiErrorMessage(error, t, 'sources.drawingExtractFailed'))
     },
   })
 }

@@ -1,0 +1,110 @@
+name: Opportunity NAICS Collections CI
+
+on:
+  pull_request:
+    branches:
+      - feature/hawaii-opportunity-hub-v1
+      - dev
+      - main
+  push:
+    branches:
+      - feature/opportunity-naics-collections
+  workflow_dispatch:
+
+concurrency:
+  group: opportunity-naics-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+
+      - name: Lint changed backend surface
+        run: |
+          python -m ruff check \
+            api/opportunity_models.py \
+            api/routers/opportunities.py \
+            construction_os/collections/validation.py \
+            construction_os/domain/opportunity.py \
+            construction_os/services/opportunity_collectors.py \
+            construction_os/services/opportunity_naics_collections.py \
+            tests/test_opportunity_collectors.py \
+            tests/test_opportunity_scoring.py \
+            tests/test_opportunity_naics_collections.py
+
+      - name: Compile backend modules
+        run: python -m compileall -q api construction_os
+
+      - name: Run Opportunity Hub tests
+        env:
+          CONSTRUCTION_OS_PASSWORD: ''
+        run: |
+          python -m pytest -q \
+            tests/test_opportunity_collectors.py \
+            tests/test_opportunity_scoring.py \
+            tests/test_opportunity_naics_collections.py
+
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Lint changed frontend surface
+        run: |
+          npx eslint \
+            'src/app/(dashboard)/collections/components/CollectionItemsEditor.tsx' \
+            'src/app/(dashboard)/opportunities/discovery/page.tsx' \
+            src/components/layout/ProjectArtifactsNav.tsx \
+            src/lib/api/opportunities.ts \
+            src/lib/hooks/use-opportunities.ts \
+            src/lib/types/opportunities.ts
+
+      - name: Type-check frontend
+        run: npx tsc --noEmit --pretty false
+
+      - name: Run frontend regression tests
+        run: npm test -- --exclude src/lib/locales/index.test.ts
+
+      - name: Build production frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npm run build

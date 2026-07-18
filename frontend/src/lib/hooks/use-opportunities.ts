@@ -1,5 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { opportunitiesApi } from '@/lib/api/opportunities'
+import {
+  opportunitiesApi,
+  type OpportunitySyncRequest,
+} from '@/lib/api/opportunities'
 import type { OpportunityFilters, OpportunityStatus } from '@/lib/types/opportunities'
 import { useToast } from '@/lib/hooks/use-toast'
 import { getApiErrorMessage } from '@/lib/utils/error-handler'
@@ -7,6 +10,7 @@ import { useTranslation } from '@/lib/hooks/use-translation'
 
 const OPPORTUNITIES_KEY = ['opportunities'] as const
 const OPPORTUNITY_SOURCES_KEY = ['opportunity-sources'] as const
+const OPPORTUNITY_NAICS_COLLECTIONS_KEY = ['opportunity-naics-collections'] as const
 
 export function useOpportunities(filters: OpportunityFilters) {
   return useQuery({
@@ -30,6 +34,13 @@ export function useOpportunitySources() {
   })
 }
 
+export function useOpportunityNaicsCollections() {
+  return useQuery({
+    queryKey: OPPORTUNITY_NAICS_COLLECTIONS_KEY,
+    queryFn: opportunitiesApi.naicsCollections,
+  })
+}
+
 export function useSeedOpportunitySources() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
@@ -38,6 +49,7 @@ export function useSeedOpportunitySources() {
     mutationFn: opportunitiesApi.seedSources,
     onSuccess: (sources) => {
       queryClient.setQueryData(OPPORTUNITY_SOURCES_KEY, sources)
+      queryClient.invalidateQueries({ queryKey: OPPORTUNITY_NAICS_COLLECTIONS_KEY })
     },
     onError: () => {
       toast({
@@ -55,13 +67,14 @@ export function useSyncSamGovOpportunities() {
   const { t } = useTranslation()
 
   return useMutation({
-    mutationFn: (daysBack: number = 14) => opportunitiesApi.syncSamGov(daysBack),
+    mutationFn: (request: OpportunitySyncRequest = {}) =>
+      opportunitiesApi.syncSamGov(request),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: OPPORTUNITIES_KEY })
       queryClient.invalidateQueries({ queryKey: OPPORTUNITY_SOURCES_KEY })
       toast({
         title: 'Federal opportunities synchronized',
-        description: `${result.created} new · ${result.updated} refreshed · ${result.failed} failed`,
+        description: `${result.created} new · ${result.updated} refreshed · ${result.failed} failed · ${result.collection_name}`,
       })
     },
     onError: (error: unknown) => {

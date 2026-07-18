@@ -46,6 +46,7 @@ class OpportunityCreate(BaseModel):
     contact_email: Optional[str] = None
     contact_phone: Optional[str] = None
     source_url: str
+    description_url: Optional[str] = None
     documents: List[Dict[str, Any]] = Field(default_factory=list)
     addenda: List[Dict[str, Any]] = Field(default_factory=list)
     fit_score: Optional[int] = None
@@ -96,6 +97,7 @@ class OpportunityUpdate(BaseModel):
     contact_email: Optional[str] = None
     contact_phone: Optional[str] = None
     source_url: Optional[str] = None
+    description_url: Optional[str] = None
     documents: Optional[List[Dict[str, Any]]] = None
     addenda: Optional[List[Dict[str, Any]]] = None
     fit_score: Optional[int] = None
@@ -137,6 +139,7 @@ class OpportunityResponse(BaseModel):
     contact_email: Optional[str]
     contact_phone: Optional[str]
     source_url: str
+    description_url: Optional[str] = None
     documents: List[Dict[str, Any]]
     addenda: List[Dict[str, Any]]
     fit_score: Optional[int]
@@ -219,3 +222,48 @@ class OpportunitySourceResponse(BaseModel):
     last_synced_at: Optional[datetime]
     last_sync_status: Optional[Literal["success", "partial", "failed"]]
     last_error: Optional[str]
+
+
+class OpportunityScoringProfileUpdate(BaseModel):
+    """Body for persisting the company fit scoring profile."""
+
+    name: str = "Default Hawaii contractor"
+    licenses: List[str] = Field(default_factory=list)
+    preferred_trades: List[str] = Field(default_factory=list)
+    supported_islands: List[str] = Field(
+        default_factory=lambda: [
+            "Oahu",
+            "Hawaii",
+            "Maui",
+            "Kauai",
+            "Molokai",
+            "Lanai",
+            "Statewide",
+        ]
+    )
+    min_project_value: float = 0
+    max_project_value: Optional[float] = None
+    minimum_bid_days: int = 14
+    max_bond_percent: float = 10
+    preferred_keywords: List[str] = Field(default_factory=list)
+    excluded_keywords: List[str] = Field(default_factory=list)
+
+
+class OpportunityScoringProfileResponse(BaseModel):
+    name: str
+    licenses: List[str]
+    preferred_trades: List[str]
+    supported_islands: List[str]
+    min_project_value: float
+    max_project_value: Optional[float]
+    minimum_bid_days: int
+    max_bond_percent: float
+    preferred_keywords: List[str]
+    excluded_keywords: List[str]
+    profile_ready: bool
+    score_version: str
+    source: Literal["database", "env", "default"]
+    weights: Dict[str, int]
+    rescored: Optional[int] = None
+    failed: Optional[int] = None
+    errors: Optional[List[Dict[str, str]]] = None

@@ -30,6 +30,7 @@ import {
   Sun,
   Moon,
   Monitor,
+  Building2,
 } from 'lucide-react'
 import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -44,6 +45,7 @@ const getNavigationItems = (t: TFunction) => [
   { name: t('navigation.images'), href: '/images', icon: Image, keywords: ['logo', 'media', 'picture', 'upload', 'library', 'brand'] },
   { name: t('navigation.templates'), href: '/templates', icon: FileCode2, keywords: ['bid', 'html', 'pdf', 'estimate', 'proposal', 'template', 'documents'] },
   { name: t('navigation.models'), href: '/settings/api-keys', icon: Bot, keywords: ['ai', 'llm', 'providers', 'openai', 'anthropic'] },
+  { name: t('navigation.companyProfile'), href: '/settings/company-profile', icon: Building2, keywords: ['company', 'fit', 'scoring', 'licenses', 'trades', 'opportunity'] },
   { name: t('navigation.settings'), href: '/settings', icon: Settings, keywords: ['preferences', 'config', 'options'] },
   { name: t('navigation.advanced'), href: '/advanced', icon: Wrench, keywords: ['debug', 'system', 'tools'] },
 ]

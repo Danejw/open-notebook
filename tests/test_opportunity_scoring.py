@@ -1,8 +1,13 @@
 from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from construction_os.domain.opportunity import Opportunity
+from construction_os.domain.opportunity_scoring_profile import OpportunityScoringSettings
 from construction_os.services.opportunity_scoring import (
     OpportunityScoringProfile,
+    aload_opportunity_scoring_profile,
     analyze_addenda,
     score_opportunity,
 )
@@ -120,3 +125,69 @@ def test_addendum_impact_distinguishes_favorable_and_risky_changes():
     assert risky["classification"] in {"review", "high_risk"}
     assert risky["score_delta"] < 0
     assert len(risky["items"]) >= 2
+
+
+@pytest.mark.asyncio
+async def test_aload_prefers_configured_database_profile(monkeypatch):
+    OpportunityScoringSettings.clear_instance()
+    settings = OpportunityScoringSettings()
+    settings.apply_scoring_profile(ready_profile(name="DB Contractor"))
+    object.__setattr__(settings, "_db_loaded", True)
+
+    monkeypatch.delenv("OPPORTUNITY_SCORING_PROFILE_JSON", raising=False)
+
+    with patch.object(
+        OpportunityScoringSettings,
+        "get_instance",
+        new=AsyncMock(return_value=settings),
+    ):
+        profile, source = await aload_opportunity_scoring_profile()
+
+    assert source == "database"
+    assert profile.name == "DB Contractor"
+    assert profile.is_ready
+    OpportunityScoringSettings.clear_instance()
+
+
+@pytest.mark.asyncio
+async def test_aload_falls_back_to_env_when_db_not_configured(monkeypatch):
+    OpportunityScoringSettings.clear_instance()
+    settings = OpportunityScoringSettings()
+    object.__setattr__(settings, "_db_loaded", True)
+
+    monkeypatch.setenv(
+        "OPPORTUNITY_SCORING_PROFILE_JSON",
+        '{"name":"Env Contractor","licenses":["C-5"],"preferred_trades":["Carpentry"],'
+        '"supported_islands":["Oahu"],"max_project_value":1000000}',
+    )
+
+    with patch.object(
+        OpportunityScoringSettings,
+        "get_instance",
+        new=AsyncMock(return_value=settings),
+    ):
+        profile, source = await aload_opportunity_scoring_profile()
+
+    assert source == "env"
+    assert profile.name == "Env Contractor"
+    assert profile.is_ready
+    OpportunityScoringSettings.clear_instance()
+
+
+@pytest.mark.asyncio
+async def test_aload_uses_default_when_db_and_env_missing(monkeypatch):
+    OpportunityScoringSettings.clear_instance()
+    settings = OpportunityScoringSettings()
+    object.__setattr__(settings, "_db_loaded", True)
+    monkeypatch.delenv("OPPORTUNITY_SCORING_PROFILE_JSON", raising=False)
+
+    with patch.object(
+        OpportunityScoringSettings,
+        "get_instance",
+        new=AsyncMock(return_value=settings),
+    ):
+        profile, source = await aload_opportunity_scoring_profile()
+
+    assert source == "default"
+    assert profile.is_ready is False
+    OpportunityScoringSettings.clear_instance()

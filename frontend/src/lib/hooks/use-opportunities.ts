@@ -1,12 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { opportunitiesApi } from '@/lib/api/opportunities'
-import type { OpportunityFilters, OpportunityStatus } from '@/lib/types/opportunities'
+import type {
+  OpportunityFilters,
+  OpportunityScoringProfileUpdate,
+  OpportunityStatus,
+} from '@/lib/types/opportunities'
 import { useToast } from '@/lib/hooks/use-toast'
 import { getApiErrorMessage } from '@/lib/utils/error-handler'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
 const OPPORTUNITIES_KEY = ['opportunities'] as const
 const OPPORTUNITY_SOURCES_KEY = ['opportunity-sources'] as const
+const SCORING_PROFILE_KEY = ['opportunities', 'scoring-profile'] as const
 
 export function useOpportunities(filters: OpportunityFilters) {
   return useQuery({
@@ -16,10 +21,52 @@ export function useOpportunities(filters: OpportunityFilters) {
   })
 }
 
+export function useOpportunity(opportunityId: string | null) {
+  return useQuery({
+    queryKey: [...OPPORTUNITIES_KEY, 'detail', opportunityId],
+    queryFn: () => opportunitiesApi.get(opportunityId as string),
+    enabled: Boolean(opportunityId),
+  })
+}
+
 export function useOpportunityDashboard() {
   return useQuery({
     queryKey: [...OPPORTUNITIES_KEY, 'dashboard'],
     queryFn: opportunitiesApi.dashboard,
+  })
+}
+
+export function useOpportunityScoringProfile() {
+  return useQuery({
+    queryKey: SCORING_PROFILE_KEY,
+    queryFn: opportunitiesApi.getScoringProfile,
+  })
+}
+
+export function useUpdateOpportunityScoringProfile() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: (data: OpportunityScoringProfileUpdate) =>
+      opportunitiesApi.updateScoringProfile(data),
+    onSuccess: (result) => {
+      queryClient.setQueryData(SCORING_PROFILE_KEY, result)
+      queryClient.invalidateQueries({ queryKey: OPPORTUNITIES_KEY })
+      const rescored = result.rescored ?? 0
+      toast({
+        title: t('companyProfile.saveSuccessTitle'),
+        description: t('companyProfile.saveSuccessDescription', { count: rescored }),
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('companyProfile.saveErrorTitle'),
+        description: getApiErrorMessage(error, t),
+        variant: 'destructive',
+      })
+    },
   })
 }
 

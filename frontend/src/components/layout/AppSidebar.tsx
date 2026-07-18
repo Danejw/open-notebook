@@ -46,6 +46,7 @@ import {
   Sparkles,
   Plug2,
   Library,
+  Building2,
 } from 'lucide-react'
 
 type NavSection = {
@@ -82,6 +83,7 @@ const getManageNavigation = (t: TFunction): NavSection => ({
     { name: t('navigation.images'), href: '/images', icon: ImageIcon },
     { name: t('navigation.templates'), href: '/templates', icon: FileCode2 },
     { name: t('navigation.models'), href: '/settings/api-keys', icon: Bot },
+    { name: t('navigation.companyProfile'), href: '/settings/company-profile', icon: Building2 },
     { name: t('navigation.advanced'), href: '/advanced', icon: Wrench },
     { name: t('navigation.settings'), href: '/settings', icon: Settings },
   ],

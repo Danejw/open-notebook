@@ -4,6 +4,8 @@ import type {
   OpportunityDashboard,
   OpportunityFilters,
   OpportunityListResponse,
+  OpportunityScoringProfile,
+  OpportunityScoringProfileUpdate,
   OpportunitySource,
   OpportunityStatus,
   PursueOpportunityResponse,
@@ -41,6 +43,21 @@ export const opportunitiesApi = {
 
   dashboard: async () => {
     const response = await apiClient.get<OpportunityDashboard>('/opportunities/dashboard')
+    return response.data
+  },
+
+  getScoringProfile: async () => {
+    const response = await apiClient.get<OpportunityScoringProfile>(
+      '/opportunities/scoring-profile'
+    )
+    return response.data
+  },
+
+  updateScoringProfile: async (data: OpportunityScoringProfileUpdate) => {
+    const response = await apiClient.put<OpportunityScoringProfile>(
+      '/opportunities/scoring-profile',
+      data
+    )
     return response.data
   },
 

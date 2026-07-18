@@ -9,10 +9,15 @@ from __future__ import annotations
 import os
 import re
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from email.message import Message
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import httpx
+from loguru import logger
 
+from construction_os.config import UPLOADS_FOLDER
 from construction_os.database.repository import repo_query
 from construction_os.domain.opportunity import HawaiiIsland, OpportunitySource
 from construction_os.exceptions import ConfigurationError, ExternalServiceError
@@ -22,6 +27,9 @@ from construction_os.services.opportunities import (
 )
 
 SAM_OPPORTUNITIES_URL = "https://api.sam.gov/opportunities/v2/search"
+SAM_DOWNLOAD_TIMEOUT_SECONDS = 60.0
+
+_URL_RE = re.compile(r"^https?://", re.IGNORECASE)
 
 
 def _parse_datetime(value: Any) -> Optional[datetime]:
@@ -57,6 +65,179 @@ def _first_text(*values: Any) -> str:
         if text:
             return text
     return ""
+
+
+def looks_like_url(value: str) -> bool:
+    """Return True when ``value`` is an http(s) URL (typical SAM noticedesc)."""
+
+    text = (value or "").strip()
+    return bool(text) and bool(_URL_RE.match(text))
+
+
+def append_sam_api_key(url: str, api_key: Optional[str] = None) -> str:
+    """Append ``api_key`` query param when missing (SAM noticedesc / attachments)."""
+
+    key = (api_key if api_key is not None else os.getenv("SAM_GOV_API_KEY", "")).strip()
+    if not key or not url:
+        return url
+    parsed = urlparse(url.strip())
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    if "api_key" not in query:
+        query["api_key"] = key
+    return urlunparse(parsed._replace(query=urlencode(query)))
+
+
+def html_to_plain_text(html: str) -> str:
+    """Strip tags and collapse whitespace from SAM noticedesc HTML."""
+
+    if not html:
+        return ""
+    text = re.sub(r"(?is)<script[^>]*>.*?</script>", " ", html)
+    text = re.sub(r"(?is)<style[^>]*>.*?</style>", " ", text)
+    text = re.sub(r"(?i)<br\s*/?>", "\n", text)
+    text = re.sub(r"(?i)</p\s*>", "\n", text)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = (
+        text.replace("&nbsp;", " ")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", '"')
+    )
+    lines = [re.sub(r"[ \t]+", " ", line).strip() for line in text.splitlines()]
+    return "\n".join(line for line in lines if line).strip()
+
+
+async def fetch_sam_description_text(
+    url: str,
+    *,
+    api_key: Optional[str] = None,
+    client: Optional[httpx.AsyncClient] = None,
+) -> str:
+    """Fetch SAM noticedesc HTML and return plain text."""
+
+    fetch_url = append_sam_api_key(url, api_key)
+    owns_client = client is None
+    http = client or httpx.AsyncClient(timeout=SAM_DOWNLOAD_TIMEOUT_SECONDS, follow_redirects=True)
+    try:
+        response = await http.get(fetch_url)
+        response.raise_for_status()
+        content_type = (response.headers.get("content-type") or "").lower()
+        body = response.text
+        if "html" in content_type or "<html" in body.lower() or "<p" in body.lower():
+            return html_to_plain_text(body)
+        return body.strip()
+    finally:
+        if owns_client:
+            await http.aclose()
+
+
+async def resolve_sam_description_fields(
+    raw_description: str,
+    *,
+    api_key: Optional[str] = None,
+    client: Optional[httpx.AsyncClient] = None,
+) -> Tuple[str, Optional[str]]:
+    """Return ``(narrative_or_raw, description_url)``.
+
+    When ``raw_description`` is a URL, fetch the body. On failure keep the URL as
+    the text value and still return it as ``description_url``.
+    """
+
+    text = (raw_description or "").strip()
+    if not looks_like_url(text):
+        return text, None
+    try:
+        narrative = await fetch_sam_description_text(text, api_key=api_key, client=client)
+        if narrative:
+            return narrative, text
+        return text, text
+    except Exception as exc:
+        logger.warning("Failed to fetch SAM description from {}: {}", text, exc)
+        return text, text
+
+
+def _filename_from_content_disposition(header: Optional[str]) -> Optional[str]:
+    if not header:
+        return None
+    message = Message()
+    message["content-disposition"] = header
+    filename = message.get_filename()
+    if filename:
+        return os.path.basename(filename.strip().strip('"'))
+    return None
+
+
+def _unique_upload_path(preferred_name: str) -> str:
+    upload_folder = Path(UPLOADS_FOLDER)
+    upload_folder.mkdir(parents=True, exist_ok=True)
+    safe_filename = os.path.basename(preferred_name) or "sam-attachment.bin"
+    stem = Path(safe_filename).stem
+    suffix = Path(safe_filename).suffix
+    counter = 0
+    while True:
+        new_filename = safe_filename if counter == 0 else f"{stem} ({counter}){suffix}"
+        full_path = (upload_folder / new_filename).resolve()
+        if not str(full_path).startswith(str(upload_folder.resolve()) + os.sep):
+            raise ValueError("Invalid filename: path traversal detected")
+        if not full_path.exists():
+            return str(full_path)
+        counter += 1
+
+
+async def download_sam_attachment(
+    url: str,
+    *,
+    preferred_name: Optional[str] = None,
+    api_key: Optional[str] = None,
+    client: Optional[httpx.AsyncClient] = None,
+) -> str:
+    """Download a SAM ``resourceLinks`` attachment into ``UPLOADS_FOLDER``.
+
+    Returns the absolute file path. Raises on empty or HTTP error bodies.
+    """
+
+    fetch_url = append_sam_api_key(url, api_key)
+    owns_client = client is None
+    http = client or httpx.AsyncClient(timeout=SAM_DOWNLOAD_TIMEOUT_SECONDS, follow_redirects=True)
+    try:
+        response = await http.get(fetch_url)
+        response.raise_for_status()
+        content = response.content
+        if not content:
+            raise ExternalServiceError("SAM attachment download returned empty body")
+
+        content_type = (response.headers.get("content-type") or "").lower()
+        # Reject obvious HTML error pages masquerading as files
+        if "text/html" in content_type and len(content) < 50_000:
+            snippet = content[:200].decode("utf-8", errors="ignore").lower()
+            if "<html" in snippet or "description not found" in snippet:
+                raise ExternalServiceError(
+                    "SAM attachment URL returned an HTML error page, not a file"
+                )
+
+        name = (
+            preferred_name
+            or _filename_from_content_disposition(response.headers.get("content-disposition"))
+            or os.path.basename(urlparse(url).path)
+            or "sam-attachment.bin"
+        )
+        if not Path(name).suffix:
+            if "pdf" in content_type:
+                name = f"{name}.pdf"
+            elif "zip" in content_type:
+                name = f"{name}.zip"
+            elif "msword" in content_type or "wordprocessingml" in content_type:
+                name = f"{name}.docx"
+
+        file_path = _unique_upload_path(name)
+        with open(file_path, "wb") as handle:
+            handle.write(content)
+        logger.info("Downloaded SAM attachment to {}", file_path)
+        return file_path
+    finally:
+        if owns_client:
+            await http.aclose()
 
 
 def _deep_get(data: Dict[str, Any], *path: str) -> Any:
@@ -140,7 +321,12 @@ def _extract_contact(record: Dict[str, Any]) -> Dict[str, Optional[str]]:
     }
 
 
-def normalize_sam_opportunity(record: Dict[str, Any]) -> Dict[str, Any]:
+async def normalize_sam_opportunity(
+    record: Dict[str, Any],
+    *,
+    api_key: Optional[str] = None,
+    client: Optional[httpx.AsyncClient] = None,
+) -> Dict[str, Any]:
     """Normalize one public SAM.gov opportunity response record."""
 
     notice_id = _first_text(record.get("noticeId"), record.get("noticeID"))
@@ -154,10 +340,15 @@ def normalize_sam_opportunity(record: Dict[str, Any]) -> Dict[str, Any]:
     )
     notice_type = _first_text(record.get("type"), record.get("typeOfSetAsideDescription"))
     place = _extract_place(record)
-    description = _first_text(
+    raw_description = _first_text(
         record.get("description"),
         record.get("additionalInfoLink"),
         record.get("fullParentPathName"),
+    )
+    description, description_url = await resolve_sam_description_fields(
+        raw_description,
+        api_key=api_key,
+        client=client,
     )
     ui_link = _first_text(record.get("uiLink"))
     source_url = ui_link or (
@@ -165,23 +356,32 @@ def normalize_sam_opportunity(record: Dict[str, Any]) -> Dict[str, Any]:
     )
 
     documents: List[Dict[str, Any]] = []
+    seen_urls: set[str] = set()
     for key in ("resourceLinks", "links"):
         links = record.get(key)
         if isinstance(links, list):
             for link in links:
                 if isinstance(link, str):
-                    documents.append({"url": link})
+                    url = link.strip()
+                    name = ""
                 elif isinstance(link, dict):
+                    # Skip HAL self links that are not file attachments
+                    rel = _first_text(link.get("rel")).lower()
+                    if rel == "self":
+                        continue
                     url = _first_text(link.get("href"), link.get("url"))
-                    if url:
-                        documents.append(
-                            {
-                                "url": url,
-                                "name": _first_text(link.get("title"), link.get("name")),
-                            }
-                        )
+                    name = _first_text(link.get("title"), link.get("name"))
+                else:
+                    continue
+                if not url or url in seen_urls:
+                    continue
+                seen_urls.add(url)
+                entry: Dict[str, Any] = {"url": url}
+                if name:
+                    entry["name"] = name
+                documents.append(entry)
 
-    normalized = {
+    normalized: Dict[str, Any] = {
         "source_key": "sam_gov_hawaii",
         "external_id": notice_id or solicitation_number or title,
         "title": title,
@@ -204,6 +404,8 @@ def normalize_sam_opportunity(record: Dict[str, Any]) -> Dict[str, Any]:
         "raw_payload": record,
         "extraction_confidence": 0.9 if notice_id and title and agency else 0.65,
     }
+    if description_url:
+        normalized["description_url"] = description_url
     normalized.update(_extract_contact(record))
     return normalized
 
@@ -256,13 +458,19 @@ async def sync_sam_gov_hawaii(
             response.raise_for_status()
             payload = response.json()
 
-        records = payload.get("opportunitiesData") or []
-        normalized = [
-            normalize_sam_opportunity(record)
-            for record in records
-            if isinstance(record, dict)
-        ]
-        result = await import_opportunities(normalized)
+            records = payload.get("opportunitiesData") or []
+            normalized: List[Dict[str, Any]] = []
+            for record in records:
+                if not isinstance(record, dict):
+                    continue
+                normalized.append(
+                    await normalize_sam_opportunity(
+                        record,
+                        api_key=api_key,
+                        client=client,
+                    )
+                )
+            result = await import_opportunities(normalized)
 
         source.last_synced_at = datetime.now(timezone.utc)
         source.last_sync_status = "partial" if result["failed"] else "success"

@@ -127,6 +127,7 @@ class Opportunity(ObjectModel):
     contact_email: Optional[str] = None
     contact_phone: Optional[str] = None
     source_url: str
+    description_url: Optional[str] = None
     documents: List[Dict[str, Any]] = Field(default_factory=list)
     addenda: List[Dict[str, Any]] = Field(default_factory=list)
 
@@ -161,6 +162,7 @@ class Opportunity(ObjectModel):
         "contact_name",
         "contact_email",
         "contact_phone",
+        "description_url",
         "fit_score",
         "score_updated_at",
         "extraction_confidence",
@@ -194,5 +196,5 @@ class Opportunity(ObjectModel):
 
         from construction_os.services.opportunity_scoring import apply_opportunity_score
 
-        apply_opportunity_score(self)
+        await apply_opportunity_score(self)
         await super().save()

@@ -42,6 +42,20 @@ export interface OpportunityAddendumImpact {
   }>
 }
 
+export type OpportunityDocumentIngestStatus =
+  | 'pending'
+  | 'queued'
+  | 'failed'
+  | 'skipped'
+
+export interface OpportunityDocument {
+  url: string
+  name?: string
+  source_id?: string
+  ingest_status?: OpportunityDocumentIngestStatus
+  error?: string
+}
+
 export interface Opportunity {
   id: string
   source_key: string
@@ -56,6 +70,7 @@ export interface Opportunity {
   location: string
   scope_summary: string
   description: string
+  description_url?: string | null
   trades: string[]
   license_requirements: string[]
   published_at: string | null
@@ -74,7 +89,7 @@ export interface Opportunity {
   contact_email: string | null
   contact_phone: string | null
   source_url: string
-  documents: Array<Record<string, unknown>>
+  documents: OpportunityDocument[]
   addenda: Array<Record<string, unknown>>
   fit_score: number | null
   fit_reasons: string[]
@@ -98,6 +113,10 @@ export interface OpportunityListResponse {
   limit: number
 }
 
+export type FitScoreBand = 'high' | 'medium' | 'low' | 'unscored'
+
+export type OpportunitySort = 'due' | 'fit_score_desc' | 'fit_score_asc'
+
 export interface OpportunityFilters {
   q?: string
   status?: OpportunityStatus | 'all'
@@ -105,6 +124,8 @@ export interface OpportunityFilters {
   trade?: string
   source_key?: string
   min_fit_score?: number
+  fit_score_band?: FitScoreBand
+  sort?: OpportunitySort
   due_before?: string
 }
 
@@ -120,6 +141,41 @@ export interface OpportunityDashboard {
   pipeline_value_min: number
   pipeline_value_max: number
   by_status: Record<string, number>
+}
+
+export type OpportunityScoringProfileSource = 'database' | 'env' | 'default'
+
+export interface OpportunityScoringProfile {
+  name: string
+  licenses: string[]
+  preferred_trades: string[]
+  supported_islands: string[]
+  min_project_value: number
+  max_project_value: number | null
+  minimum_bid_days: number
+  max_bond_percent: number
+  preferred_keywords: string[]
+  excluded_keywords: string[]
+  profile_ready: boolean
+  score_version: string
+  source: OpportunityScoringProfileSource
+  weights: Record<string, number>
+  rescored?: number | null
+  failed?: number | null
+  errors?: Array<{ id: string; error: string }> | null
+}
+
+export type OpportunityScoringProfileUpdate = {
+  name: string
+  licenses: string[]
+  preferred_trades: string[]
+  supported_islands: string[]
+  min_project_value: number
+  max_project_value: number | null
+  minimum_bid_days: number
+  max_bond_percent: number
+  preferred_keywords: string[]
+  excluded_keywords: string[]
 }
 
 export interface OpportunitySource {

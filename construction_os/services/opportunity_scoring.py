@@ -1,8 +1,8 @@
 """Deterministic company-fit scoring for procurement opportunities.
 
 The scorer is intentionally explainable. Each opportunity receives points across
-six fixed categories that total 100. The active company profile can be supplied
-through ``OPPORTUNITY_SCORING_PROFILE_JSON`` without changing application code.
+six fixed categories that total 100. The active company profile is loaded from
+SurrealDB when configured, with ``OPPORTUNITY_SCORING_PROFILE_JSON`` as fallback.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import os
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Literal, Mapping, Optional, Sequence, Tuple
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 
 SCORE_VERSION = "opportunity-fit-v1"
 AUTO_RISK_PREFIX = "[Scoring] "
+ProfileSource = Literal["database", "env", "default"]
 
 
 class OpportunityScoringProfile(BaseModel):
@@ -226,12 +227,12 @@ def analyze_addenda(addenda: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
     }
 
 
-def load_opportunity_scoring_profile() -> OpportunityScoringProfile:
-    """Load the company profile from one optional JSON environment variable."""
+def _load_env_scoring_profile() -> Optional[OpportunityScoringProfile]:
+    """Parse ``OPPORTUNITY_SCORING_PROFILE_JSON`` when set; None if unset."""
 
     raw = os.getenv("OPPORTUNITY_SCORING_PROFILE_JSON", "").strip()
     if not raw:
-        return OpportunityScoringProfile()
+        return None
     try:
         payload = json.loads(raw)
         if not isinstance(payload, dict):
@@ -242,6 +243,33 @@ def load_opportunity_scoring_profile() -> OpportunityScoringProfile:
         return OpportunityScoringProfile()
 
 
+def load_opportunity_scoring_profile() -> OpportunityScoringProfile:
+    """Sync env/default loader for tests and callers that pass an explicit profile.
+
+    Prefer :func:`aload_opportunity_scoring_profile` in runtime paths so the
+    database singleton is consulted.
+    """
+
+    env_profile = _load_env_scoring_profile()
+    return env_profile if env_profile is not None else OpportunityScoringProfile()
+
+
+async def aload_opportunity_scoring_profile() -> Tuple[OpportunityScoringProfile, ProfileSource]:
+    """Load company profile: database (if configured) → env → built-in defaults."""
+
+    from construction_os.domain.opportunity_scoring_profile import OpportunityScoringSettings
+
+    settings = await OpportunityScoringSettings.get_instance()
+    if settings.configured:
+        return settings.to_scoring_profile(), "database"
+
+    env_profile = _load_env_scoring_profile()
+    if env_profile is not None:
+        return env_profile, "env"
+
+    return OpportunityScoringProfile(), "default"
+
+
 def score_opportunity(
     opportunity: Any,
     profile: Optional[OpportunityScoringProfile] = None,
@@ -250,7 +278,8 @@ def score_opportunity(
 ) -> ScoreResult:
     """Calculate an explainable fit score out of 100."""
 
-    profile = profile or load_opportunity_scoring_profile()
+    if profile is None:
+        profile = load_opportunity_scoring_profile()
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         now = now.replace(tzinfo=timezone.utc)
@@ -475,12 +504,14 @@ def score_opportunity(
     )
 
 
-def apply_opportunity_score(
+async def apply_opportunity_score(
     opportunity: "Opportunity",
     profile: Optional[OpportunityScoringProfile] = None,
 ) -> ScoreResult:
     """Apply the current score while preserving non-scoring risk flags."""
 
+    if profile is None:
+        profile, _source = await aload_opportunity_scoring_profile()
     result = score_opportunity(opportunity, profile=profile)
     existing_risks = [
         risk

@@ -24,6 +24,7 @@ from construction_os.domain.knowledge_graph import (
 )
 from construction_os.domain.media_asset import MediaAsset
 from construction_os.domain.opportunity import Opportunity, OpportunitySource
+from construction_os.domain.opportunity_scoring_profile import OpportunityScoringSettings
 from construction_os.domain.project import (
     Asset,
     ChatSession,
@@ -60,6 +61,7 @@ __all__ = [
     "ObjectModel",
     "Opportunity",
     "OpportunitySource",
+    "OpportunityScoringSettings",
     "Project",
     "ProjectArtifact",
     "RecordModel",

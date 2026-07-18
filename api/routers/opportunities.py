@@ -15,12 +15,15 @@ from api.opportunity_models import (
     OpportunityImportResponse,
     OpportunityListResponse,
     OpportunityResponse,
+    OpportunityScoringProfileResponse,
+    OpportunityScoringProfileUpdate,
     OpportunitySourceResponse,
     OpportunityStatusRequest,
     OpportunityUpdate,
     PursueOpportunityResponse,
 )
 from construction_os.domain.opportunity import Opportunity, OpportunitySource
+from construction_os.domain.opportunity_scoring_profile import OpportunityScoringSettings
 from construction_os.exceptions import (
     ConfigurationError,
     ExternalServiceError,
@@ -28,6 +31,7 @@ from construction_os.exceptions import (
     NotFoundError,
 )
 from construction_os.services.opportunities import (
+    ensure_opportunity_description,
     get_opportunity,
     import_opportunities,
     list_opportunities,
@@ -41,10 +45,60 @@ from construction_os.services.opportunities import (
 from construction_os.services.opportunity_collectors import sync_sam_gov_hawaii
 from construction_os.services.opportunity_scoring import (
     SCORE_VERSION,
-    load_opportunity_scoring_profile,
+    OpportunityScoringProfile,
+    aload_opportunity_scoring_profile,
 )
 
 router = APIRouter()
+
+_SCORE_WEIGHTS: Dict[str, int] = {
+    "trade_license": 25,
+    "project_capacity": 20,
+    "location": 15,
+    "schedule": 15,
+    "experience": 15,
+    "risk_addenda": 10,
+}
+
+
+def _scoring_profile_response(
+    profile: OpportunityScoringProfile,
+    source: str,
+    *,
+    rescored: Optional[int] = None,
+    failed: Optional[int] = None,
+    errors: Optional[List[Dict[str, str]]] = None,
+) -> OpportunityScoringProfileResponse:
+    return OpportunityScoringProfileResponse(
+        **profile.model_dump(),
+        profile_ready=profile.is_ready,
+        score_version=SCORE_VERSION,
+        source=source,  # type: ignore[arg-type]
+        weights=dict(_SCORE_WEIGHTS),
+        rescored=rescored,
+        failed=failed,
+        errors=errors,
+    )
+
+
+async def _rescore_opportunities(*, include_archived: bool = False) -> Dict[str, Any]:
+    items = await Opportunity.get_all(order_by="updated desc")
+    rescored = 0
+    errors: List[Dict[str, str]] = []
+    for item in items:
+        if item.archived and not include_archived:
+            continue
+        try:
+            await item.save()
+            rescored += 1
+        except Exception as exc:
+            errors.append({"id": item.id or "", "error": str(exc)})
+    return {
+        "rescored": rescored,
+        "failed": len(errors),
+        "errors": errors,
+        "score_version": SCORE_VERSION,
+    }
 
 
 def _opportunity_response(item: Opportunity) -> OpportunityResponse:
@@ -110,24 +164,45 @@ async def get_opportunity_dashboard():
         raise HTTPException(status_code=500, detail="Failed to build opportunity dashboard")
 
 
-@router.get("/opportunities/scoring-profile", response_model=Dict[str, Any])
+@router.get(
+    "/opportunities/scoring-profile",
+    response_model=OpportunityScoringProfileResponse,
+)
 async def get_opportunity_scoring_profile():
     """Return the active explainable scoring profile without exposing secrets."""
 
-    profile = load_opportunity_scoring_profile()
-    return {
-        **profile.model_dump(),
-        "profile_ready": profile.is_ready,
-        "score_version": SCORE_VERSION,
-        "weights": {
-            "trade_license": 25,
-            "project_capacity": 20,
-            "location": 15,
-            "schedule": 15,
-            "experience": 15,
-            "risk_addenda": 10,
-        },
-    }
+    profile, source = await aload_opportunity_scoring_profile()
+    return _scoring_profile_response(profile, source)
+
+
+@router.put(
+    "/opportunities/scoring-profile",
+    response_model=OpportunityScoringProfileResponse,
+)
+async def update_opportunity_scoring_profile(payload: OpportunityScoringProfileUpdate):
+    """Persist the company fit profile and rescore non-archived opportunities."""
+
+    try:
+        profile = OpportunityScoringProfile.model_validate(payload.model_dump())
+        settings = await OpportunityScoringSettings.get_instance()
+        settings.apply_scoring_profile(profile)
+        await settings.update()
+
+        rescore_result = await _rescore_opportunities(include_archived=False)
+        return _scoring_profile_response(
+            profile,
+            "database",
+            rescored=rescore_result["rescored"],
+            failed=rescore_result["failed"],
+            errors=rescore_result["errors"],
+        )
+    except InvalidInputError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"Error updating opportunity scoring profile: {exc}")
+        raise HTTPException(
+            status_code=500, detail="Failed to update opportunity scoring profile"
+        )
 
 
 @router.post("/opportunities/rescore", response_model=Dict[str, Any])
@@ -136,23 +211,7 @@ async def rescore_all_opportunities(
 ):
     """Recalculate all stored opportunities with the active company profile."""
 
-    items = await Opportunity.get_all(order_by="updated desc")
-    rescored = 0
-    errors: List[Dict[str, str]] = []
-    for item in items:
-        if item.archived and not include_archived:
-            continue
-        try:
-            await item.save()
-            rescored += 1
-        except Exception as exc:
-            errors.append({"id": item.id or "", "error": str(exc)})
-    return {
-        "rescored": rescored,
-        "failed": len(errors),
-        "errors": errors,
-        "score_version": SCORE_VERSION,
-    }
+    return await _rescore_opportunities(include_archived=include_archived)
 
 
 @router.get("/opportunities", response_model=OpportunityListResponse)
@@ -166,6 +225,14 @@ async def get_opportunities(
     due_before: Optional[datetime] = Query(None),
     due_after: Optional[datetime] = Query(None),
     min_fit_score: Optional[int] = Query(None, ge=0, le=100),
+    fit_score_band: Optional[str] = Query(
+        None,
+        description="Match band: high (>=75), medium (50-74), low (<50), unscored",
+    ),
+    sort: str = Query(
+        "due",
+        description="Sort order: due (default), fit_score_desc, fit_score_asc",
+    ),
     include_archived: bool = Query(False),
     offset: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
@@ -181,6 +248,8 @@ async def get_opportunities(
             due_before=due_before,
             due_after=due_after,
             min_fit_score=min_fit_score,
+            fit_score_band=fit_score_band,
+            sort=sort,
             include_archived=include_archived,
             offset=offset,
             limit=limit,
@@ -223,7 +292,9 @@ async def bulk_import_opportunities(payload: OpportunityImportRequest):
 @router.get("/opportunities/{opportunity_id}", response_model=OpportunityResponse)
 async def get_opportunity_by_id(opportunity_id: str):
     try:
-        return _opportunity_response(await get_opportunity(opportunity_id))
+        opportunity = await get_opportunity(opportunity_id)
+        opportunity = await ensure_opportunity_description(opportunity)
+        return _opportunity_response(opportunity)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Opportunity not found")
     except Exception as exc:

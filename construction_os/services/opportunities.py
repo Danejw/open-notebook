@@ -9,13 +9,19 @@ from __future__ import annotations
 import hashlib
 import re
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple
+
+FitScoreBand = Literal["high", "medium", "low", "unscored"]
+OpportunitySort = Literal["due", "fit_score_desc", "fit_score_asc"]
+
+from loguru import logger
 
 from construction_os.database.repository import repo_query
 from construction_os.domain.opportunity import Opportunity, OpportunitySource
 from construction_os.domain.project import Project
 from construction_os.exceptions import InvalidInputError, NotFoundError
 from construction_os.services.project_artifacts import create_project_artifact
+from construction_os.services.source_ingest import create_upload_source_and_process
 
 HAWAII_SOURCE_SEEDS: List[Dict[str, Any]] = [
     {
@@ -178,6 +184,21 @@ def _matches_text(opportunity: Opportunity, query: str) -> bool:
     return query.lower() in haystack
 
 
+def _matches_fit_score_band(opportunity: Opportunity, band: FitScoreBand) -> bool:
+    score = opportunity.fit_score
+    if band == "unscored":
+        return score is None
+    if score is None:
+        return False
+    if band == "high":
+        return score >= 75
+    if band == "medium":
+        return 50 <= score <= 74
+    if band == "low":
+        return score < 50
+    raise InvalidInputError(f"Unknown fit_score_band: {band}")
+
+
 async def list_opportunities(
     *,
     query: Optional[str] = None,
@@ -189,11 +210,22 @@ async def list_opportunities(
     due_before: Optional[datetime] = None,
     due_after: Optional[datetime] = None,
     min_fit_score: Optional[int] = None,
+    fit_score_band: Optional[FitScoreBand] = None,
+    sort: OpportunitySort = "due",
     include_archived: bool = False,
     offset: int = 0,
     limit: int = 100,
 ) -> Tuple[List[Opportunity], int]:
-    """Return a filtered, due-date ordered opportunity inbox."""
+    """Return a filtered, sorted opportunity inbox."""
+
+    allowed_bands: tuple[FitScoreBand, ...] = ("high", "medium", "low", "unscored")
+    allowed_sorts: tuple[OpportunitySort, ...] = ("due", "fit_score_desc", "fit_score_asc")
+    if fit_score_band is not None and fit_score_band not in allowed_bands:
+        raise InvalidInputError(
+            f"fit_score_band must be one of: {', '.join(allowed_bands)}"
+        )
+    if sort not in allowed_sorts:
+        raise InvalidInputError(f"sort must be one of: {', '.join(allowed_sorts)}")
 
     opportunities = await Opportunity.get_all(order_by="updated desc")
 
@@ -223,23 +255,44 @@ async def list_opportunities(
         opportunities = [
             item for item in opportunities if item.bid_due_at and item.bid_due_at >= due_after
         ]
-    if min_fit_score is not None:
+    if fit_score_band is not None:
+        opportunities = [
+            item for item in opportunities if _matches_fit_score_band(item, fit_score_band)
+        ]
+    elif min_fit_score is not None:
         opportunities = [
             item for item in opportunities if (item.fit_score or 0) >= min_fit_score
         ]
 
     far_future = datetime.max.replace(tzinfo=timezone.utc)
 
+    def _aware_datetime(value: Optional[datetime], fallback: datetime) -> datetime:
+        resolved = value or fallback
+        if resolved.tzinfo is None:
+            return resolved.replace(tzinfo=timezone.utc)
+        return resolved
+
     def due_key(item: Opportunity) -> tuple[datetime, int, datetime]:
-        due = item.bid_due_at or far_future
-        if due.tzinfo is None:
-            due = due.replace(tzinfo=timezone.utc)
-        updated = item.updated or datetime.min.replace(tzinfo=timezone.utc)
-        if updated.tzinfo is None:
-            updated = updated.replace(tzinfo=timezone.utc)
+        due = _aware_datetime(item.bid_due_at, far_future)
+        updated = _aware_datetime(item.updated, datetime.min.replace(tzinfo=timezone.utc))
         return (due, -(item.fit_score or 0), updated)
 
-    opportunities.sort(key=due_key)
+    def fit_score_key(item: Opportunity, *, descending: bool) -> tuple[int, int, datetime, datetime]:
+        has_score = item.fit_score is not None
+        tier = 0 if has_score else 1
+        score = item.fit_score if has_score else 0
+        if descending:
+            score = -score
+        due = _aware_datetime(item.bid_due_at, far_future)
+        updated = _aware_datetime(item.updated, datetime.min.replace(tzinfo=timezone.utc))
+        return (tier, score, due, updated)
+
+    if sort == "fit_score_desc":
+        opportunities.sort(key=lambda item: fit_score_key(item, descending=True))
+    elif sort == "fit_score_asc":
+        opportunities.sort(key=lambda item: fit_score_key(item, descending=False))
+    else:
+        opportunities.sort(key=due_key)
     total = len(opportunities)
     return opportunities[offset : offset + limit], total
 
@@ -248,6 +301,112 @@ async def get_opportunity(opportunity_id: str) -> Opportunity:
     opportunity = await Opportunity.get(opportunity_id)
     if not isinstance(opportunity, Opportunity):
         raise NotFoundError("Opportunity not found")
+    return opportunity
+
+
+async def ensure_opportunity_description(opportunity: Opportunity) -> Opportunity:
+    """Lazy-backfill SAM noticedesc text when stored fields still look like a URL."""
+
+    # Late import: opportunity_collectors imports this module at load time.
+    from construction_os.services.opportunity_collectors import (
+        looks_like_url,
+        resolve_sam_description_fields,
+    )
+
+    candidates = [
+        opportunity.description_url,
+        opportunity.description,
+        opportunity.scope_summary,
+    ]
+    url_candidate = next((c for c in candidates if c and looks_like_url(c)), None)
+    already_narrative = bool(
+        opportunity.description
+        and not looks_like_url(opportunity.description)
+        and opportunity.scope_summary
+        and not looks_like_url(opportunity.scope_summary)
+    )
+    if already_narrative or not url_candidate:
+        return opportunity
+
+    narrative, description_url = await resolve_sam_description_fields(url_candidate)
+    if looks_like_url(narrative):
+        # Fetch failed; keep URL fields and optionally stamp description_url
+        if description_url and not opportunity.description_url:
+            opportunity.description_url = description_url
+            await opportunity.save()
+        return opportunity
+
+    opportunity.description = narrative
+    opportunity.scope_summary = narrative
+    if description_url:
+        opportunity.description_url = description_url
+    await opportunity.save()
+    return opportunity
+
+
+async def ingest_opportunity_documents(
+    opportunity: Opportunity,
+    project: Project,
+) -> Opportunity:
+    """Download solicitation files and create project Sources (best-effort)."""
+
+    # Late import: opportunity_collectors imports this module at load time.
+    from construction_os.services.opportunity_collectors import download_sam_attachment
+
+    project_id = project.id
+    if not project_id:
+        raise InvalidInputError("Project must be saved before ingesting documents")
+
+    stamped: List[Dict[str, Any]] = []
+    seen_urls: set[str] = set()
+
+    for raw in opportunity.documents or []:
+        if not isinstance(raw, dict):
+            continue
+        url = str(raw.get("url") or "").strip()
+        if not url:
+            continue
+        if url in seen_urls:
+            stamped.append(
+                {
+                    **{k: v for k, v in raw.items() if k != "error"},
+                    "url": url,
+                    "ingest_status": "skipped",
+                    "error": "Duplicate URL",
+                }
+            )
+            continue
+        seen_urls.add(url)
+
+        name = str(raw.get("name") or "").strip() or None
+        entry: Dict[str, Any] = {"url": url}
+        if name:
+            entry["name"] = name
+
+        try:
+            file_path = await download_sam_attachment(url, preferred_name=name)
+            source = await create_upload_source_and_process(
+                file_path=file_path,
+                project_id=project_id,
+                title=name or None,
+                embed=True,
+            )
+            entry["source_id"] = source.id
+            entry["ingest_status"] = "queued"
+        except Exception as exc:
+            logger.warning(
+                "Failed to ingest opportunity document {} for {}: {}",
+                url,
+                opportunity.id,
+                exc,
+            )
+            entry["ingest_status"] = "failed"
+            entry["error"] = str(exc)
+
+        stamped.append(entry)
+
+    opportunity.documents = stamped
+    await opportunity.save()
     return opportunity
 
 
@@ -421,6 +580,17 @@ async def pursue_opportunity(opportunity_id: str) -> Tuple[Opportunity, Project,
     opportunity.project_id = project.id
     opportunity.status = "pursuing"
     await opportunity.save()
+
+    # Best-effort: download attachments and queue extract/embed for each file
+    try:
+        opportunity = await ingest_opportunity_documents(opportunity, project)
+    except Exception as exc:
+        logger.warning(
+            "Opportunity document ingest failed for {}: {}",
+            opportunity.id,
+            exc,
+        )
+
     return opportunity, project, True
 
 

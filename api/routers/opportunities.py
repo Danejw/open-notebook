@@ -14,6 +14,7 @@ from api.opportunity_models import (
     OpportunityImportRequest,
     OpportunityImportResponse,
     OpportunityListResponse,
+    OpportunityNaicsCollectionResponse,
     OpportunityResponse,
     OpportunitySourceResponse,
     OpportunityStatusRequest,
@@ -39,6 +40,9 @@ from construction_os.services.opportunities import (
     upsert_opportunity,
 )
 from construction_os.services.opportunity_collectors import sync_sam_gov_hawaii
+from construction_os.services.opportunity_naics_collections import (
+    list_naics_collection_profiles,
+)
 from construction_os.services.opportunity_scoring import (
     SCORE_VERSION,
     load_opportunity_scoring_profile,
@@ -83,17 +87,44 @@ async def seed_hawaii_opportunity_sources():
         raise HTTPException(status_code=500, detail="Failed to seed opportunity sources")
 
 
+@router.get(
+    "/opportunities/naics-collections",
+    response_model=List[OpportunityNaicsCollectionResponse],
+)
+async def get_opportunity_naics_collections():
+    """List active Collections that can control SAM.gov discovery."""
+
+    try:
+        return [
+            OpportunityNaicsCollectionResponse(**profile)
+            for profile in await list_naics_collection_profiles()
+        ]
+    except Exception as exc:
+        logger.error(f"Error fetching NAICS collections: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to fetch NAICS collections")
+
+
 @router.post("/opportunity-sources/sam_gov_hawaii/sync", response_model=Dict[str, Any])
 async def sync_sam_gov_hawaii_source(
     days_back: int = Query(14, ge=1, le=365),
-    limit: int = Query(1000, ge=1, le=1000),
+    limit: int = Query(1000, ge=1, le=5000),
+    collection_id: Optional[str] = Query(
+        None,
+        description="Collection containing enabled items with type 'naics'",
+    ),
 ):
-    """Pull recent federal opportunities whose place of performance is Hawaii."""
+    """Pull Hawaii federal opportunities matching the selected NAICS Collection."""
 
     try:
-        return await sync_sam_gov_hawaii(days_back=days_back, limit=limit)
-    except ConfigurationError as exc:
+        return await sync_sam_gov_hawaii(
+            days_back=days_back,
+            limit=limit,
+            collection_id=collection_id,
+        )
+    except (ConfigurationError, InvalidInputError) as exc:
         raise HTTPException(status_code=422, detail=str(exc))
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
     except ExternalServiceError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
     except Exception as exc:

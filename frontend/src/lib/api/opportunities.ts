@@ -5,6 +5,8 @@ import type {
   OpportunityFilters,
   OpportunityListResponse,
   OpportunityNaicsCollection,
+  OpportunityScoringProfile,
+  OpportunityScoringProfileUpdate,
   OpportunitySource,
   OpportunityStatus,
   PursueOpportunityResponse,
@@ -19,22 +21,14 @@ function cleanFilters(filters: OpportunityFilters = {}) {
 export interface OpportunitySyncResult {
   source_key: string
   fetched: number
-  unique_fetched: number
   total_records: number
   created: number
   updated: number
   failed: number
   posted_from: string
   posted_to: string
-  collection_id: string
-  collection_name: string
-  naics_codes: string[]
-}
-
-export interface OpportunitySyncRequest {
-  daysBack?: number
-  collectionId?: string
-  limit?: number
+  collection_id?: string
+  filter_strings?: string[]
 }
 
 export const opportunitiesApi = {
@@ -52,6 +46,21 @@ export const opportunitiesApi = {
 
   dashboard: async () => {
     const response = await apiClient.get<OpportunityDashboard>('/opportunities/dashboard')
+    return response.data
+  },
+
+  getScoringProfile: async () => {
+    const response = await apiClient.get<OpportunityScoringProfile>(
+      '/opportunities/scoring-profile'
+    )
+    return response.data
+  },
+
+  updateScoringProfile: async (data: OpportunityScoringProfileUpdate) => {
+    const response = await apiClient.put<OpportunityScoringProfile>(
+      '/opportunities/scoring-profile',
+      data
+    )
     return response.data
   },
 
@@ -74,21 +83,26 @@ export const opportunitiesApi = {
     return response.data
   },
 
-  syncSamGov: async ({
-    daysBack = 14,
-    collectionId,
-    limit = 1000,
-  }: OpportunitySyncRequest = {}) => {
+  syncSamGov: async (daysBack = 14, collectionId?: string | null) => {
+    const params: { days_back: number; collection_id?: string } = {
+      days_back: daysBack,
+    }
+    // undefined = omit (reuse saved); null/'' = clear preference; string = save + use
+    if (collectionId !== undefined) {
+      params.collection_id = collectionId ?? ''
+    }
     const response = await apiClient.post<OpportunitySyncResult>(
       '/opportunity-sources/sam_gov_hawaii/sync',
       undefined,
-      {
-        params: {
-          days_back: daysBack,
-          collection_id: collectionId || undefined,
-          limit,
-        },
-      }
+      { params }
+    )
+    return response.data
+  },
+
+  setSamSyncCollection: async (collectionId: string | null) => {
+    const response = await apiClient.put<OpportunitySource>(
+      '/opportunity-sources/sam_gov_hawaii/sync-collection',
+      { collection_id: collectionId }
     )
     return response.data
   },

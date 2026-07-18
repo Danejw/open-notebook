@@ -19,7 +19,10 @@ MAX_SLUG_LEN = 64
 MAX_NAME_LEN = 128
 MAX_DESCRIPTION_LEN = 2048
 DEFAULT_MAX_ITEMS = 12
-SUPPORTED_ITEM_TYPES = frozenset({"url", "document_reference", "note", "query"})
+SUPPORTED_ITEM_TYPES = frozenset(
+    {"text", "url", "document_reference", "note", "query"}
+)
+DEFAULT_ITEM_TYPE = "text"
 
 
 class CollectionStandardError(ValueError):
@@ -233,7 +236,7 @@ def parse_items_yaml(content: str) -> tuple[list[ParsedCollectionItem], list[str
             continue
         seen_ids.add(item_id)
 
-        item_type = str(entry.get("type") or "url").strip().lower()
+        item_type = str(entry.get("type") or DEFAULT_ITEM_TYPE).strip().lower()
         if item_type not in SUPPORTED_ITEM_TYPES:
             errors.append(f"Unsupported item type '{item_type}' for {item_id}")
             continue
@@ -258,6 +261,12 @@ def parse_items_yaml(content: str) -> tuple[list[ParsedCollectionItem], list[str
                 errors.append(f"Duplicate normalized url: {url}")
                 continue
             seen_urls.add(url)
+        elif entry.get("url"):
+            # Optional URL on non-url types (e.g. title is a code, url is a reference).
+            try:
+                url = normalize_collection_url(str(entry.get("url")))
+            except (CollectionStandardError, McpUrlError):
+                url = str(entry.get("url") or "").strip() or None
 
         tags = entry.get("tags")
         topics = entry.get("topics")

@@ -9,13 +9,19 @@ from __future__ import annotations
 import hashlib
 import re
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple
+
+FitScoreBand = Literal["high", "medium", "low", "unscored"]
+OpportunitySort = Literal["due", "fit_score_desc", "fit_score_asc"]
+
+from loguru import logger
 
 from construction_os.database.repository import repo_query
 from construction_os.domain.opportunity import Opportunity, OpportunitySource
 from construction_os.domain.project import Project
 from construction_os.exceptions import InvalidInputError, NotFoundError
 from construction_os.services.project_artifacts import create_project_artifact
+from construction_os.services.source_ingest import create_upload_source_and_process
 
 HAWAII_SOURCE_SEEDS: List[Dict[str, Any]] = [
     {
@@ -178,10 +184,26 @@ def _matches_text(opportunity: Opportunity, query: str) -> bool:
     return query.lower() in haystack
 
 
+def _matches_fit_score_band(opportunity: Opportunity, band: FitScoreBand) -> bool:
+    score = opportunity.fit_score
+    if band == "unscored":
+        return score is None
+    if score is None:
+        return False
+    if band == "high":
+        return score >= 75
+    if band == "medium":
+        return 50 <= score <= 74
+    if band == "low":
+        return score < 50
+    raise InvalidInputError(f"Unknown fit_score_band: {band}")
+
+
 async def list_opportunities(
     *,
     query: Optional[str] = None,
     status: Optional[str] = None,
+    source_stage: Optional[str] = None,
     island: Optional[str] = None,
     trade: Optional[str] = None,
     agency: Optional[str] = None,
@@ -189,11 +211,22 @@ async def list_opportunities(
     due_before: Optional[datetime] = None,
     due_after: Optional[datetime] = None,
     min_fit_score: Optional[int] = None,
+    fit_score_band: Optional[FitScoreBand] = None,
+    sort: OpportunitySort = "due",
     include_archived: bool = False,
     offset: int = 0,
     limit: int = 100,
 ) -> Tuple[List[Opportunity], int]:
-    """Return a filtered, due-date ordered opportunity inbox."""
+    """Return a filtered, sorted opportunity inbox."""
+
+    allowed_bands: tuple[FitScoreBand, ...] = ("high", "medium", "low", "unscored")
+    allowed_sorts: tuple[OpportunitySort, ...] = ("due", "fit_score_desc", "fit_score_asc")
+    if fit_score_band is not None and fit_score_band not in allowed_bands:
+        raise InvalidInputError(
+            f"fit_score_band must be one of: {', '.join(allowed_bands)}"
+        )
+    if sort not in allowed_sorts:
+        raise InvalidInputError(f"sort must be one of: {', '.join(allowed_sorts)}")
 
     opportunities = await Opportunity.get_all(order_by="updated desc")
 
@@ -203,6 +236,10 @@ async def list_opportunities(
         opportunities = [item for item in opportunities if _matches_text(item, query)]
     if status:
         opportunities = [item for item in opportunities if item.status == status]
+    if source_stage:
+        opportunities = [
+            item for item in opportunities if item.source_stage == source_stage
+        ]
     if island:
         opportunities = [item for item in opportunities if item.island == island]
     if trade:
@@ -223,23 +260,44 @@ async def list_opportunities(
         opportunities = [
             item for item in opportunities if item.bid_due_at and item.bid_due_at >= due_after
         ]
-    if min_fit_score is not None:
+    if fit_score_band is not None:
+        opportunities = [
+            item for item in opportunities if _matches_fit_score_band(item, fit_score_band)
+        ]
+    elif min_fit_score is not None:
         opportunities = [
             item for item in opportunities if (item.fit_score or 0) >= min_fit_score
         ]
 
     far_future = datetime.max.replace(tzinfo=timezone.utc)
 
+    def _aware_datetime(value: Optional[datetime], fallback: datetime) -> datetime:
+        resolved = value or fallback
+        if resolved.tzinfo is None:
+            return resolved.replace(tzinfo=timezone.utc)
+        return resolved
+
     def due_key(item: Opportunity) -> tuple[datetime, int, datetime]:
-        due = item.bid_due_at or far_future
-        if due.tzinfo is None:
-            due = due.replace(tzinfo=timezone.utc)
-        updated = item.updated or datetime.min.replace(tzinfo=timezone.utc)
-        if updated.tzinfo is None:
-            updated = updated.replace(tzinfo=timezone.utc)
+        due = _aware_datetime(item.bid_due_at, far_future)
+        updated = _aware_datetime(item.updated, datetime.min.replace(tzinfo=timezone.utc))
         return (due, -(item.fit_score or 0), updated)
 
-    opportunities.sort(key=due_key)
+    def fit_score_key(item: Opportunity, *, descending: bool) -> tuple[int, int, datetime, datetime]:
+        has_score = item.fit_score is not None
+        tier = 0 if has_score else 1
+        score = item.fit_score if has_score else 0
+        if descending:
+            score = -score
+        due = _aware_datetime(item.bid_due_at, far_future)
+        updated = _aware_datetime(item.updated, datetime.min.replace(tzinfo=timezone.utc))
+        return (tier, score, due, updated)
+
+    if sort == "fit_score_desc":
+        opportunities.sort(key=lambda item: fit_score_key(item, descending=True))
+    elif sort == "fit_score_asc":
+        opportunities.sort(key=lambda item: fit_score_key(item, descending=False))
+    else:
+        opportunities.sort(key=due_key)
     total = len(opportunities)
     return opportunities[offset : offset + limit], total
 
@@ -248,6 +306,164 @@ async def get_opportunity(opportunity_id: str) -> Opportunity:
     opportunity = await Opportunity.get(opportunity_id)
     if not isinstance(opportunity, Opportunity):
         raise NotFoundError("Opportunity not found")
+    return opportunity
+
+
+async def ensure_opportunity_description(opportunity: Opportunity) -> Opportunity:
+    """Lazy-backfill SAM description when stored fields are a URL or JSON envelope."""
+
+    # Late import: opportunity_collectors imports this module at load time.
+    from construction_os.services.opportunity_collectors import (
+        looks_like_json_description_envelope,
+        looks_like_url,
+        resolve_sam_description_fields,
+    )
+
+    def needs_repair(value: Optional[str]) -> bool:
+        if not value:
+            return False
+        return looks_like_url(value) or looks_like_json_description_envelope(value)
+
+    candidates = [
+        opportunity.description_url,
+        opportunity.description,
+        opportunity.scope_summary,
+    ]
+    repair_candidate = next((c for c in candidates if c and needs_repair(c)), None)
+    already_narrative = bool(
+        opportunity.description
+        and not needs_repair(opportunity.description)
+        and opportunity.scope_summary
+        and not needs_repair(opportunity.scope_summary)
+    )
+    if already_narrative or not repair_candidate:
+        return opportunity
+
+    narrative, description_url = await resolve_sam_description_fields(repair_candidate)
+    if needs_repair(narrative):
+        # Fetch/unwrap failed; keep URL fields and optionally stamp description_url
+        if description_url and not opportunity.description_url:
+            opportunity.description_url = description_url
+            await opportunity.save()
+        return opportunity
+
+    opportunity.description = narrative
+    opportunity.scope_summary = narrative
+    if description_url:
+        opportunity.description_url = description_url
+    await opportunity.save()
+    return opportunity
+
+
+async def ensure_opportunity_document_names(opportunity: Opportunity) -> Opportunity:
+    """Backfill human-readable titles for SAM attachments labeled download/search/etc."""
+
+    from construction_os.services.opportunity_collectors import (
+        is_generic_attachment_label,
+        resolve_sam_attachment_name,
+    )
+
+    documents = list(opportunity.documents or [])
+    if not documents:
+        return opportunity
+
+    changed = False
+    updated: List[Dict[str, Any]] = []
+    for index, raw in enumerate(documents):
+        if not isinstance(raw, dict):
+            continue
+        entry = dict(raw)
+        url = str(entry.get("url") or "").strip()
+        if not url:
+            updated.append(entry)
+            continue
+        current_name = str(entry.get("name") or "").strip() or None
+        if current_name and not is_generic_attachment_label(current_name):
+            updated.append(entry)
+            continue
+        try:
+            resolved = await resolve_sam_attachment_name(
+                url,
+                preferred_name=current_name,
+                index=index,
+            )
+        except Exception as exc:
+            logger.debug("Document name backfill failed for {}: {}", url, exc)
+            resolved = f"Attachment {index + 1}"
+        if resolved != current_name:
+            entry["name"] = resolved
+            changed = True
+        updated.append(entry)
+
+    if changed:
+        opportunity.documents = updated
+        await opportunity.save()
+    return opportunity
+
+
+async def ingest_opportunity_documents(
+    opportunity: Opportunity,
+    project: Project,
+) -> Opportunity:
+    """Download solicitation files and create project Sources (best-effort)."""
+
+    # Late import: opportunity_collectors imports this module at load time.
+    from construction_os.services.opportunity_collectors import download_sam_attachment
+
+    project_id = project.id
+    if not project_id:
+        raise InvalidInputError("Project must be saved before ingesting documents")
+
+    stamped: List[Dict[str, Any]] = []
+    seen_urls: set[str] = set()
+
+    for raw in opportunity.documents or []:
+        if not isinstance(raw, dict):
+            continue
+        url = str(raw.get("url") or "").strip()
+        if not url:
+            continue
+        if url in seen_urls:
+            stamped.append(
+                {
+                    **{k: v for k, v in raw.items() if k != "error"},
+                    "url": url,
+                    "ingest_status": "skipped",
+                    "error": "Duplicate URL",
+                }
+            )
+            continue
+        seen_urls.add(url)
+
+        name = str(raw.get("name") or "").strip() or None
+        entry: Dict[str, Any] = {"url": url}
+        if name:
+            entry["name"] = name
+
+        try:
+            file_path = await download_sam_attachment(url, preferred_name=name)
+            source = await create_upload_source_and_process(
+                file_path=file_path,
+                project_id=project_id,
+                title=name or None,
+                embed=True,
+            )
+            entry["source_id"] = source.id
+            entry["ingest_status"] = "queued"
+        except Exception as exc:
+            logger.warning(
+                "Failed to ingest opportunity document {} for {}: {}",
+                url,
+                opportunity.id,
+                exc,
+            )
+            entry["ingest_status"] = "failed"
+            entry["error"] = str(exc)
+
+        stamped.append(entry)
+
+    opportunity.documents = stamped
+    await opportunity.save()
     return opportunity
 
 
@@ -279,11 +495,14 @@ async def upsert_opportunity(data: Dict[str, Any]) -> Tuple[Opportunity, bool]:
     created = not bool(rows)
     if rows:
         opportunity = Opportunity(**rows[0])
+        # Workflow status / project linkage stay user-owned; source_stage refreshes from collectors.
         protected = {"id", "created", "status", "project_id", "archived"}
         for key, value in payload.items():
             if key not in protected and key in Opportunity.model_fields:
                 setattr(opportunity, key, value)
     else:
+        payload.setdefault("status", "none")
+        payload.setdefault("source_stage", "early_research")
         opportunity = Opportunity(**payload)
 
     await opportunity.save()
@@ -319,8 +538,7 @@ async def import_opportunities(items: Iterable[Dict[str, Any]]) -> Dict[str, Any
 async def set_opportunity_status(opportunity_id: str, status: str) -> Opportunity:
     opportunity = await get_opportunity(opportunity_id)
     allowed = {
-        "new",
-        "reviewing",
+        "none",
         "watching",
         "pursuing",
         "submitted",
@@ -363,6 +581,21 @@ def opportunity_summary_markdown(opportunity: Opportunity) -> str:
 ## Scope
 
 {opportunity.scope_summary or opportunity.description or "Scope has not been extracted yet."}
+
+## Primary point of contact
+
+- **Name:** {opportunity.contact_name or "Not provided"}
+- **Title:** {opportunity.contact_title or "Not provided"}
+- **Email:** {opportunity.contact_email or "Not provided"}
+- **Phone:** {opportunity.contact_phone or "Not provided"}
+
+## Contracting office
+
+{opportunity.office_address or "Not provided"}
+
+## Attachments
+
+{chr(10).join(f"- [{doc.get('name') or doc.get('url')}]({doc.get('url')})" for doc in opportunity.documents if isinstance(doc, dict) and doc.get("url")) or "- No attachments discovered."}
 
 ## Trades and licenses
 
@@ -421,6 +654,17 @@ async def pursue_opportunity(opportunity_id: str) -> Tuple[Opportunity, Project,
     opportunity.project_id = project.id
     opportunity.status = "pursuing"
     await opportunity.save()
+
+    # Best-effort: download attachments and queue extract/embed for each file
+    try:
+        opportunity = await ingest_opportunity_documents(opportunity, project)
+    except Exception as exc:
+        logger.warning(
+            "Opportunity document ingest failed for {}: {}",
+            opportunity.id,
+            exc,
+        )
+
     return opportunity, project, True
 
 
@@ -448,7 +692,11 @@ async def opportunity_dashboard() -> Dict[str, Any]:
             elif now.timestamp() <= due.timestamp() <= due_soon_cutoff:
                 due_soon += 1
 
-    pipeline_statuses = {"reviewing", "watching", "pursuing", "submitted"}
+    by_source_stage: Dict[str, int] = {}
+    for item in opportunities:
+        by_source_stage[item.source_stage] = by_source_stage.get(item.source_stage, 0) + 1
+
+    pipeline_statuses = {"watching", "pursuing", "submitted"}
     pipeline_value_min = sum(
         item.estimated_value_min or 0
         for item in opportunities
@@ -462,7 +710,7 @@ async def opportunity_dashboard() -> Dict[str, Any]:
 
     return {
         "total": len(opportunities),
-        "new": by_status.get("new", 0),
+        "new": by_source_stage.get("early_research", 0),
         "watching": by_status.get("watching", 0),
         "pursuing": by_status.get("pursuing", 0),
         "submitted": by_status.get("submitted", 0),
@@ -472,4 +720,5 @@ async def opportunity_dashboard() -> Dict[str, Any]:
         "pipeline_value_min": pipeline_value_min,
         "pipeline_value_max": pipeline_value_max,
         "by_status": by_status,
+        "by_source_stage": by_source_stage,
     }

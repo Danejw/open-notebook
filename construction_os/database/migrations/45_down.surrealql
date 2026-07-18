@@ -1,0 +1,15 @@
+-- Migration 45 down: collapse source_stage + status back into legacy status
+
+UPDATE opportunity SET status = 'new'
+WHERE status = 'none' AND (source_stage = 'early_research' OR source_stage IS NONE);
+
+UPDATE opportunity SET status = 'reviewing'
+WHERE status = 'none' AND source_stage = 'pre_solicitation';
+
+UPDATE opportunity SET status = 'pursuing'
+WHERE status = 'none' AND source_stage = 'active_solicitation';
+
+UPDATE opportunity SET status = 'watching'
+WHERE status = 'watching';
+
+UPDATE opportunity REMOVE source_stage;

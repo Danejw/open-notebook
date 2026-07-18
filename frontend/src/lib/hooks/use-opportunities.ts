@@ -1,9 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  opportunitiesApi,
-  type OpportunitySyncRequest,
-} from '@/lib/api/opportunities'
-import type { OpportunityFilters, OpportunityStatus } from '@/lib/types/opportunities'
+import { opportunitiesApi } from '@/lib/api/opportunities'
+import type {
+  Opportunity,
+  OpportunityFilters,
+  OpportunityListResponse,
+  OpportunityScoringProfileUpdate,
+  OpportunityStatus,
+} from '@/lib/types/opportunities'
 import { useToast } from '@/lib/hooks/use-toast'
 import { getApiErrorMessage } from '@/lib/utils/error-handler'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -11,6 +14,40 @@ import { useTranslation } from '@/lib/hooks/use-translation'
 const OPPORTUNITIES_KEY = ['opportunities'] as const
 const OPPORTUNITY_SOURCES_KEY = ['opportunity-sources'] as const
 const OPPORTUNITY_NAICS_COLLECTIONS_KEY = ['opportunity-naics-collections'] as const
+const SCORING_PROFILE_KEY = ['opportunities', 'scoring-profile'] as const
+
+function isOpportunityListQueryKey(queryKey: readonly unknown[]): boolean {
+  return (
+    queryKey.length === 2 &&
+    queryKey[0] === OPPORTUNITIES_KEY[0] &&
+    typeof queryKey[1] === 'object' &&
+    queryKey[1] !== null
+  )
+}
+
+/** Keep list rows aligned with detail GET, which may rescore on description backfill. */
+function syncOpportunityInListCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  updated: Opportunity
+): void {
+  queryClient.setQueriesData<OpportunityListResponse>(
+    {
+      queryKey: OPPORTUNITIES_KEY,
+      predicate: (query) => isOpportunityListQueryKey(query.queryKey),
+    },
+    (cached) => {
+      if (!cached?.items.some((item) => item.id === updated.id)) {
+        return cached
+      }
+      return {
+        ...cached,
+        items: cached.items.map((item) =>
+          item.id === updated.id ? { ...item, ...updated } : item
+        ),
+      }
+    }
+  )
+}
 
 export function useOpportunities(filters: OpportunityFilters) {
   return useQuery({
@@ -20,10 +57,58 @@ export function useOpportunities(filters: OpportunityFilters) {
   })
 }
 
+export function useOpportunity(opportunityId: string | null) {
+  const queryClient = useQueryClient()
+
+  return useQuery({
+    queryKey: [...OPPORTUNITIES_KEY, 'detail', opportunityId],
+    queryFn: async () => {
+      const opportunity = await opportunitiesApi.get(opportunityId as string)
+      syncOpportunityInListCaches(queryClient, opportunity)
+      return opportunity
+    },
+    enabled: Boolean(opportunityId),
+  })
+}
+
 export function useOpportunityDashboard() {
   return useQuery({
     queryKey: [...OPPORTUNITIES_KEY, 'dashboard'],
     queryFn: opportunitiesApi.dashboard,
+  })
+}
+
+export function useOpportunityScoringProfile() {
+  return useQuery({
+    queryKey: SCORING_PROFILE_KEY,
+    queryFn: opportunitiesApi.getScoringProfile,
+  })
+}
+
+export function useUpdateOpportunityScoringProfile() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: (data: OpportunityScoringProfileUpdate) =>
+      opportunitiesApi.updateScoringProfile(data),
+    onSuccess: (result) => {
+      queryClient.setQueryData(SCORING_PROFILE_KEY, result)
+      queryClient.invalidateQueries({ queryKey: OPPORTUNITIES_KEY })
+      const rescored = result.rescored ?? 0
+      toast({
+        title: t('companyProfile.saveSuccessTitle'),
+        description: t('companyProfile.saveSuccessDescription', { count: rescored }),
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('companyProfile.saveErrorTitle'),
+        description: getApiErrorMessage(error, t),
+        variant: 'destructive',
+      })
+    },
   })
 }
 
@@ -67,19 +152,48 @@ export function useSyncSamGovOpportunities() {
   const { t } = useTranslation()
 
   return useMutation({
-    mutationFn: (request: OpportunitySyncRequest = {}) =>
-      opportunitiesApi.syncSamGov(request),
+    mutationFn: (input: number | { daysBack?: number; collectionId?: string | null } = 14) => {
+      if (typeof input === 'number') {
+        return opportunitiesApi.syncSamGov(input)
+      }
+      return opportunitiesApi.syncSamGov(input.daysBack ?? 14, input.collectionId ?? null)
+    },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: OPPORTUNITIES_KEY })
       queryClient.invalidateQueries({ queryKey: OPPORTUNITY_SOURCES_KEY })
+      const filterNote =
+        result.filter_strings && result.filter_strings.length > 0
+          ? ` · filtered by ${result.filter_strings.length} collection strings`
+          : ''
       toast({
         title: 'Federal opportunities synchronized',
-        description: `${result.created} new · ${result.updated} refreshed · ${result.failed} failed · ${result.collection_name}`,
+        description: `${result.created} new · ${result.updated} refreshed · ${result.failed} failed${filterNote}`,
       })
     },
     onError: (error: unknown) => {
       toast({
         title: 'SAM.gov synchronization failed',
+        description: getApiErrorMessage(error, t),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function useSetSamSyncCollection() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: (collectionId: string | null) =>
+      opportunitiesApi.setSamSyncCollection(collectionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: OPPORTUNITY_SOURCES_KEY })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: 'Could not save sync collection',
         description: getApiErrorMessage(error, t),
         variant: 'destructive',
       })

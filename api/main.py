@@ -17,6 +17,7 @@ from api.routers import (
     artifact_templates,
     artifacts,
     auth,
+    autofill,
     chat,
     chat_queue,
     collections,
@@ -369,6 +370,7 @@ app.include_router(
     embedding_rebuild.router, prefix="/api/embeddings", tags=["embeddings"]
 )
 app.include_router(settings.router, prefix="/api", tags=["settings"])
+app.include_router(autofill.router, prefix="/api", tags=["tools"])
 app.include_router(context.router, prefix="/api", tags=["context"])
 app.include_router(sources.router, prefix="/api", tags=["sources"])
 app.include_router(

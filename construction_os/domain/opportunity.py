@@ -5,14 +5,19 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, ClassVar, Dict, List, Literal, Optional
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from construction_os.domain.base import ObjectModel
 from construction_os.exceptions import InvalidInputError
 
+OpportunitySourceStage = Literal[
+    "early_research",
+    "pre_solicitation",
+    "active_solicitation",
+]
+
 OpportunityStatus = Literal[
-    "new",
-    "reviewing",
+    "none",
     "watching",
     "pursuing",
     "submitted",
@@ -100,7 +105,8 @@ class Opportunity(ObjectModel):
     agency: str
     solicitation_number: Optional[str] = None
     procurement_type: ProcurementType = "OTHER"
-    status: OpportunityStatus = "new"
+    source_stage: OpportunitySourceStage = "early_research"
+    status: OpportunityStatus = "none"
 
     island: HawaiiIsland = "Unknown"
     location: str = ""
@@ -108,11 +114,6 @@ class Opportunity(ObjectModel):
     description: str = ""
     trades: List[str] = Field(default_factory=list)
     license_requirements: List[str] = Field(default_factory=list)
-
-    naics_code: Optional[str] = None
-    matched_naics_codes: List[str] = Field(default_factory=list)
-    matched_collection_ids: List[str] = Field(default_factory=list)
-    discovery_matches: List[Dict[str, Any]] = Field(default_factory=list)
 
     published_at: Optional[datetime] = None
     questions_due_at: Optional[datetime] = None
@@ -131,7 +132,10 @@ class Opportunity(ObjectModel):
     contact_name: Optional[str] = None
     contact_email: Optional[str] = None
     contact_phone: Optional[str] = None
+    contact_title: Optional[str] = None
     source_url: str
+    description_url: Optional[str] = None
+    office_address: Optional[str] = None
     documents: List[Dict[str, Any]] = Field(default_factory=list)
     addenda: List[Dict[str, Any]] = Field(default_factory=list)
 
@@ -151,7 +155,6 @@ class Opportunity(ObjectModel):
 
     nullable_fields: ClassVar[set[str]] = {
         "solicitation_number",
-        "naics_code",
         "published_at",
         "questions_due_at",
         "prebid_at",
@@ -167,31 +170,51 @@ class Opportunity(ObjectModel):
         "contact_name",
         "contact_email",
         "contact_phone",
+        "contact_title",
+        "description_url",
+        "office_address",
         "fit_score",
         "score_updated_at",
         "extraction_confidence",
         "project_id",
     }
 
-    @field_validator(
-        "source_key", "external_id", "fingerprint", "title", "agency", "source_url"
-    )
+    @model_validator(mode="before")
+    @classmethod
+    def coerce_legacy_status_split(cls, data: Any) -> Any:
+        """Map pre-split status values onto source_stage + workflow status."""
+
+        if not isinstance(data, dict):
+            return data
+
+        status = data.get("status")
+        stage = data.get("source_stage")
+        if stage is None:
+            if status == "new":
+                data["source_stage"] = "early_research"
+                data["status"] = "none"
+            elif status == "reviewing":
+                data["source_stage"] = "pre_solicitation"
+                data["status"] = "none"
+            elif status == "watching":
+                data["source_stage"] = "pre_solicitation"
+            elif status in {"pursuing", "submitted", "won", "lost", "no_bid"}:
+                data["source_stage"] = "active_solicitation"
+            elif status == "ignored":
+                data["source_stage"] = "early_research"
+            else:
+                data["source_stage"] = "early_research"
+        elif status in {"new", "reviewing"}:
+            data["status"] = "none"
+        return data
+
+    @field_validator("source_key", "external_id", "fingerprint", "title", "agency", "source_url")
     @classmethod
     def required_text(cls, value: str) -> str:
         value = value.strip()
         if not value:
             raise InvalidInputError("Required opportunity fields cannot be empty")
         return value
-
-    @field_validator("naics_code")
-    @classmethod
-    def valid_naics_code(cls, value: Optional[str]) -> Optional[str]:
-        if value is None:
-            return None
-        normalized = "".join(character for character in str(value) if character.isdigit())
-        if not 2 <= len(normalized) <= 6:
-            raise InvalidInputError("naics_code must contain between 2 and 6 digits")
-        return normalized
 
     @field_validator("fit_score")
     @classmethod
@@ -212,5 +235,5 @@ class Opportunity(ObjectModel):
 
         from construction_os.services.opportunity_scoring import apply_opportunity_score
 
-        apply_opportunity_score(self)
+        await apply_opportunity_score(self)
         await super().save()

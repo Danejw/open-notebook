@@ -1,5 +1,4 @@
 from construction_os.domain.collection import CollectionItem
-from construction_os.services.opportunity_collectors import normalize_sam_opportunity
 from construction_os.services.opportunity_naics_collections import (
     extract_naics_entries,
     normalize_naics_code,
@@ -54,37 +53,21 @@ def test_extract_naics_entries_uses_enabled_naics_items_only():
     ]
 
 
-def test_normalize_sam_opportunity_records_collection_match_provenance():
-    normalized = normalize_sam_opportunity(
-        {
-            "noticeId": "notice-236220",
-            "title": "Renovate administration building",
-            "department": "DEPARTMENT OF THE NAVY",
-            "naicsCode": "236220",
-            "placeOfPerformance": {
-                "city": {"name": "Honolulu"},
-                "state": {"code": "HI"},
-            },
-        },
-        collection_profile={
-            "id": "collection:construction",
-            "name": "Construction Opportunities",
-            "slug": "construction-opportunities",
-        },
-        matched_naics_codes=["236220", "236210"],
+def test_record_matches_collection_filters_by_naics_code():
+    from construction_os.services.opportunity_collectors import (
+        record_matches_collection_filters,
+        record_naics_codes,
     )
 
-    assert normalized["naics_code"] == "236220"
-    assert normalized["matched_naics_codes"] == ["236210", "236220"]
-    assert normalized["matched_collection_ids"] == ["collection:construction"]
-    assert normalized["discovery_matches"] == [
-        {
-            "collection_id": "collection:construction",
-            "collection_name": "Construction Opportunities",
-            "collection_slug": "construction-opportunities",
-            "naics_codes": ["236210", "236220"],
-        }
-    ]
+    record = {
+        "noticeId": "notice-236220",
+        "title": "Renovate administration building",
+        "naicsCode": "236220",
+    }
+
+    assert record_naics_codes(record) == ["236220"]
+    assert record_matches_collection_filters(record, ["236220", "236210"])
+    assert not record_matches_collection_filters(record, ["238210"])
 
 
 def test_collection_validation_rejects_invalid_naics_code():

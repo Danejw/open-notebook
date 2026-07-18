@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 from construction_os.domain.opportunity import (
     FitRecommendation,
     HawaiiIsland,
+    OpportunitySourceStage,
     OpportunityStatus,
     ProcurementType,
 )
@@ -23,17 +24,14 @@ class OpportunityCreate(BaseModel):
     agency: str
     solicitation_number: Optional[str] = None
     procurement_type: ProcurementType = "OTHER"
-    status: OpportunityStatus = "new"
+    source_stage: OpportunitySourceStage = "early_research"
+    status: OpportunityStatus = "none"
     island: HawaiiIsland = "Unknown"
     location: str = ""
     scope_summary: str = ""
     description: str = ""
     trades: List[str] = Field(default_factory=list)
     license_requirements: List[str] = Field(default_factory=list)
-    naics_code: Optional[str] = None
-    matched_naics_codes: List[str] = Field(default_factory=list)
-    matched_collection_ids: List[str] = Field(default_factory=list)
-    discovery_matches: List[Dict[str, Any]] = Field(default_factory=list)
     published_at: Optional[datetime] = None
     questions_due_at: Optional[datetime] = None
     prebid_at: Optional[datetime] = None
@@ -49,7 +47,10 @@ class OpportunityCreate(BaseModel):
     contact_name: Optional[str] = None
     contact_email: Optional[str] = None
     contact_phone: Optional[str] = None
+    contact_title: Optional[str] = None
     source_url: str
+    description_url: Optional[str] = None
+    office_address: Optional[str] = None
     documents: List[Dict[str, Any]] = Field(default_factory=list)
     addenda: List[Dict[str, Any]] = Field(default_factory=list)
     fit_score: Optional[int] = None
@@ -78,6 +79,7 @@ class OpportunityUpdate(BaseModel):
     agency: Optional[str] = None
     solicitation_number: Optional[str] = None
     procurement_type: Optional[ProcurementType] = None
+    source_stage: Optional[OpportunitySourceStage] = None
     status: Optional[OpportunityStatus] = None
     island: Optional[HawaiiIsland] = None
     location: Optional[str] = None
@@ -85,10 +87,6 @@ class OpportunityUpdate(BaseModel):
     description: Optional[str] = None
     trades: Optional[List[str]] = None
     license_requirements: Optional[List[str]] = None
-    naics_code: Optional[str] = None
-    matched_naics_codes: Optional[List[str]] = None
-    matched_collection_ids: Optional[List[str]] = None
-    discovery_matches: Optional[List[Dict[str, Any]]] = None
     published_at: Optional[datetime] = None
     questions_due_at: Optional[datetime] = None
     prebid_at: Optional[datetime] = None
@@ -103,7 +101,10 @@ class OpportunityUpdate(BaseModel):
     contact_name: Optional[str] = None
     contact_email: Optional[str] = None
     contact_phone: Optional[str] = None
+    contact_title: Optional[str] = None
     source_url: Optional[str] = None
+    description_url: Optional[str] = None
+    office_address: Optional[str] = None
     documents: Optional[List[Dict[str, Any]]] = None
     addenda: Optional[List[Dict[str, Any]]] = None
     fit_score: Optional[int] = None
@@ -122,6 +123,7 @@ class OpportunityResponse(BaseModel):
     agency: str
     solicitation_number: Optional[str]
     procurement_type: ProcurementType
+    source_stage: OpportunitySourceStage
     status: OpportunityStatus
     island: HawaiiIsland
     location: str
@@ -129,10 +131,6 @@ class OpportunityResponse(BaseModel):
     description: str
     trades: List[str]
     license_requirements: List[str]
-    naics_code: Optional[str]
-    matched_naics_codes: List[str]
-    matched_collection_ids: List[str]
-    discovery_matches: List[Dict[str, Any]]
     published_at: Optional[datetime]
     questions_due_at: Optional[datetime]
     prebid_at: Optional[datetime]
@@ -148,7 +146,10 @@ class OpportunityResponse(BaseModel):
     contact_name: Optional[str]
     contact_email: Optional[str]
     contact_phone: Optional[str]
+    contact_title: Optional[str] = None
     source_url: str
+    description_url: Optional[str] = None
+    office_address: Optional[str] = None
     documents: List[Dict[str, Any]]
     addenda: List[Dict[str, Any]]
     fit_score: Optional[int]
@@ -208,6 +209,7 @@ class OpportunityDashboardResponse(BaseModel):
     pipeline_value_min: float
     pipeline_value_max: float
     by_status: Dict[str, int]
+    by_source_stage: Dict[str, int] = Field(default_factory=dict)
 
 
 class OpportunitySourceResponse(BaseModel):
@@ -231,6 +233,13 @@ class OpportunitySourceResponse(BaseModel):
     last_synced_at: Optional[datetime]
     last_sync_status: Optional[Literal["success", "partial", "failed"]]
     last_error: Optional[str]
+    sync_collection_id: Optional[str] = None
+
+
+class SamSyncCollectionUpdate(BaseModel):
+    """Persist the preferred collection for SAM.gov Opportunity Hub sync."""
+
+    collection_id: Optional[str] = None
 
 
 class OpportunityNaicsCollectionItemResponse(BaseModel):
@@ -249,3 +258,48 @@ class OpportunityNaicsCollectionResponse(BaseModel):
     codes: List[str]
     items: List[OpportunityNaicsCollectionItemResponse]
     is_default: bool = False
+
+
+class OpportunityScoringProfileUpdate(BaseModel):
+    """Body for persisting the company fit scoring profile."""
+
+    name: str = "Default Hawaii contractor"
+    licenses: List[str] = Field(default_factory=list)
+    preferred_trades: List[str] = Field(default_factory=list)
+    supported_islands: List[str] = Field(
+        default_factory=lambda: [
+            "Oahu",
+            "Hawaii",
+            "Maui",
+            "Kauai",
+            "Molokai",
+            "Lanai",
+            "Statewide",
+        ]
+    )
+    min_project_value: float = 0
+    max_project_value: Optional[float] = None
+    minimum_bid_days: int = 14
+    max_bond_percent: float = 10
+    preferred_keywords: List[str] = Field(default_factory=list)
+    excluded_keywords: List[str] = Field(default_factory=list)
+
+
+class OpportunityScoringProfileResponse(BaseModel):
+    name: str
+    licenses: List[str]
+    preferred_trades: List[str]
+    supported_islands: List[str]
+    min_project_value: float
+    max_project_value: Optional[float]
+    minimum_bid_days: int
+    max_bond_percent: float
+    preferred_keywords: List[str]
+    excluded_keywords: List[str]
+    profile_ready: bool
+    score_version: str
+    source: Literal["database", "env", "default"]
+    weights: Dict[str, int]
+    rescored: Optional[int] = None
+    failed: Optional[int] = None
+    errors: Optional[List[Dict[str, str]]] = None

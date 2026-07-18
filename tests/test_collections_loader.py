@@ -24,7 +24,7 @@ def test_format_collections_context_wraps_blocks():
 
 
 @pytest.mark.asyncio
-async def test_load_one_collection_block_enabled_url_only_and_cap():
+async def test_load_one_collection_block_enabled_items_priority_and_cap():
     collection = MagicMock()
     collection.id = "collection:1"
     collection.name = "Hawaii Sources"
@@ -86,3 +86,55 @@ async def test_load_one_collection_block_enabled_url_only_and_cap():
     assert "https://high.gov" in loaded["block"]
     assert "https://disabled.gov" not in loaded["block"]
     assert "https://low.gov" not in loaded["block"]
+
+
+@pytest.mark.asyncio
+async def test_load_one_collection_block_includes_text_titles():
+    collection = MagicMock()
+    collection.id = "collection:2"
+    collection.name = "NAICS Codes"
+    collection.description = "Preferred codes"
+    collection.use_when = []
+    collection.tags = []
+    collection.archived = False
+    collection.selection = None
+
+    items = [
+        CollectionItem(
+            collection="collection:2",
+            item_id="gc",
+            type="text",
+            title="236220",
+            enabled=True,
+            sort_order=0,
+        ),
+        CollectionItem(
+            collection="collection:2",
+            item_id="elec",
+            type="text",
+            title="238210",
+            enabled=True,
+            sort_order=1,
+        ),
+        CollectionItem(
+            collection="collection:2",
+            item_id="off",
+            type="text",
+            title="999999",
+            enabled=False,
+            sort_order=2,
+        ),
+    ]
+    collection.get_items = AsyncMock(return_value=items)
+
+    with patch(
+        "construction_os.collections.loader.Collection.get",
+        new=AsyncMock(return_value=collection),
+    ):
+        loaded = await load_one_collection_block("collection:2")
+
+    assert loaded["item_ids"] == ["gc", "elec"]
+    assert "236220" in loaded["block"]
+    assert "238210" in loaded["block"]
+    assert "999999" not in loaded["block"]
+    assert "(no enabled items)" not in loaded["block"]

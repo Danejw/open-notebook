@@ -16,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useCreateCollection } from '@/lib/hooks/use-collections'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { CollectionItem } from '@/lib/types/collections'
+import { collectionItemsFromBulkInput } from '@/lib/utils/collection-entries'
 import { cn } from '@/lib/utils'
 
 function slugify(value: string): string {
@@ -35,7 +35,7 @@ export default function NewCollectionPage() {
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [description, setDescription] = useState('')
-  const [urlInput, setUrlInput] = useState('')
+  const [entriesInput, setEntriesInput] = useState('')
 
   const handleNameChange = (value: string) => {
     setName(value)
@@ -44,40 +44,12 @@ export default function NewCollectionPage() {
     }
   }
 
-  const parseUrls = (): CollectionItem[] => {
-    const lines = urlInput
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-    return lines.map((line, index) => {
-      let title = line
-      let url = line
-      const parts = line.split(/\s+/)
-      if (parts.length > 1 && /^https?:\/\//i.test(parts[parts.length - 1])) {
-        url = parts[parts.length - 1]
-        title = parts.slice(0, -1).join(' ')
-      }
-      const itemId = slugify(title || `item-${index + 1}`) || `item-${index + 1}`
-      return {
-        item_id: itemId,
-        type: 'url',
-        title: title || url,
-        url,
-        description: '',
-        tags: [],
-        topics: [],
-        enabled: true,
-        sort_order: index,
-      }
-    })
-  }
-
   const handleCreate = async () => {
     const created = await createCollection.mutateAsync({
       name: name.trim(),
       slug: slug.trim() || undefined,
       description: description.trim(),
-      items: parseUrls(),
+      items: collectionItemsFromBulkInput(entriesInput),
     })
     router.push(`/collections/${created.id}`)
   }
@@ -129,11 +101,11 @@ export default function NewCollectionPage() {
                 />
               </div>
               <div className="space-y-0.5">
-                <Label htmlFor="collection-urls">{t('collections.urlsLabel')}</Label>
+                <Label htmlFor="collection-entries">{t('collections.urlsLabel')}</Label>
                 <Textarea
-                  id="collection-urls"
-                  value={urlInput}
-                  onChange={(e) => setUrlInput(e.target.value)}
+                  id="collection-entries"
+                  value={entriesInput}
+                  onChange={(e) => setEntriesInput(e.target.value)}
                   placeholder={t('collections.urlsPlaceholder')}
                   rows={8}
                 />

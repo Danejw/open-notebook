@@ -6,7 +6,7 @@ from typing import Iterable, List
 
 from construction_os.collections.standard import DEFAULT_MAX_ITEMS
 from construction_os.domain.collection import Collection, CollectionItem
-from construction_os.exceptions import InvalidInputError, NotFoundError
+from construction_os.exceptions import NotFoundError
 
 
 async def get_collection_catalog() -> list[dict]:
@@ -52,18 +52,16 @@ def _sort_items(items: list[CollectionItem]) -> list[CollectionItem]:
 
 
 async def load_one_collection_block(collection_id: str) -> dict:
-    """Load a single collection manifest summary and enabled URL items."""
+    """Load a single collection manifest summary and enabled items."""
     collection = await Collection.get(collection_id)
     if not collection or collection.archived:
         raise NotFoundError(f"Collection not found: {collection_id}")
 
     all_items = await collection.get_items()
-    enabled_url_items = [
-        i
-        for i in all_items
-        if i.enabled and i.type == "url" and i.url
+    enabled_items = [
+        i for i in all_items if i.enabled and (i.title or "").strip()
     ]
-    capped = _sort_items(enabled_url_items)[: _max_items_for(collection)]
+    capped = _sort_items(enabled_items)[: _max_items_for(collection)]
 
     use_when = collection.use_when or []
     tags = collection.tags or []
@@ -78,13 +76,16 @@ async def load_one_collection_block(collection_id: str) -> dict:
     if tags:
         lines.append(f"**Tags:** {', '.join(tags)}")
     lines.append("")
-    lines.append("**Reference items:**")
+    lines.append("**Items:**")
     if not capped:
-        lines.append("- (no enabled URL items)")
+        lines.append("- (no enabled items)")
     else:
         for item in capped:
             desc = f" — {item.description}" if item.description else ""
-            lines.append(f"- **{item.title}** ({item.url}){desc}")
+            if item.url:
+                lines.append(f"- **{item.title}** ({item.url}){desc}")
+            else:
+                lines.append(f"- **{item.title}**{desc}")
 
     block = "\n".join(lines)
     return {
@@ -102,10 +103,11 @@ def format_collections_context(blocks: List[str]) -> str:
         return ""
     return (
         "# ACTIVE COLLECTIONS\n\n"
-        "The user selected these curated reference collections. Use the listed URLs "
-        "and descriptions as authoritative starting points when relevant. Prefer "
-        "primary sources when noted. Do not fetch URLs automatically unless a tool "
-        "is available; cite collection items by title and URL when used.\n\n"
+        "The user selected these curated collections. Items may be codes, URLs, "
+        "notes, or other reference strings — use them as authoritative starting "
+        "points when relevant. Prefer primary sources when noted. Do not fetch "
+        "URLs automatically unless a tool is available; cite collection items by "
+        "title (and URL when listed).\n\n"
         + "\n\n---\n\n".join(blocks)
     )
 

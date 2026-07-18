@@ -32,6 +32,20 @@ export function useMediaQuery(query: string): boolean {
 }
 
 /**
+ * Returns true if viewport is < 768px (below Tailwind's 'md' breakpoint)
+ */
+export function useIsMobile(): boolean {
+  return useMediaQuery('(max-width: 767px)')
+}
+
+/**
+ * Returns true if viewport is >= 768px and < 1024px (Tailwind 'md' through below 'lg')
+ */
+export function useIsTablet(): boolean {
+  return useMediaQuery('(min-width: 768px) and (max-width: 1023px)')
+}
+
+/**
  * Returns true if viewport is >= 1024px (Tailwind's 'lg' breakpoint)
  */
 export function useIsDesktop(): boolean {

@@ -89,6 +89,7 @@ jobs:
       - name: Lint monitoring frontend
         run: |
           npx eslint \
+            'src/app/(dashboard)/opportunities/layout.tsx' \
             src/lib/api/opportunities.ts \
             src/lib/hooks/use-opportunities.ts \
             src/lib/types/opportunities.ts

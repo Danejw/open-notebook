@@ -23,7 +23,11 @@ from construction_os.domain.knowledge_graph import (
     KgRelation,
 )
 from construction_os.domain.media_asset import MediaAsset
-from construction_os.domain.opportunity import Opportunity, OpportunitySource
+from construction_os.domain.opportunity import (
+    Opportunity,
+    OpportunityChange,
+    OpportunitySource,
+)
 from construction_os.domain.project import (
     Asset,
     ChatSession,
@@ -59,6 +63,7 @@ __all__ = [
     "Note",
     "ObjectModel",
     "Opportunity",
+    "OpportunityChange",
     "OpportunitySource",
     "Project",
     "ProjectArtifact",

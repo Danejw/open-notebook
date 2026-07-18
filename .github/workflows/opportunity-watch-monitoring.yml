@@ -1,0 +1,105 @@
+name: Opportunity Watch Monitoring CI
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+      - feature/opportunity-naics-collections
+  push:
+    branches:
+      - feature/opportunity-watch-monitoring
+  workflow_dispatch:
+
+concurrency:
+  group: opportunity-watch-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+
+      - name: Lint monitoring backend
+        run: |
+          python -m ruff check \
+            api/opportunity_models.py \
+            api/routers/opportunity_monitoring.py \
+            construction_os/domain/opportunity.py \
+            construction_os/services/opportunity_monitoring.py \
+            construction_os/opportunity_monitor_scheduler.py \
+            tests/test_opportunity_monitoring.py
+
+      - name: Compile backend modules
+        run: python -m compileall -q api construction_os
+
+      - name: Run Opportunity Hub tests
+        env:
+          CONSTRUCTION_OS_PASSWORD: ''
+        run: |
+          python -m pytest -q \
+            tests/test_opportunity_collectors.py \
+            tests/test_opportunity_scoring.py \
+            tests/test_opportunity_naics_collections.py \
+            tests/test_opportunity_monitoring.py
+
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Lint monitoring frontend
+        run: |
+          npx eslint \
+            src/lib/api/opportunities.ts \
+            src/lib/hooks/use-opportunities.ts \
+            src/lib/types/opportunities.ts
+
+      - name: Type-check frontend
+        run: npx tsc --noEmit --pretty false
+
+      - name: Run frontend regression tests
+        run: npm test -- --exclude src/lib/locales/index.test.ts
+
+      - name: Build production frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npm run build

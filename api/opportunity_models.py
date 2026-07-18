@@ -10,6 +10,8 @@ from pydantic import BaseModel, Field, field_validator
 from construction_os.domain.opportunity import (
     FitRecommendation,
     HawaiiIsland,
+    OpportunityMonitoringHealth,
+    OpportunitySourceStatus,
     OpportunityStatus,
     ProcurementType,
 )
@@ -24,6 +26,8 @@ class OpportunityCreate(BaseModel):
     solicitation_number: Optional[str] = None
     procurement_type: ProcurementType = "OTHER"
     status: OpportunityStatus = "new"
+    source_status: OpportunitySourceStatus = "unknown"
+    source_status_reason: Optional[str] = None
     island: HawaiiIsland = "Unknown"
     location: str = ""
     scope_summary: str = ""
@@ -79,6 +83,8 @@ class OpportunityUpdate(BaseModel):
     solicitation_number: Optional[str] = None
     procurement_type: Optional[ProcurementType] = None
     status: Optional[OpportunityStatus] = None
+    source_status: Optional[OpportunitySourceStatus] = None
+    source_status_reason: Optional[str] = None
     island: Optional[HawaiiIsland] = None
     location: Optional[str] = None
     scope_summary: Optional[str] = None
@@ -123,6 +129,8 @@ class OpportunityResponse(BaseModel):
     solicitation_number: Optional[str]
     procurement_type: ProcurementType
     status: OpportunityStatus
+    source_status: OpportunitySourceStatus
+    source_status_reason: Optional[str]
     island: HawaiiIsland
     location: str
     scope_summary: str
@@ -160,6 +168,16 @@ class OpportunityResponse(BaseModel):
     score_version: str
     score_updated_at: Optional[datetime]
     extraction_confidence: Optional[float]
+    monitoring_enabled: bool
+    monitoring_health: OpportunityMonitoringHealth
+    monitoring_last_checked_at: Optional[datetime]
+    monitoring_last_success_at: Optional[datetime]
+    monitoring_last_changed_at: Optional[datetime]
+    monitoring_next_check_at: Optional[datetime]
+    monitoring_last_error: Optional[str]
+    monitoring_consecutive_failures: int
+    monitoring_snapshot_hash: Optional[str]
+    monitoring_unread_changes: int
     project_id: Optional[str]
     archived: bool
     created: Optional[datetime]

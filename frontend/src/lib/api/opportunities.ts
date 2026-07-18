@@ -1,10 +1,12 @@
 import apiClient from './client'
 import type {
   Opportunity,
+  OpportunityChange,
   OpportunityDashboard,
   OpportunityFilters,
   OpportunityListResponse,
   OpportunityNaicsCollection,
+  OpportunityRefreshResponse,
   OpportunitySource,
   OpportunityStatus,
   PursueOpportunityResponse,
@@ -35,6 +37,20 @@ export interface OpportunitySyncRequest {
   daysBack?: number
   collectionId?: string
   limit?: number
+}
+
+const TERMINAL_STATUSES: OpportunityStatus[] = ['won', 'lost', 'no_bid', 'ignored']
+
+async function watchOpportunity(id: string) {
+  const response = await apiClient.post<OpportunityRefreshResponse>(
+    `/opportunities/${id}/watch`
+  )
+  return response.data
+}
+
+async function unwatchOpportunity(id: string) {
+  const response = await apiClient.post<Opportunity>(`/opportunities/${id}/unwatch`)
+  return response.data
 }
 
 export const opportunitiesApi = {
@@ -93,10 +109,43 @@ export const opportunitiesApi = {
     return response.data
   },
 
+  watch: watchOpportunity,
+
+  unwatch: unwatchOpportunity,
+
+  checkNow: async (id: string) => {
+    const response = await apiClient.post<OpportunityRefreshResponse>(
+      `/opportunities/${id}/check-now`
+    )
+    return response.data
+  },
+
+  changes: async (id: string, limit = 50) => {
+    const response = await apiClient.get<OpportunityChange[]>(`/opportunities/${id}/changes`, {
+      params: { limit },
+    })
+    return response.data
+  },
+
+  acknowledgeChanges: async (id: string) => {
+    const response = await apiClient.post<Opportunity>(
+      `/opportunities/${id}/changes/acknowledge`
+    )
+    return response.data
+  },
+
   setStatus: async (id: string, status: OpportunityStatus) => {
+    if (status === 'watching') {
+      const result = await watchOpportunity(id)
+      return result.opportunity
+    }
+
     const response = await apiClient.post<Opportunity>(`/opportunities/${id}/status`, {
       status,
     })
+    if (TERMINAL_STATUSES.includes(status)) {
+      return unwatchOpportunity(id)
+    }
     return response.data
   },
 
@@ -104,10 +153,18 @@ export const opportunitiesApi = {
     const response = await apiClient.post<PursueOpportunityResponse>(
       `/opportunities/${id}/pursue`
     )
-    return response.data
+    try {
+      const watchResult = await watchOpportunity(id)
+      return { ...response.data, opportunity: watchResult.opportunity }
+    } catch {
+      // Pursuit succeeds independently. The monitor remains visible as unhealthy
+      // when activation reached the backend but the source refresh failed.
+      return response.data
+    }
   },
 
   archive: async (id: string) => {
+    await unwatchOpportunity(id)
     const response = await apiClient.delete<{ message: string }>(`/opportunities/${id}`)
     return response.data
   },

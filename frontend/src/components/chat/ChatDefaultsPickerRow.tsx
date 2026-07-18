@@ -27,10 +27,10 @@ function ChatDefaultsPickerSlot({ label, children }: ChatDefaultsPickerSlotProps
 }
 
 export interface ChatDefaultsFieldValues extends FieldValues {
-  skill_ids: string[]
-  mcp_tool_ids: string[]
-  collection_ids: string[]
-  html_template_id: string | null
+  skill_ids?: string[]
+  mcp_tool_ids?: string[]
+  collection_ids?: string[]
+  html_template_id?: string | null
 }
 
 interface ChatDefaultsPickerRowProps<T extends ChatDefaultsFieldValues> {

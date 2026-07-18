@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any, Iterable, Optional
 
@@ -52,6 +53,19 @@ def validate_item_record(item: CollectionItem) -> list[ValidationIssue]:
                 normalize_collection_url(item.url)
             except (CollectionStandardError, Exception) as exc:
                 issues.append(_issue("error", f"Invalid URL: {exc}", path="url"))
+    if item.type == "naics":
+        metadata = item.metadata or {}
+        code = str(metadata.get("naics_code") or item.item_id or "").strip()
+        code = re.sub(r"\D", "", code)
+        if not re.fullmatch(r"\d{2,6}", code):
+            issues.append(
+                _issue(
+                    "error",
+                    "NAICS items require a 2-6 digit code",
+                    path=item.item_id or "metadata.naics_code",
+                    fix="Enter a valid NAICS sector, subsector, or industry code",
+                )
+            )
     return issues
 
 

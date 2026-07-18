@@ -30,7 +30,7 @@ const artifactSchema = z.object({
   skill_ids: z.array(z.string()),
   collection_ids: z.array(z.string()),
   mcp_tool_ids: z.array(z.string()),
-  html_template_id: z.string().nullable().optional(),
+  html_template_id: z.string().nullable(),
 })
 
 type ArtifactFormData = z.infer<typeof artifactSchema>

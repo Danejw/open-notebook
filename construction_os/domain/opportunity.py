@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, ClassVar, Dict, List, Literal, Optional
 
 from pydantic import Field, field_validator
@@ -259,7 +259,21 @@ class Opportunity(ObjectModel):
         return value
 
     async def save(self) -> None:
-        """Recalculate fit whenever imported metadata or addenda change."""
+        """Keep monitoring lifecycle aligned with the internal bid workflow."""
+
+        monitored_statuses = {"watching", "pursuing", "submitted"}
+        terminal_statuses = {"won", "lost", "no_bid", "ignored"}
+        if self.source_key == "sam_gov_hawaii" and self.status in monitored_statuses:
+            if not self.monitoring_enabled:
+                self.monitoring_enabled = True
+                self.monitoring_health = "pending"
+                self.monitoring_last_error = None
+                self.monitoring_next_check_at = datetime.now(timezone.utc)
+        elif self.status in terminal_statuses or self.archived:
+            self.monitoring_enabled = False
+            self.monitoring_health = "inactive"
+            self.monitoring_next_check_at = None
+            self.monitoring_lease_until = None
 
         from construction_os.services.opportunity_scoring import apply_opportunity_score
 

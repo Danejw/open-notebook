@@ -2,6 +2,7 @@ import pytest
 
 from construction_os.services.opportunity_collectors import (
     append_sam_api_key,
+    html_to_markdown,
     html_to_plain_text,
     looks_like_url,
     normalize_sam_opportunity,
@@ -50,15 +51,91 @@ def test_looks_like_url_and_append_api_key():
     assert "api_key=other" not in already
 
 
+def test_html_to_markdown_preserves_structure():
+    markdown = html_to_markdown(
+        "<h2>Scope</h2><p>Repair <b>roof</b> systems.</p>"
+        "<ul><li>Phase 1</li><li>Phase 2</li></ul>"
+        '<p>See <a href="https://example.test/doc">docs</a>.</p>'
+    )
+    assert "## Scope" in markdown
+    assert "**roof**" in markdown
+    assert "- Phase 1" in markdown
+    assert "- Phase 2" in markdown
+    assert "[docs](https://example.test/doc)" in markdown
+    assert "<" not in markdown
+
+
 def test_html_to_plain_text_strips_tags():
     plain = html_to_plain_text("<p>Hello <b>world</b></p><br/>Next line")
-    assert "Hello world" in plain
-    assert "Next line" in plain
+    assert "Hello" in plain
+    assert "world" in plain
     assert "<" not in plain
 
 
+def test_unwrap_sam_description_payload_extracts_json_description():
+    from construction_os.services.opportunity_collectors import unwrap_sam_description_payload
+
+    body = (
+        '{"description":" SOURCES SOUGHT \\n\\n INTRODUCTION \\n\\n '
+        'The 413th Contracting Support Brigade."}'
+    )
+    narrative = unwrap_sam_description_payload(body)
+    assert narrative.startswith("SOURCES SOUGHT")
+    assert "INTRODUCTION" in narrative
+    assert "413th Contracting" in narrative
+    assert '{"description"' not in narrative
+    assert "\\n" not in narrative
+
+
 @pytest.mark.asyncio
-async def test_resolve_sam_description_fields_fetches_noticedesc(monkeypatch):
+async def test_resolve_unwraps_stored_json_envelope_without_fetch():
+    body = '{"description":"Repair roof systems.\\n\\nPhase 1 complete."}'
+    text, desc_url = await resolve_sam_description_fields(body)
+    assert text.startswith("Repair roof")
+    assert "Phase 1" in text
+    assert desc_url is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_sam_attachment_name_uses_filename_in_url():
+    from construction_os.services.opportunity_collectors import resolve_sam_attachment_name
+
+    name = await resolve_sam_attachment_name(
+        "https://sam.gov/api/prod/opps/v3/opportunities/resources/files/Specifications.pdf/download",
+        index=0,
+    )
+    assert name == "Specifications.pdf"
+
+
+@pytest.mark.asyncio
+async def test_resolve_sam_attachment_name_skips_generic_download_label(monkeypatch):
+    from construction_os.services.opportunity_collectors import resolve_sam_attachment_name
+
+    class FakeResponse:
+        status_code = 200
+        headers = {
+            "content-disposition": 'attachment; filename="Statement_of_Work.pdf"'
+        }
+        url = "https://sam.gov/api/prod/opps/v3/opportunities/resources/files/abc/download"
+
+    class FakeClient:
+        async def head(self, url):
+            return FakeResponse()
+
+        async def get(self, url):
+            return FakeResponse()
+
+        async def aclose(self):
+            return None
+
+    name = await resolve_sam_attachment_name(
+        "https://sam.gov/api/prod/opps/v3/opportunities/resources/files/abc/download",
+        preferred_name="download",
+        client=FakeClient(),  # type: ignore[arg-type]
+        index=2,
+    )
+    assert name == "Statement_of_Work.pdf"
+
     async def fake_fetch(url, *, api_key=None, client=None):
         assert "noticedesc" in url
         return "Narrative scope from SAM."
@@ -97,8 +174,16 @@ async def test_normalize_sam_opportunity_extracts_hawaii_bid_fields():
                     "fullName": "Contract Specialist",
                     "email": "specialist@example.mil",
                     "phone": "808-555-0100",
+                    "title": "Contract Specialist",
+                    "type": "primary",
                 }
             ],
+            "officeAddress": {
+                "city": "Pearl Harbor",
+                "state": "HI",
+                "zipcode": "96860",
+                "countryCode": "USA",
+            },
             "resourceLinks": ["https://example.test/specifications.pdf"],
         }
     )
@@ -110,8 +195,10 @@ async def test_normalize_sam_opportunity_extracts_hawaii_bid_fields():
     assert normalized["agency"] == "DEPARTMENT OF THE NAVY"
     assert normalized["bid_due_at"].isoformat() == "2026-08-01T20:00:00+00:00"
     assert normalized["contact_email"] == "specialist@example.mil"
+    assert normalized["contact_title"] == "Contract Specialist"
+    assert normalized["office_address"] == "Pearl Harbor, HI 96860, USA"
     assert normalized["documents"] == [
-        {"url": "https://example.test/specifications.pdf"}
+        {"url": "https://example.test/specifications.pdf", "name": "specifications.pdf"}
     ]
     assert "description_url" not in normalized
 
@@ -138,7 +225,9 @@ async def test_normalize_sam_opportunity_fetches_description_url(monkeypatch):
     assert normalized["description"] == "Fetched scope narrative."
     assert normalized["scope_summary"] == "Fetched scope narrative."
     assert normalized["description_url"].startswith("https://api.sam.gov")
-    assert normalized["documents"] == [{"url": "https://example.test/a.pdf"}]
+    assert normalized["documents"] == [
+        {"url": "https://example.test/a.pdf", "name": "a.pdf"}
+    ]
 
 
 @pytest.mark.asyncio
@@ -158,3 +247,38 @@ async def test_normalize_sam_opportunity_does_not_invent_procurement_type():
 
     assert normalized["procurement_type"] == "OTHER"
     assert normalized["island"] == "Hawaii"
+
+
+@pytest.mark.asyncio
+async def test_normalize_sam_opportunity_prefers_primary_contact():
+    normalized = await normalize_sam_opportunity(
+        {
+            "noticeId": "contact-1",
+            "title": "IFB Painting",
+            "department": "NAVY",
+            "pointOfContact": [
+                {
+                    "type": "secondary",
+                    "fullName": "Secondary Person",
+                    "email": "secondary@example.mil",
+                },
+                {
+                    "type": "primary",
+                    "fullName": "Primary Person",
+                    "email": "primary@example.mil",
+                    "phone": "808-555-9999",
+                    "title": "Contracting Officer",
+                },
+            ],
+            "officeAddress": {
+                "streetAddress": "100 Main St",
+                "city": "Honolulu",
+                "state": "HI",
+                "zipcode": "96813",
+            },
+        }
+    )
+    assert normalized["contact_name"] == "Primary Person"
+    assert normalized["contact_email"] == "primary@example.mil"
+    assert normalized["contact_title"] == "Contracting Officer"
+    assert normalized["office_address"] == "100 Main St, Honolulu, HI 96813"

@@ -88,7 +88,9 @@ export interface Opportunity {
   contact_name: string | null
   contact_email: string | null
   contact_phone: string | null
+  contact_title?: string | null
   source_url: string
+  office_address?: string | null
   documents: OpportunityDocument[]
   addenda: Array<Record<string, unknown>>
   fit_score: number | null

@@ -32,6 +32,7 @@ from construction_os.exceptions import (
 )
 from construction_os.services.opportunities import (
     ensure_opportunity_description,
+    ensure_opportunity_document_names,
     get_opportunity,
     import_opportunities,
     list_opportunities,
@@ -294,6 +295,7 @@ async def get_opportunity_by_id(opportunity_id: str):
     try:
         opportunity = await get_opportunity(opportunity_id)
         opportunity = await ensure_opportunity_description(opportunity)
+        opportunity = await ensure_opportunity_document_names(opportunity)
         return _opportunity_response(opportunity)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Opportunity not found")

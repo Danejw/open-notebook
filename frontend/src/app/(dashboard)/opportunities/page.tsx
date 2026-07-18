@@ -21,6 +21,7 @@ import {
 
 import { useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 
+import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
 import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
 import { PageRefreshButton } from '@/components/layout/PageRefreshButton'
 import { Badge } from '@/components/ui/badge'
@@ -46,10 +47,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { useIsDesktop } from '@/lib/hooks/use-media-query'
+import { useIsMobile, useIsTablet } from '@/lib/hooks/use-media-query'
 import {
   useArchiveOpportunity,
   useOpportunities,
+  useOpportunity,
   useOpportunityDashboard,
   useOpportunitySources,
   usePursueOpportunity,
@@ -60,6 +62,7 @@ import {
 import type {
   HawaiiIsland,
   Opportunity,
+  OpportunityDocument,
   OpportunityFilters,
   OpportunitySort,
   OpportunityStatus,
@@ -385,8 +388,61 @@ function DetailField({ label, value }: { label: string; value: React.ReactNode }
   )
 }
 
-function OpportunityDetail({ opportunity }: { opportunity: Opportunity }) {
+const GENERIC_DOCUMENT_LABELS = new Set([
+  'download',
+  'search',
+  'view',
+  'files',
+  'file',
+  'attachment',
+  'attachments',
+  'resource',
+  'resources',
+])
+
+function documentLabel(doc: OpportunityDocument, index: number): string {
+  const named = doc.name?.trim()
+  if (named && !GENERIC_DOCUMENT_LABELS.has(named.toLowerCase())) {
+    return named
+  }
+  try {
+    const path = new URL(doc.url).pathname
+    const segments = path.split('/').filter(Boolean)
+    for (let i = segments.length - 1; i >= 0; i -= 1) {
+      const segment = decodeURIComponent(segments[i])
+      if (!GENERIC_DOCUMENT_LABELS.has(segment.toLowerCase()) && segment.includes('.')) {
+        return segment
+      }
+    }
+  } catch {
+    // fall through
+  }
+  return `Attachment ${index + 1}`
+}
+
+function ingestStatusLabel(status: OpportunityDocument['ingest_status']): string | null {
+  switch (status) {
+    case 'queued':
+      return 'Queued'
+    case 'failed':
+      return 'Failed'
+    case 'skipped':
+      return 'Skipped'
+    case 'pending':
+      return 'Pending'
+    case undefined:
+      return null
+    default: {
+      const _exhaustive: never = status
+      return _exhaustive
+    }
+  }
+}
+
+function OpportunityDetail({ opportunity: listOpportunity }: { opportunity: Opportunity }) {
   const router = useRouter()
+  const { data: detailOpportunity } = useOpportunity(listOpportunity.id)
+  const opportunity = detailOpportunity ?? listOpportunity
   const statusMutation = useSetOpportunityStatus()
   const pursueMutation = usePursueOpportunity()
   const archiveMutation = useArchiveOpportunity()
@@ -402,6 +458,12 @@ function OpportunityDetail({ opportunity }: { opportunity: Opportunity }) {
       onSuccess: (result) => router.push(`/projects/${result.project_id}`),
     })
   }
+
+  const hasContact =
+    Boolean(opportunity.contact_name) ||
+    Boolean(opportunity.contact_email) ||
+    Boolean(opportunity.contact_phone) ||
+    Boolean(opportunity.contact_title)
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -458,9 +520,58 @@ function OpportunityDetail({ opportunity }: { opportunity: Opportunity }) {
               <FileSearch className="size-3.5 shrink-0" />
               Plain-English scope
             </div>
-            <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-muted-foreground">
-              {opportunity.scope_summary || opportunity.description || 'Scope has not been extracted yet.'}
-            </p>
+            {opportunity.scope_summary || opportunity.description ? (
+              <MarkdownRenderer
+                size="sm"
+                className="rounded-md border bg-muted/20 p-2.5 text-muted-foreground"
+              >
+                {opportunity.scope_summary || opportunity.description}
+              </MarkdownRenderer>
+            ) : (
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Scope has not been extracted yet.
+              </p>
+            )}
+          </div>
+
+          <div className="grid gap-3 @sm:grid-cols-2">
+            <DetailField
+              label="Primary point of contact"
+              value={
+                hasContact ? (
+                  <div className="space-y-0.5">
+                    {opportunity.contact_name ? (
+                      <div>
+                        {opportunity.contact_name}
+                        {opportunity.contact_title ? (
+                          <span className="text-muted-foreground">
+                            {' '}
+                            · {opportunity.contact_title}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : opportunity.contact_title ? (
+                      <div>{opportunity.contact_title}</div>
+                    ) : null}
+                    {opportunity.contact_email ? (
+                      <a
+                        href={`mailto:${opportunity.contact_email}`}
+                        className="block break-all text-primary hover:underline"
+                      >
+                        {opportunity.contact_email}
+                      </a>
+                    ) : null}
+                    {opportunity.contact_phone ? <div>{opportunity.contact_phone}</div> : null}
+                  </div>
+                ) : (
+                  'Not provided'
+                )
+              }
+            />
+            <DetailField
+              label="Contracting office"
+              value={opportunity.office_address || 'Not provided'}
+            />
           </div>
 
           <div className="grid gap-3 @sm:grid-cols-2">
@@ -573,8 +684,55 @@ function OpportunityDetail({ opportunity }: { opportunity: Opportunity }) {
               value={opportunity.solicitation_number || opportunity.external_id}
             />
             <DetailField label="Source" value={opportunity.source_key} />
-            <DetailField label="Documents" value={`${opportunity.documents.length} attached`} />
             <DetailField label="Addenda" value={`${opportunity.addenda.length} detected`} />
+          </div>
+
+          <div className="min-w-0 space-y-1.5">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Documents
+            </div>
+            {opportunity.documents.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No documents discovered</p>
+            ) : (
+              <ul className="grid grid-cols-1 gap-1.5 md:grid-cols-2">
+                {opportunity.documents.map((doc, index) => {
+                  const statusLabel = ingestStatusLabel(doc.ingest_status)
+                  return (
+                    <li
+                      key={`${doc.url}-${doc.source_id ?? ''}-${index}`}
+                      className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-md border bg-muted/20 px-2 py-1.5 text-xs"
+                    >
+                      <a
+                        href={doc.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex min-w-0 max-w-full items-center gap-1 font-medium hover:text-primary hover:underline"
+                      >
+                        <span className="truncate">{documentLabel(doc, index)}</span>
+                        <ArrowUpRight className="size-3 shrink-0 opacity-60" />
+                      </a>
+                      {statusLabel ? (
+                        <Badge
+                          variant={doc.ingest_status === 'failed' ? 'destructive' : 'secondary'}
+                          className="text-[10px]"
+                          title={doc.error || undefined}
+                        >
+                          {statusLabel}
+                        </Badge>
+                      ) : null}
+                      {doc.source_id && opportunity.project_id ? (
+                        <Link
+                          href={`/projects/${opportunity.project_id}`}
+                          className="text-[10px] text-muted-foreground hover:text-primary hover:underline"
+                        >
+                          Open in workspace
+                        </Link>
+                      ) : null}
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-1.5 border-t pt-3">
@@ -656,7 +814,8 @@ export default function OpportunitiesPage() {
   const [listCollapsed, setListCollapsed] = useState(false)
   const detailsRef = useRef<HTMLElement | null>(null)
   const listPanelRef = usePanelRef()
-  const isDesktop = useIsDesktop()
+  const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: 'opportunity-hub-columns',
     panelIds: ['list', 'details'],
@@ -670,16 +829,29 @@ export default function OpportunitiesPage() {
   }
 
   useEffect(() => {
-    if (!isDesktop) return
+    if (isMobile) return
     const frame = requestAnimationFrame(() => {
       setListCollapsed(listPanelRef.current?.isCollapsed() ?? false)
     })
     return () => cancelAnimationFrame(frame)
-  }, [isDesktop, defaultLayout])
+  }, [isMobile, defaultLayout, isTablet])
+
+  useEffect(() => {
+    if (!isTablet) return
+    const panel = listPanelRef.current
+    if (!panel) return
+    const frame = requestAnimationFrame(() => {
+      if (!panel.isCollapsed()) {
+        panel.collapse()
+      }
+      setListCollapsed(true)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [isTablet, defaultLayout])
 
   const selectOpportunity = (id: string) => {
     setSelectedId(id)
-    if (!isDesktop) {
+    if (isMobile) {
       requestAnimationFrame(() => {
         detailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       })
@@ -787,7 +959,7 @@ export default function OpportunitiesPage() {
     </TooltipProvider>
   )
 
-  const progressiveFilters = isDesktop
+  const progressiveFilters = !isMobile
   const statusLabel =
     STATUS_OPTIONS.find((option) => option.value === status)?.label ?? 'All active'
   const sortLabel = SORT_OPTIONS.find((option) => option.value === sort)?.label ?? 'Due date'
@@ -1098,7 +1270,7 @@ export default function OpportunitiesPage() {
         </div>
       </section>
 
-      {isDesktop ? (
+      {!isMobile ? (
         <div className="mt-2 min-h-0 flex-1 overflow-hidden">
           <ResizablePanelGroup
             id="opportunity-hub-columns"

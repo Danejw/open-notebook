@@ -96,7 +96,7 @@ Before testing:
    - Line 1: title · count + **Search…**
    - Line 2: status · island · source · sort · clear (X when filters active)
 
-   On **desktop**, when you drag the list pane narrower (before it collapses to the 48px icon rail), filters **progressively minimize** based on list-panel width—not viewport width. Short trigger labels appear first; lower-priority controls hide in this order: **Island → Source**. **Status**, **Sort**, and **Search** stay visible longest. Hidden filters stay applied until you clear them. At the narrowest widths, **Clear (X)** moves beside the search field. Collapsing the pane fully hides all filter chrome (icon rail only). **Mobile** stacked layout keeps the full filter row (horizontal scroll if needed).
+   On **tablet and desktop** (horizontal inbox | details layout), when you drag the list pane narrower (before it collapses to the 48px icon rail), filters **progressively minimize** based on list-panel width—not viewport width. Short trigger labels appear first; lower-priority controls hide in this order: **Island → Source**. **Status**, **Sort**, and **Search** stay visible longest. Hidden filters stay applied until you clear them. At the narrowest widths, **Clear (X)** moves beside the search field. Collapsing the pane fully hides all filter chrome (icon rail only). **Mobile** (<768px) stacked layout keeps the full filter row (horizontal scroll if needed).
 
    | Control | What to try | Expected |
    | --- | --- | --- |
@@ -124,10 +124,10 @@ Before testing:
    - **Match %** (or — when unscored)
 
 2. Confirm rows do **not** show procurement-type badges, agency, solicitation #, or addenda chips (those live in Details).
-3. Confirm selecting a row highlights it and updates the Details pane (right on desktop, below list on mobile).
-4. On desktop (≥1024px), drag the vertical handle between inbox and Details to resize the columns; confirm list/detail text truncates or reflows to fit, and reload to confirm the widths persist.
-5. On desktop, drag the list pane fully left until it collapses to a narrow icon rail (fit % or status dot per opportunity). Hover for title tooltips; click an icon to select and update Details. Drag the handle right to restore the full list.
-6. On a narrow viewport, confirm selecting a row scrolls the Details pane into view.
+3. Confirm selecting a row highlights it and updates the Details pane (right on tablet/desktop, below list on mobile).
+4. On **tablet** (768px–1023px), confirm the horizontal inbox | details layout: inbox starts as a collapsed 48px icon rail; drag the handle right to expand the full list. On **desktop** (≥1024px), drag the vertical handle between inbox and Details to resize the columns; confirm list/detail text truncates or reflows to fit, and reload to confirm the widths persist.
+5. On tablet or desktop, drag the list pane fully left until it collapses to a narrow icon rail (fit % or status dot per opportunity). Hover for title tooltips; click an icon to select and update Details. Drag the handle right to restore the full list.
+6. On **mobile** (<768px), confirm selecting a row scrolls the Details pane into view.
 
 **Pass:** Dense list shows essentials only; Details carries the rest; desktop column widths are adjustable.
 
@@ -139,13 +139,15 @@ With a notice selected, in the **Details** pane verify:
 
 1. **Header:** type, pipeline status, fit badge, full title, agency, location.
 2. **Schedule block:** bid deadline, time remaining, questions due, pre-bid / site visit.
-3. **Plain-English scope:** narrative description text fetched from SAM noticedesc when available (not the raw description URL). Selecting a notice also lazy-backfills older URL-only records.
-4. **Trades** and **license requirements** (badges or “Not identified”).
-5. **Why this may fit** (green) when `fit_reasons` exist.
-6. **Risks and requirements to verify** (amber) when `risk_flags` exist.
-7. **Commercial fields:** estimated value, bid bond, prevailing wage, mandatory site visit.
-8. **Provenance:** solicitation number, source key, clickable documents list (with ingest status after Pursue), addenda count.
-9. Click **Original notice** — opens `source_url` in a new tab.
+3. **Plain-English scope:** SAM noticedesc HTML is converted to Markdown and rendered with the shared `MarkdownRenderer` (headings, lists, links, emphasis). Selecting a notice also lazy-backfills older URL-only records.
+4. **Primary point of contact:** name, title, email, phone (SAM prefers `type=primary`).
+5. **Contracting office:** formatted SAM `officeAddress` when present.
+6. **Trades** and **license requirements** (badges or “Not identified”).
+7. **Why this may fit** (green) when `fit_reasons` exist.
+8. **Risks and requirements to verify** (amber) when `risk_flags` exist.
+9. **Commercial fields:** estimated value, bid bond, prevailing wage, mandatory site visit.
+10. **Documents:** clickable attachment links (ingest status after Pursue); addenda count; solicitation / source key.
+11. Click **Original notice** — opens `source_url` in a new tab.
 
 **Pass:** Detail fields match the selected row; external link opens the portal notice.
 

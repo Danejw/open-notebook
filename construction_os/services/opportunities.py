@@ -305,32 +305,38 @@ async def get_opportunity(opportunity_id: str) -> Opportunity:
 
 
 async def ensure_opportunity_description(opportunity: Opportunity) -> Opportunity:
-    """Lazy-backfill SAM noticedesc text when stored fields still look like a URL."""
+    """Lazy-backfill SAM description when stored fields are a URL or JSON envelope."""
 
     # Late import: opportunity_collectors imports this module at load time.
     from construction_os.services.opportunity_collectors import (
+        looks_like_json_description_envelope,
         looks_like_url,
         resolve_sam_description_fields,
     )
+
+    def needs_repair(value: Optional[str]) -> bool:
+        if not value:
+            return False
+        return looks_like_url(value) or looks_like_json_description_envelope(value)
 
     candidates = [
         opportunity.description_url,
         opportunity.description,
         opportunity.scope_summary,
     ]
-    url_candidate = next((c for c in candidates if c and looks_like_url(c)), None)
+    repair_candidate = next((c for c in candidates if c and needs_repair(c)), None)
     already_narrative = bool(
         opportunity.description
-        and not looks_like_url(opportunity.description)
+        and not needs_repair(opportunity.description)
         and opportunity.scope_summary
-        and not looks_like_url(opportunity.scope_summary)
+        and not needs_repair(opportunity.scope_summary)
     )
-    if already_narrative or not url_candidate:
+    if already_narrative or not repair_candidate:
         return opportunity
 
-    narrative, description_url = await resolve_sam_description_fields(url_candidate)
-    if looks_like_url(narrative):
-        # Fetch failed; keep URL fields and optionally stamp description_url
+    narrative, description_url = await resolve_sam_description_fields(repair_candidate)
+    if needs_repair(narrative):
+        # Fetch/unwrap failed; keep URL fields and optionally stamp description_url
         if description_url and not opportunity.description_url:
             opportunity.description_url = description_url
             await opportunity.save()
@@ -341,6 +347,52 @@ async def ensure_opportunity_description(opportunity: Opportunity) -> Opportunit
     if description_url:
         opportunity.description_url = description_url
     await opportunity.save()
+    return opportunity
+
+
+async def ensure_opportunity_document_names(opportunity: Opportunity) -> Opportunity:
+    """Backfill human-readable titles for SAM attachments labeled download/search/etc."""
+
+    from construction_os.services.opportunity_collectors import (
+        is_generic_attachment_label,
+        resolve_sam_attachment_name,
+    )
+
+    documents = list(opportunity.documents or [])
+    if not documents:
+        return opportunity
+
+    changed = False
+    updated: List[Dict[str, Any]] = []
+    for index, raw in enumerate(documents):
+        if not isinstance(raw, dict):
+            continue
+        entry = dict(raw)
+        url = str(entry.get("url") or "").strip()
+        if not url:
+            updated.append(entry)
+            continue
+        current_name = str(entry.get("name") or "").strip() or None
+        if current_name and not is_generic_attachment_label(current_name):
+            updated.append(entry)
+            continue
+        try:
+            resolved = await resolve_sam_attachment_name(
+                url,
+                preferred_name=current_name,
+                index=index,
+            )
+        except Exception as exc:
+            logger.debug("Document name backfill failed for {}: {}", url, exc)
+            resolved = f"Attachment {index + 1}"
+        if resolved != current_name:
+            entry["name"] = resolved
+            changed = True
+        updated.append(entry)
+
+    if changed:
+        opportunity.documents = updated
+        await opportunity.save()
     return opportunity
 
 
@@ -522,6 +574,21 @@ def opportunity_summary_markdown(opportunity: Opportunity) -> str:
 ## Scope
 
 {opportunity.scope_summary or opportunity.description or "Scope has not been extracted yet."}
+
+## Primary point of contact
+
+- **Name:** {opportunity.contact_name or "Not provided"}
+- **Title:** {opportunity.contact_title or "Not provided"}
+- **Email:** {opportunity.contact_email or "Not provided"}
+- **Phone:** {opportunity.contact_phone or "Not provided"}
+
+## Contracting office
+
+{opportunity.office_address or "Not provided"}
+
+## Attachments
+
+{chr(10).join(f"- [{doc.get('name') or doc.get('url')}]({doc.get('url')})" for doc in opportunity.documents if isinstance(doc, dict) and doc.get("url")) or "- No attachments discovered."}
 
 ## Trades and licenses
 

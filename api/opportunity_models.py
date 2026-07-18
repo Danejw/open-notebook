@@ -45,8 +45,10 @@ class OpportunityCreate(BaseModel):
     contact_name: Optional[str] = None
     contact_email: Optional[str] = None
     contact_phone: Optional[str] = None
+    contact_title: Optional[str] = None
     source_url: str
     description_url: Optional[str] = None
+    office_address: Optional[str] = None
     documents: List[Dict[str, Any]] = Field(default_factory=list)
     addenda: List[Dict[str, Any]] = Field(default_factory=list)
     fit_score: Optional[int] = None
@@ -96,8 +98,10 @@ class OpportunityUpdate(BaseModel):
     contact_name: Optional[str] = None
     contact_email: Optional[str] = None
     contact_phone: Optional[str] = None
+    contact_title: Optional[str] = None
     source_url: Optional[str] = None
     description_url: Optional[str] = None
+    office_address: Optional[str] = None
     documents: Optional[List[Dict[str, Any]]] = None
     addenda: Optional[List[Dict[str, Any]]] = None
     fit_score: Optional[int] = None
@@ -138,8 +142,10 @@ class OpportunityResponse(BaseModel):
     contact_name: Optional[str]
     contact_email: Optional[str]
     contact_phone: Optional[str]
+    contact_title: Optional[str] = None
     source_url: str
     description_url: Optional[str] = None
+    office_address: Optional[str] = None
     documents: List[Dict[str, Any]]
     addenda: List[Dict[str, Any]]
     fit_score: Optional[int]

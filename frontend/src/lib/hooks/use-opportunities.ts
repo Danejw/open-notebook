@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { opportunitiesApi } from '@/lib/api/opportunities'
 import type {
+  Opportunity,
   OpportunityFilters,
+  OpportunityListResponse,
   OpportunityScoringProfileUpdate,
   OpportunityStatus,
 } from '@/lib/types/opportunities'
@@ -13,6 +15,39 @@ const OPPORTUNITIES_KEY = ['opportunities'] as const
 const OPPORTUNITY_SOURCES_KEY = ['opportunity-sources'] as const
 const SCORING_PROFILE_KEY = ['opportunities', 'scoring-profile'] as const
 
+function isOpportunityListQueryKey(queryKey: readonly unknown[]): boolean {
+  return (
+    queryKey.length === 2 &&
+    queryKey[0] === OPPORTUNITIES_KEY[0] &&
+    typeof queryKey[1] === 'object' &&
+    queryKey[1] !== null
+  )
+}
+
+/** Keep list rows aligned with detail GET, which may rescore on description backfill. */
+function syncOpportunityInListCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  updated: Opportunity
+): void {
+  queryClient.setQueriesData<OpportunityListResponse>(
+    {
+      queryKey: OPPORTUNITIES_KEY,
+      predicate: (query) => isOpportunityListQueryKey(query.queryKey),
+    },
+    (cached) => {
+      if (!cached?.items.some((item) => item.id === updated.id)) {
+        return cached
+      }
+      return {
+        ...cached,
+        items: cached.items.map((item) =>
+          item.id === updated.id ? { ...item, ...updated } : item
+        ),
+      }
+    }
+  )
+}
+
 export function useOpportunities(filters: OpportunityFilters) {
   return useQuery({
     queryKey: [...OPPORTUNITIES_KEY, filters],
@@ -22,9 +57,15 @@ export function useOpportunities(filters: OpportunityFilters) {
 }
 
 export function useOpportunity(opportunityId: string | null) {
+  const queryClient = useQueryClient()
+
   return useQuery({
     queryKey: [...OPPORTUNITIES_KEY, 'detail', opportunityId],
-    queryFn: () => opportunitiesApi.get(opportunityId as string),
+    queryFn: async () => {
+      const opportunity = await opportunitiesApi.get(opportunityId as string)
+      syncOpportunityInListCaches(queryClient, opportunity)
+      return opportunity
+    },
     enabled: Boolean(opportunityId),
   })
 }

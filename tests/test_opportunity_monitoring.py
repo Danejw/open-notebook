@@ -1,10 +1,12 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from construction_os.domain.opportunity import Opportunity
 from construction_os.services.opportunity_monitoring import (
     detect_opportunity_changes,
     infer_sam_source_state,
     monitoring_interval,
+    sam_lookup_params,
+    should_record_change,
     snapshot_hash,
 )
 
@@ -152,3 +154,44 @@ def test_pursuing_checks_more_often_than_watching(monkeypatch):
 
     assert monitoring_interval(pursuing, now) == timedelta(hours=6)
     assert monitoring_interval(watching, now) == timedelta(hours=24)
+
+
+def test_sam_lookup_includes_required_posting_window():
+    opportunity = make_opportunity(
+        published_at=datetime(2026, 7, 10, tzinfo=timezone.utc)
+    )
+
+    params = sam_lookup_params(
+        opportunity,
+        "test-key",
+        today=date(2026, 7, 17),
+    )
+
+    assert params["noticeid"] == "notice-123"
+    assert params["postedFrom"] == "07/09/2026"
+    assert params["postedTo"] == "07/17/2026"
+    assert params["limit"] == "10"
+
+
+def test_first_successful_refresh_establishes_baseline_without_alert():
+    opportunity = make_opportunity(source_status="unknown")
+    diff = detect_opportunity_changes(
+        opportunity,
+        normalized_from(opportunity, source_status="active"),
+    )
+
+    assert should_record_change(opportunity, "initial", diff) is False
+
+
+def test_refresh_after_baseline_records_meaningful_change():
+    opportunity = make_opportunity(
+        source_status="active",
+        monitoring_snapshot_hash="existing-snapshot",
+        monitoring_last_success_at=datetime(2026, 7, 16, tzinfo=timezone.utc),
+    )
+    diff = detect_opportunity_changes(
+        opportunity,
+        normalized_from(opportunity, source_status="cancelled"),
+    )
+
+    assert should_record_change(opportunity, "scheduled", diff) is True

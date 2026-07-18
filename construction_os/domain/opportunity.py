@@ -109,6 +109,11 @@ class Opportunity(ObjectModel):
     trades: List[str] = Field(default_factory=list)
     license_requirements: List[str] = Field(default_factory=list)
 
+    naics_code: Optional[str] = None
+    matched_naics_codes: List[str] = Field(default_factory=list)
+    matched_collection_ids: List[str] = Field(default_factory=list)
+    discovery_matches: List[Dict[str, Any]] = Field(default_factory=list)
+
     published_at: Optional[datetime] = None
     questions_due_at: Optional[datetime] = None
     prebid_at: Optional[datetime] = None
@@ -146,6 +151,7 @@ class Opportunity(ObjectModel):
 
     nullable_fields: ClassVar[set[str]] = {
         "solicitation_number",
+        "naics_code",
         "published_at",
         "questions_due_at",
         "prebid_at",
@@ -167,13 +173,25 @@ class Opportunity(ObjectModel):
         "project_id",
     }
 
-    @field_validator("source_key", "external_id", "fingerprint", "title", "agency", "source_url")
+    @field_validator(
+        "source_key", "external_id", "fingerprint", "title", "agency", "source_url"
+    )
     @classmethod
     def required_text(cls, value: str) -> str:
         value = value.strip()
         if not value:
             raise InvalidInputError("Required opportunity fields cannot be empty")
         return value
+
+    @field_validator("naics_code")
+    @classmethod
+    def valid_naics_code(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        normalized = "".join(character for character in str(value) if character.isdigit())
+        if not 2 <= len(normalized) <= 6:
+            raise InvalidInputError("naics_code must contain between 2 and 6 digits")
+        return normalized
 
     @field_validator("fit_score")
     @classmethod

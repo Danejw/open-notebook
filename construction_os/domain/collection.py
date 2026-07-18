@@ -74,7 +74,7 @@ class CollectionItem(ObjectModel):
 
     collection: str
     item_id: str
-    type: str = "url"
+    type: str = "text"
     title: str
     url: Optional[str] = None
     description: Optional[str] = None

@@ -143,18 +143,48 @@ export function useSyncSamGovOpportunities() {
   const { t } = useTranslation()
 
   return useMutation({
-    mutationFn: (daysBack: number = 14) => opportunitiesApi.syncSamGov(daysBack),
+    mutationFn: (input: number | { daysBack?: number; collectionId?: string | null } = 14) => {
+      if (typeof input === 'number') {
+        return opportunitiesApi.syncSamGov(input)
+      }
+      return opportunitiesApi.syncSamGov(input.daysBack ?? 14, input.collectionId ?? null)
+    },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: OPPORTUNITIES_KEY })
       queryClient.invalidateQueries({ queryKey: OPPORTUNITY_SOURCES_KEY })
+      const filterNote =
+        result.filter_strings && result.filter_strings.length > 0
+          ? ` · filtered by ${result.filter_strings.length} collection strings`
+          : ''
       toast({
         title: 'Federal opportunities synchronized',
-        description: `${result.created} new · ${result.updated} refreshed · ${result.failed} failed`,
+        description: `${result.created} new · ${result.updated} refreshed · ${result.failed} failed${filterNote}`,
       })
     },
     onError: (error: unknown) => {
       toast({
         title: 'SAM.gov synchronization failed',
+        description: getApiErrorMessage(error, t),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function useSetSamSyncCollection() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: (collectionId: string | null) =>
+      opportunitiesApi.setSamSyncCollection(collectionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: OPPORTUNITY_SOURCES_KEY })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: 'Could not save sync collection',
         description: getApiErrorMessage(error, t),
         variant: 'destructive',
       })

@@ -1,0 +1,16 @@
+-- Migration 45: split opportunity source_stage from workflow status
+
+UPDATE opportunity SET source_stage = 'early_research'
+WHERE status = 'new' OR status IS NONE OR source_stage IS NONE;
+
+UPDATE opportunity SET source_stage = 'pre_solicitation'
+WHERE status IN ['reviewing', 'watching'];
+
+UPDATE opportunity SET source_stage = 'active_solicitation'
+WHERE status IN ['pursuing', 'submitted', 'won', 'lost', 'no_bid'];
+
+UPDATE opportunity SET source_stage = 'early_research'
+WHERE status = 'ignored';
+
+UPDATE opportunity SET status = 'none'
+WHERE status IN ['new', 'reviewing'];

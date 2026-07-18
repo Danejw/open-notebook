@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 class CollectionItemSchema(BaseModel):
     item_id: str
-    type: str = "url"
+    type: str = "text"
     title: str
     url: Optional[str] = None
     description: Optional[str] = None

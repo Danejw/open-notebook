@@ -6,6 +6,7 @@ and sends records through the shared idempotent import service.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
@@ -21,8 +22,14 @@ from loguru import logger
 
 from construction_os.config import UPLOADS_FOLDER
 from construction_os.database.repository import repo_query
+from construction_os.domain.collection import Collection, CollectionItem
 from construction_os.domain.opportunity import HawaiiIsland, OpportunitySource
-from construction_os.exceptions import ConfigurationError, ExternalServiceError
+from construction_os.exceptions import (
+    ConfigurationError,
+    ExternalServiceError,
+    InvalidInputError,
+    NotFoundError,
+)
 from construction_os.services.opportunities import (
     import_opportunities,
     seed_opportunity_sources,
@@ -30,7 +37,9 @@ from construction_os.services.opportunities import (
 
 SAM_OPPORTUNITIES_URL = "https://api.sam.gov/opportunities/v2/search"
 SAM_DOWNLOAD_TIMEOUT_SECONDS = 60.0
-
+SAM_REQUEST_MAX_ATTEMPTS = 4
+SAM_REQUEST_BASE_DELAY_SECONDS = 2.0
+_API_KEY_QUERY_RE = re.compile(r"(api_key=)[^&\s\"']+", re.IGNORECASE)
 _URL_RE = re.compile(r"^https?://", re.IGNORECASE)
 
 
@@ -497,6 +506,40 @@ def _infer_procurement_type(title: str, notice_type: str) -> str:
     return "OTHER"
 
 
+def _infer_source_stage(title: str, notice_type: str) -> str:
+    """Map SAM notice type / title cues onto procurement lifecycle stage."""
+
+    combined = f"{title} {notice_type}".upper()
+    if any(
+        token in combined
+        for token in ("PRESOLICIT", "PRE-SOLICIT", "PRE SOLICIT", "PRE-SOLICITATION")
+    ):
+        return "pre_solicitation"
+    if any(
+        token in combined
+        for token in (
+            "SOURCES SOUGHT",
+            "SPECIAL NOTICE",
+            "REQUEST FOR INFORMATION",
+            "MARKET RESEARCH",
+        )
+    ) or re.search(r"\bRFI\b", combined) or re.search(r"\bNOI\b", combined):
+        return "early_research"
+    if any(
+        token in combined
+        for token in (
+            "COMBINED SYNOPSIS",
+            "SOLICITATION",
+            "INVITATION FOR BID",
+            "REQUEST FOR PROPOSAL",
+            "REQUEST FOR QUOTE",
+            "REQUEST FOR QUOTATION",
+        )
+    ) or re.search(r"\b(IFB|RFP|RFQ|ITB)\b", combined):
+        return "active_solicitation"
+    return "early_research"
+
+
 def _infer_island(place: str) -> HawaiiIsland:
     text = place.lower()
     mappings: List[tuple[HawaiiIsland, tuple[str, ...]]] = [
@@ -678,6 +721,7 @@ async def normalize_sam_opportunity(
         "agency": agency,
         "solicitation_number": solicitation_number,
         "procurement_type": _infer_procurement_type(title, notice_type),
+        "source_stage": _infer_source_stage(title, notice_type),
         "island": _infer_island(place),
         "location": place,
         "scope_summary": description,
@@ -717,10 +761,165 @@ async def _get_source(source_key: str) -> OpportunitySource:
     return OpportunitySource(**rows[0])
 
 
+def filter_strings_from_collection_items(items: List[CollectionItem]) -> List[str]:
+    """Return enabled item titles as deduped filter strings (order preserved)."""
+
+    seen: set[str] = set()
+    strings: List[str] = []
+    for item in items:
+        if not item.enabled:
+            continue
+        title = (item.title or "").strip()
+        if not title or title in seen:
+            continue
+        seen.add(title)
+        strings.append(title)
+    return strings
+
+
+async def resolve_collection_filter_strings(collection_id: str) -> List[str]:
+    """Load a collection and return enabled item titles for sync filtering."""
+
+    collection_id = (collection_id or "").strip()
+    if not collection_id:
+        raise InvalidInputError("collection_id cannot be empty")
+    try:
+        collection = await Collection.get(collection_id)
+    except (NotFoundError, InvalidInputError):
+        raise
+    except Exception as exc:
+        raise NotFoundError(f"Collection not found: {collection_id}") from exc
+    strings = filter_strings_from_collection_items(await collection.get_items())
+    if not strings:
+        raise InvalidInputError(
+            "Selected collection has no enabled items with titles to use as filters"
+        )
+    return strings
+
+
+def redact_sam_error_message(message: str) -> str:
+    """Strip API keys from SAM.gov error strings before surfacing to users."""
+
+    return _API_KEY_QUERY_RE.sub(r"\1***", message)
+
+
+SAM_SYNC_COLLECTION_SETTING = "sync_collection_id"
+
+
+async def get_sam_sync_collection_id() -> Optional[str]:
+    """Return the persisted collection id used for SAM.gov sync filters."""
+
+    source = await _get_source("sam_gov_hawaii")
+    raw = (source.settings or {}).get(SAM_SYNC_COLLECTION_SETTING)
+    if not isinstance(raw, str):
+        return None
+    value = raw.strip()
+    return value or None
+
+
+async def set_sam_sync_collection_id(collection_id: Optional[str]) -> OpportunitySource:
+    """Persist (or clear) the preferred collection for SAM.gov sync."""
+
+    source = await _get_source("sam_gov_hawaii")
+    settings = dict(source.settings or {})
+    cleaned = (collection_id or "").strip() or None
+    if cleaned:
+        settings[SAM_SYNC_COLLECTION_SETTING] = cleaned
+    else:
+        settings.pop(SAM_SYNC_COLLECTION_SETTING, None)
+    source.settings = settings
+    await source.save()
+    return source
+
+
+def _normalize_filter_code(value: str) -> str:
+    return re.sub(r"\D", "", value or "")
+
+
+def record_naics_codes(record: Dict[str, Any]) -> List[str]:
+    """Extract NAICS codes from a SAM opportunity search record."""
+
+    codes: List[str] = []
+    raw = record.get("naicsCode")
+    if raw is None:
+        raw = record.get("naicsCodes")
+    if isinstance(raw, str) and raw.strip():
+        codes.append(raw.strip())
+    elif isinstance(raw, list):
+        for item in raw:
+            if isinstance(item, str) and item.strip():
+                codes.append(item.strip())
+            elif isinstance(item, dict):
+                code = item.get("code") or item.get("naicsCode") or item.get("naics")
+                if code is not None and str(code).strip():
+                    codes.append(str(code).strip())
+    return codes
+
+
+def record_matches_collection_filters(
+    record: Dict[str, Any], filter_strings: List[str]
+) -> bool:
+    """True when the record's NAICS codes intersect the collection filter strings."""
+
+    wanted = {
+        code for value in filter_strings if (code := _normalize_filter_code(value))
+    }
+    if not wanted:
+        return False
+    found = {
+        code
+        for value in record_naics_codes(record)
+        if (code := _normalize_filter_code(value))
+    }
+    return bool(found & wanted)
+
+
+async def _sam_search(
+    client: httpx.AsyncClient,
+    params: Dict[str, str],
+) -> Dict[str, Any]:
+    """GET SAM opportunities search with retries on HTTP 429."""
+
+    last_error: Optional[str] = None
+    for attempt in range(SAM_REQUEST_MAX_ATTEMPTS):
+        response = await client.get(SAM_OPPORTUNITIES_URL, params=params)
+        if response.status_code == 429:
+            retry_after = response.headers.get("Retry-After", "").strip()
+            if retry_after.isdigit():
+                delay = float(retry_after)
+            else:
+                delay = SAM_REQUEST_BASE_DELAY_SECONDS * (2**attempt)
+            last_error = redact_sam_error_message(
+                f"429 Too Many Requests for {response.url}"
+            )
+            logger.warning(
+                "SAM.gov rate limited (attempt {}/{}); waiting {:.1f}s",
+                attempt + 1,
+                SAM_REQUEST_MAX_ATTEMPTS,
+                delay,
+            )
+            await asyncio.sleep(delay)
+            continue
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise ExternalServiceError(
+                f"SAM.gov opportunity sync failed: {redact_sam_error_message(str(exc))}"
+            ) from exc
+        return response.json()
+
+    raise ExternalServiceError(
+        "SAM.gov rate limit exceeded after retries. Wait a minute and sync again"
+        + (f" ({last_error})" if last_error else "")
+        + "."
+    )
+
+
 async def sync_sam_gov_hawaii(
     *,
     days_back: int = 14,
     limit: int = 1000,
+    collection_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Import recent federal opportunities with a Hawaii place of performance."""
 
@@ -733,6 +932,17 @@ async def sync_sam_gov_hawaii(
         raise ConfigurationError("days_back must be between 1 and 365")
     if not 1 <= limit <= 1000:
         raise ConfigurationError("limit must be between 1 and 1000")
+
+    filter_strings: Optional[List[str]] = None
+    # None = use persisted preference; "" = clear preference; otherwise save + use.
+    if collection_id is None:
+        resolved_collection_id = await get_sam_sync_collection_id()
+    else:
+        resolved_collection_id = collection_id.strip() or None
+        await set_sam_sync_collection_id(resolved_collection_id)
+
+    if resolved_collection_id:
+        filter_strings = await resolve_collection_filter_strings(resolved_collection_id)
 
     source = await _get_source("sam_gov_hawaii")
     today = date.today()
@@ -747,15 +957,25 @@ async def sync_sam_gov_hawaii(
 
     try:
         async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
-            response = await client.get(SAM_OPPORTUNITIES_URL, params=params)
-            response.raise_for_status()
-            payload = response.json()
+            # One search only — collection filters apply client-side so we do not
+            # burn SAM.gov rate limits with one request per NAICS code.
+            payload = await _sam_search(client, params)
+            raw_records = [
+                record
+                for record in (payload.get("opportunitiesData") or [])
+                if isinstance(record, dict)
+            ]
+            if filter_strings:
+                records = [
+                    record
+                    for record in raw_records
+                    if record_matches_collection_filters(record, filter_strings)
+                ][:limit]
+            else:
+                records = raw_records[:limit]
 
-            records = payload.get("opportunitiesData") or []
             normalized: List[Dict[str, Any]] = []
             for record in records:
-                if not isinstance(record, dict):
-                    continue
                 normalized.append(
                     await normalize_sam_opportunity(
                         record,
@@ -774,17 +994,24 @@ async def sync_sam_gov_hawaii(
         )
         await source.save()
 
-        return {
+        response_body: Dict[str, Any] = {
             **result,
             "source_key": source.key,
             "fetched": len(records),
-            "total_records": int(payload.get("totalRecords") or len(records)),
+            "total_records": int(payload.get("totalRecords") or len(raw_records)),
             "posted_from": params["postedFrom"],
             "posted_to": params["postedTo"],
         }
+        if resolved_collection_id and filter_strings is not None:
+            response_body["collection_id"] = resolved_collection_id
+            response_body["filter_strings"] = filter_strings
+        return response_body
+    except (NotFoundError, InvalidInputError, ConfigurationError, ExternalServiceError):
+        raise
     except (httpx.HTTPError, ValueError) as exc:
+        message = redact_sam_error_message(str(exc))
         source.last_synced_at = datetime.now(timezone.utc)
         source.last_sync_status = "failed"
-        source.last_error = str(exc)
+        source.last_error = message
         await source.save()
-        raise ExternalServiceError(f"SAM.gov opportunity sync failed: {exc}") from exc
+        raise ExternalServiceError(f"SAM.gov opportunity sync failed: {message}") from exc

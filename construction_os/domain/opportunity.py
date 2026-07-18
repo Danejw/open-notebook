@@ -5,14 +5,19 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, ClassVar, Dict, List, Literal, Optional
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from construction_os.domain.base import ObjectModel
 from construction_os.exceptions import InvalidInputError
 
+OpportunitySourceStage = Literal[
+    "early_research",
+    "pre_solicitation",
+    "active_solicitation",
+]
+
 OpportunityStatus = Literal[
-    "new",
-    "reviewing",
+    "none",
     "watching",
     "pursuing",
     "submitted",
@@ -100,7 +105,8 @@ class Opportunity(ObjectModel):
     agency: str
     solicitation_number: Optional[str] = None
     procurement_type: ProcurementType = "OTHER"
-    status: OpportunityStatus = "new"
+    source_stage: OpportunitySourceStage = "early_research"
+    status: OpportunityStatus = "none"
 
     island: HawaiiIsland = "Unknown"
     location: str = ""
@@ -172,6 +178,35 @@ class Opportunity(ObjectModel):
         "extraction_confidence",
         "project_id",
     }
+
+    @model_validator(mode="before")
+    @classmethod
+    def coerce_legacy_status_split(cls, data: Any) -> Any:
+        """Map pre-split status values onto source_stage + workflow status."""
+
+        if not isinstance(data, dict):
+            return data
+
+        status = data.get("status")
+        stage = data.get("source_stage")
+        if stage is None:
+            if status == "new":
+                data["source_stage"] = "early_research"
+                data["status"] = "none"
+            elif status == "reviewing":
+                data["source_stage"] = "pre_solicitation"
+                data["status"] = "none"
+            elif status == "watching":
+                data["source_stage"] = "pre_solicitation"
+            elif status in {"pursuing", "submitted", "won", "lost", "no_bid"}:
+                data["source_stage"] = "active_solicitation"
+            elif status == "ignored":
+                data["source_stage"] = "early_research"
+            else:
+                data["source_stage"] = "early_research"
+        elif status in {"new", "reviewing"}:
+            data["status"] = "none"
+        return data
 
     @field_validator("source_key", "external_id", "fingerprint", "title", "agency", "source_url")
     @classmethod

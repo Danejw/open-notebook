@@ -9,15 +9,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { CollectionItem } from '@/lib/types/collections'
 import { useTranslation } from '@/lib/hooks/use-translation'
-
-function slugifyItemId(value: string, index: number): string {
-  const slug = value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  return slug || `item-${index + 1}`
-}
+import {
+  collectionItemFromString,
+  collectionItemsFromBulkInput,
+} from '@/lib/utils/collection-entries'
 
 interface CollectionItemsEditorProps {
   items: CollectionItem[]
@@ -32,8 +27,7 @@ export function CollectionItemsEditor({
 }: CollectionItemsEditorProps) {
   const { t } = useTranslation()
   const [pasteInput, setPasteInput] = useState('')
-  const [newTitle, setNewTitle] = useState('')
-  const [newUrl, setNewUrl] = useState('')
+  const [newValue, setNewValue] = useState('')
 
   const updateItem = (index: number, patch: Partial<CollectionItem>) => {
     onChange(
@@ -52,72 +46,26 @@ export function CollectionItemsEditor({
   }
 
   const addItem = () => {
-    const title = newTitle.trim()
-    const url = newUrl.trim()
-    if (!title || !url) return
-    const itemId = slugifyItemId(title, items.length)
+    const value = newValue.trim()
+    if (!value) return
     const existingIds = new Set(items.map((item) => item.item_id))
-    let uniqueId = itemId
-    let suffix = 2
-    while (existingIds.has(uniqueId)) {
-      uniqueId = `${itemId}-${suffix}`
-      suffix += 1
+    if (items.some((item) => item.title.trim() === value)) {
+      setNewValue('')
+      return
     }
     onChange([
       ...items,
-      {
-        item_id: uniqueId,
-        type: 'url',
-        title,
-        url,
-        description: '',
-        tags: [],
-        topics: [],
-        enabled: true,
-        sort_order: items.length,
-      },
+      collectionItemFromString(value, items.length, existingIds),
     ])
-    setNewTitle('')
-    setNewUrl('')
+    setNewValue('')
   }
 
-  const pasteUrls = () => {
-    const lines = pasteInput
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-    if (lines.length === 0) return
-
-    const existingIds = new Set(items.map((item) => item.item_id))
-    const nextItems = [...items]
-    lines.forEach((line) => {
-      let title = line
-      let url = line
-      const parts = line.split(/\s+/)
-      if (parts.length > 1 && /^https?:\/\//i.test(parts[parts.length - 1])) {
-        url = parts[parts.length - 1]
-        title = parts.slice(0, -1).join(' ')
-      }
-      let itemId = slugifyItemId(title || `item-${nextItems.length + 1}`, nextItems.length)
-      let suffix = 2
-      while (existingIds.has(itemId)) {
-        itemId = `${itemId}-${suffix}`
-        suffix += 1
-      }
-      existingIds.add(itemId)
-      nextItems.push({
-        item_id: itemId,
-        type: 'url',
-        title: title || url,
-        url,
-        description: '',
-        tags: [],
-        topics: [],
-        enabled: true,
-        sort_order: nextItems.length,
-      })
-    })
-    onChange(nextItems.map((item, index) => ({ ...item, sort_order: index })))
+  const pasteEntries = () => {
+    const added = collectionItemsFromBulkInput(pasteInput, items)
+    if (added.length === 0) return
+    onChange(
+      [...items, ...added].map((item, index) => ({ ...item, sort_order: index }))
+    )
     setPasteInput('')
   }
 
@@ -131,7 +79,7 @@ export function CollectionItemsEditor({
             {items.map((item, index) => (
               <div
                 key={`${item.item_id}-${index}`}
-                className="grid gap-1 px-1.5 py-1.5 md:grid-cols-[auto_1fr_1fr_auto]"
+                className="grid gap-1 px-1.5 py-1.5 md:grid-cols-[auto_1fr_auto]"
               >
                 <div className="flex items-center">
                   <Checkbox
@@ -146,14 +94,15 @@ export function CollectionItemsEditor({
                 <Input
                   value={item.title}
                   disabled={disabled}
-                  onChange={(e) => updateItem(index, { title: e.target.value })}
+                  onChange={(e) => {
+                    const title = e.target.value
+                    const isUrl = /^https?:\/\//i.test(title.trim())
+                    updateItem(index, {
+                      title,
+                      url: isUrl ? title.trim() : item.type === 'url' ? item.url : null,
+                    })
+                  }}
                   placeholder={t('collections.itemTitle')}
-                />
-                <Input
-                  value={item.url ?? ''}
-                  disabled={disabled}
-                  onChange={(e) => updateItem(index, { url: e.target.value })}
-                  placeholder={t('collections.itemUrl')}
                 />
                 <Button
                   type="button"
@@ -174,26 +123,24 @@ export function CollectionItemsEditor({
 
       <div className="space-y-1 rounded-md border p-1.5">
         <p className="text-sm font-medium">{t('collections.addItem')}</p>
-        <div className="grid gap-1 md:grid-cols-2">
-          <Input
-            value={newTitle}
-            disabled={disabled}
-            onChange={(e) => setNewTitle(e.target.value)}
-            placeholder={t('collections.itemTitle')}
-          />
-          <Input
-            value={newUrl}
-            disabled={disabled}
-            onChange={(e) => setNewUrl(e.target.value)}
-            placeholder={t('collections.itemUrl')}
-          />
-        </div>
+        <Input
+          value={newValue}
+          disabled={disabled}
+          onChange={(e) => setNewValue(e.target.value)}
+          placeholder={t('collections.itemTitle')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              addItem()
+            }
+          }}
+        />
         <Button
           type="button"
           variant="outline"
           size="sm"
           className="h-7"
-          disabled={disabled || !newTitle.trim() || !newUrl.trim()}
+          disabled={disabled || !newValue.trim()}
           onClick={addItem}
         >
           <Plus className="mr-1.5 h-3.5 w-3.5" />
@@ -202,9 +149,9 @@ export function CollectionItemsEditor({
       </div>
 
       <div className="space-y-0.5">
-        <Label htmlFor="collection-paste-urls">{t('collections.pasteUrls')}</Label>
+        <Label htmlFor="collection-paste-entries">{t('collections.pasteUrls')}</Label>
         <Textarea
-          id="collection-paste-urls"
+          id="collection-paste-entries"
           value={pasteInput}
           disabled={disabled}
           onChange={(e) => setPasteInput(e.target.value)}
@@ -217,7 +164,7 @@ export function CollectionItemsEditor({
           size="sm"
           className="h-7"
           disabled={disabled || !pasteInput.trim()}
-          onClick={pasteUrls}
+          onClick={pasteEntries}
         >
           {t('collections.pasteUrlsConfirm')}
         </Button>

@@ -103,3 +103,31 @@ def test_normalize_collection_url_accepts_https():
         normalize_collection_url("https://CCA.Hawaii.GOV/path/")
         == "https://cca.hawaii.gov/path/"
     )
+
+
+def test_parse_items_yaml_text_items_without_url():
+    content = """- id: gc
+  type: text
+  title: "236220"
+  enabled: true
+- id: elec
+  title: "238210"
+  enabled: true
+"""
+    items, errors = parse_items_yaml(content)
+    assert not errors
+    assert len(items) == 2
+    assert items[0].type == "text"
+    assert items[0].title == "236220"
+    assert items[0].url is None
+    assert items[1].type == "text"
+    assert items[1].title == "238210"
+
+
+def test_parse_items_yaml_url_type_still_requires_url():
+    content = """- id: missing
+  type: url
+  title: Missing URL
+"""
+    _, errors = parse_items_yaml(content)
+    assert any("missing url" in e.lower() for e in errors)

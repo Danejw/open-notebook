@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 from construction_os.domain.opportunity import (
     FitRecommendation,
     HawaiiIsland,
+    OpportunitySourceStage,
     OpportunityStatus,
     ProcurementType,
 )
@@ -23,7 +24,8 @@ class OpportunityCreate(BaseModel):
     agency: str
     solicitation_number: Optional[str] = None
     procurement_type: ProcurementType = "OTHER"
-    status: OpportunityStatus = "new"
+    source_stage: OpportunitySourceStage = "early_research"
+    status: OpportunityStatus = "none"
     island: HawaiiIsland = "Unknown"
     location: str = ""
     scope_summary: str = ""
@@ -77,6 +79,7 @@ class OpportunityUpdate(BaseModel):
     agency: Optional[str] = None
     solicitation_number: Optional[str] = None
     procurement_type: Optional[ProcurementType] = None
+    source_stage: Optional[OpportunitySourceStage] = None
     status: Optional[OpportunityStatus] = None
     island: Optional[HawaiiIsland] = None
     location: Optional[str] = None
@@ -120,6 +123,7 @@ class OpportunityResponse(BaseModel):
     agency: str
     solicitation_number: Optional[str]
     procurement_type: ProcurementType
+    source_stage: OpportunitySourceStage
     status: OpportunityStatus
     island: HawaiiIsland
     location: str
@@ -205,6 +209,7 @@ class OpportunityDashboardResponse(BaseModel):
     pipeline_value_min: float
     pipeline_value_max: float
     by_status: Dict[str, int]
+    by_source_stage: Dict[str, int] = Field(default_factory=dict)
 
 
 class OpportunitySourceResponse(BaseModel):
@@ -228,6 +233,13 @@ class OpportunitySourceResponse(BaseModel):
     last_synced_at: Optional[datetime]
     last_sync_status: Optional[Literal["success", "partial", "failed"]]
     last_error: Optional[str]
+    sync_collection_id: Optional[str] = None
+
+
+class SamSyncCollectionUpdate(BaseModel):
+    """Persist the preferred collection for SAM.gov Opportunity Hub sync."""
+
+    collection_id: Optional[str] = None
 
 
 class OpportunityScoringProfileUpdate(BaseModel):

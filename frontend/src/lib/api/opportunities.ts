@@ -26,6 +26,8 @@ export interface OpportunitySyncResult {
   failed: number
   posted_from: string
   posted_to: string
+  collection_id?: string
+  filter_strings?: string[]
 }
 
 export const opportunitiesApi = {
@@ -73,11 +75,26 @@ export const opportunitiesApi = {
     return response.data
   },
 
-  syncSamGov: async (daysBack = 14) => {
+  syncSamGov: async (daysBack = 14, collectionId?: string | null) => {
+    const params: { days_back: number; collection_id?: string } = {
+      days_back: daysBack,
+    }
+    // undefined = omit (reuse saved); null/'' = clear preference; string = save + use
+    if (collectionId !== undefined) {
+      params.collection_id = collectionId ?? ''
+    }
     const response = await apiClient.post<OpportunitySyncResult>(
       '/opportunity-sources/sam_gov_hawaii/sync',
       undefined,
-      { params: { days_back: daysBack } }
+      { params }
+    )
+    return response.data
+  },
+
+  setSamSyncCollection: async (collectionId: string | null) => {
+    const response = await apiClient.put<OpportunitySource>(
+      '/opportunity-sources/sam_gov_hawaii/sync-collection',
+      { collection_id: collectionId }
     )
     return response.data
   },

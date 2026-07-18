@@ -21,6 +21,7 @@ from api.opportunity_models import (
     OpportunityStatusRequest,
     OpportunityUpdate,
     PursueOpportunityResponse,
+    SamSyncCollectionUpdate,
 )
 from construction_os.domain.opportunity import Opportunity, OpportunitySource
 from construction_os.domain.opportunity_scoring_profile import OpportunityScoringSettings
@@ -43,7 +44,11 @@ from construction_os.services.opportunities import (
     set_opportunity_status,
     upsert_opportunity,
 )
-from construction_os.services.opportunity_collectors import sync_sam_gov_hawaii
+from construction_os.services.opportunity_collectors import (
+    resolve_collection_filter_strings,
+    set_sam_sync_collection_id,
+    sync_sam_gov_hawaii,
+)
 from construction_os.services.opportunity_scoring import (
     SCORE_VERSION,
     OpportunityScoringProfile,
@@ -111,6 +116,10 @@ def _opportunity_response(item: Opportunity) -> OpportunityResponse:
 def _source_response(item: OpportunitySource) -> OpportunitySourceResponse:
     data = item.model_dump(exclude={"settings"})
     data["id"] = item.id or ""
+    raw = (item.settings or {}).get("sync_collection_id")
+    data["sync_collection_id"] = (
+        raw.strip() if isinstance(raw, str) and raw.strip() else None
+    )
     return OpportunitySourceResponse(**data)
 
 
@@ -142,11 +151,26 @@ async def seed_hawaii_opportunity_sources():
 async def sync_sam_gov_hawaii_source(
     days_back: int = Query(14, ge=1, le=365),
     limit: int = Query(1000, ge=1, le=1000),
+    collection_id: Optional[str] = Query(
+        None,
+        description=(
+            "Collection to filter by. Omit to reuse the saved preference; "
+            "pass empty string to clear the preference."
+        ),
+    ),
 ):
     """Pull recent federal opportunities whose place of performance is Hawaii."""
 
     try:
-        return await sync_sam_gov_hawaii(days_back=days_back, limit=limit)
+        return await sync_sam_gov_hawaii(
+            days_back=days_back,
+            limit=limit,
+            collection_id=collection_id,
+        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except InvalidInputError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     except ConfigurationError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except ExternalServiceError as exc:
@@ -154,6 +178,29 @@ async def sync_sam_gov_hawaii_source(
     except Exception as exc:
         logger.error(f"Unexpected SAM.gov sync error: {exc}")
         raise HTTPException(status_code=500, detail="Failed to sync SAM.gov opportunities")
+
+
+@router.put(
+    "/opportunity-sources/sam_gov_hawaii/sync-collection",
+    response_model=OpportunitySourceResponse,
+)
+async def update_sam_sync_collection(body: SamSyncCollectionUpdate):
+    """Save the Opportunity Hub collection preference used for SAM.gov sync."""
+
+    try:
+        if body.collection_id:
+            await resolve_collection_filter_strings(body.collection_id)
+        source = await set_sam_sync_collection_id(body.collection_id)
+        return _source_response(source)
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except InvalidInputError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"Error saving SAM sync collection preference: {exc}")
+        raise HTTPException(
+            status_code=500, detail="Failed to save sync collection preference"
+        )
 
 
 @router.get("/opportunities/dashboard", response_model=OpportunityDashboardResponse)
@@ -219,6 +266,7 @@ async def rescore_all_opportunities(
 async def get_opportunities(
     q: Optional[str] = Query(None, description="Search title, agency, scope, trade, or license"),
     status: Optional[str] = Query(None),
+    source_stage: Optional[str] = Query(None),
     island: Optional[str] = Query(None),
     trade: Optional[str] = Query(None),
     agency: Optional[str] = Query(None),
@@ -242,6 +290,7 @@ async def get_opportunities(
         items, total = await list_opportunities(
             query=q,
             status=status,
+            source_stage=source_stage,
             island=island,
             trade=trade,
             agency=agency,

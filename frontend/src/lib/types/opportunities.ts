@@ -1,6 +1,10 @@
+export type OpportunitySourceStage =
+  | 'early_research'
+  | 'pre_solicitation'
+  | 'active_solicitation'
+
 export type OpportunityStatus =
-  | 'new'
-  | 'reviewing'
+  | 'none'
   | 'watching'
   | 'pursuing'
   | 'submitted'
@@ -65,6 +69,7 @@ export interface Opportunity {
   agency: string
   solicitation_number: string | null
   procurement_type: ProcurementType
+  source_stage: OpportunitySourceStage
   status: OpportunityStatus
   island: HawaiiIsland
   location: string
@@ -122,6 +127,7 @@ export type OpportunitySort = 'due' | 'fit_score_desc' | 'fit_score_asc'
 export interface OpportunityFilters {
   q?: string
   status?: OpportunityStatus | 'all'
+  source_stage?: OpportunitySourceStage | 'all'
   island?: HawaiiIsland | 'all'
   trade?: string
   source_key?: string
@@ -143,6 +149,7 @@ export interface OpportunityDashboard {
   pipeline_value_min: number
   pipeline_value_max: number
   by_status: Record<string, number>
+  by_source_stage?: Record<string, number>
 }
 
 export type OpportunityScoringProfileSource = 'database' | 'env' | 'default'
@@ -200,6 +207,7 @@ export interface OpportunitySource {
   last_synced_at: string | null
   last_sync_status: 'success' | 'partial' | 'failed' | null
   last_error: string | null
+  sync_collection_id?: string | null
 }
 
 export interface PursueOpportunityResponse {

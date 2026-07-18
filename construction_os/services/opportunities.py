@@ -203,6 +203,7 @@ async def list_opportunities(
     *,
     query: Optional[str] = None,
     status: Optional[str] = None,
+    source_stage: Optional[str] = None,
     island: Optional[str] = None,
     trade: Optional[str] = None,
     agency: Optional[str] = None,
@@ -235,6 +236,10 @@ async def list_opportunities(
         opportunities = [item for item in opportunities if _matches_text(item, query)]
     if status:
         opportunities = [item for item in opportunities if item.status == status]
+    if source_stage:
+        opportunities = [
+            item for item in opportunities if item.source_stage == source_stage
+        ]
     if island:
         opportunities = [item for item in opportunities if item.island == island]
     if trade:
@@ -490,11 +495,14 @@ async def upsert_opportunity(data: Dict[str, Any]) -> Tuple[Opportunity, bool]:
     created = not bool(rows)
     if rows:
         opportunity = Opportunity(**rows[0])
+        # Workflow status / project linkage stay user-owned; source_stage refreshes from collectors.
         protected = {"id", "created", "status", "project_id", "archived"}
         for key, value in payload.items():
             if key not in protected and key in Opportunity.model_fields:
                 setattr(opportunity, key, value)
     else:
+        payload.setdefault("status", "none")
+        payload.setdefault("source_stage", "early_research")
         opportunity = Opportunity(**payload)
 
     await opportunity.save()
@@ -530,8 +538,7 @@ async def import_opportunities(items: Iterable[Dict[str, Any]]) -> Dict[str, Any
 async def set_opportunity_status(opportunity_id: str, status: str) -> Opportunity:
     opportunity = await get_opportunity(opportunity_id)
     allowed = {
-        "new",
-        "reviewing",
+        "none",
         "watching",
         "pursuing",
         "submitted",
@@ -685,7 +692,11 @@ async def opportunity_dashboard() -> Dict[str, Any]:
             elif now.timestamp() <= due.timestamp() <= due_soon_cutoff:
                 due_soon += 1
 
-    pipeline_statuses = {"reviewing", "watching", "pursuing", "submitted"}
+    by_source_stage: Dict[str, int] = {}
+    for item in opportunities:
+        by_source_stage[item.source_stage] = by_source_stage.get(item.source_stage, 0) + 1
+
+    pipeline_statuses = {"watching", "pursuing", "submitted"}
     pipeline_value_min = sum(
         item.estimated_value_min or 0
         for item in opportunities
@@ -699,7 +710,7 @@ async def opportunity_dashboard() -> Dict[str, Any]:
 
     return {
         "total": len(opportunities),
-        "new": by_status.get("new", 0),
+        "new": by_source_stage.get("early_research", 0),
         "watching": by_status.get("watching", 0),
         "pursuing": by_status.get("pursuing", 0),
         "submitted": by_status.get("submitted", 0),
@@ -709,4 +720,5 @@ async def opportunity_dashboard() -> Dict[str, Any]:
         "pipeline_value_min": pipeline_value_min,
         "pipeline_value_max": pipeline_value_max,
         "by_status": by_status,
+        "by_source_stage": by_source_stage,
     }

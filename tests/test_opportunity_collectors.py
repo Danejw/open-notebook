@@ -299,3 +299,351 @@ async def test_normalize_sam_opportunity_prefers_primary_contact():
     assert normalized["contact_email"] == "primary@example.mil"
     assert normalized["contact_title"] == "Contracting Officer"
     assert normalized["office_address"] == "100 Main St, Honolulu, HI 96813"
+
+
+def test_filter_strings_from_collection_items_uses_enabled_titles():
+    from construction_os.domain.collection import CollectionItem
+    from construction_os.services.opportunity_collectors import (
+        filter_strings_from_collection_items,
+    )
+
+    items = [
+        CollectionItem(
+            collection="collection:1",
+            item_id="a",
+            title="236220",
+            enabled=True,
+        ),
+        CollectionItem(
+            collection="collection:1",
+            item_id="b",
+            title="  238210  ",
+            enabled=True,
+        ),
+        CollectionItem(
+            collection="collection:1",
+            item_id="c",
+            title="236220",
+            enabled=True,
+        ),
+        CollectionItem(
+            collection="collection:1",
+            item_id="d",
+            title="999999",
+            enabled=False,
+        ),
+        CollectionItem(
+            collection="collection:1",
+            item_id="e",
+            title="   ",
+            enabled=True,
+        ),
+    ]
+    assert filter_strings_from_collection_items(items) == ["236220", "238210"]
+
+
+@pytest.mark.asyncio
+async def test_resolve_collection_filter_strings_missing_collection(monkeypatch):
+    from construction_os.exceptions import NotFoundError
+    from construction_os.services.opportunity_collectors import (
+        resolve_collection_filter_strings,
+    )
+
+    async def fake_get(collection_id: str):
+        raise NotFoundError(f"collection with id {collection_id} not found")
+
+    monkeypatch.setattr(
+        "construction_os.services.opportunity_collectors.Collection.get",
+        fake_get,
+    )
+    with pytest.raises(NotFoundError):
+        await resolve_collection_filter_strings("collection:missing")
+
+
+@pytest.mark.asyncio
+async def test_resolve_collection_filter_strings_empty_titles(monkeypatch):
+    from unittest.mock import AsyncMock, MagicMock
+
+    from construction_os.domain.collection import CollectionItem
+    from construction_os.exceptions import InvalidInputError
+    from construction_os.services.opportunity_collectors import (
+        resolve_collection_filter_strings,
+    )
+
+    collection = MagicMock()
+    collection.get_items = AsyncMock(
+        return_value=[
+            CollectionItem(
+                collection="collection:1",
+                item_id="x",
+                title="",
+                enabled=True,
+            )
+        ]
+    )
+
+    monkeypatch.setattr(
+        "construction_os.services.opportunity_collectors.Collection.get",
+        AsyncMock(return_value=collection),
+    )
+    with pytest.raises(InvalidInputError, match="no enabled items"):
+        await resolve_collection_filter_strings("collection:1")
+
+
+@pytest.mark.asyncio
+async def test_sync_sam_gov_hawaii_without_collection_omits_ncode(monkeypatch):
+    from unittest.mock import AsyncMock, MagicMock
+
+    from construction_os.services import opportunity_collectors as collectors
+
+    captured: list[dict] = []
+
+    class FakeResponse:
+        status_code = 200
+        headers: dict = {}
+        url = "https://api.sam.gov/opportunities/v2/search"
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"opportunitiesData": [], "totalRecords": 0}
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def get(self, url, params=None):
+            captured.append(dict(params or {}))
+            return FakeResponse()
+
+    source = MagicMock()
+    source.key = "sam_gov_hawaii"
+    source.settings = {}
+    source.save = AsyncMock()
+
+    monkeypatch.setenv("SAM_GOV_API_KEY", "test-key")
+    monkeypatch.setattr(collectors.httpx, "AsyncClient", FakeClient)
+    monkeypatch.setattr(collectors, "_get_source", AsyncMock(return_value=source))
+    monkeypatch.setattr(
+        collectors,
+        "import_opportunities",
+        AsyncMock(return_value={"created": 0, "updated": 0, "failed": 0, "items": []}),
+    )
+
+    result = await collectors.sync_sam_gov_hawaii(days_back=7, limit=50)
+    assert len(captured) == 1
+    assert "ncode" not in captured[0]
+    assert captured[0]["state"] == "HI"
+    assert "collection_id" not in result
+    assert "filter_strings" not in result
+
+
+@pytest.mark.asyncio
+async def test_sync_sam_gov_hawaii_with_collection_filters_naics_locally(monkeypatch):
+    from unittest.mock import AsyncMock, MagicMock
+
+    from construction_os.services import opportunity_collectors as collectors
+
+    captured: list[dict] = []
+
+    class FakeResponse:
+        def __init__(self, records):
+            self._records = records
+            self.status_code = 200
+            self.headers = {}
+            self.url = "https://api.sam.gov/opportunities/v2/search"
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "opportunitiesData": self._records,
+                "totalRecords": len(self._records),
+            }
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def get(self, url, params=None):
+            params = dict(params or {})
+            captured.append(params)
+            return FakeResponse(
+                [
+                    {
+                        "noticeId": "a",
+                        "title": "A",
+                        "department": "NAVY",
+                        "naicsCode": "236220",
+                    },
+                    {
+                        "noticeId": "b",
+                        "title": "B",
+                        "department": "ARMY",
+                        "naicsCode": "238210",
+                    },
+                    {
+                        "noticeId": "c",
+                        "title": "C",
+                        "department": "GSA",
+                        "naicsCode": "541511",
+                    },
+                ]
+            )
+
+    source = MagicMock()
+    source.key = "sam_gov_hawaii"
+    source.settings = {}
+    source.save = AsyncMock()
+
+    async def fake_normalize(record, *, api_key=None, client=None):
+        return {
+            "source_key": "sam_gov_hawaii",
+            "external_id": record["noticeId"],
+            "title": record["title"],
+            "agency": record.get("department", ""),
+        }
+
+    imported: list = []
+
+    async def fake_import(rows):
+        imported.extend(rows)
+        return {"created": len(rows), "updated": 0, "failed": 0, "items": []}
+
+    monkeypatch.setenv("SAM_GOV_API_KEY", "test-key")
+    monkeypatch.setattr(collectors.httpx, "AsyncClient", FakeClient)
+    monkeypatch.setattr(collectors, "_get_source", AsyncMock(return_value=source))
+    monkeypatch.setattr(
+        collectors,
+        "resolve_collection_filter_strings",
+        AsyncMock(return_value=["236220", "238210"]),
+    )
+    monkeypatch.setattr(collectors, "normalize_sam_opportunity", fake_normalize)
+    monkeypatch.setattr(collectors, "import_opportunities", fake_import)
+
+    result = await collectors.sync_sam_gov_hawaii(
+        days_back=7,
+        limit=50,
+        collection_id="collection:naics",
+    )
+    assert len(captured) == 1
+    assert "ncode" not in captured[0]
+    assert result["collection_id"] == "collection:naics"
+    assert result["filter_strings"] == ["236220", "238210"]
+    assert result["fetched"] == 2
+    assert {row["external_id"] for row in imported} == {"a", "b"}
+    assert source.settings.get("sync_collection_id") == "collection:naics"
+    source.save.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_sync_sam_gov_hawaii_reuses_persisted_collection(monkeypatch):
+    from unittest.mock import AsyncMock, MagicMock
+
+    from construction_os.services import opportunity_collectors as collectors
+
+    source = MagicMock()
+    source.key = "sam_gov_hawaii"
+    source.settings = {"sync_collection_id": "collection:saved"}
+    source.save = AsyncMock()
+
+    monkeypatch.setenv("SAM_GOV_API_KEY", "test-key")
+    monkeypatch.setattr(collectors, "_get_source", AsyncMock(return_value=source))
+    monkeypatch.setattr(
+        collectors,
+        "resolve_collection_filter_strings",
+        AsyncMock(return_value=["236220"]),
+    )
+    monkeypatch.setattr(
+        collectors,
+        "_sam_search",
+        AsyncMock(return_value={"opportunitiesData": [], "totalRecords": 0}),
+    )
+    monkeypatch.setattr(
+        collectors,
+        "import_opportunities",
+        AsyncMock(return_value={"created": 0, "updated": 0, "failed": 0, "items": []}),
+    )
+
+    result = await collectors.sync_sam_gov_hawaii(days_back=7, limit=50)
+    assert result["collection_id"] == "collection:saved"
+    assert result["filter_strings"] == ["236220"]
+    collectors.resolve_collection_filter_strings.assert_awaited_with("collection:saved")
+
+
+def test_record_matches_collection_filters_and_redacts_api_key():
+    from construction_os.services.opportunity_collectors import (
+        record_matches_collection_filters,
+        redact_sam_error_message,
+    )
+
+    assert record_matches_collection_filters(
+        {"naicsCode": "236220"}, ["236220", "238210"]
+    )
+    assert not record_matches_collection_filters(
+        {"naicsCode": "541511"}, ["236220"]
+    )
+    redacted = redact_sam_error_message(
+        "429 for https://api.sam.gov/x?api_key=SAM-secret-value&state=HI"
+    )
+    assert "SAM-secret-value" not in redacted
+    assert "api_key=***" in redacted
+
+
+@pytest.mark.asyncio
+async def test_sam_search_retries_on_429(monkeypatch):
+    import httpx
+
+    from construction_os.services import opportunity_collectors as collectors
+
+    sleeps: list[float] = []
+
+    class FakeResponse:
+        def __init__(self, status_code: int, payload=None):
+            self.status_code = status_code
+            self.headers = {"Retry-After": "1"}
+            self.url = "https://api.sam.gov/opportunities/v2/search?api_key=secret"
+            self._payload = payload or {}
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise httpx.HTTPStatusError(
+                    "error",
+                    request=httpx.Request("GET", str(self.url)),
+                    response=httpx.Response(self.status_code),
+                )
+
+        def json(self):
+            return self._payload
+
+    calls = {"n": 0}
+
+    class FakeClient:
+        async def get(self, url, params=None):
+            calls["n"] += 1
+            if calls["n"] < 3:
+                return FakeResponse(429)
+            return FakeResponse(200, {"opportunitiesData": [], "totalRecords": 0})
+
+    async def fake_sleep(delay: float):
+        sleeps.append(delay)
+
+    monkeypatch.setattr(collectors.asyncio, "sleep", fake_sleep)
+    payload = await collectors._sam_search(FakeClient(), {"api_key": "secret"})
+    assert payload["totalRecords"] == 0
+    assert calls["n"] == 3
+    assert sleeps == [1.0, 1.0]

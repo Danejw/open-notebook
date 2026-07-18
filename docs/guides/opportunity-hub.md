@@ -76,11 +76,11 @@ Before testing:
 
    | Label | Meaning |
    | --- | --- |
-   | New | Notices still in `new` (Early Research) |
+   | New | Notices in source stage `early_research` |
    | High-fit | Strong company-fit scores |
    | Due 7d | Bid deadlines within a week (highlighted when &gt; 0) |
-   | In progress | Status `pursuing` (Active Solicitation) |
-   | Submitted | Status `submitted` |
+   | In progress | Workflow status `pursuing` |
+   | Submitted | Workflow status `submitted` |
    | Pipeline | Compact currency for pipeline high estimate |
 
 3. Confirm Overview stays pinned while you scroll the inbox list.
@@ -101,7 +101,7 @@ Before testing:
    | Control | What to try | Expected |
    | --- | --- | --- |
    | Search | Agency name, trade, license, solicitation #, or scope keyword | List narrows; count updates |
-   | Status | Early Research, Pre-Solicitation, Active Solicitation, Submitted, Awarded, Lost, Closed, etc. | Only that status (or “All active”) |
+   | Status | Source stages (Early Research, Pre-Solicitation, Active Solicitation) or workflow (Watching, Pursuing, Submitted, Awarded, Lost, Closed) | Only that stage or workflow status (or “All active”) |
    | Island | Oahu, Maui, Statewide, etc. | Island/location filter applied |
    | Source | A seeded source name vs All sources | Only that `source_key` |
    | Sort | Due date (default), Match % ↓ (highest fit first), Match % ↑ (lowest fit first) | Reorders inbox by bid due date or company fit score |
@@ -120,7 +120,8 @@ Before testing:
 
    - **Title** (single-line truncate)
    - **Location** · **due date** (muted meta; overdue/urgent styling when relevant)
-   - **Pipeline status** (Early Research, Pre-Solicitation, Active Solicitation, Amendment, Submitted, Awarded, Lost, or Closed)
+   - **Source stage** (Early Research, Pre-Solicitation, Active Solicitation, or Amendment when addenda exist)
+   - Optional **workflow** badge when not open (Watching, Pursuing, Submitted, Awarded, Lost, Ignored/Closed)
    - **Match %** (or — when unscored)
 
 2. Confirm rows do **not** show procurement-type badges, agency, solicitation #, or addenda chips (those live in Details).
@@ -137,7 +138,7 @@ Before testing:
 
 With a notice selected, in the **Details** pane verify:
 
-1. **Header:** type, pipeline status, fit badge, full title, agency, location.
+1. **Header:** type, source stage, optional workflow badge, fit badge, full title, agency, location.
 2. **Schedule block:** bid deadline, time remaining, questions due, pre-bid / site visit.
 3. **Plain-English scope:** SAM noticedesc HTML is converted to Markdown and rendered with the shared `MarkdownRenderer` (headings, lists, links, emphasis). Selecting a notice also lazy-backfills older URL-only records.
 4. **Primary point of contact:** name, title, email, phone (SAM prefers `type=primary`).
@@ -155,12 +156,13 @@ With a notice selected, in the **Details** pane verify:
 
 ## 7. Watch an opportunity
 
-1. Select a notice that is **not** already Watching and has **no** linked project.
-2. Click **Watch**.
-3. Confirm status badge becomes **Watching**.
-4. Filter status to **Watching** and confirm the notice appears.
+1. Select a notice that has **no** linked project.
+2. Click **Watch** — the button becomes active (**Watching**).
+3. Confirm a **Watching** workflow badge appears; the source-stage badge (Early Research / Pre-Solicitation / Active Solicitation) stays unchanged.
+4. Filter to **Watching** and confirm the notice appears.
+5. Click **Watching** again to turn watch off — workflow returns to open (`none`); source stage is unchanged.
 
-**Pass:** Status updates without leaving the page; list/dashboard refresh.
+**Pass:** Watch toggles workflow status only; list/dashboard refresh; source stage does not change.
 
 ---
 
@@ -267,7 +269,7 @@ With the API up and auth header if required:
 | Sources | `GET /opportunity-sources?enabled=true` |
 | Seed sources | `POST /opportunity-sources/seed` |
 | Sync SAM.gov | `POST /opportunity-sources/sam_gov_hawaii/sync?days_back=14` |
-| Set status | `POST /opportunities/{id}/status` body `{"status":"watching"}` |
+| Set status | `POST /opportunities/{id}/status` body `{"status":"watching"}` (workflow only; does not change `source_stage`) |
 | Pursue | `POST /opportunities/{id}/pursue` |
 | Archive | `DELETE /opportunities/{id}` |
 

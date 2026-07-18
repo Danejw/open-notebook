@@ -23,7 +23,6 @@ import { useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
 import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
-import { PageRefreshButton } from '@/components/layout/PageRefreshButton'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -48,6 +47,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { useIsMobile, useIsTablet } from '@/lib/hooks/use-media-query'
+import { useCollectionsCatalog } from '@/lib/hooks/use-collections'
 import {
   useArchiveOpportunity,
   useOpportunities,
@@ -57,6 +57,7 @@ import {
   usePursueOpportunity,
   useSeedOpportunitySources,
   useSetOpportunityStatus,
+  useSetSamSyncCollection,
   useSyncSamGovOpportunities,
 } from '@/lib/hooks/use-opportunities'
 import type {
@@ -65,6 +66,7 @@ import type {
   OpportunityDocument,
   OpportunityFilters,
   OpportunitySort,
+  OpportunitySourceStage,
   OpportunityStatus,
 } from '@/lib/types/opportunities'
 import { cn } from '@/lib/utils'
@@ -74,12 +76,28 @@ const OPPORTUNITY_LAYOUT_STORAGE =
     ? { getItem: () => null, setItem: () => {} }
     : localStorage
 
-const STATUS_OPTIONS: Array<{ value: OpportunityStatus | 'all'; label: string }> = [
+type InboxFilter =
+  | 'all'
+  | OpportunitySourceStage
+  | Exclude<OpportunityStatus, 'none'>
+
+const SOURCE_STAGE_VALUES: ReadonlySet<string> = new Set([
+  'early_research',
+  'pre_solicitation',
+  'active_solicitation',
+])
+
+function isSourceStage(value: string): value is OpportunitySourceStage {
+  return SOURCE_STAGE_VALUES.has(value)
+}
+
+const STATUS_OPTIONS: Array<{ value: InboxFilter; label: string }> = [
   { value: 'all', label: 'All active' },
-  { value: 'new', label: 'Early Research' },
-  { value: 'reviewing', label: 'Pre-Solicitation' },
+  { value: 'early_research', label: 'Early Research' },
+  { value: 'pre_solicitation', label: 'Pre-Solicitation' },
+  { value: 'active_solicitation', label: 'Active Solicitation' },
   { value: 'watching', label: 'Watching' },
-  { value: 'pursuing', label: 'Active Solicitation' },
+  { value: 'pursuing', label: 'Pursuing' },
   { value: 'submitted', label: 'Submitted' },
   { value: 'won', label: 'Awarded' },
   { value: 'lost', label: 'Lost' },
@@ -105,16 +123,18 @@ const SORT_OPTIONS: Array<{ value: OpportunitySort; label: string }> = [
   { value: 'fit_score_asc', label: 'Match % ↑' },
 ]
 
-const STATUS_SHORT_LABELS: Record<OpportunityStatus | 'all', string> = {
+const STATUS_SHORT_LABELS: Record<InboxFilter, string> = {
   all: 'All',
-  new: 'Early',
-  reviewing: 'Pre-sol',
+  early_research: 'Early',
+  pre_solicitation: 'Pre-sol',
+  active_solicitation: 'Active',
   watching: 'Watch',
-  pursuing: 'Active',
+  pursuing: 'Pursue',
   submitted: 'Subm.',
   won: 'Award',
   lost: 'Lost',
   no_bid: 'Closed',
+  ignored: 'Ignore',
 }
 
 const SORT_SHORT_LABELS: Record<OpportunitySort, string> = {
@@ -123,17 +143,21 @@ const SORT_SHORT_LABELS: Record<OpportunitySort, string> = {
   fit_score_asc: 'Match↑',
 }
 
-/** Pipeline labels for list/detail. Enum values unchanged; Amendment when addenda exist. */
-const STATUS_LABELS: Record<OpportunityStatus, string> = {
-  new: 'Early Research',
-  reviewing: 'Pre-Solicitation',
-  watching: 'Pre-Solicitation',
-  pursuing: 'Active Solicitation',
+const SOURCE_STAGE_LABELS: Record<OpportunitySourceStage, string> = {
+  early_research: 'Early Research',
+  pre_solicitation: 'Pre-Solicitation',
+  active_solicitation: 'Active Solicitation',
+}
+
+const WORKFLOW_STATUS_LABELS: Record<OpportunityStatus, string> = {
+  none: 'Open',
+  watching: 'Watching',
+  pursuing: 'Pursuing',
   submitted: 'Submitted',
   won: 'Awarded',
   lost: 'Lost',
   no_bid: 'Closed',
-  ignored: 'Closed',
+  ignored: 'Ignored',
 }
 
 function pipelineStatusLabel(opportunity: Opportunity): string {
@@ -147,15 +171,21 @@ function pipelineStatusLabel(opportunity: Opportunity): string {
   ) {
     return 'Amendment'
   }
-  return STATUS_LABELS[opportunity.status]
+  return SOURCE_STAGE_LABELS[opportunity.source_stage]
 }
 
-function statusVariant(status: OpportunityStatus) {
+function sourceStageVariant(_stage: OpportunitySourceStage) {
+  return 'outline' as const
+}
+
+function workflowStatusVariant(status: OpportunityStatus) {
   if (status === 'won') return 'default' as const
   if (status === 'lost' || status === 'no_bid' || status === 'ignored') {
     return 'outline' as const
   }
-  if (status === 'pursuing' || status === 'submitted') return 'secondary' as const
+  if (status === 'watching' || status === 'pursuing' || status === 'submitted') {
+    return 'secondary' as const
+  }
   return 'outline' as const
 }
 
@@ -359,6 +389,11 @@ function OpportunityRow({
           <span className="max-w-[min(9.5rem,40%)] truncate text-[10px] font-medium leading-none text-muted-foreground">
             {pipelineStatusLabel(opportunity)}
           </span>
+          {opportunity.status !== 'none' ? (
+            <span className="max-w-[min(9.5rem,40%)] truncate text-[10px] leading-none text-muted-foreground/80">
+              {WORKFLOW_STATUS_LABELS[opportunity.status]}
+            </span>
+          ) : null}
           {opportunity.fit_score !== null ? (
             <span
               className={cn(
@@ -470,9 +505,14 @@ function OpportunityDetail({ opportunity: listOpportunity }: { opportunity: Oppo
       <div className="min-w-0 shrink-0 border-b p-3">
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge variant="outline">{opportunity.procurement_type}</Badge>
-          <Badge variant={statusVariant(opportunity.status)}>
+          <Badge variant={sourceStageVariant(opportunity.source_stage)}>
             {pipelineStatusLabel(opportunity)}
           </Badge>
+          {opportunity.status !== 'none' ? (
+            <Badge variant={workflowStatusVariant(opportunity.status)}>
+              {WORKFLOW_STATUS_LABELS[opportunity.status]}
+            </Badge>
+          ) : null}
           {opportunity.fit_score !== null ? (
             <Badge variant={opportunity.fit_score >= 75 ? 'default' : 'secondary'}>
               {opportunity.fit_score}% company fit
@@ -762,16 +802,19 @@ function OpportunityDetail({ opportunity: listOpportunity }: { opportunity: Oppo
               </Button>
             )}
 
-            {opportunity.status !== 'watching' && !opportunity.project_id ? (
+            {!opportunity.project_id ? (
               <Button
                 size="sm"
-                variant="secondary"
+                variant={opportunity.status === 'watching' ? 'default' : 'secondary'}
                 className="h-8 text-xs"
                 disabled={actionPending}
-                onClick={() => setStatus('watching')}
+                aria-pressed={opportunity.status === 'watching'}
+                onClick={() =>
+                  setStatus(opportunity.status === 'watching' ? 'none' : 'watching')
+                }
               >
                 <Eye className="mr-1 size-3.5" />
-                Watch
+                {opportunity.status === 'watching' ? 'Watching' : 'Watch'}
               </Button>
             ) : null}
 
@@ -806,12 +849,14 @@ function OpportunityDetail({ opportunity: listOpportunity }: { opportunity: Oppo
 
 export default function OpportunitiesPage() {
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<OpportunityStatus | 'all'>('all')
+  const [inboxFilter, setInboxFilter] = useState<InboxFilter>('all')
   const [island, setIsland] = useState<HawaiiIsland | 'all'>('all')
   const [sourceKey, setSourceKey] = useState('all')
   const [sort, setSort] = useState<OpportunitySort>('due')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [listCollapsed, setListCollapsed] = useState(false)
+  const [syncCollectionId, setSyncCollectionId] = useState<string>('none')
+  const [syncCollectionHydrated, setSyncCollectionHydrated] = useState(false)
   const detailsRef = useRef<HTMLElement | null>(null)
   const listPanelRef = usePanelRef()
   const isMobile = useIsMobile()
@@ -858,22 +903,76 @@ export default function OpportunitiesPage() {
     }
   }
 
-  const filters: OpportunityFilters = useMemo(
-    () => ({
+  const filters: OpportunityFilters = useMemo(() => {
+    const next: OpportunityFilters = {
       q: query.trim() || undefined,
-      status,
       island,
       source_key: sourceKey,
       sort,
-    }),
-    [query, status, island, sourceKey, sort]
-  )
+    }
+    if (inboxFilter !== 'all') {
+      if (isSourceStage(inboxFilter)) {
+        next.source_stage = inboxFilter
+      } else {
+        next.status = inboxFilter
+      }
+    }
+    return next
+  }, [query, inboxFilter, island, sourceKey, sort])
 
-  const { data, isLoading, refetch } = useOpportunities(filters)
+  const { data, isLoading } = useOpportunities(filters)
   const { data: dashboard } = useOpportunityDashboard()
   const { data: sources, isLoading: sourcesLoading } = useOpportunitySources()
+  const { data: collectionsCatalog } = useCollectionsCatalog()
   const seedSources = useSeedOpportunitySources()
   const syncSamGov = useSyncSamGovOpportunities()
+  const setSamSyncCollection = useSetSamSyncCollection()
+
+  const syncCollections = useMemo(
+    () =>
+      (collectionsCatalog ?? []).filter(
+        (collection) => !collection.archived && collection.status !== 'archived'
+      ),
+    [collectionsCatalog]
+  )
+
+  useEffect(() => {
+    if (syncCollectionHydrated || !sources) return
+    const samSource = sources.find((source) => source.key === 'sam_gov_hawaii')
+    const savedId = samSource?.sync_collection_id?.trim()
+    if (savedId) {
+      setSyncCollectionId(savedId)
+    }
+    setSyncCollectionHydrated(true)
+  }, [sources, syncCollectionHydrated])
+
+  useEffect(() => {
+    if (!syncCollectionHydrated || syncCollectionId === 'none') return
+    if (collectionsCatalog === undefined) return
+    const stillExists = syncCollections.some(
+      (collection) => collection.id === syncCollectionId
+    )
+    if (!stillExists) {
+      setSyncCollectionId('none')
+    }
+  }, [
+    collectionsCatalog,
+    syncCollectionHydrated,
+    syncCollectionId,
+    syncCollections,
+  ])
+
+  const handleSyncCollectionChange = (value: string) => {
+    setSyncCollectionId(value)
+    setSamSyncCollection.mutate(value === 'none' ? null : value)
+  }
+
+  const runSamGovSync = () => {
+    syncSamGov.mutate({
+      daysBack: 14,
+      collectionId: syncCollectionId === 'none' ? null : syncCollectionId,
+    })
+  }
 
   useEffect(() => {
     if (!sourcesLoading && sources && sources.length === 0 && !seedSources.isPending) {
@@ -896,14 +995,14 @@ export default function OpportunitiesPage() {
 
   const filtersActive =
     query.trim().length > 0 ||
-    status !== 'all' ||
+    inboxFilter !== 'all' ||
     island !== 'all' ||
     sourceKey !== 'all' ||
     sort !== 'due'
 
   const clearFilters = () => {
     setQuery('')
-    setStatus('all')
+    setInboxFilter('all')
     setIsland('all')
     setSourceKey('all')
     setSort('due')
@@ -927,7 +1026,7 @@ export default function OpportunitiesPage() {
         </Tooltip>
 
         <ScrollArea className="min-h-0 w-full flex-1">
-          <div className="flex flex-col items-center gap-1 px-1 pb-2">
+          <div className="flex flex-col items-center gap-1 px-1 pt-2 pb-2">
             {isLoading ? (
               Array.from({ length: 6 }).map((_, index) => (
                 <Skeleton key={index} className="size-8 shrink-0 rounded-md" />
@@ -961,7 +1060,7 @@ export default function OpportunitiesPage() {
 
   const progressiveFilters = !isMobile
   const statusLabel =
-    STATUS_OPTIONS.find((option) => option.value === status)?.label ?? 'All active'
+    STATUS_OPTIONS.find((option) => option.value === inboxFilter)?.label ?? 'All active'
   const sortLabel = SORT_OPTIONS.find((option) => option.value === sort)?.label ?? 'Due date'
   const sourceLabel =
     sourceKey === 'all'
@@ -1022,11 +1121,16 @@ export default function OpportunitiesPage() {
             !progressiveFilters && 'gap-1.5 overflow-x-auto'
           )}
         >
-          <Select value={status} onValueChange={(value) => setStatus(value as OpportunityStatus | 'all')}>
+          <Select
+            value={inboxFilter}
+            onValueChange={(value) => setInboxFilter(value as InboxFilter)}
+          >
             <SelectTrigger className={filterTriggerClass}>
               {progressiveFilters ? (
                 <>
-                  <span className="truncate @min-[480px]:hidden">{STATUS_SHORT_LABELS[status]}</span>
+                  <span className="truncate @min-[480px]:hidden">
+                    {STATUS_SHORT_LABELS[inboxFilter]}
+                  </span>
                   <span className="hidden truncate @min-[480px]:inline">{statusLabel}</span>
                 </>
               ) : (
@@ -1162,7 +1266,7 @@ export default function OpportunitiesPage() {
                   variant="outline"
                   className="mt-3"
                   disabled={syncSamGov.isPending}
-                  onClick={() => syncSamGov.mutate(14)}
+                  onClick={runSamGovSync}
                 >
                   <RefreshCw
                     className={cn(
@@ -1226,12 +1330,33 @@ export default function OpportunitiesPage() {
         meta={`${data?.total ?? 0} visible opportunities · ${sources?.length ?? 0} sources`}
         actions={
           <div className="flex items-center gap-1.5">
+            <Select
+              value={syncCollectionId}
+              onValueChange={handleSyncCollectionChange}
+              disabled={syncSamGov.isPending || setSamSyncCollection.isPending}
+            >
+              <SelectTrigger
+                size="sm"
+                className="h-7 max-w-[11rem] text-xs"
+                aria-label="Collection filter for SAM.gov sync"
+              >
+                <SelectValue placeholder="No collection" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No collection</SelectItem>
+                {syncCollections.map((collection) => (
+                  <SelectItem key={collection.id} value={collection.id}>
+                    {collection.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button
               variant="outline"
               size="sm"
               className="h-7 px-2 text-xs"
               disabled={syncSamGov.isPending}
-              onClick={() => syncSamGov.mutate(14)}
+              onClick={runSamGovSync}
               aria-label="Sync SAM.gov opportunities"
             >
               <RefreshCw
@@ -1244,7 +1369,6 @@ export default function OpportunitiesPage() {
                 {syncSamGov.isPending ? 'Syncing SAM.gov…' : 'Sync SAM.gov'}
               </span>
             </Button>
-            <PageRefreshButton onClick={() => refetch()} />
           </div>
         }
       />

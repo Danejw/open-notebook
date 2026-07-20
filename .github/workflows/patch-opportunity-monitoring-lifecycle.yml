@@ -1,6 +1,9 @@
 name: Patch Opportunity Monitoring Lifecycle
 
 on:
+  pull_request:
+    branches:
+      - dev
   push:
     branches:
       - feature/opportunity-watch-monitoring-v2

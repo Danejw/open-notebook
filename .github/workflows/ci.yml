@@ -46,6 +46,11 @@ jobs:
       - name: Compile backend modules
         run: python -m compileall -q api construction_os
 
+      - name: Run HTML template binding tests
+        env:
+          CONSTRUCTION_OS_PASSWORD: ''
+        run: python -m pytest -q tests/test_html_template_binding.py
+
       - name: Detect Opportunity Hub tests
         id: opportunity-hub
         run: |

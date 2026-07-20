@@ -318,31 +318,92 @@ def should_record_change(
     return bool(diff.get("changed_fields")) and not establishing_baseline
 
 
-def infer_sam_source_state(record: Dict[str, Any]) -> Tuple[str, Optional[str]]:
-    """Map SAM.gov lifecycle metadata without changing the internal workflow status."""
+def _parse_sam_datetime(value: Any) -> Optional[datetime]:
+    """Parse the common date formats returned by SAM.gov lifecycle fields."""
 
-    text = " ".join(
+    if value is None or value == "":
+        return None
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, date):
+        parsed = datetime.combine(value, datetime.min.time())
+    else:
+        text = str(value).strip()
+        if not text:
+            return None
+        normalized = text[:-1] + "+00:00" if text.endswith("Z") else text
+        try:
+            parsed = datetime.fromisoformat(normalized)
+        except ValueError:
+            parsed = None
+            for pattern in ("%m/%d/%Y", "%Y-%m-%d"):
+                try:
+                    parsed = datetime.strptime(text, pattern)
+                    break
+                except ValueError:
+                    continue
+            if parsed is None:
+                return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _is_true(value: Any) -> bool:
+    if value is True:
+        return True
+    return str(value).strip().lower() in {"yes", "true", "1", "active"}
+
+
+def _is_false(value: Any) -> bool:
+    if value is False:
+        return True
+    return str(value).strip().lower() in {"no", "false", "0", "inactive"}
+
+
+def infer_sam_source_state(
+    record: Dict[str, Any], *, now: Optional[datetime] = None
+) -> Tuple[str, Optional[str]]:
+    """Map official SAM.gov state without treating a future archive date as archived."""
+
+    now = now or utcnow()
+    status_text = " ".join(
         str(record.get(key) or "")
         for key in (
+            "status",
+            "statusCode",
+            "statusValue",
             "active",
-            "archiveType",
-            "type",
             "title",
             "description",
-            "award",
         )
     ).lower()
-    if any(token in text for token in ("cancelled", "canceled", "cancellation")):
+
+    cancelled = record.get("cancelled")
+    if _is_true(cancelled) or any(
+        token in status_text for token in ("cancelled", "canceled", "cancellation")
+    ):
         return "cancelled", "SAM.gov identifies the notice as cancelled"
+
     if record.get("award") or record.get("awardNumber"):
         return "awarded", "SAM.gov includes award information"
-    if record.get("archiveDate") or "archived" in text:
-        return "archived", str(record.get("archiveType") or "SAM.gov notice archived")
+
     active = record.get("active")
-    if active is True or str(active).strip().lower() in {"yes", "true", "active"}:
+    archive_at = _parse_sam_datetime(record.get("archiveDate"))
+    explicit_archived = _is_true(record.get("archived")) or "archived" in status_text
+
+    if _is_true(active):
         return "active", None
-    if active is False or str(active).strip().lower() in {"no", "false", "inactive"}:
+    if explicit_archived:
+        return "archived", str(record.get("archiveType") or "SAM.gov notice archived")
+    if archive_at and archive_at <= now:
+        return "archived", str(record.get("archiveType") or "SAM.gov archive date passed")
+    if _is_false(active) or "inactive" in status_text:
         return "inactive", "SAM.gov marks the notice inactive"
+    if archive_at and archive_at > now:
+        # SAM.gov defines archiveDate as the future date when an active notice will
+        # move to inactive status. It is scheduling metadata, not current state.
+        return "active", None
     return "unknown", None
 
 

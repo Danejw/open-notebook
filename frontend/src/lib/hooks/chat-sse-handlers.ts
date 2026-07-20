@@ -17,12 +17,48 @@ import { parseA2uiEvent } from '@/lib/ag-ui/a2ui'
 import { isA2uiChatEnabled } from '@/lib/a2ui/constants'
 import { useA2uiSurfaceStore } from '@/lib/a2ui/surface-store'
 import type { ChatToolCall } from '@/lib/types/mcp'
+import { attachHtmlToChatContent } from '@/lib/utils/extract-html-from-chat'
+
+export const HTML_TEMPLATE_OUTPUT_EVENT = 'html_template_output'
 
 export interface ChatStreamMessage {
   id: string
   type: 'human' | 'ai'
   content: string
   timestamp?: string
+}
+
+export interface ParsedHtmlTemplateOutputEvent {
+  messageId: string | null
+  templateId: string | null
+  html: string
+}
+
+export function parseHtmlTemplateOutputEvent(
+  event: AgUiEvent
+): ParsedHtmlTemplateOutputEvent | null {
+  if (event.name !== HTML_TEMPLATE_OUTPUT_EVENT) {
+    return null
+  }
+  const value = event.value
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null
+  }
+  const record = value as Record<string, unknown>
+  if (typeof record.html !== 'string' || !record.html.trim()) {
+    return null
+  }
+  return {
+    messageId:
+      typeof record.messageId === 'string'
+        ? record.messageId
+        : typeof event.messageId === 'string'
+          ? event.messageId
+          : null,
+    templateId:
+      typeof record.templateId === 'string' ? record.templateId : null,
+    html: record.html,
+  }
 }
 
 export interface AgUiSseHandlerDeps<TMessage extends ChatStreamMessage> {
@@ -144,6 +180,32 @@ export function createAgUiChatSseHandler<TMessage extends ChatStreamMessage>(
             const store = useA2uiSurfaceStore.getState()
             const boundMessageId = a2ui.messageId || aiMessageIdRef.current
             store.applyMessages(boundMessageId, a2ui.messages)
+          }
+        }
+        const htmlOutput = parseHtmlTemplateOutputEvent(event)
+        if (htmlOutput) {
+          const boundMessageId = htmlOutput.messageId || aiMessageIdRef.current
+          if (boundMessageId) {
+            const currentContent =
+              streamContentRef.current.get(boundMessageId) ?? ''
+            const nextContent = attachHtmlToChatContent(
+              currentContent,
+              htmlOutput.html
+            )
+            streamContentRef.current.set(boundMessageId, nextContent)
+            setMessages((prev) => {
+              let found = false
+              const updated = prev.map((message) => {
+                if (message.id !== boundMessageId) {
+                  return message
+                }
+                found = true
+                return { ...message, content: nextContent }
+              })
+              return found
+                ? updated
+                : [...updated, createAiMessage(boundMessageId, nextContent)]
+            })
           }
         }
         onCustomEvent?.(event)

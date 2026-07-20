@@ -1,0 +1,45 @@
+name: Refresh Opportunity Branch UV Lock
+
+on:
+  push:
+    branches:
+      - feature/opportunity-watch-monitoring-v2
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-opportunity-uv-lock
+  cancel-in-progress: true
+
+jobs:
+  refresh-lock:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/opportunity-watch-monitoring-v2
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Refresh lockfile
+        run: uv lock
+
+      - name: Commit refreshed lockfile
+        run: |
+          if git diff --quiet -- uv.lock; then
+            echo "uv.lock is already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add uv.lock
+          git commit -m "chore: refresh uv lock for opportunity monitoring"
+          git push origin HEAD:feature/opportunity-watch-monitoring-v2

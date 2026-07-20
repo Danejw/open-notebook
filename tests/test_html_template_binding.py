@@ -99,9 +99,9 @@ async def test_render_selected_template_uses_runtime_structured_schema(monkeypat
             result = {}
             for slot_id, field in self.schema["properties"].items():
                 description = field["description"]
-                if "project_name" in description:
+                if "template field 'project_name'" in description:
                     result[slot_id] = "GEN Korean BBQ"
-                elif "address" in description:
+                elif "template field 'address'" in description:
                     result[slot_id] = "75-971 Henry Street"
                 else:
                     result[slot_id] = "$2,200,000"

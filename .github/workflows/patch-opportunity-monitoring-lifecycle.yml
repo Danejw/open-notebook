@@ -172,6 +172,16 @@ jobs:
           test_path.write_text(tests)
           PY
 
+      - name: Upload generated patch files
+        uses: actions/upload-artifact@v4
+        with:
+          name: opportunity-monitoring-lifecycle-generated-files
+          path: |
+            construction_os/domain/opportunity.py
+            construction_os/services/opportunities.py
+            tests/test_opportunity_monitoring.py
+          retention-days: 3
+
       - name: Install formatter
         run: python -m pip install ruff
 

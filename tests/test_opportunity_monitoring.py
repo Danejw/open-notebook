@@ -1,5 +1,8 @@
 from datetime import date, datetime, timedelta, timezone
 
+import pytest
+
+from construction_os.domain.base import ObjectModel
 from construction_os.domain.opportunity import Opportunity
 from construction_os.services.opportunity_monitoring import (
     _merge_document_runtime_metadata,
@@ -202,35 +205,42 @@ def test_legacy_reviewing_status_maps_to_none_and_pre_solicitation():
 def test_infer_sam_source_state_handles_awards_and_cancellations():
     assert infer_sam_source_state({"active": "Yes"}) == ("active", None)
     assert infer_sam_source_state({"awardNumber": "W912-26-C-001"})[0] == "awarded"
-    assert infer_sam_source_state(
-        {"description": "This solicitation is cancelled"}
-    )[0] == "cancelled"
+    assert (
+        infer_sam_source_state({"description": "This solicitation is cancelled"})[0]
+        == "cancelled"
+    )
 
 
 def test_future_archive_date_is_scheduling_metadata_not_current_state():
     now = datetime(2026, 7, 17, tzinfo=timezone.utc)
 
-    assert infer_sam_source_state(
-        {
-            "active": "Yes",
-            "archiveDate": "2026-08-01",
-            "archiveType": "auto",
-        },
-        now=now,
-    )[0] == "active"
+    assert (
+        infer_sam_source_state(
+            {
+                "active": "Yes",
+                "archiveDate": "2026-08-01",
+                "archiveType": "auto",
+            },
+            now=now,
+        )[0]
+        == "active"
+    )
 
 
 def test_past_archive_date_is_archived_when_not_active():
     now = datetime(2026, 8, 2, tzinfo=timezone.utc)
 
-    assert infer_sam_source_state(
-        {
-            "active": "No",
-            "archiveDate": "2026-08-01",
-            "archiveType": "auto",
-        },
-        now=now,
-    )[0] == "archived"
+    assert (
+        infer_sam_source_state(
+            {
+                "active": "No",
+                "archiveDate": "2026-08-01",
+                "archiveType": "auto",
+            },
+            now=now,
+        )[0]
+        == "archived"
+    )
 
 
 def test_monitoring_interval_becomes_urgent_near_deadline(monkeypatch):
@@ -294,3 +304,33 @@ def test_refresh_after_baseline_records_meaningful_change():
     )
 
     assert should_record_change(opportunity, "scheduled", diff) is True
+
+
+@pytest.mark.asyncio
+async def test_manual_pause_is_not_reenabled_when_pursuing_opportunity_is_saved(
+    monkeypatch,
+):
+    async def no_op_score(_opportunity):
+        return None
+
+    async def no_op_base_save(_opportunity):
+        return None
+
+    monkeypatch.setattr(
+        "construction_os.services.opportunity_scoring.apply_opportunity_score",
+        no_op_score,
+    )
+    monkeypatch.setattr(ObjectModel, "save", no_op_base_save)
+
+    opportunity = make_opportunity(
+        status="pursuing",
+        monitoring_enabled=False,
+        monitoring_health="inactive",
+        monitoring_next_check_at=None,
+    )
+
+    await opportunity.save()
+
+    assert opportunity.status == "pursuing"
+    assert opportunity.monitoring_enabled is False
+    assert opportunity.monitoring_health == "inactive"

@@ -31,74 +31,38 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          def replace_once(text: str, old: str, new: str, label: str) -> str:
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f"Expected one {label} match, found {count}")
-              return text.replace(old, new, 1)
-
           domain_path = Path("construction_os/domain/opportunity.py")
           domain = domain_path.read_text()
-          domain = replace_once(
-              domain,
+          domain = domain.replace(
               "from datetime import datetime, timezone",
               "from datetime import datetime",
-              "domain datetime import",
+              1,
           )
-          domain = replace_once(
-              domain,
-              '''    async def save(self) -> None:
-                  """Keep monitoring lifecycle aligned with the internal bid workflow."""
-
-                  monitored_statuses = {"watching", "pursuing", "submitted"}
-                  terminal_statuses = {"won", "lost", "no_bid", "ignored"}
-                  if self.source_key == "sam_gov_hawaii" and self.status in monitored_statuses:
-                      if not self.monitoring_enabled:
-                          self.monitoring_enabled = True
-                          self.monitoring_health = "pending"
-                          self.monitoring_last_error = None
-                          self.monitoring_next_check_at = datetime.now(timezone.utc)
-                  elif self.status in terminal_statuses or self.archived:
-                      self.monitoring_enabled = False
-                      self.monitoring_health = "inactive"
-                      self.monitoring_next_check_at = None
-                      self.monitoring_lease_until = None
-''',
-              '''    async def save(self) -> None:
-                  """Recalculate fit and stop monitoring for terminal workflows."""
-
-                  terminal_statuses = {"won", "lost", "no_bid", "ignored"}
-                  if self.status in terminal_statuses or self.archived:
-                      self.monitoring_enabled = False
-                      self.monitoring_health = "inactive"
-                      self.monitoring_next_check_at = None
-                      self.monitoring_lease_until = None
-''',
-              "domain monitoring save lifecycle",
+          save_start = domain.index("    async def save(self) -> None:")
+          save_end = domain.index(
+              "\n        from construction_os.services.opportunity_scoring",
+              save_start,
           )
+          save_block = '''    async def save(self) -> None:
+              """Recalculate fit and stop monitoring for terminal workflows."""
+
+              terminal_statuses = {"won", "lost", "no_bid", "ignored"}
+              if self.status in terminal_statuses or self.archived:
+                  self.monitoring_enabled = False
+                  self.monitoring_health = "inactive"
+                  self.monitoring_next_check_at = None
+                  self.monitoring_lease_until = None
+          '''
+          domain = domain[:save_start] + save_block + domain[save_end:]
           domain_path.write_text(domain)
 
           service_path = Path("construction_os/services/opportunities.py")
           service = service_path.read_text()
-          status_function = '''async def set_opportunity_status(opportunity_id: str, status: str) -> Opportunity:
-              opportunity = await get_opportunity(opportunity_id)
-              allowed = {
-                  "none",
-                  "watching",
-                  "pursuing",
-                  "submitted",
-                  "won",
-                  "lost",
-                  "no_bid",
-                  "ignored",
-              }
-              if status not in allowed:
-                  raise InvalidInputError(f"Unsupported opportunity status: {status}")
-              opportunity.status = status  # type: ignore[assignment]
-              await opportunity.save()
-              return opportunity
-'''
-          replacement = '''def _align_monitoring_with_workflow_status(
+          status_start = service.index(
+              "async def set_opportunity_status(opportunity_id: str, status: str) -> Opportunity:"
+          )
+          status_end = service.index("\n\ndef opportunity_summary_markdown", status_start)
+          status_block = '''def _align_monitoring_with_workflow_status(
               opportunity: Opportunity, status: str
           ) -> None:
               """Apply explicit monitor transitions without overriding a later manual pause."""
@@ -143,69 +107,70 @@ jobs:
               _align_monitoring_with_workflow_status(opportunity, status)
               await opportunity.save()
               return opportunity
-'''
-          service = replace_once(
-              service,
-              status_function,
-              replacement,
-              "set opportunity status function",
-          )
-          service = replace_once(
-              service,
-              '''    opportunity.project_id = project.id
+          '''
+          service = service[:status_start] + status_block + service[status_end:]
+          pursue_old = '''    opportunity.project_id = project.id
               opportunity.status = "pursuing"
               await opportunity.save()
-''',
-              '''    opportunity.project_id = project.id
+          '''
+          pursue_new = '''    opportunity.project_id = project.id
               opportunity.status = "pursuing"
               _align_monitoring_with_workflow_status(opportunity, "pursuing")
               await opportunity.save()
-''',
-              "pursue monitoring transition",
-          )
+          '''
+          if pursue_old not in service:
+              raise SystemExit("Pursue status block was not found")
+          service = service.replace(pursue_old, pursue_new, 1)
           service_path.write_text(service)
 
           test_path = Path("tests/test_opportunity_monitoring.py")
           tests = test_path.read_text()
-          tests = replace_once(
-              tests,
-              "from construction_os.domain.opportunity import Opportunity\n",
-              "import pytest\n\nfrom construction_os.domain.base import ObjectModel\nfrom construction_os.domain.opportunity import Opportunity\n",
-              "monitoring test imports",
+          if "from construction_os.domain.base import ObjectModel" not in tests:
+              tests = tests.replace(
+                  "from construction_os.domain.opportunity import Opportunity\n",
+                  "import pytest\n\nfrom construction_os.domain.base import ObjectModel\nfrom construction_os.domain.opportunity import Opportunity\n",
+                  1,
+              )
+          test_name = (
+              "test_manual_pause_is_not_reenabled_when_pursuing_opportunity_is_saved"
           )
-          tests += '''
+          if test_name not in tests:
+              tests += '''
 
-@pytest.mark.asyncio
-async def test_manual_pause_is_not_reenabled_when_pursuing_opportunity_is_saved(
-    monkeypatch,
-):
-    async def no_op_score(_opportunity):
-        return None
+          @pytest.mark.asyncio
+          async def test_manual_pause_is_not_reenabled_when_pursuing_opportunity_is_saved(
+              monkeypatch,
+          ):
+              async def no_op_score(_opportunity):
+                  return None
 
-    async def no_op_base_save(_opportunity):
-        return None
+              async def no_op_base_save(_opportunity):
+                  return None
 
-    monkeypatch.setattr(
-        "construction_os.services.opportunity_scoring.apply_opportunity_score",
-        no_op_score,
-    )
-    monkeypatch.setattr(ObjectModel, "save", no_op_base_save)
+              monkeypatch.setattr(
+                  "construction_os.services.opportunity_scoring.apply_opportunity_score",
+                  no_op_score,
+              )
+              monkeypatch.setattr(ObjectModel, "save", no_op_base_save)
 
-    opportunity = make_opportunity(
-        status="pursuing",
-        monitoring_enabled=False,
-        monitoring_health="inactive",
-        monitoring_next_check_at=None,
-    )
+              opportunity = make_opportunity(
+                  status="pursuing",
+                  monitoring_enabled=False,
+                  monitoring_health="inactive",
+                  monitoring_next_check_at=None,
+              )
 
-    await opportunity.save()
+              await opportunity.save()
 
-    assert opportunity.status == "pursuing"
-    assert opportunity.monitoring_enabled is False
-    assert opportunity.monitoring_health == "inactive"
-'''
+              assert opportunity.status == "pursuing"
+              assert opportunity.monitoring_enabled is False
+              assert opportunity.monitoring_health == "inactive"
+          '''
           test_path.write_text(tests)
           PY
+
+      - name: Format patched Python files
+        run: python -m ruff format construction_os/domain/opportunity.py construction_os/services/opportunities.py tests/test_opportunity_monitoring.py
 
       - name: Commit lifecycle patch
         run: |

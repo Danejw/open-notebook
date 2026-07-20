@@ -14,13 +14,15 @@ DEFINE FIELD OVERWRITE monitoring_lease_until ON opportunity TYPE option<datetim
 DEFINE FIELD OVERWRITE monitoring_snapshot_hash ON opportunity TYPE option<string>;
 DEFINE FIELD OVERWRITE monitoring_unread_changes ON opportunity TYPE option<int> DEFAULT 0;
 
+UPDATE opportunity SET source_status = 'unknown'
+WHERE source_status IS NONE;
+
 UPDATE opportunity SET
-    source_status = 'unknown',
     monitoring_enabled = false,
     monitoring_health = 'inactive',
     monitoring_consecutive_failures = 0,
     monitoring_unread_changes = 0
-WHERE source_status IS NONE;
+WHERE monitoring_enabled IS NONE;
 
 -- Existing SAM.gov workflow records should begin with an immediate baseline check.
 UPDATE opportunity SET
@@ -47,6 +49,6 @@ DEFINE FIELD OVERWRITE removed_documents ON opportunity_change TYPE array DEFAUL
 DEFINE FIELD OVERWRITE snapshot_hash ON opportunity_change TYPE string;
 DEFINE FIELD OVERWRITE acknowledged ON opportunity_change TYPE bool DEFAULT false;
 DEFINE INDEX OVERWRITE idx_opportunity_change_opportunity ON opportunity_change FIELDS opportunity_id, detected_at;
-DEFINE INDEX OVERWRITE idx_opportunity_change_snapshot ON opportunity_change FIELDS opportunity_id, snapshot_hash UNIQUE;
+DEFINE INDEX OVERWRITE idx_opportunity_change_snapshot ON opportunity_change FIELDS opportunity_id, snapshot_hash;
 
 RETURN true;

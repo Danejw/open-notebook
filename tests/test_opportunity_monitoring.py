@@ -202,8 +202,35 @@ def test_legacy_reviewing_status_maps_to_none_and_pre_solicitation():
 def test_infer_sam_source_state_handles_awards_and_cancellations():
     assert infer_sam_source_state({"active": "Yes"}) == ("active", None)
     assert infer_sam_source_state({"awardNumber": "W912-26-C-001"})[0] == "awarded"
-    assert infer_sam_source_state({"description": "This solicitation is cancelled"})[0] == "cancelled"
-    assert infer_sam_source_state({"archiveDate": "2026-08-01", "archiveType": "auto"})[0] == "archived"
+    assert infer_sam_source_state(
+        {"description": "This solicitation is cancelled"}
+    )[0] == "cancelled"
+
+
+def test_future_archive_date_is_scheduling_metadata_not_current_state():
+    now = datetime(2026, 7, 17, tzinfo=timezone.utc)
+
+    assert infer_sam_source_state(
+        {
+            "active": "Yes",
+            "archiveDate": "2026-08-01",
+            "archiveType": "auto",
+        },
+        now=now,
+    )[0] == "active"
+
+
+def test_past_archive_date_is_archived_when_not_active():
+    now = datetime(2026, 8, 2, tzinfo=timezone.utc)
+
+    assert infer_sam_source_state(
+        {
+            "active": "No",
+            "archiveDate": "2026-08-01",
+            "archiveType": "auto",
+        },
+        now=now,
+    )[0] == "archived"
 
 
 def test_monitoring_interval_becomes_urgent_near_deadline(monkeypatch):

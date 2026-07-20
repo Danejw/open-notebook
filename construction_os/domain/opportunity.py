@@ -1,8 +1,8 @@
-"""Normalized procurement opportunities and source registry models."""
+"""Normalized procurement opportunities, monitoring, and source registry models."""
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, ClassVar, Dict, List, Literal, Optional
 
 from pydantic import Field, field_validator, model_validator
@@ -26,6 +26,28 @@ OpportunityStatus = Literal[
     "no_bid",
     "ignored",
 ]
+
+OpportunitySourceStatus = Literal[
+    "active",
+    "inactive",
+    "archived",
+    "cancelled",
+    "awarded",
+    "unknown",
+]
+
+OpportunityMonitoringHealth = Literal[
+    "inactive",
+    "pending",
+    "healthy",
+    "delayed",
+    "failing",
+    "authentication_required",
+    "source_unavailable",
+]
+
+OpportunityChangeSeverity = Literal["informational", "important", "critical"]
+OpportunityRefreshTrigger = Literal["initial", "scheduled", "manual"]
 
 ProcurementType = Literal[
     "IFB",
@@ -107,6 +129,8 @@ class Opportunity(ObjectModel):
     procurement_type: ProcurementType = "OTHER"
     source_stage: OpportunitySourceStage = "early_research"
     status: OpportunityStatus = "none"
+    source_status: OpportunitySourceStatus = "unknown"
+    source_status_reason: Optional[str] = None
 
     island: HawaiiIsland = "Unknown"
     location: str = ""
@@ -149,12 +173,25 @@ class Opportunity(ObjectModel):
     score_updated_at: Optional[datetime] = None
     extraction_confidence: Optional[float] = None
 
+    monitoring_enabled: bool = False
+    monitoring_health: OpportunityMonitoringHealth = "inactive"
+    monitoring_last_checked_at: Optional[datetime] = None
+    monitoring_last_success_at: Optional[datetime] = None
+    monitoring_last_changed_at: Optional[datetime] = None
+    monitoring_next_check_at: Optional[datetime] = None
+    monitoring_last_error: Optional[str] = None
+    monitoring_consecutive_failures: int = 0
+    monitoring_lease_until: Optional[datetime] = None
+    monitoring_snapshot_hash: Optional[str] = None
+    monitoring_unread_changes: int = 0
+
     project_id: Optional[str] = None
     archived: bool = False
     raw_payload: Dict[str, Any] = Field(default_factory=dict)
 
     nullable_fields: ClassVar[set[str]] = {
         "solicitation_number",
+        "source_status_reason",
         "published_at",
         "questions_due_at",
         "prebid_at",
@@ -176,6 +213,13 @@ class Opportunity(ObjectModel):
         "fit_score",
         "score_updated_at",
         "extraction_confidence",
+        "monitoring_last_checked_at",
+        "monitoring_last_success_at",
+        "monitoring_last_changed_at",
+        "monitoring_next_check_at",
+        "monitoring_last_error",
+        "monitoring_lease_until",
+        "monitoring_snapshot_hash",
         "project_id",
     }
 
@@ -206,9 +250,17 @@ class Opportunity(ObjectModel):
                 data["source_stage"] = "early_research"
         elif status in {"new", "reviewing"}:
             data["status"] = "none"
+
+        data.setdefault("source_status", "unknown")
+        data.setdefault("monitoring_enabled", False)
+        data.setdefault("monitoring_health", "inactive")
+        data.setdefault("monitoring_consecutive_failures", 0)
+        data.setdefault("monitoring_unread_changes", 0)
         return data
 
-    @field_validator("source_key", "external_id", "fingerprint", "title", "agency", "source_url")
+    @field_validator(
+        "source_key", "external_id", "fingerprint", "title", "agency", "source_url"
+    )
     @classmethod
     def required_text(cls, value: str) -> str:
         value = value.strip()
@@ -230,10 +282,59 @@ class Opportunity(ObjectModel):
             raise InvalidInputError("extraction_confidence must be between 0 and 1")
         return value
 
+    @field_validator("monitoring_consecutive_failures", "monitoring_unread_changes")
+    @classmethod
+    def non_negative_monitoring_count(cls, value: int) -> int:
+        if value < 0:
+            raise InvalidInputError("Monitoring counters cannot be negative")
+        return value
+
     async def save(self) -> None:
-        """Recalculate fit whenever imported metadata or addenda change."""
+        """Keep monitoring lifecycle aligned with the internal bid workflow."""
+
+        monitored_statuses = {"watching", "pursuing", "submitted"}
+        terminal_statuses = {"won", "lost", "no_bid", "ignored"}
+        if self.source_key == "sam_gov_hawaii" and self.status in monitored_statuses:
+            if not self.monitoring_enabled:
+                self.monitoring_enabled = True
+                self.monitoring_health = "pending"
+                self.monitoring_last_error = None
+                self.monitoring_next_check_at = datetime.now(timezone.utc)
+        elif self.status in terminal_statuses or self.archived:
+            self.monitoring_enabled = False
+            self.monitoring_health = "inactive"
+            self.monitoring_next_check_at = None
+            self.monitoring_lease_until = None
 
         from construction_os.services.opportunity_scoring import apply_opportunity_score
 
         await apply_opportunity_score(self)
         await super().save()
+
+
+class OpportunityChange(ObjectModel):
+    """Immutable record describing meaningful changes detected during one refresh."""
+
+    table_name: ClassVar[str] = "opportunity_change"
+
+    opportunity_id: str
+    detected_at: datetime
+    trigger: OpportunityRefreshTrigger
+    severity: OpportunityChangeSeverity
+    summary: str
+    source_updated_at: Optional[datetime] = None
+    changed_fields: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+    new_documents: List[Dict[str, Any]] = Field(default_factory=list)
+    removed_documents: List[Dict[str, Any]] = Field(default_factory=list)
+    snapshot_hash: str
+    acknowledged: bool = False
+
+    nullable_fields: ClassVar[set[str]] = {"source_updated_at"}
+
+    @field_validator("opportunity_id", "summary", "snapshot_hash")
+    @classmethod
+    def required_change_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise InvalidInputError("Opportunity change fields cannot be empty")
+        return value

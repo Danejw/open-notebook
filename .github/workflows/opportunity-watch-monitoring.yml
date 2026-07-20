@@ -56,13 +56,23 @@ jobs:
         env:
           CONSTRUCTION_OS_PASSWORD: ''
         run: |
+          set -o pipefail
           python -m pytest -q \
             tests/test_opportunity_collectors.py \
             tests/test_opportunity_scoring.py \
             tests/test_opportunity_status_split.py \
             tests/test_opportunity_document_ingest.py \
             tests/test_opportunity_naics_collections.py \
-            tests/test_opportunity_monitoring.py
+            tests/test_opportunity_monitoring.py 2>&1 | tee pytest-opportunity-monitoring.log
+
+      - name: Upload backend diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opportunity-monitoring-backend-errors
+          path: pytest-opportunity-monitoring.log
+          if-no-files-found: error
+          retention-days: 3
 
   frontend:
     name: Frontend checks
@@ -96,7 +106,18 @@ jobs:
             src/lib/types/opportunities.ts
 
       - name: Type-check frontend
-        run: npx tsc --noEmit --pretty false
+        run: |
+          set -o pipefail
+          npx tsc --noEmit --pretty false 2>&1 | tee typescript-opportunity-monitoring.log
+
+      - name: Upload frontend diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opportunity-monitoring-frontend-errors
+          path: frontend/typescript-opportunity-monitoring.log
+          if-no-files-found: error
+          retention-days: 3
 
       - name: Run frontend regression tests
         run: npm test -- --exclude src/lib/locales/index.test.ts

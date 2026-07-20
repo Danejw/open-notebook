@@ -64,13 +64,16 @@ interface KnowledgeGraphViewProps {
   projectId: string
   /** Stacked layout for embedding in the Sources column (no source sidebar). */
   embedded?: boolean
-  /** Trailing header actions when embedded (view tabs, Add Source, collapse). */
+  /** Top-left overlay when embedded (List/Graph tabs). */
+  headerLeading?: ReactNode
+  /** Top-right overlay when embedded (Add Source). */
   headerTrailing?: ReactNode
 }
 
 export function KnowledgeGraphView({
   projectId,
   embedded = false,
+  headerLeading,
   headerTrailing,
 }: KnowledgeGraphViewProps) {
   const { t } = useTranslation()
@@ -411,6 +414,7 @@ export function KnowledgeGraphView({
   const toolbar = (
     <GraphToolbar
       layout={embedded ? 'bar' : 'overlay'}
+      leading={embedded ? headerLeading : undefined}
       trailing={embedded ? headerTrailing : undefined}
       showSourcesToggle={!embedded}
       sourcesOpen={sourcesOpen}
@@ -471,15 +475,10 @@ export function KnowledgeGraphView({
         )}
       </div>
 
-      {!embedded ? toolbar : null}
+      {toolbar}
 
       {viewMode === 'queryTrace' && queryRunQuery.data?.run ? (
-        <div
-          className={cn(
-            'pointer-events-none absolute inset-x-0 z-20 flex justify-center p-0.5',
-            embedded ? 'top-0' : 'top-9'
-          )}
-        >
+        <div className="pointer-events-none absolute inset-x-0 top-9 z-20 flex justify-center p-0.5">
           <div className="max-w-[90%] truncate rounded-md border border-cyan-200/60 bg-cyan-50/90 px-1.5 py-0.5 text-[11px] text-cyan-900 shadow-sm backdrop-blur-sm dark:border-cyan-800/60 dark:bg-cyan-950/90 dark:text-cyan-100">
             {t('knowledge.graphQueryTrace').replace(
               '{query}',
@@ -531,11 +530,10 @@ export function KnowledgeGraphView({
   return (
     <div
       className={cn(
-        'flex h-full min-h-0 flex-col overflow-hidden',
+        'relative flex h-full min-h-0 flex-col overflow-hidden',
         embedded ? 'min-h-[180px]' : 'min-h-[320px]'
       )}
     >
-      {embedded ? toolbar : null}
       {canvasArea}
     </div>
   )

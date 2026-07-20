@@ -21,7 +21,7 @@ from construction_os.knowledge.extractors.parse import (
 class _SpecializedExtractor:
     id: str
     label: str
-    version: str = "1.2.0"
+    version: str = "1.3.0"
     auto_run: bool = False
     prompt_template: str
 

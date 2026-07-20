@@ -53,7 +53,8 @@ def enrich_with_deterministic(
 
 
 def deterministic_sufficient(payload: ExtractionPayload) -> bool:
-    """True when parsers already produced a usable graph without the LLM."""
-    return len(payload.entities) >= 3 and (
-        len(payload.relations) >= 1 or len(payload.entities) >= 8
-    )
+    """True when parsers already produced a usable graph without the LLM.
+
+    Requires at least one relation so orphan-entity graphs still get an LLM pass.
+    """
+    return len(payload.entities) >= 3 and len(payload.relations) >= 1

@@ -12,9 +12,10 @@ from construction_os.knowledge.extractors.base import (
 )
 
 # SEE 3/A-501, DETAIL 3/A-501, SECTION A-501, SEE A501, REF P201, SEE SHEET P-201
+# Also OCR-ish: SEE3/A501, SEE SHT P201 (optional whitespace; SHT synonym)
 _CALLOUT_RE = re.compile(
-    r"(?i)\b(?:SEE(?:\s+ALSO)?|DETAIL|SECTION|REF(?:ER(?:ENCE|TO))?|PER)\s+"
-    r"(?:SHEET\s+)?"
+    r"(?i)\b(?:SEE(?:\s+ALSO)?|DETAIL|SECTION|REF(?:ER(?:ENCE|TO))?|PER)\s*"
+    r"(?:(?:SHEET|SHT\.?)\s+)?"
     r"(?P<target>"
     r"\d+\s*/\s*(?:FP|FA|FS|EL|PL|ME|ID|AV|LA|IR|[ASMEPCLTGHDWNK])-?\d{2,4}"
     r"|(?:FP|FA|FS|EL|PL|ME|ID|AV|LA|IR|[ASMEPCLTGHDWNK])-?\d{2,4}"
@@ -49,6 +50,7 @@ _INDEX_ROW_RE = re.compile(
 
 _DEFAULT_FROM = "Document"
 _PARSER_CONFIDENCE = 0.9
+_MAX_CO_DOC_RELATIONS = 40
 
 
 def _canon_label(raw: str) -> str:
@@ -85,6 +87,17 @@ def _frontmatter_sheet(text: str) -> Optional[str]:
     return _canon_label(m.group("sheet")) if m else None
 
 
+def _resolve_current_sheet(text: str) -> str:
+    """Frontmatter sheet, else first sheet ID in body, else Document."""
+    fm = _frontmatter_sheet(text)
+    if fm:
+        return fm
+    first = _SHEET_RE.search((text or "").upper())
+    if first:
+        return _canon_label(first.group("sheet"))
+    return _DEFAULT_FROM
+
+
 def extract_crossrefs(text: str) -> ExtractionPayload:
     """Parse explicit cross-refs into Reference entities and REFERENCES relations."""
     if not text:
@@ -105,14 +118,14 @@ def extract_crossrefs(text: str) -> ExtractionPayload:
             entities.append(ExtractedEntity(label=canon, type="Reference"))
         return canon
 
-    def add_relation(from_label: str, to_label: str) -> None:
+    def add_relation(from_label: str, to_label: str) -> bool:
         frm = add_entity(from_label)
         to = add_entity(to_label)
         if not frm or not to or frm.lower() == to.lower():
-            return
+            return False
         key = ("REFERENCES", frm.lower(), to.lower())
         if key in relation_keys:
-            return
+            return False
         relation_keys.add(key)
         relations.append(
             ExtractedRelation(
@@ -124,6 +137,7 @@ def extract_crossrefs(text: str) -> ExtractionPayload:
                 confidence=_PARSER_CONFIDENCE,
             )
         )
+        return True
 
     current_sheet = _frontmatter_sheet(text)
     if current_sheet:
@@ -151,11 +165,28 @@ def extract_crossrefs(text: str) -> ExtractionPayload:
         if current_sheet:
             add_relation(current_sheet, listed)
 
-    # Register remaining sheet / CSI identifiers as entities (no forced edges)
+    # Register remaining sheet / CSI identifiers as entities
+    sheet_labels: List[str] = []
     for m in _SHEET_RE.finditer(text.upper()):
-        add_entity(m.group("sheet"))
+        label = add_entity(m.group("sheet"))
+        if label and label not in sheet_labels:
+            sheet_labels.append(label)
+    csi_labels: List[str] = []
     for m in _CSI_RE.finditer(text):
-        add_entity(m.group("csi"))
+        label = add_entity(m.group("csi"))
+        if label and label not in csi_labels:
+            csi_labels.append(label)
+
+    # Co-document edges: current sheet → other sheets / CSI codes (capped)
+    anchor = current_sheet or _resolve_current_sheet(text)
+    if anchor and anchor != _DEFAULT_FROM:
+        add_entity(anchor)
+    co_doc_added = 0
+    for label in sheet_labels + csi_labels:
+        if co_doc_added >= _MAX_CO_DOC_RELATIONS:
+            break
+        if add_relation(anchor, label):
+            co_doc_added += 1
 
     return ExtractionPayload(entities=entities, relations=relations)
 

@@ -57,8 +57,29 @@ describe('AppSidebar', () => {
 
     // With mocked t() returning keys, check for translation key strings
     expect(screen.getByText('common.appName')).toBeDefined()
-    expect(screen.getByText('navigation.sources')).toBeDefined()
+    expect(screen.getByText('navigation.manage')).toBeDefined()
     expect(screen.getByText('navigation.projects')).toBeDefined()
+    // Manage items stay hidden until the section is expanded
+    expect(screen.queryByRole('link', { name: 'navigation.sources' })).toBeNull()
+  })
+
+  it('expands the manage section when toggled', () => {
+    renderSidebar(<AppSidebar />)
+
+    fireEvent.click(screen.getByTestId('manage-section-toggle'))
+
+    expect(screen.getByText('navigation.sources')).toBeDefined()
+    expect(screen.getByText('navigation.settings')).toBeDefined()
+  })
+
+  it('defaults the manage section to collapsed', () => {
+    renderSidebar(<AppSidebar />)
+
+    expect(screen.getByTestId('manage-section-toggle')).toHaveAttribute(
+      'aria-label',
+      'navigation.expandColumn'
+    )
+    expect(screen.queryByRole('link', { name: 'navigation.sources' })).toBeNull()
   })
 
   it('toggles collapse state when clicking handle', () => {
@@ -121,6 +142,7 @@ describe('AppSidebar', () => {
     vi.mocked(usePathname).mockReturnValue('/sources')
 
     renderSidebar(<AppSidebar />)
+    fireEvent.click(screen.getByTestId('manage-section-toggle'))
 
     expect(screen.getByRole('link', { name: 'navigation.sources' })).toHaveAttribute(
       'aria-current',
@@ -144,6 +166,7 @@ describe('AppSidebar', () => {
 
   it('does not nest button elements inside sidebar nav links', () => {
     const { container } = renderSidebar(<AppSidebar />)
+    fireEvent.click(screen.getByTestId('manage-section-toggle'))
 
     container.querySelectorAll('nav a').forEach((link) => {
       expect(link.querySelector('button')).toBeNull()

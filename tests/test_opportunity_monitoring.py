@@ -334,3 +334,85 @@ async def test_manual_pause_is_not_reenabled_when_pursuing_opportunity_is_saved(
     assert opportunity.status == "pursuing"
     assert opportunity.monitoring_enabled is False
     assert opportunity.monitoring_health == "inactive"
+
+
+@pytest.mark.asyncio
+async def test_fetch_sam_opportunity_retries_on_429(monkeypatch):
+    """Watch/refresh must share the collectors' SAM.gov 429 retry behavior."""
+
+    import httpx
+
+    from construction_os.services import opportunity_monitoring as monitoring
+
+    sleeps: list[float] = []
+    calls = {"n": 0}
+
+    class FakeResponse:
+        def __init__(self, status_code: int, payload=None):
+            self.status_code = status_code
+            self.headers = {"Retry-After": "1"}
+            self.url = "https://api.sam.gov/opportunities/v2/search?api_key=secret"
+            self._payload = payload or {}
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise httpx.HTTPStatusError(
+                    "error",
+                    request=httpx.Request("GET", str(self.url)),
+                    response=httpx.Response(self.status_code),
+                )
+
+        def json(self):
+            return self._payload
+
+    class FakeClient:
+        async def get(self, url, params=None):
+            calls["n"] += 1
+            if calls["n"] < 3:
+                return FakeResponse(429)
+            return FakeResponse(
+                200,
+                {
+                    "opportunitiesData": [
+                        {
+                            "noticeId": "notice-123",
+                            "title": "Repair Building 10",
+                        }
+                    ]
+                },
+            )
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    async def fake_sleep(delay: float):
+        sleeps.append(delay)
+
+    async def fake_normalize(record, api_key=None, client=None):
+        return {
+            "source_key": "sam_gov_hawaii",
+            "external_id": "notice-123",
+            "fingerprint": "fp",
+            "title": record.get("title") or "Repair Building 10",
+            "agency": "US Navy",
+            "source_url": "https://sam.gov/opp/notice-123/view",
+            "source_stage": "active_solicitation",
+            "source_status": "active",
+            "documents": [],
+        }
+
+    from construction_os.services import opportunity_collectors as collectors
+
+    monkeypatch.setenv("SAM_GOV_API_KEY", "test-key")
+    monkeypatch.setattr(monitoring.httpx, "AsyncClient", lambda **kwargs: FakeClient())
+    monkeypatch.setattr(collectors.asyncio, "sleep", fake_sleep)
+    monkeypatch.setattr(monitoring, "normalize_sam_opportunity", fake_normalize)
+
+    result = await monitoring.fetch_sam_opportunity(make_opportunity())
+
+    assert result["external_id"] == "notice-123"
+    assert calls["n"] == 3
+    assert sleeps == [1.0, 1.0]

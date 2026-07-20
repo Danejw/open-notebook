@@ -3,10 +3,23 @@
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Check, Clock3, Eye, RefreshCw, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  Check,
+  ChevronDown,
+  Clock3,
+  Eye,
+  RefreshCw,
+  X,
+} from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { opportunitiesApi } from '@/lib/api/opportunities'
 import {
   useAcknowledgeOpportunityChanges,
@@ -16,6 +29,7 @@ import {
 } from '@/lib/hooks/use-opportunities'
 import { useToast } from '@/lib/hooks/use-toast'
 import type { OpportunityMonitoringHealth } from '@/lib/types/opportunities'
+import { cn } from '@/lib/utils'
 
 const HEALTH_LABELS: Record<OpportunityMonitoringHealth, string> = {
   inactive: 'Inactive',
@@ -43,6 +57,22 @@ function healthVariant(health: OpportunityMonitoringHealth) {
   if (health === 'healthy') return 'secondary' as const
   if (health === 'failing' || health === 'authentication_required') return 'destructive' as const
   return 'outline' as const
+}
+
+function isAttentionHealth(health: OpportunityMonitoringHealth): boolean {
+  return health !== 'healthy' && health !== 'inactive'
+}
+
+/** Collapse long URLs so error alerts wrap cleanly at narrow widths. */
+function formatMonitoringError(error: string): string {
+  return error.replace(/https?:\/\/\S+/g, (url) => {
+    try {
+      const parsed = new URL(url.replace(/[),.;]+$/, ''))
+      return `${parsed.origin}${parsed.pathname}`
+    } catch {
+      return `${url.slice(0, 48)}…`
+    }
+  })
 }
 
 function OpportunityMonitoringPanel() {
@@ -92,118 +122,175 @@ function OpportunityMonitoringPanel() {
   const latestChanges = changes.slice(0, 5)
 
   return (
-    <details className="border-b bg-background px-3 py-2 open:bg-muted/20">
-      <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-medium">
-        <Eye className="size-4" />
-        <span>{monitored.length} monitored opportunities</span>
-        {unread > 0 ? <Badge variant="destructive">{unread} unread updates</Badge> : null}
-        <span className="ml-auto text-muted-foreground">Open monitoring center</span>
+    <details className="group border-b bg-background px-2 py-1 open:bg-muted/20">
+      <summary className="flex min-w-0 cursor-pointer list-none items-center gap-1.5 text-xs font-medium">
+        <Eye className="size-3.5 shrink-0" />
+        <span className="truncate">{monitored.length} monitored</span>
+        {unread > 0 ? (
+          <Badge variant="destructive" className="shrink-0">
+            {unread}
+          </Badge>
+        ) : null}
+        <ChevronDown className="ml-auto size-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
       </summary>
 
-      <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(240px,0.8fr)_minmax(0,1.2fr)]">
-        <div className="space-y-1.5">
-          {monitored.map((opportunity) => (
-            <button
-              key={opportunity.id}
-              type="button"
-              onClick={() => setSelectedId(opportunity.id)}
-              className={`w-full rounded-md border p-2 text-left text-xs transition-colors hover:bg-muted/50 ${
-                opportunity.id === selected?.id ? 'border-primary bg-primary/5' : ''
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <span className="line-clamp-2 font-medium">{opportunity.title}</span>
-                {opportunity.monitoring_unread_changes > 0 ? (
-                  <Badge variant="destructive">{opportunity.monitoring_unread_changes}</Badge>
-                ) : null}
-              </div>
-              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                <Badge variant={healthVariant(opportunity.monitoring_health)}>
-                  {HEALTH_LABELS[opportunity.monitoring_health]}
-                </Badge>
-                <span>Next {formatDate(opportunity.monitoring_next_check_at)}</span>
-              </div>
-            </button>
-          ))}
+      <div className="mt-1.5 grid min-w-0 gap-1.5 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+        <div className="min-w-0 divide-y rounded-md border">
+          {monitored.map((opportunity) => {
+            const selectedRow = opportunity.id === selected?.id
+            return (
+              <button
+                key={opportunity.id}
+                type="button"
+                onClick={() => setSelectedId(opportunity.id)}
+                className={cn(
+                  'flex w-full min-w-0 items-start gap-1.5 px-2 py-1.5 text-left text-xs transition-colors hover:bg-muted/50',
+                  selectedRow && 'bg-primary/5'
+                )}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 items-center gap-1">
+                    <span className="truncate font-medium">{opportunity.title}</span>
+                    {opportunity.monitoring_unread_changes > 0 ? (
+                      <Badge variant="destructive" className="shrink-0">
+                        {opportunity.monitoring_unread_changes}
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-muted-foreground">
+                    {isAttentionHealth(opportunity.monitoring_health) ? (
+                      <Badge variant={healthVariant(opportunity.monitoring_health)}>
+                        {HEALTH_LABELS[opportunity.monitoring_health]}
+                      </Badge>
+                    ) : null}
+                    <span className="truncate">
+                      Next {formatDate(opportunity.monitoring_next_check_at)}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            )
+          })}
         </div>
 
         {selected ? (
-          <div className="rounded-md border bg-background p-3">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <div className="text-sm font-semibold">{selected.title}</div>
-                <div className="mt-1 flex flex-wrap gap-1.5 text-[11px] text-muted-foreground">
-                  <Badge variant={healthVariant(selected.monitoring_health)}>
-                    {HEALTH_LABELS[selected.monitoring_health]}
-                  </Badge>
-                  <Badge variant="outline">Official: {selected.source_status}</Badge>
-                  <span>Last checked {formatDate(selected.monitoring_last_checked_at)}</span>
+          <div className="min-w-0 overflow-hidden rounded-md border bg-background p-2">
+            <div className="flex min-w-0 items-start gap-1">
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-semibold">{selected.title}</div>
+                <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-muted-foreground">
+                  {isAttentionHealth(selected.monitoring_health) ? (
+                    <Badge variant={healthVariant(selected.monitoring_health)}>
+                      {HEALTH_LABELS[selected.monitoring_health]}
+                    </Badge>
+                  ) : (
+                    <span>{HEALTH_LABELS[selected.monitoring_health]}</span>
+                  )}
+                  <span aria-hidden>·</span>
+                  <span className="truncate">Official: {selected.source_status}</span>
+                  <span aria-hidden>·</span>
+                  <span className="truncate">
+                    Checked {formatDate(selected.monitoring_last_checked_at)}
+                  </span>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={checkNow.isPending}
-                  onClick={() => checkNow.mutate(selected.id)}
-                >
-                  <RefreshCw className={`mr-1 size-3.5 ${checkNow.isPending ? 'animate-spin' : ''}`} />
-                  Check now
-                </Button>
+
+              <div className="flex shrink-0 items-center gap-0.5">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      disabled={checkNow.isPending}
+                      aria-label="Check now"
+                      onClick={() => checkNow.mutate(selected.id)}
+                    >
+                      <RefreshCw
+                        className={cn('size-3.5', checkNow.isPending && 'animate-spin')}
+                      />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Check now</TooltipContent>
+                </Tooltip>
+
                 {selected.monitoring_unread_changes > 0 ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={acknowledge.isPending}
-                    onClick={() => acknowledge.mutate(selected.id)}
-                  >
-                    <Check className="mr-1 size-3.5" />
-                    Mark read
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        disabled={acknowledge.isPending}
+                        aria-label="Mark read"
+                        onClick={() => acknowledge.mutate(selected.id)}
+                      >
+                        <Check className="size-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Mark read</TooltipContent>
+                  </Tooltip>
                 ) : null}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={unwatch.isPending}
-                  onClick={() => unwatch.mutate(selected.id)}
-                >
-                  <X className="mr-1 size-3.5" />
-                  Stop monitoring
-                </Button>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      disabled={unwatch.isPending}
+                      aria-label="Stop monitoring"
+                      onClick={() => unwatch.mutate(selected.id)}
+                    >
+                      <X className="size-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Stop monitoring</TooltipContent>
+                </Tooltip>
               </div>
             </div>
 
             {selected.monitoring_last_error ? (
-              <div className="mt-3 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
+              <div className="mt-1.5 flex min-w-0 items-start gap-1.5 rounded-md border border-destructive/30 bg-destructive/5 p-1.5 text-[11px] text-destructive">
                 <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                <span>{selected.monitoring_last_error}</span>
+                <span
+                  className="min-w-0 break-words"
+                  title={selected.monitoring_last_error}
+                >
+                  {formatMonitoringError(selected.monitoring_last_error)}
+                </span>
               </div>
             ) : null}
 
-            <div className="mt-3">
-              <div className="flex items-center gap-1.5 text-xs font-semibold">
-                <Clock3 className="size-3.5" />
-                Recent source changes
+            <div className="mt-1.5 min-w-0">
+              <div className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+                <Clock3 className="size-3 shrink-0" />
+                Recent changes
               </div>
               {latestChanges.length > 0 ? (
-                <div className="mt-2 space-y-1.5">
+                <div className="mt-0.5 divide-y rounded-md border">
                   {latestChanges.map((change) => (
-                    <div key={change.id} className="rounded-md border p-2 text-xs">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <Badge variant={change.severity === 'critical' ? 'destructive' : 'outline'}>
-                          {change.severity}
-                        </Badge>
-                        <span className="text-muted-foreground">{formatDate(change.detected_at)}</span>
-                        {change.acknowledged ? <span className="text-muted-foreground">Read</span> : null}
+                    <div key={change.id} className="min-w-0 px-2 py-1.5 text-xs">
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                        {change.severity !== 'informational' ? (
+                          <Badge
+                            variant={change.severity === 'critical' ? 'destructive' : 'outline'}
+                          >
+                            {change.severity}
+                          </Badge>
+                        ) : null}
+                        <span className="text-[11px] text-muted-foreground">
+                          {formatDate(change.detected_at)}
+                        </span>
+                        {change.acknowledged ? (
+                          <span className="text-[11px] text-muted-foreground">Read</span>
+                        ) : null}
                       </div>
-                      <div className="mt-1 font-medium">{change.summary}</div>
+                      <div className="mt-0.5 break-words font-medium">{change.summary}</div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="mt-2 rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                  The current source snapshot is established. New changes will appear here.
-                </div>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Snapshot established — new changes appear here.
+                </p>
               )}
             </div>
           </div>

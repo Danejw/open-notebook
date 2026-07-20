@@ -27,9 +27,9 @@ from construction_os.exceptions import (
 )
 from construction_os.services.opportunities import get_opportunity, upsert_opportunity
 from construction_os.services.opportunity_collectors import (
-    SAM_OPPORTUNITIES_URL,
     download_sam_attachment,
     normalize_sam_opportunity,
+    _sam_search,
 )
 from construction_os.services.project_artifacts import create_project_artifact
 from construction_os.services.source_ingest import create_upload_source_and_process
@@ -428,12 +428,11 @@ async def fetch_sam_opportunity(opportunity: Opportunity) -> Dict[str, Any]:
 
     try:
         async with httpx.AsyncClient(timeout=45.0, follow_redirects=True) as client:
-            response = await client.get(
-                SAM_OPPORTUNITIES_URL,
-                params=sam_lookup_params(opportunity, api_key),
+            # Reuse the sync path's 429 backoff so watch/check-now survive brief rate limits.
+            payload = await _sam_search(
+                client,
+                sam_lookup_params(opportunity, api_key),
             )
-            response.raise_for_status()
-            payload = response.json()
             records = [
                 item
                 for item in (payload.get("opportunitiesData") or [])
@@ -457,7 +456,7 @@ async def fetch_sam_opportunity(opportunity: Opportunity) -> Dict[str, Any]:
                 api_key=api_key,
                 client=client,
             )
-    except NotFoundError:
+    except (NotFoundError, ConfigurationError, ExternalServiceError):
         raise
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code in {401, 403}:

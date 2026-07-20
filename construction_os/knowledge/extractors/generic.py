@@ -18,7 +18,7 @@ from construction_os.knowledge.extractors.parse import (
 )
 
 EXTRACTOR_ID = "generic"
-EXTRACTOR_VERSION = "1.2.0"
+EXTRACTOR_VERSION = "1.3.0"
 PROMPT_TEMPLATE = "knowledge/generic_extract"
 
 

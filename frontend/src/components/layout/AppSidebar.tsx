@@ -23,6 +23,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
 import { LanguageToggle } from '@/components/common/LanguageToggle'
 import type { TFunction } from 'i18next'
@@ -37,6 +42,7 @@ import {
   Settings,
   LogOut,
   ChevronLeft,
+  ChevronRight,
   Menu,
   FileText,
   FileCode2,
@@ -108,6 +114,7 @@ export function AppSidebar() {
   const prefetchRoute = useRoutePrefetch()
 
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
+  const [manageOpen, setManageOpen] = useState(false)
 
   const handleCreateSelection = (target: CreateTarget) => {
     setCreateMenuOpen(false)
@@ -164,12 +171,16 @@ export function AppSidebar() {
     return <div key={item.name}>{navLink}</div>
   }
 
-  const renderNavSection = (section: NavSection, index: number) => (
+  const renderNavSection = (
+    section: NavSection,
+    index: number,
+    options?: { hideTitle?: boolean }
+  ) => (
     <div
       key={section.title ?? `section-${index}`}
       className={cn(index > 0 && 'mt-1', isCollapsed && 'flex w-full flex-col items-center')}
     >
-      {!isCollapsed && section.title && (
+      {!isCollapsed && !options?.hideTitle && section.title && (
         <h3 className="mb-0 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-sidebar-foreground/55">
           {section.title}
         </h3>
@@ -180,6 +191,14 @@ export function AppSidebar() {
       </div>
     </div>
   )
+
+  const manageLabel = manageNavigation.title ?? t('navigation.manage')
+  const isManageRouteActive = manageNavigation.items.some(
+    (item) => pathname?.startsWith(item.href) ?? false
+  )
+  const manageToggleLabel = manageOpen
+    ? t('navigation.collapseColumn').replace('{label}', manageLabel)
+    : t('navigation.expandColumn').replace('{label}', manageLabel)
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -330,7 +349,62 @@ export function AppSidebar() {
             isCollapsed ? cn(collapsedSidebarInsetClassName, 'flex flex-col items-center') : 'px-1.5'
           )}
         >
-          {renderNavSection(manageNavigation, 0)}
+          <Collapsible
+            open={manageOpen}
+            onOpenChange={setManageOpen}
+            className={cn('group w-full', isCollapsed && 'flex flex-col items-center')}
+          >
+            {isCollapsed ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <CollapsibleTrigger asChild>
+                    <Button
+                      variant={isManageRouteActive ? 'secondary' : 'ghost'}
+                      size="icon"
+                      className={cn(
+                        collapsedSidebarButtonClassName,
+                        'sidebar-menu-item text-sidebar-foreground',
+                        isManageRouteActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
+                      )}
+                      aria-label={manageToggleLabel}
+                      data-testid="manage-section-toggle"
+                    >
+                      <ChevronRight
+                        className={cn(
+                          'h-3.5 w-3.5 transition-transform',
+                          manageOpen && 'rotate-90'
+                        )}
+                      />
+                    </Button>
+                  </CollapsibleTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="right">{manageLabel}</TooltipContent>
+              </Tooltip>
+            ) : (
+              <CollapsibleTrigger
+                className={cn(
+                  'flex h-7 w-full items-center gap-1 rounded-md px-1.5 text-left transition-colors hover:bg-sidebar-accent',
+                  isManageRouteActive && !manageOpen && 'bg-sidebar-accent/60'
+                )}
+                aria-label={manageToggleLabel}
+                data-testid="manage-section-toggle"
+              >
+                <ChevronRight
+                  className={cn(
+                    'h-3 w-3 shrink-0 text-sidebar-foreground/55 transition-transform',
+                    manageOpen && 'rotate-90'
+                  )}
+                />
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-sidebar-foreground/55">
+                  {manageLabel}
+                </span>
+              </CollapsibleTrigger>
+            )}
+
+            <CollapsibleContent className={cn(isCollapsed && 'flex w-full flex-col items-center')}>
+              {renderNavSection(manageNavigation, 0, { hideTitle: true })}
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
         <div

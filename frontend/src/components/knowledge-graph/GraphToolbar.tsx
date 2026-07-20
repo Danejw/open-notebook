@@ -66,10 +66,12 @@ interface GraphToolbarProps {
   updating?: boolean
   /**
    * `overlay` — floating HUD over the canvas (full-page).
-   * `bar` — column header row (embedded Sources graph).
+   * `bar` — corner/edge islands for embedded Sources graph.
    */
   layout?: 'overlay' | 'bar'
-  /** Trailing actions (view tabs, Add Source, collapse). */
+  /** Top-left island (embedded: List/Graph tabs). */
+  leading?: ReactNode
+  /** Top-right island (embedded: Add Source). Not inlined with tools. */
   trailing?: ReactNode
 }
 
@@ -116,6 +118,7 @@ export function GraphToolbar({
   onToggleSources,
   updating = false,
   layout = 'overlay',
+  leading,
   trailing,
 }: GraphToolbarProps) {
   const { t } = useTranslation()
@@ -146,7 +149,26 @@ export function GraphToolbar({
 
   const isBar = layout === 'bar'
 
-  const controls = (
+  const searchControl = (
+    <div className={cn('relative min-w-0', isBar ? 'w-full' : 'flex-1 basis-28')}>
+      <Search className="pointer-events-none absolute left-1.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        className={cn(
+          'pl-6',
+          isBar ? 'h-6 bg-background/80' : 'h-7 bg-background/60'
+        )}
+        value={searchQuery}
+        placeholder={t('knowledge.graphSearch')}
+        aria-label={t('knowledge.graphSearch')}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onSearch(searchQuery)
+        }}
+      />
+    </div>
+  )
+
+  const toolControls = (
     <>
       {showSourcesToggle ? (
         <ToolIconButton
@@ -158,20 +180,6 @@ export function GraphToolbar({
           <PanelLeft className="size-3.5" />
         </ToolIconButton>
       ) : null}
-
-      <div className={cn('relative min-w-0', isBar ? 'flex-1' : 'flex-1 basis-28')}>
-        <Search className="pointer-events-none absolute left-1.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          className={cn('pl-6', isBar ? 'h-6 bg-transparent' : 'h-7 bg-background/60')}
-          value={searchQuery}
-          placeholder={t('knowledge.graphSearch')}
-          aria-label={t('knowledge.graphSearch')}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') onSearch(searchQuery)
-          }}
-        />
-      </div>
 
       <ToolIconButton
         label={t('knowledge.graphExpand')}
@@ -332,25 +340,59 @@ export function GraphToolbar({
           {t('knowledge.graphUpdating')}
         </span>
       ) : null}
-
-      {trailing ? (
-        <div className="flex shrink-0 items-center gap-0.5">{trailing}</div>
-      ) : null}
     </>
   )
 
   if (isBar) {
     return (
-      <div className="flex shrink-0 items-center gap-0.5 overflow-x-auto border-b border-border px-1.5 py-0.5">
-        {controls}
-      </div>
+      <>
+        {leading ? (
+          <div
+            data-graph-toolbar="leading"
+            className="pointer-events-none absolute left-0 top-0 z-20 p-0.5"
+          >
+            <div className="pointer-events-auto">{leading}</div>
+          </div>
+        ) : null}
+
+        <div
+          data-graph-toolbar="tools"
+          className="pointer-events-none absolute inset-x-0 top-0 z-20 flex justify-center p-0.5"
+        >
+          <div className="pointer-events-auto flex max-w-full flex-nowrap items-center gap-0.5 overflow-x-auto rounded-md border bg-background/80 p-0.5 shadow-sm backdrop-blur-sm">
+            {toolControls}
+          </div>
+        </div>
+
+        {trailing ? (
+          <div
+            data-graph-toolbar="trailing"
+            className="pointer-events-none absolute right-0 top-0 z-20 p-0.5"
+          >
+            <div className="pointer-events-auto">{trailing}</div>
+          </div>
+        ) : null}
+
+        <div
+          data-graph-toolbar="search"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center p-0.5"
+        >
+          <div className="pointer-events-auto w-full max-w-xs px-6">
+            {searchControl}
+          </div>
+        </div>
+      </>
     )
   }
 
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start gap-0.5 p-0.5">
       <div className="pointer-events-auto flex max-w-full flex-nowrap items-center gap-0.5 rounded-md border bg-background/80 p-0.5 shadow-sm backdrop-blur-sm">
-        {controls}
+        {searchControl}
+        {toolControls}
+        {trailing ? (
+          <div className="flex shrink-0 items-center gap-0.5">{trailing}</div>
+        ) : null}
       </div>
     </div>
   )

@@ -111,15 +111,14 @@ export function GraphControlsHelp({ className }: GraphControlsHelpProps) {
         ) : (
           <Button
             type="button"
-            size="sm"
+            size="icon"
             variant="outline"
-            className="h-7 gap-1 border bg-background/80 px-1.5 text-[11px] shadow-sm backdrop-blur-sm"
+            className="size-7 border bg-background/80 shadow-sm backdrop-blur-sm"
             aria-expanded={false}
             aria-label={label}
             onClick={() => setOpen(true)}
           >
             <CircleHelp className="size-3.5" />
-            {label}
           </Button>
         )}
       </div>

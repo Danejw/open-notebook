@@ -23,7 +23,6 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
   const [copyingLink, setCopyingLink] = useState(false)
 
   const updateProject = useUpdateProject()
-  const hasDescription = Boolean(project.description?.trim())
 
   const handleUpdateName = async (name: string) => {
     if (!name || name === project.name) return
@@ -31,15 +30,6 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
     await updateProject.mutateAsync({
       id: project.id,
       data: { name },
-    })
-  }
-
-  const handleUpdateDescription = async (description: string) => {
-    if (description === project.description) return
-
-    await updateProject.mutateAsync({
-      id: project.id,
-      data: { description: description || undefined },
     })
   }
 
@@ -86,19 +76,6 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
                 </Badge>
               ) : null}
             </div>
-
-            {hasDescription ? (
-              <InlineEdit
-                id="project-description"
-                name="project-description"
-                value={project.description ?? ''}
-                onSave={handleUpdateDescription}
-                className="text-xs text-muted-foreground break-words"
-                inputClassName="text-xs text-muted-foreground"
-                placeholder={t('projects.addDescription')}
-                multiline
-              />
-            ) : null}
           </div>
 
           <div className="flex shrink-0 flex-nowrap items-center gap-1">

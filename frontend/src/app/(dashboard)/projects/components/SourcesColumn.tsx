@@ -480,6 +480,29 @@ export function SourcesColumn({
     </Tabs>
   )
 
+  const addSourceMenuItems = (
+    <>
+      <DropdownMenuItem
+        onClick={() => {
+          setDropdownOpen(false)
+          setAddDialogOpen(true)
+        }}
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        {t('sources.addSource')}
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onClick={() => {
+          setDropdownOpen(false)
+          setAddExistingDialogOpen(true)
+        }}
+      >
+        <Link2 className="h-4 w-4 mr-2" />
+        {t('sources.addExistingTitle')}
+      </DropdownMenuItem>
+    </>
+  )
+
   const addSourceMenu = (
     <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
       <DropdownMenuTrigger asChild>
@@ -489,26 +512,28 @@ export function SourcesColumn({
           <ChevronDown className={columnHeaderIconClassName} />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem
-          onClick={() => {
-            setDropdownOpen(false)
-            setAddDialogOpen(true)
-          }}
+      <DropdownMenuContent align="end">{addSourceMenuItems}</DropdownMenuContent>
+    </DropdownMenu>
+  )
+
+  const addSourceMenuIcon = (
+    <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          className={cn(
+            columnHeaderIconButtonClassName,
+            'border bg-background/80 shadow-sm backdrop-blur-sm'
+          )}
+          aria-label={t('sources.addSource')}
+          title={t('sources.addSource')}
         >
-          <Plus className="h-4 w-4 mr-2" />
-          {t('sources.addSource')}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => {
-            setDropdownOpen(false)
-            setAddExistingDialogOpen(true)
-          }}
-        >
-          <Link2 className="h-4 w-4 mr-2" />
-          {t('sources.addExistingTitle')}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
+          <Plus className={columnHeaderIconClassName} />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">{addSourceMenuItems}</DropdownMenuContent>
     </DropdownMenu>
   )
 
@@ -595,13 +620,8 @@ export function SourcesColumn({
                 <KnowledgeGraphView
                   projectId={projectId}
                   embedded
-                  headerTrailing={
-                    <>
-                      {viewModeTabs}
-                      {addSourceMenu}
-                      {collapseButton}
-                    </>
-                  }
+                  headerLeading={viewModeTabs}
+                  headerTrailing={addSourceMenuIcon}
                 />
               </Suspense>
             ) : (

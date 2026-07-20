@@ -4,6 +4,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Book, Inbox, ListFilter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { useProjects } from '@/lib/hooks/use-projects'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -26,71 +31,88 @@ export function ProjectArtifactsNav({ isCollapsed }: ProjectArtifactsNavProps) {
   const isProjectsSectionActive = pathname?.startsWith('/projects') ?? false
   const isOpportunitiesActive = pathname === '/opportunities'
   const isDiscoveryActive = pathname?.startsWith('/opportunities/discovery') ?? false
+  const projectsLabel = t('navigation.projects')
 
   if (isCollapsed) {
     return (
       <div className="flex flex-col items-center gap-0.5">
-        <Button
-          asChild
-          variant={isOpportunitiesActive ? 'secondary' : 'ghost'}
-          size="icon"
-          className={cn(
-            'mx-auto h-7 w-7 shrink-0 justify-center px-0 text-sidebar-foreground sidebar-menu-item',
-            isOpportunitiesActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
-          )}
-        >
-          <Link
-            href="/opportunities"
-            prefetch={false}
-            onMouseEnter={() => prefetchRoute('/opportunities')}
-            aria-current={isOpportunitiesActive ? 'page' : undefined}
-            className="flex justify-center"
-            aria-label="Opportunity Hub"
-          >
-            <Inbox className="h-3.5 w-3.5 shrink-0" />
-          </Link>
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              asChild
+              variant={isOpportunitiesActive ? 'secondary' : 'ghost'}
+              size="icon"
+              className={cn(
+                'mx-auto h-7 w-7 shrink-0 justify-center px-0 text-sidebar-foreground sidebar-menu-item',
+                isOpportunitiesActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
+              )}
+            >
+              <Link
+                href="/opportunities"
+                prefetch={false}
+                onMouseEnter={() => prefetchRoute('/opportunities')}
+                aria-current={isOpportunitiesActive ? 'page' : undefined}
+                className="flex justify-center"
+                aria-label="Opportunity Hub"
+              >
+                <Inbox className="h-3.5 w-3.5 shrink-0" />
+              </Link>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Opportunity Hub</TooltipContent>
+        </Tooltip>
 
-        <Button
-          asChild
-          variant={isDiscoveryActive ? 'secondary' : 'ghost'}
-          size="icon"
-          className={cn(
-            'mx-auto h-7 w-7 shrink-0 justify-center px-0 text-sidebar-foreground sidebar-menu-item',
-            isDiscoveryActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
-          )}
-        >
-          <Link
-            href="/opportunities/discovery"
-            prefetch={false}
-            onMouseEnter={() => prefetchRoute('/opportunities/discovery')}
-            aria-current={isDiscoveryActive ? 'page' : undefined}
-            className="flex justify-center"
-            aria-label="Opportunity Discovery"
-          >
-            <ListFilter className="h-3.5 w-3.5 shrink-0" />
-          </Link>
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              asChild
+              variant={isDiscoveryActive ? 'secondary' : 'ghost'}
+              size="icon"
+              className={cn(
+                'mx-auto h-7 w-7 shrink-0 justify-center px-0 text-sidebar-foreground sidebar-menu-item',
+                isDiscoveryActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
+              )}
+            >
+              <Link
+                href="/opportunities/discovery"
+                prefetch={false}
+                onMouseEnter={() => prefetchRoute('/opportunities/discovery')}
+                aria-current={isDiscoveryActive ? 'page' : undefined}
+                className="flex justify-center"
+                aria-label="Opportunity Discovery"
+              >
+                <ListFilter className="h-3.5 w-3.5 shrink-0" />
+              </Link>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Opportunity Discovery</TooltipContent>
+        </Tooltip>
 
-        <Button
-          asChild
-          variant={isProjectsSectionActive ? 'secondary' : 'ghost'}
-          size="icon"
-          className={cn(
-            'mx-auto h-7 w-7 shrink-0 justify-center px-0 text-sidebar-foreground sidebar-menu-item',
-            isProjectsSectionActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
-          )}
-        >
-          <Link
-            href="/projects"
-            prefetch={false}
-            onMouseEnter={() => prefetchRoute('/projects')}
-            aria-current={isProjectsSectionActive ? 'page' : undefined}
-            className="flex justify-center"
-          >
-            <Book className="h-3.5 w-3.5 shrink-0" />
-          </Link>
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              asChild
+              variant={isProjectsSectionActive ? 'secondary' : 'ghost'}
+              size="icon"
+              className={cn(
+                'mx-auto h-7 w-7 shrink-0 justify-center px-0 text-sidebar-foreground sidebar-menu-item',
+                isProjectsSectionActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
+              )}
+            >
+              <Link
+                href="/projects"
+                prefetch={false}
+                onMouseEnter={() => prefetchRoute('/projects')}
+                aria-current={isProjectsSectionActive ? 'page' : undefined}
+                className="flex justify-center"
+                aria-label={projectsLabel}
+              >
+                <Book className="h-3.5 w-3.5 shrink-0" />
+              </Link>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">{projectsLabel}</TooltipContent>
+        </Tooltip>
       </div>
     )
   }

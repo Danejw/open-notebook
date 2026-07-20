@@ -30,7 +30,10 @@ from construction_os.knowledge.extractors.crossrefs import (
     extract_crossrefs,
     merge_with_deterministic_crossrefs,
 )
-from construction_os.knowledge.extractors.enrich import enrich_with_deterministic
+from construction_os.knowledge.extractors.enrich import (
+    deterministic_sufficient,
+    enrich_with_deterministic,
+)
 from construction_os.knowledge.extractors.registry import get_extractor, list_extractors
 from construction_os.knowledge.extractors.select import (
     select_extractor_for_source,
@@ -320,6 +323,75 @@ def test_extract_crossrefs_csi_and_see_section():
     payload = extract_crossrefs(text)
     assert any("09 30 00" in e.label for e in payload.entities)
     assert len(payload.relations) >= 1
+
+
+def test_deterministic_sufficient_requires_relations():
+    orphan_entities = ExtractionPayload(
+        entities=[
+            ExtractedEntity(label=f"E{i}", type="Topic") for i in range(8)
+        ]
+    )
+    assert deterministic_sufficient(orphan_entities) is False
+
+    with_rel = ExtractionPayload(
+        entities=[
+            ExtractedEntity(label="A-101", type="Reference"),
+            ExtractedEntity(label="A-501", type="Reference"),
+            ExtractedEntity(label="Topic", type="Topic"),
+        ],
+        relations=[
+            ExtractedRelation(
+                type="REFERENCES",
+                from_label="A-101",
+                from_type="Reference",
+                to_label="A-501",
+                to_type="Reference",
+            )
+        ],
+    )
+    assert deterministic_sufficient(with_rel) is True
+
+
+def test_extract_crossrefs_co_document_sheet_edges():
+    text = """---
+sheet: P001
+---
+Notes mention P201 and P401 and section 09 30 00.
+"""
+    payload = extract_crossrefs(text)
+    assert any(
+        r.type == "REFERENCES" and r.from_label == "P001" and r.to_label == "P201"
+        for r in payload.relations
+    )
+    assert any(
+        r.type == "REFERENCES" and r.from_label == "P001" and r.to_label == "P401"
+        for r in payload.relations
+    )
+    assert any(
+        r.type == "REFERENCES"
+        and r.from_label == "P001"
+        and "09 30 00" in r.to_label
+        for r in payload.relations
+    )
+    assert count_detected_callouts(text) == 0
+
+
+def test_extract_crossrefs_ocr_callout_variants():
+    text_no_space = "SHEET A-101\nSEE3/A501 FOR DETAIL\n"
+    payload_no_space = extract_crossrefs(text_no_space)
+    assert count_detected_callouts(text_no_space) >= 1
+    assert any(
+        r.type == "REFERENCES" and "A501" in r.to_label.replace("-", "")
+        for r in payload_no_space.relations
+    )
+
+    text_sht = "sheet: P001\nSEE SHT P201 FOR PLAN\n"
+    payload_sht = extract_crossrefs(text_sht)
+    assert count_detected_callouts(text_sht) >= 1
+    assert any(
+        r.type == "REFERENCES" and r.to_label == "P201"
+        for r in payload_sht.relations
+    )
 
 
 def test_bootstrap_entities_from_title_and_sheet_text():

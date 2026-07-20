@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Optional
 
+from langchain_core.callbacks.manager import dispatch_custom_event
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
@@ -23,6 +24,39 @@ from construction_os.tool_runtime.execution import (
     reject_unauthorized,
 )
 from construction_os.utils.text_utils import extract_text_content
+
+HTML_TEMPLATE_OUTPUT_EVENT = "html_template_output"
+
+
+def emit_html_template_output(
+    *,
+    message_id: str,
+    template_id: str,
+    html: str,
+    config: Optional[RunnableConfig],
+) -> bool:
+    """Emit one completed HTML document as a first-class AG-UI custom event."""
+    if not config:
+        return False
+    try:
+        dispatch_custom_event(
+            HTML_TEMPLATE_OUTPUT_EVENT,
+            {
+                "messageId": message_id,
+                "templateId": template_id,
+                "html": html,
+            },
+            config=config,
+        )
+        return True
+    except Exception as error:
+        logger.warning(
+            "Unable to stream HTML template output {} for message {}: {}",
+            template_id,
+            message_id,
+            error,
+        )
+        return False
 
 
 async def generate_with_tools(
@@ -175,6 +209,13 @@ async def generate_with_tools(
                 provision_model=provision_model,
                 config=None,
             )
+            if message_id:
+                emit_html_template_output(
+                    message_id=message_id,
+                    template_id=html_template_id,
+                    html=rendered_html,
+                    config=config,
+                )
             ai_message = ai_message.model_copy(
                 update={
                     "content": attach_rendered_html(

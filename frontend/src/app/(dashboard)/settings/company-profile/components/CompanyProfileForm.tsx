@@ -68,10 +68,10 @@ const companyProfileSchema = z.object({
   licenses: z.string(),
   preferred_trades: z.string(),
   supported_islands: z.string(),
-  min_project_value: z.coerce.number().min(0),
+  min_project_value: z.number().min(0),
   max_project_value: z.string(),
-  minimum_bid_days: z.coerce.number().int().min(0),
-  max_bond_percent: z.coerce.number().min(0),
+  minimum_bid_days: z.number().int().min(0),
+  max_bond_percent: z.number().min(0),
   preferred_keywords: z.string(),
   excluded_keywords: z.string(),
 })
@@ -276,7 +276,13 @@ export function CompanyProfileForm() {
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="min-value">{t('companyProfile.minProjectValue')}</Label>
-            <Input id="min-value" type="number" min={0} step="1" {...register('min_project_value')} />
+            <Input
+              id="min-value"
+              type="number"
+              min={0}
+              step="1"
+              {...register('min_project_value', { valueAsNumber: true })}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="max-value">{t('companyProfile.maxProjectValue')}</Label>
@@ -291,7 +297,13 @@ export function CompanyProfileForm() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="bid-days">{t('companyProfile.minimumBidDays')}</Label>
-            <Input id="bid-days" type="number" min={0} step="1" {...register('minimum_bid_days')} />
+            <Input
+              id="bid-days"
+              type="number"
+              min={0}
+              step="1"
+              {...register('minimum_bid_days', { valueAsNumber: true })}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="bond-percent">{t('companyProfile.maxBondPercent')}</Label>
@@ -300,7 +312,7 @@ export function CompanyProfileForm() {
               type="number"
               min={0}
               step="0.1"
-              {...register('max_bond_percent')}
+              {...register('max_bond_percent', { valueAsNumber: true })}
             />
           </div>
         </CardContent>

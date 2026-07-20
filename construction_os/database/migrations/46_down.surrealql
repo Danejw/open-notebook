@@ -1,0 +1,20 @@
+-- Rollback migration 46: durable opportunity monitoring
+
+REMOVE INDEX idx_opportunity_monitor_due ON opportunity;
+REMOVE INDEX idx_opportunity_monitor_lease ON opportunity;
+REMOVE FIELD source_status ON opportunity;
+REMOVE FIELD source_status_reason ON opportunity;
+REMOVE FIELD monitoring_enabled ON opportunity;
+REMOVE FIELD monitoring_health ON opportunity;
+REMOVE FIELD monitoring_last_checked_at ON opportunity;
+REMOVE FIELD monitoring_last_success_at ON opportunity;
+REMOVE FIELD monitoring_last_changed_at ON opportunity;
+REMOVE FIELD monitoring_next_check_at ON opportunity;
+REMOVE FIELD monitoring_last_error ON opportunity;
+REMOVE FIELD monitoring_consecutive_failures ON opportunity;
+REMOVE FIELD monitoring_lease_until ON opportunity;
+REMOVE FIELD monitoring_snapshot_hash ON opportunity;
+REMOVE FIELD monitoring_unread_changes ON opportunity;
+REMOVE TABLE opportunity_change;
+
+RETURN true;

@@ -127,7 +127,19 @@ jobs:
           retention-days: 7
 
       - name: Run frontend regression tests
-        run: npm test -- --exclude src/lib/locales/index.test.ts
+        id: frontend-tests
+        run: |
+          set -o pipefail
+          npm test -- --exclude src/lib/locales/index.test.ts 2>&1 | tee frontend-tests.log
+
+      - name: Upload frontend test diagnostics
+        if: failure() && steps.frontend-tests.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-diagnostics
+          path: frontend/frontend-tests.log
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Build production frontend
         env:

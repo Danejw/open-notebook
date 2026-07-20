@@ -217,6 +217,7 @@ export function useSetSamSyncCollection() {
 export function useSetOpportunityStatus() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: OpportunityStatus }) =>
@@ -236,10 +237,10 @@ export function useSetOpportunityStatus() {
         })
       }
     },
-    onError: () => {
+    onError: (error: unknown) => {
       toast({
         title: 'Status was not changed',
-        description: 'Review the opportunity and try the action again.',
+        description: getApiErrorMessage(error, t),
         variant: 'destructive',
       })
     },
@@ -298,7 +299,9 @@ export function usePursueOpportunity() {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
       toast({
         title: result.project_created ? 'Bid workspace created' : 'Bid workspace opened',
-        description: `${result.project_name} · monitoring enabled`,
+        description: result.opportunity.monitoring_enabled
+          ? `${result.project_name} · monitoring enabled`
+          : `${result.project_name} · automated monitoring is unavailable for this source`,
       })
     },
     onError: () => {

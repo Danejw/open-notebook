@@ -13,6 +13,14 @@ vi.mock('@/lib/hooks/use-mcp', () => ({
   useMcpSessionToolCalls: () => ({ data: [] }),
 }))
 
+vi.mock('@/lib/hooks/use-models', () => ({
+  useModels: () => ({ data: [] }),
+}))
+
+vi.mock('@/lib/hooks/use-html-documents', () => ({
+  useHtmlTemplate: () => ({ data: undefined }),
+}))
+
 vi.mock('@/lib/hooks/use-modal-manager', () => ({
   useModalManager: () => ({ openModal: vi.fn() }),
 }))

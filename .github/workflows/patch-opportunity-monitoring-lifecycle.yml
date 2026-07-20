@@ -1,0 +1,216 @@
+name: Patch Opportunity Monitoring Lifecycle
+
+on:
+  push:
+    branches:
+      - feature/opportunity-watch-monitoring-v2
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: patch-opportunity-monitoring-lifecycle
+  cancel-in-progress: true
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/opportunity-watch-monitoring-v2
+          fetch-depth: 0
+
+      - name: Apply lifecycle patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected one {label} match, found {count}")
+              return text.replace(old, new, 1)
+
+          domain_path = Path("construction_os/domain/opportunity.py")
+          domain = domain_path.read_text()
+          domain = replace_once(
+              domain,
+              "from datetime import datetime, timezone",
+              "from datetime import datetime",
+              "domain datetime import",
+          )
+          domain = replace_once(
+              domain,
+              '''    async def save(self) -> None:
+                  """Keep monitoring lifecycle aligned with the internal bid workflow."""
+
+                  monitored_statuses = {"watching", "pursuing", "submitted"}
+                  terminal_statuses = {"won", "lost", "no_bid", "ignored"}
+                  if self.source_key == "sam_gov_hawaii" and self.status in monitored_statuses:
+                      if not self.monitoring_enabled:
+                          self.monitoring_enabled = True
+                          self.monitoring_health = "pending"
+                          self.monitoring_last_error = None
+                          self.monitoring_next_check_at = datetime.now(timezone.utc)
+                  elif self.status in terminal_statuses or self.archived:
+                      self.monitoring_enabled = False
+                      self.monitoring_health = "inactive"
+                      self.monitoring_next_check_at = None
+                      self.monitoring_lease_until = None
+''',
+              '''    async def save(self) -> None:
+                  """Recalculate fit and stop monitoring for terminal workflows."""
+
+                  terminal_statuses = {"won", "lost", "no_bid", "ignored"}
+                  if self.status in terminal_statuses or self.archived:
+                      self.monitoring_enabled = False
+                      self.monitoring_health = "inactive"
+                      self.monitoring_next_check_at = None
+                      self.monitoring_lease_until = None
+''',
+              "domain monitoring save lifecycle",
+          )
+          domain_path.write_text(domain)
+
+          service_path = Path("construction_os/services/opportunities.py")
+          service = service_path.read_text()
+          status_function = '''async def set_opportunity_status(opportunity_id: str, status: str) -> Opportunity:
+              opportunity = await get_opportunity(opportunity_id)
+              allowed = {
+                  "none",
+                  "watching",
+                  "pursuing",
+                  "submitted",
+                  "won",
+                  "lost",
+                  "no_bid",
+                  "ignored",
+              }
+              if status not in allowed:
+                  raise InvalidInputError(f"Unsupported opportunity status: {status}")
+              opportunity.status = status  # type: ignore[assignment]
+              await opportunity.save()
+              return opportunity
+'''
+          replacement = '''def _align_monitoring_with_workflow_status(
+              opportunity: Opportunity, status: str
+          ) -> None:
+              """Apply explicit monitor transitions without overriding a later manual pause."""
+
+              monitored_statuses = {"watching", "pursuing", "submitted"}
+              should_monitor = (
+                  opportunity.source_key == "sam_gov_hawaii" and status in monitored_statuses
+              )
+              if should_monitor:
+                  if not opportunity.monitoring_enabled:
+                      opportunity.monitoring_enabled = True
+                      opportunity.monitoring_health = "pending"
+                      opportunity.monitoring_last_error = None
+                      opportunity.monitoring_next_check_at = utcnow()
+                  return
+
+              opportunity.monitoring_enabled = False
+              opportunity.monitoring_health = "inactive"
+              opportunity.monitoring_next_check_at = None
+              opportunity.monitoring_lease_until = None
+
+
+          async def set_opportunity_status(opportunity_id: str, status: str) -> Opportunity:
+              opportunity = await get_opportunity(opportunity_id)
+              allowed = {
+                  "none",
+                  "watching",
+                  "pursuing",
+                  "submitted",
+                  "won",
+                  "lost",
+                  "no_bid",
+                  "ignored",
+              }
+              if status not in allowed:
+                  raise InvalidInputError(f"Unsupported opportunity status: {status}")
+              if status == "watching" and opportunity.source_key != "sam_gov_hawaii":
+                  raise InvalidInputError(
+                      "Automated monitoring is currently available for SAM.gov opportunities only"
+                  )
+              opportunity.status = status  # type: ignore[assignment]
+              _align_monitoring_with_workflow_status(opportunity, status)
+              await opportunity.save()
+              return opportunity
+'''
+          service = replace_once(
+              service,
+              status_function,
+              replacement,
+              "set opportunity status function",
+          )
+          service = replace_once(
+              service,
+              '''    opportunity.project_id = project.id
+              opportunity.status = "pursuing"
+              await opportunity.save()
+''',
+              '''    opportunity.project_id = project.id
+              opportunity.status = "pursuing"
+              _align_monitoring_with_workflow_status(opportunity, "pursuing")
+              await opportunity.save()
+''',
+              "pursue monitoring transition",
+          )
+          service_path.write_text(service)
+
+          test_path = Path("tests/test_opportunity_monitoring.py")
+          tests = test_path.read_text()
+          tests = replace_once(
+              tests,
+              "from construction_os.domain.opportunity import Opportunity\n",
+              "import pytest\n\nfrom construction_os.domain.base import ObjectModel\nfrom construction_os.domain.opportunity import Opportunity\n",
+              "monitoring test imports",
+          )
+          tests += '''
+
+@pytest.mark.asyncio
+async def test_manual_pause_is_not_reenabled_when_pursuing_opportunity_is_saved(
+    monkeypatch,
+):
+    async def no_op_score(_opportunity):
+        return None
+
+    async def no_op_base_save(_opportunity):
+        return None
+
+    monkeypatch.setattr(
+        "construction_os.services.opportunity_scoring.apply_opportunity_score",
+        no_op_score,
+    )
+    monkeypatch.setattr(ObjectModel, "save", no_op_base_save)
+
+    opportunity = make_opportunity(
+        status="pursuing",
+        monitoring_enabled=False,
+        monitoring_health="inactive",
+        monitoring_next_check_at=None,
+    )
+
+    await opportunity.save()
+
+    assert opportunity.status == "pursuing"
+    assert opportunity.monitoring_enabled is False
+    assert opportunity.monitoring_health == "inactive"
+'''
+          test_path.write_text(tests)
+          PY
+
+      - name: Commit lifecycle patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add construction_os/domain/opportunity.py construction_os/services/opportunities.py tests/test_opportunity_monitoring.py
+          git commit -m "fix(opportunities): make manual monitoring pause durable"
+          git push origin HEAD:feature/opportunity-watch-monitoring-v2

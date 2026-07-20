@@ -173,7 +173,7 @@ async def generate_with_tools(
                 grounding_messages=working,
                 model_id=model_id,
                 provision_model=provision_model,
-                config=config,
+                config=None,
             )
             ai_message = ai_message.model_copy(
                 update={

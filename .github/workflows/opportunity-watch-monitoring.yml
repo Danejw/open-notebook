@@ -46,14 +46,16 @@ jobs:
           python -m pip install -e '.[dev]'
 
       - name: Lint monitoring backend strictly
+        id: monitoring-lint
         run: |
+          set -o pipefail
           python -m ruff check \
             api/opportunity_models.py \
             api/routers/opportunity_monitoring.py \
             construction_os/domain/opportunity.py \
             construction_os/services/opportunity_monitoring.py \
             construction_os/opportunity_monitor_scheduler.py \
-            tests/test_opportunity_monitoring.py
+            tests/test_opportunity_monitoring.py 2>&1 | tee ruff-opportunity-monitoring.log
 
       - name: Lint integrated legacy Opportunity Hub surface
         run: |
@@ -87,7 +89,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: opportunity-monitoring-backend-errors
-          path: pytest-opportunity-monitoring.log
+          path: |
+            ruff-opportunity-monitoring.log
+            pytest-opportunity-monitoring.log
           if-no-files-found: warn
           retention-days: 3
 

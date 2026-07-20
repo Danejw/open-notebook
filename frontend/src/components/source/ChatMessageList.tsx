@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { SourceChatMessage } from '@/lib/types/api'
 import { ChatToolCall } from '@/lib/types/mcp'
@@ -18,6 +18,8 @@ export interface ChatMessageListProps {
   streamingMessageId?: string
   editingMessageId: string | null
   editDraft: string
+  /** When this changes, jump to the latest message (session switch / open). */
+  sessionId?: string | null
   projectId?: string
   noteSaveTitle?: string
   htmlTemplateId?: string | null
@@ -44,6 +46,7 @@ export function ChatMessageList({
   streamingMessageId,
   editingMessageId,
   editDraft,
+  sessionId = null,
   projectId,
   noteSaveTitle,
   htmlTemplateId,
@@ -65,7 +68,13 @@ export function ChatMessageList({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const prevMessageCountRef = useRef(0)
   const prevLastMessageIdRef = useRef<string | undefined>(undefined)
+  const prevSessionIdRef = useRef<string | null | undefined>(undefined)
   const stickyToBottomRef = useRef(true)
+  const programmaticScrollRef = useRef(false)
+  const pendingSessionScrollRef = useRef(false)
+  const programmaticScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  )
   const useVirtual = messages.length >= VIRTUALIZE_THRESHOLD
 
   const virtualizer = useVirtualizer({
@@ -87,6 +96,19 @@ export function ChatMessageList({
       const el = scrollRef.current
       if (!el) return
 
+      programmaticScrollRef.current = true
+      if (programmaticScrollTimerRef.current) {
+        clearTimeout(programmaticScrollTimerRef.current)
+      }
+      // Smooth scroll emits intermediate events; ignore them until settled.
+      programmaticScrollTimerRef.current = setTimeout(
+        () => {
+          programmaticScrollRef.current = false
+          stickyToBottomRef.current = isNearBottom()
+        },
+        behavior === 'smooth' ? 400 : 50
+      )
+
       if (useVirtual) {
         virtualizer.scrollToIndex(Math.max(messages.length - 1, 0), {
           align: 'end',
@@ -101,7 +123,7 @@ export function ChatMessageList({
         el.scrollTop = el.scrollHeight
       }
     },
-    [messages.length, useVirtual, virtualizer]
+    [isNearBottom, messages.length, useVirtual, virtualizer]
   )
 
   // Track whether the user is pinned near the bottom (manual scroll up disables auto-scroll).
@@ -110,12 +132,42 @@ export function ChatMessageList({
     if (!el) return
 
     const onScroll = () => {
+      if (programmaticScrollRef.current) return
       stickyToBottomRef.current = isNearBottom()
     }
 
     el.addEventListener('scroll', onScroll, { passive: true })
     return () => el.removeEventListener('scroll', onScroll)
   }, [isNearBottom, messages.length])
+
+  useEffect(() => {
+    return () => {
+      if (programmaticScrollTimerRef.current) {
+        clearTimeout(programmaticScrollTimerRef.current)
+      }
+    }
+  }, [])
+
+  // Session open / switch: always pin and jump to the latest message (retry when history loads).
+  useLayoutEffect(() => {
+    if (prevSessionIdRef.current !== sessionId) {
+      prevSessionIdRef.current = sessionId
+      stickyToBottomRef.current = true
+      prevMessageCountRef.current = 0
+      prevLastMessageIdRef.current = undefined
+      pendingSessionScrollRef.current = true
+    }
+
+    if (!pendingSessionScrollRef.current || messages.length === 0) return
+
+    pendingSessionScrollRef.current = false
+    scrollToBottom('auto')
+    const frame = requestAnimationFrame(() => {
+      scrollToBottom('auto')
+      requestAnimationFrame(() => scrollToBottom('auto'))
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [sessionId, messages, scrollToBottom])
 
   useEffect(() => {
     const lastMessageId = messages[messages.length - 1]?.id
@@ -137,7 +189,13 @@ export function ChatMessageList({
     if (!stickyToBottomRef.current) return
     if (!grew && !lastChanged && !isStreaming) return
 
-    scrollToBottom(isStreaming ? 'auto' : 'smooth')
+    // Instant jump for streaming and long histories; smooth only for short appends.
+    const behavior: ScrollBehavior =
+      isStreaming || grew || messages.length >= VIRTUALIZE_THRESHOLD
+        ? 'auto'
+        : 'smooth'
+
+    scrollToBottom(behavior)
   }, [messages, isStreaming, scrollToBottom])
 
   const rowProps = (message: SourceChatMessage): ChatMessageRowProps => ({

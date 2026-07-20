@@ -119,23 +119,34 @@ export function PickerDialogActions({
   )
 }
 
-export function usePickerDialogDraft<T>(selected: T) {
-  const [open, setOpen] = useState(false)
+export function usePickerDialogDraft<T>(
+  selected: T,
+  controlled?: {
+    open?: boolean
+    onOpenChange?: (open: boolean) => void
+  }
+) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
   const [draft, setDraft] = useState(selected)
+  const isControlled = controlled?.open !== undefined
+  const open = isControlled ? Boolean(controlled.open) : uncontrolledOpen
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
       if (nextOpen) {
         setDraft(selected)
       }
-      setOpen(nextOpen)
+      if (!isControlled) {
+        setUncontrolledOpen(nextOpen)
+      }
+      controlled?.onOpenChange?.(nextOpen)
     },
-    [selected]
+    [controlled, isControlled, selected]
   )
 
   const close = useCallback(() => {
-    setOpen(false)
-  }, [])
+    handleOpenChange(false)
+  }, [handleOpenChange])
 
   return {
     open,

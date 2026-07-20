@@ -78,32 +78,6 @@ export function ChatColumn({
     }
   }, [artifactRunKey, activeArtifact, chat.applyArtifactDefaults])
 
-  const contextStats = useMemo(() => {
-    let sourcesFull = 0
-    let notesCount = 0
-
-    sources.forEach((source) => {
-      const mode = contextSelections.sources[source.id]
-      if (mode === 'full') {
-        sourcesFull++
-      }
-    })
-
-    notes.forEach((note) => {
-      const mode = contextSelections.notes[note.id]
-      if (mode === 'full') {
-        notesCount++
-      }
-    })
-
-    return {
-      sourcesFull,
-      notesCount,
-      tokenCount: chat.tokenCount,
-      charCount: chat.charCount,
-    }
-  }, [sources, notes, contextSelections, chat.tokenCount, chat.charCount])
-
   const showChatSkeleton = sourcesLoading && sources.length === 0
   const titleAdornment = chatUnread ? <UnreadDot /> : undefined
 
@@ -141,7 +115,6 @@ export function ChatColumn({
           title: chatTitle,
           titleAdornment,
           loadingSessions: chat.loadingSessions || notesLoading,
-          projectContextStats: contextStats,
           projectId,
           activeArtifact,
           noteSaveTitle: activeArtifact?.title,

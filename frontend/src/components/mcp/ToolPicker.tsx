@@ -15,15 +15,32 @@ interface ToolPickerProps {
   selectedToolIds: string[]
   onChange: (ids: string[]) => void
   disabled?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  showTrigger?: boolean
 }
 
 function isToolSelectable(tool: McpTool): boolean {
   return tool.available && tool.executable && tool.risk_level === 'read'
 }
 
-export function ToolPicker({ selectedToolIds, onChange, disabled = false }: ToolPickerProps) {
+export function ToolPicker({
+  selectedToolIds,
+  onChange,
+  disabled = false,
+  open: controlledOpen,
+  onOpenChange,
+  showTrigger = true,
+}: ToolPickerProps) {
   const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const open = controlledOpen ?? uncontrolledOpen
+
+  const handleOpenChange = (next: boolean) => {
+    if (controlledOpen === undefined) setUncontrolledOpen(next)
+    onOpenChange?.(next)
+  }
+
   const { data: tools, isLoading } = useMcpSelectableTools({ enabled: open })
 
   const selectedCount = selectedToolIds.length
@@ -33,7 +50,8 @@ export function ToolPicker({ selectedToolIds, onChange, disabled = false }: Tool
       selectionMode="multi"
       value={selectedToolIds}
       onChange={onChange}
-      onOpenChange={setOpen}
+      open={controlledOpen}
+      onOpenChange={handleOpenChange}
       title={t('tools.pickerTitle')}
       items={tools ?? []}
       getItemId={(tool) => tool.id}
@@ -84,21 +102,23 @@ export function ToolPicker({ selectedToolIds, onChange, disabled = false }: Tool
         ) : undefined
       }
       trigger={
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="h-8 w-8 flex-shrink-0"
-          disabled={disabled}
-          aria-label={t('tools.pickerLabel')}
-          title={
-            selectedCount > 0
-              ? t('tools.pickerSelected').replace('{count}', selectedCount.toString())
-              : t('tools.pickerLabel')
-          }
-        >
-          <Wrench className={cn('h-4 w-4', selectedCount > 0 && 'text-primary')} />
-        </Button>
+        showTrigger ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 flex-shrink-0"
+            disabled={disabled}
+            aria-label={t('tools.pickerLabel')}
+            title={
+              selectedCount > 0
+                ? t('tools.pickerSelected').replace('{count}', selectedCount.toString())
+                : t('tools.pickerLabel')
+            }
+          >
+            <Wrench className={cn('h-4 w-4', selectedCount > 0 && 'text-primary')} />
+          </Button>
+        ) : undefined
       }
     />
   )

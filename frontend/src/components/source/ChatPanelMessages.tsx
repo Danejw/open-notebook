@@ -146,6 +146,7 @@ export function ChatPanelMessages({
       streamingMessageId={streamingMessageId}
       editingMessageId={editingMessageId}
       editDraft={editDraft}
+      sessionId={currentSessionId}
       projectId={projectId}
       noteSaveTitle={noteSaveTitle}
       htmlTemplateId={htmlTemplateId ?? null}

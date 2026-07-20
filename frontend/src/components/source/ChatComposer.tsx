@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Send, Square } from 'lucide-react'
 import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
-import { ChatModelOverrideDialog } from '@/components/source/ChatModelOverrideDialog'
-import { SkillPicker } from '@/components/skills/SkillPicker'
-import { CollectionPicker } from '@/components/collections/CollectionPicker'
-import { ToolPicker } from '@/components/mcp/ToolPicker'
-import { TemplatePicker } from '@/components/templates/TemplatePicker'
+import {
+  ChatComposerAttachMenu,
+  openChatAttachPicker,
+  type ChatAttachPicker,
+} from '@/components/source/ChatComposerAttachMenu'
+import { ChatComposerSelectionIndicators } from '@/components/source/ChatComposerSelectionIndicators'
 import { ChatSuggestionPills } from '@/components/source/ChatSuggestionPills'
 import { useChatSuggestions } from '@/lib/hooks/useChatSuggestions'
 import { useChatUiStore } from '@/lib/stores/chat-ui-store'
@@ -93,6 +94,7 @@ export function ChatComposer({
   const { t } = useTranslation()
   const chatInputId = useId()
   const [input, setInput] = useState('')
+  const [activePicker, setActivePicker] = useState<ChatAttachPicker>(null)
   const prefilledArtifactRef = useRef<string | null>(null)
 
   const queueMode = Boolean(onEnqueueMessage)
@@ -187,6 +189,7 @@ export function ChatComposer({
     <div
       className={cn(
         columnFooterClassName,
+        'border-t-0',
         isImmersive &&
           'border-border/60 px-4 py-3 sm:px-6 sm:py-4 md:px-10 lg:px-14'
       )}
@@ -204,42 +207,37 @@ export function ChatComposer({
           onSelect={handleSuggestionSelect}
         />
       ) : null}
+      <ChatComposerSelectionIndicators
+        disabled={composerBusy}
+        modelOverride={modelOverride}
+        onModelChange={onModelChange}
+        selectedSkillIds={selectedSkillIds}
+        onSkillIdsChange={onSkillIdsChange}
+        selectedCollectionIds={selectedCollectionIds}
+        onCollectionIdsChange={onCollectionIdsChange}
+        selectedHtmlTemplateId={selectedHtmlTemplateId}
+        onHtmlTemplateIdChange={onHtmlTemplateIdChange}
+        selectedMcpToolIds={selectedMcpToolIds}
+        onMcpToolIdsChange={onMcpToolIdsChange}
+        onOpenPicker={(picker) => openChatAttachPicker(setActivePicker, picker)}
+      />
       <div className={cn('flex min-w-0 items-end', isImmersive ? 'gap-2' : 'gap-1')}>
-        {onModelChange ? (
-          <ChatModelOverrideDialog
-            currentModel={modelOverride}
-            onModelChange={onModelChange}
-            disabled={composerBusy}
-          />
-        ) : null}
-        {onSkillIdsChange ? (
-          <SkillPicker
-            selectedSkillIds={selectedSkillIds ?? []}
-            onChange={onSkillIdsChange}
-            disabled={composerBusy}
-          />
-        ) : null}
-        {onHtmlTemplateIdChange ? (
-          <TemplatePicker
-            selectedTemplateId={selectedHtmlTemplateId ?? null}
-            onChange={onHtmlTemplateIdChange}
-            disabled={composerBusy}
-          />
-        ) : null}
-        {onMcpToolIdsChange ? (
-          <ToolPicker
-            selectedToolIds={selectedMcpToolIds ?? []}
-            onChange={onMcpToolIdsChange}
-            disabled={composerBusy}
-          />
-        ) : null}
-        {onCollectionIdsChange ? (
-          <CollectionPicker
-            selectedCollectionIds={selectedCollectionIds ?? []}
-            onChange={onCollectionIdsChange}
-            disabled={composerBusy}
-          />
-        ) : null}
+        <ChatComposerAttachMenu
+          disabled={composerBusy}
+          compact={!isImmersive}
+          modelOverride={modelOverride}
+          onModelChange={onModelChange}
+          selectedSkillIds={selectedSkillIds}
+          onSkillIdsChange={onSkillIdsChange}
+          selectedCollectionIds={selectedCollectionIds}
+          onCollectionIdsChange={onCollectionIdsChange}
+          selectedHtmlTemplateId={selectedHtmlTemplateId}
+          onHtmlTemplateIdChange={onHtmlTemplateIdChange}
+          selectedMcpToolIds={selectedMcpToolIds}
+          onMcpToolIdsChange={onMcpToolIdsChange}
+          activePicker={activePicker}
+          onActivePickerChange={setActivePicker}
+        />
         <Textarea
           id={chatInputId}
           name="chat-message"

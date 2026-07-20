@@ -25,13 +25,6 @@ import { ChatPanelMessages } from '@/components/source/ChatPanelMessages'
 import { ChatContextStrip } from '@/components/source/ChatContextStrip'
 import { ChatComposer } from '@/components/source/ChatComposer'
 
-export interface ProjectContextStats {
-  sourcesFull: number
-  notesCount: number
-  tokenCount?: number
-  charCount?: number
-}
-
 export interface ChatPanelProps {
   messages: SourceChatMessage[]
   isStreaming: boolean
@@ -67,7 +60,6 @@ export interface ChatPanelProps {
   title?: string
   titleAdornment?: ReactNode
   contextType?: 'source' | 'project'
-  projectContextStats?: ProjectContextStats
   projectId?: string
   sourceId?: string
   guestKey?: string | null
@@ -124,7 +116,6 @@ export function ChatPanel({
   title,
   titleAdornment,
   contextType = 'source',
-  projectContextStats,
   projectId,
   sourceId,
   guestKey = null,
@@ -225,10 +216,7 @@ export function ChatPanel({
           />
         ) : null}
 
-        <ChatContextStrip
-          contextIndicators={contextIndicators}
-          projectContextStats={projectContextStats}
-        />
+        <ChatContextStrip contextIndicators={contextIndicators} />
 
         <ChatComposer
           variant={variant}

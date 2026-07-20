@@ -12,15 +12,28 @@ interface CollectionPickerProps {
   selectedCollectionIds: string[]
   onChange: (ids: string[]) => void
   disabled?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  showTrigger?: boolean
 }
 
 export function CollectionPicker({
   selectedCollectionIds,
   onChange,
   disabled = false,
+  open: controlledOpen,
+  onOpenChange,
+  showTrigger = true,
 }: CollectionPickerProps) {
   const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const open = controlledOpen ?? uncontrolledOpen
+
+  const handleOpenChange = (next: boolean) => {
+    if (controlledOpen === undefined) setUncontrolledOpen(next)
+    onOpenChange?.(next)
+  }
+
   const { data: catalog, isLoading } = useCollectionsCatalog({ enabled: open })
 
   const activeCollections = (catalog ?? []).filter(
@@ -34,7 +47,8 @@ export function CollectionPicker({
       selectionMode="multi"
       value={selectedCollectionIds}
       onChange={onChange}
-      onOpenChange={setOpen}
+      open={controlledOpen}
+      onOpenChange={handleOpenChange}
       title={t('collections.pickerTitle')}
       items={activeCollections}
       getItemId={(collection) => collection.id}
@@ -54,21 +68,23 @@ export function CollectionPicker({
         t('collections.pickerSelected').replace('{count}', count.toString())
       }
       trigger={
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="h-8 w-8 flex-shrink-0"
-          disabled={disabled}
-          aria-label={t('collections.pickerLabel')}
-          title={
-            selectedCount > 0
-              ? t('collections.pickerSelected').replace('{count}', selectedCount.toString())
-              : t('collections.pickerLabel')
-          }
-        >
-          <Library className={cn('h-4 w-4', selectedCount > 0 && 'text-primary')} />
-        </Button>
+        showTrigger ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 flex-shrink-0"
+            disabled={disabled}
+            aria-label={t('collections.pickerLabel')}
+            title={
+              selectedCount > 0
+                ? t('collections.pickerSelected').replace('{count}', selectedCount.toString())
+                : t('collections.pickerLabel')
+            }
+          >
+            <Library className={cn('h-4 w-4', selectedCount > 0 && 'text-primary')} />
+          </Button>
+        ) : undefined
       }
     />
   )

@@ -12,6 +12,10 @@ interface ChatModelOverrideDialogProps {
   currentModel?: string
   onModelChange: (model?: string) => void
   disabled?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  /** When false, dialog is opened externally (no visible trigger). */
+  showTrigger?: boolean
 }
 
 type ModelPickerItem = Model | { id: 'default'; name: string; provider?: string }
@@ -20,6 +24,9 @@ export function ChatModelOverrideDialog({
   currentModel,
   onModelChange,
   disabled = false,
+  open,
+  onOpenChange,
+  showTrigger = true,
 }: ChatModelOverrideDialogProps) {
   const { t } = useTranslation()
   const { data: models, isLoading } = useModels()
@@ -66,6 +73,8 @@ export function ChatModelOverrideDialog({
       onChange={(id) => {
         onModelChange(!id || id === 'default' ? undefined : id)
       }}
+      open={open}
+      onOpenChange={onOpenChange}
       title={t('common.modelConfiguration')}
       items={items}
       getItemId={(item) => item.id}
@@ -94,15 +103,17 @@ export function ChatModelOverrideDialog({
         ) : undefined
       }
       trigger={
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={disabled}
-          className="my-0 h-9 max-w-[140px] gap-1.5 px-2 shrink-0"
-        >
-          <Settings2 className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate text-xs">{currentModelName}</span>
-        </Button>
+        showTrigger ? (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            className="my-0 h-9 max-w-[140px] gap-1.5 px-2 shrink-0"
+          >
+            <Settings2 className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate text-xs">{currentModelName}</span>
+          </Button>
+        ) : undefined
       }
     />
   )

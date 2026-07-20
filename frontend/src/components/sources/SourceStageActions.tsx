@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/popover'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { clearBodyPointerLock } from '@/lib/utils/clear-body-pointer-lock'
 import { cn } from '@/lib/utils'
 import type { SourceProcessingFailure } from '@/lib/types/api'
 
@@ -46,13 +47,6 @@ interface SourceStageActionsProps {
   onRunKnowledgeGraph: () => void
   onRunDrawingExtraction?: () => void
   onInspectDrawing?: () => void
-}
-
-/** Radix DropdownMenu + AlertDialog can leave body pointer-events:none after close. */
-function clearBodyPointerLock() {
-  if (typeof document === 'undefined') return
-  document.body.style.pointerEvents = ''
-  document.body.removeAttribute('data-scroll-locked')
 }
 
 /**

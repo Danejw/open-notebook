@@ -23,7 +23,8 @@ export type ResourcePickerItemProps = Omit<
 
 type ResourcePickerSharedProps<T> = {
   title: ReactNode
-  trigger: ReactNode
+  /** Optional trigger; omit when the dialog is opened externally. */
+  trigger?: ReactNode
   items: T[]
   getItemId: (item: T) => string
   getItemProps: (item: T) => ResourcePickerItemProps
@@ -49,6 +50,8 @@ type ResourcePickerSharedProps<T> = {
   skeletonRows?: number
   emptyClassName?: string
   contentClassName?: string
+  /** Controlled open state (omit for uncontrolled). */
+  open?: boolean
   /** Fired when the dialog opens or closes (for lazy catalog fetches). */
   onOpenChange?: (open: boolean) => void
 }
@@ -101,6 +104,7 @@ export function ResourcePicker<T>(props: ResourcePickerProps<T>) {
     skeletonRows = 4,
     emptyClassName,
     contentClassName,
+    open: controlledOpen,
     onOpenChange,
     selectionMode,
   } = props
@@ -109,11 +113,13 @@ export function ResourcePicker<T>(props: ResourcePickerProps<T>) {
     ? props.value
     : props.value
   const { open, draft, setDraft, handleOpenChange, close } =
-    usePickerDialogDraft<string[] | string | null>(draftSeed)
+    usePickerDialogDraft<string[] | string | null>(draftSeed, {
+      open: controlledOpen,
+      onOpenChange,
+    })
 
   const handleDialogOpenChange = (nextOpen: boolean) => {
     handleOpenChange(nextOpen)
-    onOpenChange?.(nextOpen)
   }
 
   const draftIds: string[] = useMemo(() => {

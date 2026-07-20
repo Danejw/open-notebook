@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { buttonVariants } from '@/components/ui/button'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
+import { clearBodyPointerLock } from '@/lib/utils/clear-body-pointer-lock'
 
 interface ConfirmDialogProps {
   open: boolean
@@ -41,8 +41,8 @@ export function ConfirmDialog({
   const handleOpenChange = (nextOpen: boolean) => {
     onOpenChange(nextOpen)
     // DropdownMenu → AlertDialog combos can leave body.pointerEvents = 'none'.
-    if (!nextOpen && typeof document !== 'undefined') {
-      document.body.style.pointerEvents = ''
+    if (!nextOpen) {
+      clearBodyPointerLock()
     }
   }
 

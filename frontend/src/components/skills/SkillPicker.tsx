@@ -12,11 +12,28 @@ interface SkillPickerProps {
   selectedSkillIds: string[]
   onChange: (ids: string[]) => void
   disabled?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  showTrigger?: boolean
 }
 
-export function SkillPicker({ selectedSkillIds, onChange, disabled = false }: SkillPickerProps) {
+export function SkillPicker({
+  selectedSkillIds,
+  onChange,
+  disabled = false,
+  open: controlledOpen,
+  onOpenChange,
+  showTrigger = true,
+}: SkillPickerProps) {
   const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const open = controlledOpen ?? uncontrolledOpen
+
+  const handleOpenChange = (next: boolean) => {
+    if (controlledOpen === undefined) setUncontrolledOpen(next)
+    onOpenChange?.(next)
+  }
+
   const { data: catalog, isLoading } = useSkillsCatalog({ enabled: open })
 
   const activeSkills = useMemo(
@@ -31,7 +48,8 @@ export function SkillPicker({ selectedSkillIds, onChange, disabled = false }: Sk
       selectionMode="multi"
       value={selectedSkillIds}
       onChange={onChange}
-      onOpenChange={setOpen}
+      open={controlledOpen}
+      onOpenChange={handleOpenChange}
       title={t('skills.pickerTitle')}
       items={activeSkills}
       getItemId={(skill) => skill.id}
@@ -47,21 +65,23 @@ export function SkillPicker({ selectedSkillIds, onChange, disabled = false }: Sk
         t('skills.pickerSelected').replace('{count}', count.toString())
       }
       trigger={
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="h-8 w-8 flex-shrink-0"
-          disabled={disabled}
-          aria-label={t('skills.pickerLabel')}
-          title={
-            selectedCount > 0
-              ? t('skills.pickerSelected').replace('{count}', selectedCount.toString())
-              : t('skills.pickerLabel')
-          }
-        >
-          <Sparkles className={cn('h-4 w-4', selectedCount > 0 && 'text-primary')} />
-        </Button>
+        showTrigger ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 flex-shrink-0"
+            disabled={disabled}
+            aria-label={t('skills.pickerLabel')}
+            title={
+              selectedCount > 0
+                ? t('skills.pickerSelected').replace('{count}', selectedCount.toString())
+                : t('skills.pickerLabel')
+            }
+          >
+            <Sparkles className={cn('h-4 w-4', selectedCount > 0 && 'text-primary')} />
+          </Button>
+        ) : undefined
       }
     />
   )

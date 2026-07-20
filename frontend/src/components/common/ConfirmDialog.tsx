@@ -11,6 +11,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { buttonVariants } from '@/components/ui/button'
+import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { clearBodyPointerLock } from '@/lib/utils/clear-body-pointer-lock'
 

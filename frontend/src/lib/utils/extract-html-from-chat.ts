@@ -26,9 +26,14 @@ export function extractHtmlFromChatContent(content: string): string | null {
   return null
 }
 
+/** Remove completed HTML documents from the human-readable message body. */
+export function stripHtmlFromChatContent(content: string): string {
+  return (content || '').replace(HTML_FENCE_RE, '').trim()
+}
+
 /** Attach or replace one completed HTML document in a chat message. */
 export function attachHtmlToChatContent(content: string, html: string): string {
-  const textWithoutOldHtml = (content || '').replace(HTML_FENCE_RE, '').trim()
+  const textWithoutOldHtml = stripHtmlFromChatContent(content)
   const htmlBlock = `\`\`\`html\n${html.trim()}\n\`\`\``
   if (!textWithoutOldHtml) {
     return htmlBlock

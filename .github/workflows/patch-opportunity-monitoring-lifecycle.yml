@@ -13,7 +13,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: patch-opportunity-monitoring-lifecycle
+  group: patch-opportunity-monitoring-lifecycle-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:

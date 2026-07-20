@@ -6,6 +6,7 @@ import type { ChatToolCall } from '@/lib/types/mcp'
 import {
   createAgUiChatSseHandler,
   extractAgUiTextDelta,
+  parseHtmlTemplateOutputEvent,
   resolveAgUiMessageId,
   type ChatStreamMessage,
 } from './chat-sse-handlers'
@@ -71,6 +72,26 @@ describe('resolveAgUiMessageId', () => {
   })
 })
 
+describe('parseHtmlTemplateOutputEvent', () => {
+  it('reads the completed HTML document and message binding', () => {
+    expect(
+      parseHtmlTemplateOutputEvent({
+        type: 'CUSTOM',
+        name: 'html_template_output',
+        value: {
+          messageId: 'ai-1',
+          templateId: 'html_template:proposal',
+          html: '<html><body>Proposal</body></html>',
+        },
+      })
+    ).toEqual({
+      messageId: 'ai-1',
+      templateId: 'html_template:proposal',
+      html: '<html><body>Proposal</body></html>',
+    })
+  })
+})
+
 describe('createAgUiChatSseHandler', () => {
   beforeEach(() => {
     vi.stubGlobal('cancelAnimationFrame', vi.fn())
@@ -101,6 +122,42 @@ describe('createAgUiChatSseHandler', () => {
     expect(deps.aiMessageIdRef.current).toBe('ai-2')
     expect(deps.streamContentRef.current.get('ai-2')).toBe('Hi')
     expect(vi.mocked(deps.setMessages)).toHaveBeenCalled()
+  })
+
+  it('attaches streamed HTML output to the matching assistant message', () => {
+    const deps = makeDeps()
+    deps.aiMessageIdRef.current = 'ai-1'
+    deps.streamContentRef.current.set('ai-1', 'Grounded response')
+    const handler = createAgUiChatSseHandler(deps)
+
+    handler({
+      type: 'CUSTOM',
+      name: 'html_template_output',
+      value: {
+        messageId: 'ai-1',
+        templateId: 'html_template:proposal',
+        html: '<html><body>Completed proposal</body></html>',
+      },
+    })
+
+    const streamed = deps.streamContentRef.current.get('ai-1')
+    expect(streamed).toContain('Grounded response')
+    expect(streamed).toContain('```html')
+    expect(streamed).toContain('Completed proposal')
+
+    const update = vi.mocked(deps.setMessages).mock.calls[0][0]
+    expect(typeof update).toBe('function')
+    const updated = (
+      update as (messages: TestMessage[]) => TestMessage[]
+    )([
+      {
+        id: 'ai-1',
+        type: 'ai',
+        content: 'Grounded response',
+        timestamp: '2026-01-01T00:00:00Z',
+      },
+    ])
+    expect(updated[0].content).toBe(streamed)
   })
 
   it('flushes on TEXT_MESSAGE_END when enabled', () => {

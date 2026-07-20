@@ -7,16 +7,22 @@ from typing import Any, Callable, Optional
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
+from loguru import logger
 
 from construction_os.capabilities.langchain_bridge import build_native_langchain_tools
 from construction_os.capabilities.models import CapabilityRuntimeContext
 from construction_os.mcp.allowlist import build_allowlist
 from construction_os.mcp.langgraph_tools import build_langchain_tools
 from construction_os.mcp.limits import MAX_TOOL_CALLS, MAX_TOOL_ITERATIONS
+from construction_os.services.html_template_binding import (
+    attach_rendered_html,
+    render_selected_html_template,
+)
 from construction_os.tool_runtime.execution import (
     DuplicateCallGuard,
     reject_unauthorized,
 )
+from construction_os.utils.text_utils import extract_text_content
 
 
 async def generate_with_tools(
@@ -152,6 +158,39 @@ async def generate_with_tools(
             ai_message = plain.invoke(working, config=invoke_config)
 
     assert ai_message is not None
+
+    html_template_id = (
+        capability_context.explicit_html_template_id
+        if capability_context is not None
+        else None
+    )
+    if html_template_id:
+        try:
+            assistant_text = extract_text_content(ai_message.content)
+            rendered_html = await render_selected_html_template(
+                template_id=html_template_id,
+                assistant_text=assistant_text,
+                grounding_messages=working,
+                model_id=model_id,
+                provision_model=provision_model,
+                config=config,
+            )
+            ai_message = ai_message.model_copy(
+                update={
+                    "content": attach_rendered_html(
+                        assistant_text,
+                        rendered_html,
+                    )
+                }
+            )
+        except Exception as error:
+            # A template failure must not discard the normal answer or A2UI output.
+            logger.error(
+                "Unable to attach selected HTML template {}: {}",
+                html_template_id,
+                error,
+            )
+
     if message_id:
         ai_message = ai_message.model_copy(update={"id": message_id})
     return ai_message

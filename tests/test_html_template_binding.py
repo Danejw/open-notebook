@@ -2,6 +2,7 @@ import pytest
 from langchain_core.messages import HumanMessage
 
 from construction_os.services import html_template_binding as binding
+from construction_os.tool_runtime import chat_loop
 
 
 def test_compile_contract_supports_unknown_template_shapes():
@@ -73,6 +74,36 @@ def test_attach_rendered_html_replaces_model_generated_html():
     assert "<html>old</html>" not in attached
     assert attached.count("```html") == 1
     assert "<html>new</html>" in attached
+
+
+def test_emit_html_template_output_dispatches_custom_event(monkeypatch):
+    emitted = []
+
+    def fake_dispatch(name, value, *, config):
+        emitted.append((name, value, config))
+
+    monkeypatch.setattr(chat_loop, "dispatch_custom_event", fake_dispatch)
+    config = {"configurable": {"thread_id": "chat_session:test"}}
+
+    did_emit = chat_loop.emit_html_template_output(
+        message_id="ai-1",
+        template_id="html_template:proposal",
+        html="<html><body>Proposal</body></html>",
+        config=config,
+    )
+
+    assert did_emit is True
+    assert emitted == [
+        (
+            "html_template_output",
+            {
+                "messageId": "ai-1",
+                "templateId": "html_template:proposal",
+                "html": "<html><body>Proposal</body></html>",
+            },
+            config,
+        )
+    ]
 
 
 @pytest.mark.asyncio

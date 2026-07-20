@@ -44,6 +44,13 @@ async function unwatchOpportunity(id: string) {
   return response.data
 }
 
+async function postStatus(id: string, status: OpportunityStatus) {
+  const response = await apiClient.post<Opportunity>(`/opportunities/${id}/status`, {
+    status,
+  })
+  return response.data
+}
+
 const TERMINAL_STATUSES: OpportunityStatus[] = ['won', 'lost', 'no_bid', 'ignored']
 
 export const opportunitiesApi = {
@@ -159,16 +166,15 @@ export const opportunitiesApi = {
       return result.opportunity
     }
     if (status === 'none') {
+      await postStatus(id, status)
       return unwatchOpportunity(id)
     }
 
-    const response = await apiClient.post<Opportunity>(`/opportunities/${id}/status`, {
-      status,
-    })
+    const opportunity = await postStatus(id, status)
     if (TERMINAL_STATUSES.includes(status)) {
       return unwatchOpportunity(id)
     }
-    return response.data
+    return opportunity
   },
 
   pursue: async (id: string) => {
@@ -179,8 +185,8 @@ export const opportunitiesApi = {
       const watchResult = await watchOpportunity(id)
       return { ...response.data, opportunity: watchResult.opportunity }
     } catch {
-      // Pursuit succeeds independently. The monitor remains visible as unhealthy
-      // when activation reached the backend but the source refresh failed.
+      // Pursuit succeeds independently when the source does not support monitoring.
+      // If activation reached the backend, its durable health state remains on the record.
       return response.data
     }
   },

@@ -15,7 +15,7 @@ export function extractHtmlFromChatContent(content: string): string | null {
 
   const lower = text.toLowerCase()
   if (lower.includes('<!doctype html') || lower.includes('<html')) {
-    // Strip accidental outer fences without language tag
+    // Strip accidental outer fences without language tag.
     const genericFence = text.match(/```\s*([\s\S]*?)```/)
     if (genericFence?.[1]?.trim() && /<html/i.test(genericFence[1])) {
       return genericFence[1].trim()

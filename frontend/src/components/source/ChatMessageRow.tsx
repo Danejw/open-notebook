@@ -158,6 +158,7 @@ function ChatMessageRowImpl({
           </div>
         ) : (
           <>
+            {/* Parallel assistant outputs render in a stable order: text, A2UI, HTML. */}
             {showMessageBody ? (
               message.type === 'human' ? (
                 <div className="rounded-lg bg-primary px-3 py-1.5 text-primary-foreground">

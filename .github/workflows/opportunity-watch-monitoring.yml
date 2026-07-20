@@ -39,15 +39,22 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e '.[dev]'
 
-      - name: Lint monitoring backend
+      - name: Lint combined Opportunity Hub backend
         run: |
+          set -o pipefail
           python -m ruff check \
             api/opportunity_models.py \
+            api/routers/opportunities.py \
             api/routers/opportunity_monitoring.py \
             construction_os/domain/opportunity.py \
+            construction_os/services/opportunities.py \
+            construction_os/services/opportunity_collectors.py \
+            construction_os/services/opportunity_scoring.py \
             construction_os/services/opportunity_monitoring.py \
             construction_os/opportunity_monitor_scheduler.py \
-            tests/test_opportunity_monitoring.py
+            tests/test_opportunity_collectors.py \
+            tests/test_opportunity_scoring.py \
+            tests/test_opportunity_monitoring.py 2>&1 | tee ruff-opportunity-hub.log
 
       - name: Compile backend modules
         run: python -m compileall -q api construction_os
@@ -70,8 +77,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: opportunity-monitoring-backend-errors
-          path: pytest-opportunity-monitoring.log
-          if-no-files-found: error
+          path: |
+            ruff-opportunity-hub.log
+            pytest-opportunity-monitoring.log
+          if-no-files-found: warn
           retention-days: 3
 
   frontend:
@@ -101,6 +110,7 @@ jobs:
         run: |
           npx eslint \
             'src/app/(dashboard)/opportunities/layout.tsx' \
+            'src/app/(dashboard)/settings/company-profile/components/CompanyProfileForm.tsx' \
             src/lib/api/opportunities.ts \
             src/lib/hooks/use-opportunities.ts \
             src/lib/types/opportunities.ts

@@ -15,7 +15,10 @@ import {
   convertReferencesToCompactMarkdown,
   createCompactReferenceLinkComponent,
 } from '@/lib/utils/source-references'
-import { extractHtmlFromChatContent } from '@/lib/utils/extract-html-from-chat'
+import {
+  extractHtmlFromChatContent,
+  stripHtmlFromChatContent,
+} from '@/lib/utils/extract-html-from-chat'
 import { restoreTemplateMedia } from '@/lib/utils/restore-template-media'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { useHtmlTemplate } from '@/lib/hooks/use-html-documents'
@@ -84,33 +87,41 @@ function ChatMessageRowImpl({
     a2uiEnabled &&
     message.type === 'ai' &&
     (a2uiSurfaceCount > 0 || Boolean(a2uiError))
+  // A completed html_template_output event is safe to render immediately, even
+  // while the surrounding text turn is still marked as streaming.
   const extractedRaw =
-    message.type === 'ai' && !isStreamingThisMessage
-      ? extractHtmlFromChatContent(message.content)
-      : null
+    message.type === 'ai' ? extractHtmlFromChatContent(message.content) : null
   const extractedHtml =
     extractedRaw && htmlTemplate?.html_body
       ? restoreTemplateMedia(extractedRaw, htmlTemplate.html_body)
       : extractedRaw
+  const displayTextContent = extractedRaw
+    ? stripHtmlFromChatContent(displayContent)
+    : displayContent
   const showTemplatePreview = Boolean(extractedHtml)
   const showTemplateMissing =
     message.type === 'ai' &&
     Boolean(htmlTemplateId) &&
     !isStreamingThisMessage &&
     !extractedHtml
-  const showMessageBody = Boolean(displayContent.trim())
+  const showMessageBody = Boolean(displayTextContent.trim())
   // Keep revision in render so memoized parents still refresh when surfaces update.
   void a2uiRevision
 
   return (
     <div
       data-index={message.id}
-      className={cn('group flex py-2 px-2', message.type === 'human' ? 'justify-end' : 'justify-start')}
+      className={cn(
+        'group flex py-2 px-2',
+        message.type === 'human' ? 'justify-end' : 'justify-start'
+      )}
     >
       <div
         className={cn(
           'flex flex-col gap-0.5',
-          message.type === 'human' ? 'max-w-[88%] items-end' : 'w-full max-w-[min(100%,52rem)] items-start'
+          message.type === 'human'
+            ? 'max-w-[88%] items-end'
+            : 'w-full max-w-[min(100%,52rem)] items-start'
         )}
       >
         {message.type === 'human' && isEditing ? (
@@ -147,40 +158,51 @@ function ChatMessageRowImpl({
           </div>
         ) : (
           <>
-            {showTemplatePreview && extractedHtml ? (
-              <div className="w-full space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  {t('chat.templateStructuredOutput')}
-                </p>
-                <TemplateHtmlPreview html={extractedHtml} />
-              </div>
-            ) : showTemplateMissing ? (
-              <div className="w-full space-y-2">
-                <p className="text-sm font-medium">{t('chat.templateOutputMissing')}</p>
-                <p className="text-xs text-muted-foreground">
-                  {t('chat.templateOutputMissingHint')}
-                </p>
-                <AIMessageContent
-                  content={displayContent}
-                  isStreaming={false}
-                  onReferenceClick={onReferenceClick}
-                />
-              </div>
-            ) : showMessageBody ? (
+            {showMessageBody ? (
               message.type === 'human' ? (
                 <div className="rounded-lg bg-primary px-3 py-1.5 text-primary-foreground">
-                  <p className="whitespace-pre-wrap break-words text-sm">{displayContent}</p>
+                  <p className="whitespace-pre-wrap break-words text-sm">
+                    {displayTextContent}
+                  </p>
                 </div>
               ) : (
                 <div className="w-full min-w-0">
                   <AIMessageContent
-                    content={displayContent}
+                    content={displayTextContent}
                     isStreaming={isStreamingThisMessage}
                     onReferenceClick={onReferenceClick}
                   />
                 </div>
               )
             ) : null}
+
+            {showA2uiSurface ? (
+              <div className="w-full pt-1" data-testid="chat-a2ui-output">
+                <A2uiMessageSurface messageId={message.id} />
+              </div>
+            ) : null}
+
+            {showTemplatePreview && extractedHtml ? (
+              <div
+                className="w-full space-y-2 pt-2"
+                data-testid="chat-html-template-output"
+              >
+                <p className="text-xs text-muted-foreground">
+                  {t('chat.templateStructuredOutput')}
+                </p>
+                <TemplateHtmlPreview html={extractedHtml} />
+              </div>
+            ) : showTemplateMissing ? (
+              <div className="w-full space-y-2 pt-2">
+                <p className="text-sm font-medium">
+                  {t('chat.templateOutputMissing')}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t('chat.templateOutputMissingHint')}
+                </p>
+              </div>
+            ) : null}
+
             {message.type === 'human' && canEdit && (
               <div className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                 <Button
@@ -188,7 +210,7 @@ function ChatMessageRowImpl({
                   variant="ghost"
                   size="sm"
                   className="h-6 px-1.5 text-[11px] text-muted-foreground"
-                  onClick={() => onStartEdit(message.id, displayContent)}
+                  onClick={() => onStartEdit(message.id, displayTextContent)}
                   disabled={isStreaming || editLocked}
                   aria-label={t('chat.editMessage')}
                 >
@@ -207,11 +229,6 @@ function ChatMessageRowImpl({
                 />
               </div>
             )}
-            {showA2uiSurface ? (
-              <div className="w-full pt-1">
-                <A2uiMessageSurface messageId={message.id} />
-              </div>
-            ) : null}
             {message.type === 'ai' && toolCalls.length > 0 && (
               <ToolCallGroup toolCalls={toolCalls} />
             )}
@@ -231,7 +248,10 @@ function toolCallsEqual(a: ChatToolCall[], b: ChatToolCall[]) {
   return true
 }
 
-function areChatMessageRowPropsEqual(prev: ChatMessageRowProps, next: ChatMessageRowProps) {
+function areChatMessageRowPropsEqual(
+  prev: ChatMessageRowProps,
+  next: ChatMessageRowProps
+) {
   if (prev.message.id !== next.message.id) return false
   if (prev.message.content !== next.message.content) return false
   if (prev.message.type !== next.message.type) return false
@@ -241,7 +261,12 @@ function areChatMessageRowPropsEqual(prev: ChatMessageRowProps, next: ChatMessag
   if (prev.htmlTemplateId !== next.htmlTemplateId) return false
   if (prev.canEdit !== next.canEdit) return false
   if (prev.editLocked !== next.editLocked) return false
-  if (!toolCallsEqual(prev.toolCalls ?? EMPTY_TOOL_CALLS, next.toolCalls ?? EMPTY_TOOL_CALLS)) {
+  if (
+    !toolCallsEqual(
+      prev.toolCalls ?? EMPTY_TOOL_CALLS,
+      next.toolCalls ?? EMPTY_TOOL_CALLS
+    )
+  ) {
     return false
   }
   if (prev.isEditing !== next.isEditing) return false
@@ -253,7 +278,10 @@ function areChatMessageRowPropsEqual(prev: ChatMessageRowProps, next: ChatMessag
   return true
 }
 
-export const ChatMessageRow = memo(ChatMessageRowImpl, areChatMessageRowPropsEqual)
+export const ChatMessageRow = memo(
+  ChatMessageRowImpl,
+  areChatMessageRowPropsEqual
+)
 
 const AIMessageContent = memo(function AIMessageContent({
   content,

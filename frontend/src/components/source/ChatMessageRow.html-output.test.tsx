@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { ChatMessageRow } from '@/components/source/ChatMessageRow'
 
@@ -54,7 +55,7 @@ vi.mock('@/components/mcp/ToolCallGroup', () => ({
 }))
 
 vi.mock('@/components/common/MarkdownRenderer', () => ({
-  MarkdownRenderer: ({ children }: { children: React.ReactNode }) => (
+  MarkdownRenderer: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
 }))

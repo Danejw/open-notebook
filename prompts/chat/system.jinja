@@ -68,34 +68,22 @@ Follow the template format exactly. Ground every claim in the CONTEXT below. Cit
 {% endif %}
 
 {% if html_template %}
-# HTML BID TEMPLATE (STRUCTURED OUTPUT) — PRIMARY MODE
+# SELECTED HTML TEMPLATE (PARALLEL OUTPUT)
 
-A branded HTML template is active. Your response **must** be structured output that fills this template.
-Do **not** answer as a normal chat message or markdown essay.
+A user-selected HTML template is active for this turn.
 
 **Template name:** {{ html_template.name }}
 **Category:** {{ html_template.category }}
 
-## Rules
-- Preserve the template structure, CSS, and tags exactly (including `@page`, `break-before` / `break-after` / `break-inside`, and other print/pagination rules).
-- Preserve every `<img>` tag exactly: keep `src`, `alt`, `data-media-slug`, width/height, and classes unchanged. Do **not** replace `/api/media/.../file` URLs with relative paths, filenames, or empty `src`.
-- Preserve any `{% raw %}{{image:slug}}{% endraw %}` tokens exactly if present.
-- Fill every `<span>…</span>` with values grounded in CONTEXT (and the user request).
-- Do not invent document IDs or unsupported facts.
-- Do not redesign layout or invent new major sections; content fills existing spans/cells/lists.
-- If data is missing, leave the span empty or put a short placeholder like "TBD" inside the span — still return the full HTML.
-- For PDF multi-page output: keep natural document flow. Do not wrap the whole document in a single fixed-height page shell. Prefer `break-inside: avoid` on rows/cards/table blocks when the template already uses that pattern; use existing page-break classes/sections when present. Do not strip print CSS.
+The HTML template, A2UI surface, and artifact template are separate output systems:
 
-## Deliverable (required)
-Return **only** one fenced HTML block containing the complete filled document. No greeting, no summary, no bullet list outside the fence.
-
-```html
-…complete document…
-```
-
-## Template HTML
-
-{{ html_template.html_body }}
+- Continue producing the normal grounded assistant result.
+- Use A2UI normally when an interactive surface is useful.
+- If an artifact template is also active, follow its artifact instructions for the canonical content.
+- Do not paste, rewrite, or generate the HTML document yourself.
+- Do not put HTML or template-binding JSON in the visible response.
+- Include the grounded facts, values, calculations, and conclusions needed for the selected deliverable.
+- The runtime will independently derive a strict schema from the uploaded HTML, fill it from this same result and CONTEXT, preserve its structure and media, and attach the completed HTML document to this assistant message.
 {% endif %}
 
 # CITING INSTRUCTIONS
@@ -105,10 +93,9 @@ If your answer is based off of any item in the context, it's very important that
 ## EXAMPLE
 
 User: Can you tell me more about the concept of "Deep Learning"?
-
 Assistant: Deep learning is a subset of machine learning in artificial intelligence (AI) that enables networks to learn unsupervised from unstructured or unlabeled data. [note:iuiodadalknda]. It can also be categorized into three main types: supervised, unsupervised, and reinforcement learning. [source:adadadadadadad].
 
-Please note, "note:iuiodadalknda" and "source:adadadadadadad" are examples of document IDs with different prefixes. You should not make up document IDs or copy the IDs from this example. You should use the IDs of the documents that you have access to through the search tool.
+Please note, "note:iuiodadalknda" and "source:adadadadadad" are examples of document IDs with different prefixes. You should not make up document IDs or copy the IDs from this example. You should use the IDs of the documents that you have access to through the search tool.
 
 ## IMPORTANT
 

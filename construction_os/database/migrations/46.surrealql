@@ -1,0 +1,54 @@
+-- Migration 46: durable opportunity monitoring and immutable change history
+
+DEFINE FIELD OVERWRITE source_status ON opportunity TYPE option<string> DEFAULT 'unknown';
+DEFINE FIELD OVERWRITE source_status_reason ON opportunity TYPE option<string>;
+DEFINE FIELD OVERWRITE monitoring_enabled ON opportunity TYPE option<bool> DEFAULT false;
+DEFINE FIELD OVERWRITE monitoring_health ON opportunity TYPE option<string> DEFAULT 'inactive';
+DEFINE FIELD OVERWRITE monitoring_last_checked_at ON opportunity TYPE option<datetime>;
+DEFINE FIELD OVERWRITE monitoring_last_success_at ON opportunity TYPE option<datetime>;
+DEFINE FIELD OVERWRITE monitoring_last_changed_at ON opportunity TYPE option<datetime>;
+DEFINE FIELD OVERWRITE monitoring_next_check_at ON opportunity TYPE option<datetime>;
+DEFINE FIELD OVERWRITE monitoring_last_error ON opportunity TYPE option<string>;
+DEFINE FIELD OVERWRITE monitoring_consecutive_failures ON opportunity TYPE option<int> DEFAULT 0;
+DEFINE FIELD OVERWRITE monitoring_lease_until ON opportunity TYPE option<datetime>;
+DEFINE FIELD OVERWRITE monitoring_snapshot_hash ON opportunity TYPE option<string>;
+DEFINE FIELD OVERWRITE monitoring_unread_changes ON opportunity TYPE option<int> DEFAULT 0;
+
+UPDATE opportunity SET source_status = 'unknown'
+WHERE source_status IS NONE;
+
+UPDATE opportunity SET
+    monitoring_enabled = false,
+    monitoring_health = 'inactive',
+    monitoring_consecutive_failures = 0,
+    monitoring_unread_changes = 0
+WHERE monitoring_enabled IS NONE;
+
+-- Existing SAM.gov workflow records should begin with an immediate baseline check.
+UPDATE opportunity SET
+    monitoring_enabled = true,
+    monitoring_health = 'pending',
+    monitoring_next_check_at = time::now()
+WHERE source_key = 'sam_gov_hawaii'
+  AND status IN ['watching', 'pursuing', 'submitted']
+  AND archived != true;
+
+DEFINE INDEX OVERWRITE idx_opportunity_monitor_due ON opportunity FIELDS monitoring_enabled, monitoring_next_check_at;
+DEFINE INDEX OVERWRITE idx_opportunity_monitor_lease ON opportunity FIELDS monitoring_lease_until;
+
+DEFINE TABLE IF NOT EXISTS opportunity_change SCHEMALESS;
+DEFINE FIELD OVERWRITE opportunity_id ON opportunity_change TYPE string;
+DEFINE FIELD OVERWRITE detected_at ON opportunity_change TYPE datetime;
+DEFINE FIELD OVERWRITE trigger ON opportunity_change TYPE string;
+DEFINE FIELD OVERWRITE severity ON opportunity_change TYPE string;
+DEFINE FIELD OVERWRITE summary ON opportunity_change TYPE string;
+DEFINE FIELD OVERWRITE source_updated_at ON opportunity_change TYPE option<datetime>;
+DEFINE FIELD OVERWRITE changed_fields ON opportunity_change TYPE object DEFAULT {};
+DEFINE FIELD OVERWRITE new_documents ON opportunity_change TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE removed_documents ON opportunity_change TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE snapshot_hash ON opportunity_change TYPE string;
+DEFINE FIELD OVERWRITE acknowledged ON opportunity_change TYPE bool DEFAULT false;
+DEFINE INDEX OVERWRITE idx_opportunity_change_opportunity ON opportunity_change FIELDS opportunity_id, detected_at;
+DEFINE INDEX OVERWRITE idx_opportunity_change_snapshot ON opportunity_change FIELDS opportunity_id, snapshot_hash;
+
+RETURN true;

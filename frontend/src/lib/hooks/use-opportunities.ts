@@ -14,6 +14,7 @@ import { useTranslation } from '@/lib/hooks/use-translation'
 const OPPORTUNITIES_KEY = ['opportunities'] as const
 const OPPORTUNITY_SOURCES_KEY = ['opportunity-sources'] as const
 const OPPORTUNITY_NAICS_COLLECTIONS_KEY = ['opportunity-naics-collections'] as const
+const OPPORTUNITY_CHANGES_KEY = ['opportunity-changes'] as const
 const SCORING_PROFILE_KEY = ['opportunities', 'scoring-profile'] as const
 
 function isOpportunityListQueryKey(queryKey: readonly unknown[]): boolean {
@@ -54,6 +55,7 @@ export function useOpportunities(filters: OpportunityFilters) {
     queryKey: [...OPPORTUNITIES_KEY, filters],
     queryFn: () => opportunitiesApi.list(filters),
     placeholderData: (previousData) => previousData,
+    refetchInterval: 60_000,
   })
 }
 
@@ -68,6 +70,7 @@ export function useOpportunity(opportunityId: string | null) {
       return opportunity
     },
     enabled: Boolean(opportunityId),
+    refetchInterval: 60_000,
   })
 }
 
@@ -75,6 +78,16 @@ export function useOpportunityDashboard() {
   return useQuery({
     queryKey: [...OPPORTUNITIES_KEY, 'dashboard'],
     queryFn: opportunitiesApi.dashboard,
+    refetchInterval: 60_000,
+  })
+}
+
+export function useOpportunityChanges(opportunityId: string | null) {
+  return useQuery({
+    queryKey: [...OPPORTUNITY_CHANGES_KEY, opportunityId],
+    queryFn: () => opportunitiesApi.changes(opportunityId ?? ''),
+    enabled: Boolean(opportunityId),
+    refetchInterval: 60_000,
   })
 }
 
@@ -204,18 +217,72 @@ export function useSetSamSyncCollection() {
 export function useSetOpportunityStatus() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: OpportunityStatus }) =>
       opportunitiesApi.setStatus(id, status),
-    onSuccess: () => {
+    onSuccess: (opportunity, variables) => {
       queryClient.invalidateQueries({ queryKey: OPPORTUNITIES_KEY })
+      queryClient.invalidateQueries({
+        queryKey: [...OPPORTUNITY_CHANGES_KEY, opportunity.id],
+      })
+      if (variables.status === 'watching') {
+        toast({
+          title: 'Opportunity is being watched',
+          description: opportunity.monitoring_last_error
+            ? `Monitoring is active, but the first check needs attention: ${opportunity.monitoring_last_error}`
+            : 'The current notice was checked and future updates will be detected automatically.',
+          variant: opportunity.monitoring_last_error ? 'destructive' : 'default',
+        })
+      }
     },
-    onError: () => {
+    onError: (error: unknown) => {
       toast({
         title: 'Status was not changed',
-        description: 'Review the opportunity and try the action again.',
+        description: getApiErrorMessage(error, t),
         variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function useCheckOpportunityNow() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: opportunitiesApi.checkNow,
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: OPPORTUNITIES_KEY })
+      queryClient.invalidateQueries({
+        queryKey: [...OPPORTUNITY_CHANGES_KEY, result.opportunity.id],
+      })
+      toast({
+        title: result.changed ? 'Opportunity updated' : 'Opportunity is current',
+        description: result.change?.summary ?? 'No meaningful source changes were detected.',
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: 'Opportunity check failed',
+        description: getApiErrorMessage(error, t),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function useAcknowledgeOpportunityChanges() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: opportunitiesApi.acknowledgeChanges,
+    onSuccess: (opportunity) => {
+      queryClient.invalidateQueries({ queryKey: OPPORTUNITIES_KEY })
+      queryClient.invalidateQueries({
+        queryKey: [...OPPORTUNITY_CHANGES_KEY, opportunity.id],
       })
     },
   })
@@ -232,7 +299,9 @@ export function usePursueOpportunity() {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
       toast({
         title: result.project_created ? 'Bid workspace created' : 'Bid workspace opened',
-        description: result.project_name,
+        description: result.opportunity.monitoring_enabled
+          ? `${result.project_name} · monitoring enabled`
+          : `${result.project_name} · automated monitoring is unavailable for this source`,
       })
     },
     onError: () => {

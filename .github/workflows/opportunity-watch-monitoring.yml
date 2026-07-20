@@ -1,18 +1,17 @@
-name: Opportunity NAICS Collections CI
+name: Opportunity Watch Monitoring CI
 
 on:
   pull_request:
     branches:
-      - feature/hawaii-opportunity-hub-v1
       - dev
       - main
   push:
     branches:
-      - feature/opportunity-naics-collections
+      - feature/opportunity-watch-monitoring-v2
   workflow_dispatch:
 
 concurrency:
-  group: opportunity-naics-${{ github.event.pull_request.number || github.ref }}
+  group: opportunity-watch-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -22,7 +21,7 @@ jobs:
   backend:
     name: Backend checks
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
 
     steps:
       - name: Check out repository
@@ -35,24 +34,37 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Verify frozen production lockfile
+        run: uv lock --check
+
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e '.[dev]'
 
-      - name: Lint changed backend surface
+      - name: Lint monitoring backend strictly
         run: |
           python -m ruff check \
             api/opportunity_models.py \
-            api/routers/opportunities.py \
-            construction_os/collections/validation.py \
+            api/routers/opportunity_monitoring.py \
             construction_os/domain/opportunity.py \
+            construction_os/services/opportunity_monitoring.py \
+            construction_os/opportunity_monitor_scheduler.py \
+            tests/test_opportunity_monitoring.py
+
+      - name: Lint integrated legacy Opportunity Hub surface
+        run: |
+          python -m ruff check \
+            api/routers/opportunities.py \
+            construction_os/services/opportunities.py \
             construction_os/services/opportunity_collectors.py \
-            construction_os/services/opportunity_naics_collections.py \
+            construction_os/services/opportunity_scoring.py \
             tests/test_opportunity_collectors.py \
             tests/test_opportunity_scoring.py \
-            tests/test_opportunity_naics_collections.py \
-            --ignore I001
+            --ignore I001,E402
 
       - name: Compile backend modules
         run: python -m compileall -q api construction_os
@@ -61,15 +73,28 @@ jobs:
         env:
           CONSTRUCTION_OS_PASSWORD: ''
         run: |
+          set -o pipefail
           python -m pytest -q \
             tests/test_opportunity_collectors.py \
             tests/test_opportunity_scoring.py \
-            tests/test_opportunity_naics_collections.py
+            tests/test_opportunity_status_split.py \
+            tests/test_opportunity_document_ingest.py \
+            tests/test_opportunity_naics_collections.py \
+            tests/test_opportunity_monitoring.py 2>&1 | tee pytest-opportunity-monitoring.log
+
+      - name: Upload backend diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opportunity-monitoring-backend-errors
+          path: pytest-opportunity-monitoring.log
+          if-no-files-found: warn
+          retention-days: 3
 
   frontend:
     name: Frontend checks
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
 
     defaults:
       run:
@@ -89,18 +114,28 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Lint changed frontend surface
+      - name: Lint monitoring frontend
         run: |
           npx eslint \
-            'src/app/(dashboard)/collections/components/CollectionItemsEditor.tsx' \
-            'src/app/(dashboard)/opportunities/discovery/page.tsx' \
-            src/components/layout/ProjectArtifactsNav.tsx \
+            'src/app/(dashboard)/opportunities/layout.tsx' \
+            'src/app/(dashboard)/settings/company-profile/components/CompanyProfileForm.tsx' \
             src/lib/api/opportunities.ts \
             src/lib/hooks/use-opportunities.ts \
             src/lib/types/opportunities.ts
 
       - name: Type-check frontend
-        run: npx tsc --noEmit --pretty false
+        run: |
+          set -o pipefail
+          npx tsc --noEmit --pretty false 2>&1 | tee typescript-opportunity-monitoring.log
+
+      - name: Upload frontend diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opportunity-monitoring-frontend-errors
+          path: frontend/typescript-opportunity-monitoring.log
+          if-no-files-found: error
+          retention-days: 3
 
       - name: Run frontend regression tests
         run: npm test -- --exclude src/lib/locales/index.test.ts

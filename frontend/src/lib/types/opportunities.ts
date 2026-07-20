@@ -13,6 +13,26 @@ export type OpportunityStatus =
   | 'no_bid'
   | 'ignored'
 
+export type OpportunitySourceStatus =
+  | 'active'
+  | 'inactive'
+  | 'archived'
+  | 'cancelled'
+  | 'awarded'
+  | 'unknown'
+
+export type OpportunityMonitoringHealth =
+  | 'inactive'
+  | 'pending'
+  | 'healthy'
+  | 'delayed'
+  | 'failing'
+  | 'authentication_required'
+  | 'source_unavailable'
+
+export type OpportunityChangeSeverity = 'informational' | 'important' | 'critical'
+export type OpportunityRefreshTrigger = 'initial' | 'scheduled' | 'manual'
+
 export type ProcurementType = 'IFB' | 'RFP' | 'RFQ' | 'RFI' | 'ITB' | 'NOI' | 'OTHER'
 
 export type HawaiiIsland =
@@ -71,6 +91,8 @@ export interface Opportunity {
   procurement_type: ProcurementType
   source_stage: OpportunitySourceStage
   status: OpportunityStatus
+  source_status: OpportunitySourceStatus
+  source_status_reason: string | null
   island: HawaiiIsland
   location: string
   scope_summary: string
@@ -107,10 +129,50 @@ export interface Opportunity {
   score_version: string
   score_updated_at: string | null
   extraction_confidence: number | null
+  monitoring_enabled: boolean
+  monitoring_health: OpportunityMonitoringHealth
+  monitoring_last_checked_at: string | null
+  monitoring_last_success_at: string | null
+  monitoring_last_changed_at: string | null
+  monitoring_next_check_at: string | null
+  monitoring_last_error: string | null
+  monitoring_consecutive_failures: number
+  monitoring_lease_until: string | null
+  monitoring_snapshot_hash: string | null
+  monitoring_unread_changes: number
   project_id: string | null
   archived: boolean
   created: string | null
   updated: string | null
+}
+
+export interface OpportunityChange {
+  id: string
+  opportunity_id: string
+  detected_at: string
+  trigger: OpportunityRefreshTrigger
+  severity: OpportunityChangeSeverity
+  summary: string
+  source_updated_at: string | null
+  changed_fields: Record<string, { previous: unknown; current: unknown }>
+  new_documents: OpportunityDocument[]
+  removed_documents: OpportunityDocument[]
+  snapshot_hash: string
+  acknowledged: boolean
+}
+
+export interface OpportunityRefreshResponse {
+  opportunity: Opportunity
+  changed: boolean
+  change: OpportunityChange | null
+}
+
+export interface OpportunityMonitoringHealthSummary {
+  monitored: number
+  healthy: number
+  failing: number
+  overdue: number
+  oldest_overdue_at: string | null
 }
 
 export interface OpportunityListResponse {

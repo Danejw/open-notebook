@@ -161,7 +161,9 @@ async def seed_opportunity_sources() -> List[OpportunitySource]:
     return sources
 
 
-async def list_opportunity_sources(enabled: Optional[bool] = None) -> List[OpportunitySource]:
+async def list_opportunity_sources(
+    enabled: Optional[bool] = None,
+) -> List[OpportunitySource]:
     sources = await OpportunitySource.get_all(order_by="name asc")
     if enabled is not None:
         sources = [source for source in sources if source.enabled == enabled]
@@ -220,7 +222,11 @@ async def list_opportunities(
     """Return a filtered, sorted opportunity inbox."""
 
     allowed_bands: tuple[FitScoreBand, ...] = ("high", "medium", "low", "unscored")
-    allowed_sorts: tuple[OpportunitySort, ...] = ("due", "fit_score_desc", "fit_score_asc")
+    allowed_sorts: tuple[OpportunitySort, ...] = (
+        "due",
+        "fit_score_desc",
+        "fit_score_asc",
+    )
     if fit_score_band is not None and fit_score_band not in allowed_bands:
         raise InvalidInputError(
             f"fit_score_band must be one of: {', '.join(allowed_bands)}"
@@ -245,24 +251,36 @@ async def list_opportunities(
     if trade:
         needle = trade.lower()
         opportunities = [
-            item for item in opportunities if any(needle in value.lower() for value in item.trades)
+            item
+            for item in opportunities
+            if any(needle in value.lower() for value in item.trades)
         ]
     if agency:
         needle = agency.lower()
-        opportunities = [item for item in opportunities if needle in item.agency.lower()]
+        opportunities = [
+            item for item in opportunities if needle in item.agency.lower()
+        ]
     if source_key:
-        opportunities = [item for item in opportunities if item.source_key == source_key]
+        opportunities = [
+            item for item in opportunities if item.source_key == source_key
+        ]
     if due_before:
         opportunities = [
-            item for item in opportunities if item.bid_due_at and item.bid_due_at <= due_before
+            item
+            for item in opportunities
+            if item.bid_due_at and item.bid_due_at <= due_before
         ]
     if due_after:
         opportunities = [
-            item for item in opportunities if item.bid_due_at and item.bid_due_at >= due_after
+            item
+            for item in opportunities
+            if item.bid_due_at and item.bid_due_at >= due_after
         ]
     if fit_score_band is not None:
         opportunities = [
-            item for item in opportunities if _matches_fit_score_band(item, fit_score_band)
+            item
+            for item in opportunities
+            if _matches_fit_score_band(item, fit_score_band)
         ]
     elif min_fit_score is not None:
         opportunities = [
@@ -279,17 +297,23 @@ async def list_opportunities(
 
     def due_key(item: Opportunity) -> tuple[datetime, int, datetime]:
         due = _aware_datetime(item.bid_due_at, far_future)
-        updated = _aware_datetime(item.updated, datetime.min.replace(tzinfo=timezone.utc))
+        updated = _aware_datetime(
+            item.updated, datetime.min.replace(tzinfo=timezone.utc)
+        )
         return (due, -(item.fit_score or 0), updated)
 
-    def fit_score_key(item: Opportunity, *, descending: bool) -> tuple[int, int, datetime, datetime]:
+    def fit_score_key(
+        item: Opportunity, *, descending: bool
+    ) -> tuple[int, int, datetime, datetime]:
         has_score = item.fit_score is not None
         tier = 0 if has_score else 1
         score = item.fit_score if has_score else 0
         if descending:
             score = -score
         due = _aware_datetime(item.bid_due_at, far_future)
-        updated = _aware_datetime(item.updated, datetime.min.replace(tzinfo=timezone.utc))
+        updated = _aware_datetime(
+            item.updated, datetime.min.replace(tzinfo=timezone.utc)
+        )
         return (tier, score, due, updated)
 
     if sort == "fit_score_desc":
@@ -535,6 +559,29 @@ async def import_opportunities(items: Iterable[Dict[str, Any]]) -> Dict[str, Any
     }
 
 
+def _align_monitoring_with_workflow_status(
+    opportunity: Opportunity, status: str
+) -> None:
+    """Apply explicit monitor transitions without overriding a later manual pause."""
+
+    monitored_statuses = {"watching", "pursuing", "submitted"}
+    should_monitor = (
+        opportunity.source_key == "sam_gov_hawaii" and status in monitored_statuses
+    )
+    if should_monitor:
+        if not opportunity.monitoring_enabled:
+            opportunity.monitoring_enabled = True
+            opportunity.monitoring_health = "pending"
+            opportunity.monitoring_last_error = None
+            opportunity.monitoring_next_check_at = utcnow()
+        return
+
+    opportunity.monitoring_enabled = False
+    opportunity.monitoring_health = "inactive"
+    opportunity.monitoring_next_check_at = None
+    opportunity.monitoring_lease_until = None
+
+
 async def set_opportunity_status(opportunity_id: str, status: str) -> Opportunity:
     opportunity = await get_opportunity(opportunity_id)
     allowed = {
@@ -549,20 +596,33 @@ async def set_opportunity_status(opportunity_id: str, status: str) -> Opportunit
     }
     if status not in allowed:
         raise InvalidInputError(f"Unsupported opportunity status: {status}")
+    if status == "watching" and opportunity.source_key != "sam_gov_hawaii":
+        raise InvalidInputError(
+            "Automated monitoring is currently available for SAM.gov opportunities only"
+        )
     opportunity.status = status  # type: ignore[assignment]
+    _align_monitoring_with_workflow_status(opportunity, status)
     await opportunity.save()
     return opportunity
 
 
 def opportunity_summary_markdown(opportunity: Opportunity) -> str:
-    due = opportunity.bid_due_at.isoformat() if opportunity.bid_due_at else "Not provided"
-    prebid = opportunity.prebid_at.isoformat() if opportunity.prebid_at else "Not provided"
+    due = (
+        opportunity.bid_due_at.isoformat() if opportunity.bid_due_at else "Not provided"
+    )
+    prebid = (
+        opportunity.prebid_at.isoformat() if opportunity.prebid_at else "Not provided"
+    )
     questions = (
         opportunity.questions_due_at.isoformat()
         if opportunity.questions_due_at
         else "Not provided"
     )
-    fit = f"{opportunity.fit_score}/100" if opportunity.fit_score is not None else "Not scored"
+    fit = (
+        f"{opportunity.fit_score}/100"
+        if opportunity.fit_score is not None
+        else "Not scored"
+    )
 
     return f"""# Opportunity Intake Summary
 
@@ -653,6 +713,7 @@ async def pursue_opportunity(opportunity_id: str) -> Tuple[Opportunity, Project,
 
     opportunity.project_id = project.id
     opportunity.status = "pursuing"
+    _align_monitoring_with_workflow_status(opportunity, "pursuing")
     await opportunity.save()
 
     # Best-effort: download attachments and queue extract/embed for each file
@@ -687,14 +748,22 @@ async def opportunity_dashboard() -> Dict[str, Any]:
             due = item.bid_due_at
             if due.tzinfo is None:
                 due = due.replace(tzinfo=timezone.utc)
-            if due < now and item.status not in {"submitted", "won", "lost", "no_bid", "ignored"}:
+            if due < now and item.status not in {
+                "submitted",
+                "won",
+                "lost",
+                "no_bid",
+                "ignored",
+            }:
                 overdue += 1
             elif now.timestamp() <= due.timestamp() <= due_soon_cutoff:
                 due_soon += 1
 
     by_source_stage: Dict[str, int] = {}
     for item in opportunities:
-        by_source_stage[item.source_stage] = by_source_stage.get(item.source_stage, 0) + 1
+        by_source_stage[item.source_stage] = (
+            by_source_stage.get(item.source_stage, 0) + 1
+        )
 
     pipeline_statuses = {"watching", "pursuing", "submitted"}
     pipeline_value_min = sum(

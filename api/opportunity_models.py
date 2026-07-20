@@ -10,7 +10,9 @@ from pydantic import BaseModel, Field, field_validator
 from construction_os.domain.opportunity import (
     FitRecommendation,
     HawaiiIsland,
+    OpportunityMonitoringHealth,
     OpportunitySourceStage,
+    OpportunitySourceStatus,
     OpportunityStatus,
     ProcurementType,
 )
@@ -26,6 +28,8 @@ class OpportunityCreate(BaseModel):
     procurement_type: ProcurementType = "OTHER"
     source_stage: OpportunitySourceStage = "early_research"
     status: OpportunityStatus = "none"
+    source_status: OpportunitySourceStatus = "unknown"
+    source_status_reason: Optional[str] = None
     island: HawaiiIsland = "Unknown"
     location: str = ""
     scope_summary: str = ""
@@ -81,6 +85,8 @@ class OpportunityUpdate(BaseModel):
     procurement_type: Optional[ProcurementType] = None
     source_stage: Optional[OpportunitySourceStage] = None
     status: Optional[OpportunityStatus] = None
+    source_status: Optional[OpportunitySourceStatus] = None
+    source_status_reason: Optional[str] = None
     island: Optional[HawaiiIsland] = None
     location: Optional[str] = None
     scope_summary: Optional[str] = None
@@ -125,6 +131,8 @@ class OpportunityResponse(BaseModel):
     procurement_type: ProcurementType
     source_stage: OpportunitySourceStage
     status: OpportunityStatus
+    source_status: OpportunitySourceStatus
+    source_status_reason: Optional[str]
     island: HawaiiIsland
     location: str
     scope_summary: str
@@ -161,6 +169,17 @@ class OpportunityResponse(BaseModel):
     score_version: str
     score_updated_at: Optional[datetime]
     extraction_confidence: Optional[float]
+    monitoring_enabled: bool
+    monitoring_health: OpportunityMonitoringHealth
+    monitoring_last_checked_at: Optional[datetime]
+    monitoring_last_success_at: Optional[datetime]
+    monitoring_last_changed_at: Optional[datetime]
+    monitoring_next_check_at: Optional[datetime]
+    monitoring_last_error: Optional[str]
+    monitoring_consecutive_failures: int
+    monitoring_lease_until: Optional[datetime]
+    monitoring_snapshot_hash: Optional[str]
+    monitoring_unread_changes: int
     project_id: Optional[str]
     archived: bool
     created: Optional[datetime]

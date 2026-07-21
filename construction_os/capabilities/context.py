@@ -8,11 +8,10 @@ from pydantic import BaseModel, Field
 
 from construction_os.capabilities.authz import require_project_session
 from construction_os.capabilities.models import CapabilityRuntimeContext
-from construction_os.domain.project import Project, get_project_scope_ids
+from construction_os.domain.project import ChatSession, Project, get_project_scope_ids
 from construction_os.exceptions import NotFoundError
-from construction_os.utils.chat_session import session_record_fields
-from construction_os.domain.project import ChatSession
 from construction_os.services.project_memory import get_project_memory
+from construction_os.utils.chat_session import session_record_fields
 
 
 class GetProjectContextInput(BaseModel):

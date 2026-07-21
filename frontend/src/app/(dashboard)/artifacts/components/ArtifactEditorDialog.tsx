@@ -268,7 +268,7 @@ export function ArtifactEditorDialog({ open, onOpenChange, artifact }: ArtifactE
               {isSaving
                 ? isEditing ? `${t('common.saving')}...` : `${t('common.creating')}...`
                 : isEditing
-                  ? t('common.editArtifact')
+                  ? t('sources.saveNote')
                   : t('artifacts.createNew')}
             </Button>
           </DialogFooter>

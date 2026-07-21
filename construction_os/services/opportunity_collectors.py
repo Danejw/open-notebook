@@ -31,6 +31,8 @@ from construction_os.exceptions import (
     NotFoundError,
 )
 from construction_os.services.opportunities import (
+    get_pipeline_active_external_ids,
+    has_actionable_deadline,
     import_opportunities,
     seed_opportunity_sources,
     upsert_opportunity,
@@ -1097,7 +1099,27 @@ async def sync_sam_gov_hawaii(
                         client=client,
                     )
                 )
-            result = await import_opportunities(normalized)
+
+            now = datetime.now(timezone.utc)
+            monitored_ids = await get_pipeline_active_external_ids("sam_gov_hawaii")
+            keep: List[Dict[str, Any]] = []
+            skipped_overdue = 0
+            skipped_missing_deadline = 0
+            for item in normalized:
+                external_id = str(item.get("external_id") or "").strip()
+                bid_due_at = item.get("bid_due_at")
+                if has_actionable_deadline(bid_due_at, now) or (
+                    external_id and external_id in monitored_ids
+                ):
+                    keep.append(item)
+                elif bid_due_at is None:
+                    skipped_missing_deadline += 1
+                else:
+                    skipped_overdue += 1
+
+            result = await import_opportunities(keep)
+            result["skipped_overdue"] = skipped_overdue
+            result["skipped_missing_deadline"] = skipped_missing_deadline
 
         source.last_synced_at = datetime.now(timezone.utc)
         source.last_sync_status = "partial" if result["failed"] else "success"

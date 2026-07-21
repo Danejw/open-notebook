@@ -67,6 +67,8 @@ Before testing:
 
 **Pass:** Sync completes; toast shows created/updated/failed counts; inbox reflects new or updated notices.
 
+**Deadline filter:** Bulk sync skips notices whose response deadline is already past or missing, unless that notice is already **watching**, **pursuing**, or **submitted** (so monitored bids still refresh). The default inbox uses the same rule: only future deadlines appear, plus actively watched/pursued/submitted items. Explicit URL import (section 2b) can still add a past-due notice on purpose.
+
 ---
 
 ## 2b. Add one opportunity by SAM.gov URL

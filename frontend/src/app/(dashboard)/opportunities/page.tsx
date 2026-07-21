@@ -1357,9 +1357,7 @@ export default function OpportunitiesPage() {
       <PageHeader
         className="shrink-0"
         title="Opportunity Hub"
-        description="One inbox for Hawaii IFBs, RFPs, RFQs, and public construction work."
         icon={Inbox}
-        meta={`${data?.total ?? 0} visible opportunities · ${sources?.length ?? 0} sources`}
         actions={
           <div className="flex items-center gap-1.5">
             <Select

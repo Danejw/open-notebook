@@ -13,7 +13,6 @@ import { useTranslation } from '@/lib/hooks/use-translation'
 
 const OPPORTUNITIES_KEY = ['opportunities'] as const
 const OPPORTUNITY_SOURCES_KEY = ['opportunity-sources'] as const
-const OPPORTUNITY_NAICS_COLLECTIONS_KEY = ['opportunity-naics-collections'] as const
 const OPPORTUNITY_CHANGES_KEY = ['opportunity-changes'] as const
 const SCORING_PROFILE_KEY = ['opportunities', 'scoring-profile'] as const
 
@@ -132,13 +131,6 @@ export function useOpportunitySources() {
   })
 }
 
-export function useOpportunityNaicsCollections() {
-  return useQuery({
-    queryKey: OPPORTUNITY_NAICS_COLLECTIONS_KEY,
-    queryFn: opportunitiesApi.naicsCollections,
-  })
-}
-
 export function useSeedOpportunitySources() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
@@ -147,7 +139,6 @@ export function useSeedOpportunitySources() {
     mutationFn: opportunitiesApi.seedSources,
     onSuccess: (sources) => {
       queryClient.setQueryData(OPPORTUNITY_SOURCES_KEY, sources)
-      queryClient.invalidateQueries({ queryKey: OPPORTUNITY_NAICS_COLLECTIONS_KEY })
     },
     onError: () => {
       toast({
@@ -186,6 +177,33 @@ export function useSyncSamGovOpportunities() {
     onError: (error: unknown) => {
       toast({
         title: 'SAM.gov synchronization failed',
+        description: getApiErrorMessage(error, t),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function useImportSamGovOpportunityUrl() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: (url: string) => opportunitiesApi.importSamGovUrl(url),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: OPPORTUNITIES_KEY })
+      queryClient.invalidateQueries({ queryKey: [...OPPORTUNITIES_KEY, 'dashboard'] })
+      toast({
+        title: result.created
+          ? 'SAM.gov opportunity added'
+          : 'SAM.gov opportunity refreshed',
+        description: result.opportunity.title,
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: 'Could not import SAM.gov link',
         description: getApiErrorMessage(error, t),
         variant: 'destructive',
       })

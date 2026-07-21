@@ -360,6 +360,8 @@ export const deDE = {
     "deleteProjectNoSources": "Keine Quellen in diesem Projekt.",
     "deleteExclusiveSourcesLabel": "Exklusive Quellen löschen",
     "keepExclusiveSourcesLabel": "Verknüpfung lösen und behalten",
+    "deleteTypeConfirmLabel": "Gib „{name}“ ein, um das Löschen zu bestätigen",
+    "deleteTypeConfirmPlaceholder": "Projektname",
     "activeProjects": "Aktive Projekts",
     "archivedProjects": "Archivierte Projekts",
     "tileView": "Kachelansicht",

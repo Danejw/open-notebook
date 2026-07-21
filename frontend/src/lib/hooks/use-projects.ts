@@ -3,10 +3,18 @@ import { projectsApi } from '@/lib/api/projects'
 import { QUERY_KEYS } from '@/lib/api/query-client'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { getApiErrorKey } from '@/lib/utils/error-handler'
+import { getApiErrorMessage } from '@/lib/utils/error-handler'
 import { CreateProjectRequest, UpdateProjectRequest, ProjectResponse } from '@/lib/types/api'
 
 type ProjectsQueryOptions = Pick<UseQueryOptions<ProjectResponse[]>, 'enabled'>
+
+/**
+ * `QUERY_KEYS.projects` is a prefix that also matches single-project caches
+ * (`['projects', id]`). Only list caches are arrays.
+ */
+function isProjectListCache(value: unknown): value is ProjectResponse[] {
+  return Array.isArray(value)
+}
 
 export function useProjects(archived?: boolean, options?: ProjectsQueryOptions) {
   return useQuery({
@@ -35,7 +43,7 @@ export function useCreateProject() {
     mutationFn: (data: CreateProjectRequest) => projectsApi.create(data),
     onMutate: async (data) => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEYS.projects })
-      const previousLists = queryClient.getQueriesData<ProjectResponse[]>({
+      const previousLists = queryClient.getQueriesData({
         queryKey: QUERY_KEYS.projects,
       })
       const now = new Date().toISOString()
@@ -49,9 +57,14 @@ export function useCreateProject() {
         source_count: 0,
         note_count: 0,
       }
-      queryClient.setQueriesData<ProjectResponse[]>(
+      queryClient.setQueriesData(
         { queryKey: QUERY_KEYS.projects },
-        (old) => (old ? [optimistic, ...old] : [optimistic])
+        (old: unknown) => {
+          if (!isProjectListCache(old)) {
+            return old
+          }
+          return [optimistic, ...old]
+        }
       )
       return { previousLists }
     },
@@ -68,7 +81,7 @@ export function useCreateProject() {
       })
       toast({
         title: t('common.error'),
-        description: t(getApiErrorKey(error, t('common.error'))),
+        description: getApiErrorMessage(error, t, 'common.error'),
         variant: 'destructive',
       })
     },
@@ -85,13 +98,16 @@ export function useUpdateProject() {
       projectsApi.update(id, data),
     onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEYS.projects })
-      const previousLists = queryClient.getQueriesData<ProjectResponse[]>({
+      const previousLists = queryClient.getQueriesData({
         queryKey: QUERY_KEYS.projects,
       })
-      queryClient.setQueriesData<ProjectResponse[]>(
+      queryClient.setQueriesData(
         { queryKey: QUERY_KEYS.projects },
-        (old) =>
-          old?.map((project) =>
+        (old: unknown) => {
+          if (!isProjectListCache(old)) {
+            return old
+          }
+          return old.map((project) =>
             project.id === id
               ? {
                   ...project,
@@ -101,7 +117,8 @@ export function useUpdateProject() {
                   updated: new Date().toISOString(),
                 }
               : project
-          ) ?? []
+          )
+        }
       )
       const previousProject = queryClient.getQueryData<ProjectResponse>(QUERY_KEYS.project(id))
       if (previousProject) {
@@ -132,7 +149,7 @@ export function useUpdateProject() {
       }
       toast({
         title: t('common.error'),
-        description: t(getApiErrorKey(error, t('common.error'))),
+        description: getApiErrorMessage(error, t, 'common.error'),
         variant: 'destructive',
       })
     },
@@ -162,18 +179,25 @@ export function useDeleteProject() {
     }) => projectsApi.delete(id, deleteExclusiveSources),
     onMutate: async ({ id }) => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEYS.projects })
-      const previousLists = queryClient.getQueriesData<ProjectResponse[]>({
+      const previousLists = queryClient.getQueriesData({
         queryKey: QUERY_KEYS.projects,
       })
-      queryClient.setQueriesData<ProjectResponse[]>(
+      queryClient.setQueriesData(
         { queryKey: QUERY_KEYS.projects },
-        (old) => old?.filter((project) => project.id !== id) ?? []
+        (old: unknown) => {
+          if (!isProjectListCache(old)) {
+            return old
+          }
+          return old.filter((project) => project.id !== id)
+        }
       )
+      queryClient.removeQueries({ queryKey: QUERY_KEYS.project(id) })
       return { previousLists }
     },
-    onSuccess: () => {
+    onSuccess: (_result, { id }) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.projects })
       queryClient.invalidateQueries({ queryKey: ['sources'] })
+      queryClient.removeQueries({ queryKey: QUERY_KEYS.project(id) })
       toast({
         title: t('common.success'),
         description: t('projects.deleteSuccess'),
@@ -185,7 +209,7 @@ export function useDeleteProject() {
       })
       toast({
         title: t('common.error'),
-        description: t(getApiErrorKey(error, t('common.error'))),
+        description: getApiErrorMessage(error, t, 'common.error'),
         variant: 'destructive',
       })
     },

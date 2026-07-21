@@ -647,3 +647,177 @@ async def test_sam_search_retries_on_429(monkeypatch):
     assert payload["totalRecords"] == 0
     assert calls["n"] == 3
     assert sleeps == [1.0, 1.0]
+
+
+def test_parse_sam_opportunity_notice_id_from_public_and_api_urls():
+    from construction_os.exceptions import InvalidInputError
+    from construction_os.services.opportunity_collectors import parse_sam_opportunity_notice_id
+
+    notice = "5b345bbb7127b91a3ad577b203fc6f68"
+    assert (
+        parse_sam_opportunity_notice_id(f"https://sam.gov/opp/{notice}/view") == notice
+    )
+    assert (
+        parse_sam_opportunity_notice_id(f"https://www.sam.gov/opp/{notice}/view/")
+        == notice
+    )
+    assert (
+        parse_sam_opportunity_notice_id(
+            f"https://sam.gov/workspace/contract/opp/{notice}/view"
+        )
+        == notice
+    )
+    assert (
+        parse_sam_opportunity_notice_id(
+            f"https://api.sam.gov/prod/opportunities/v1/noticedesc?noticeid={notice}"
+        )
+        == notice
+    )
+    assert (
+        parse_sam_opportunity_notice_id(
+            f"sam.gov/opp/{notice}/view?utm_source=share"
+        )
+        == notice
+    )
+
+    with pytest.raises(InvalidInputError, match="required"):
+        parse_sam_opportunity_notice_id("   ")
+    with pytest.raises(InvalidInputError, match="sam.gov"):
+        parse_sam_opportunity_notice_id("https://example.com/opp/abc/view")
+    with pytest.raises(InvalidInputError, match="notice ID"):
+        parse_sam_opportunity_notice_id("https://sam.gov/content/opportunities")
+
+
+def test_sam_notice_lookup_params_includes_posting_window():
+    from datetime import date
+
+    from construction_os.services.opportunity_collectors import sam_notice_lookup_params
+
+    params = sam_notice_lookup_params(
+        "notice-123",
+        "test-key",
+        today=date(2026, 7, 20),
+    )
+    assert params["noticeid"] == "notice-123"
+    assert params["api_key"] == "test-key"
+    assert params["postedFrom"] == "07/21/2025"
+    assert params["postedTo"] == "07/20/2026"
+    assert "state" not in params
+
+
+@pytest.mark.asyncio
+async def test_import_sam_opportunity_from_url_upserts_notice(monkeypatch):
+    from unittest.mock import AsyncMock, MagicMock
+
+    from construction_os.services import opportunity_collectors as collectors
+
+    captured: list[dict] = []
+    notice = "abc123notice"
+
+    class FakeResponse:
+        status_code = 200
+        headers: dict = {}
+        url = "https://api.sam.gov/opportunities/v2/search"
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "opportunitiesData": [
+                    {
+                        "noticeId": notice,
+                        "title": "Repair Building",
+                        "department": "Army",
+                    }
+                ],
+                "totalRecords": 1,
+            }
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def get(self, url, params=None):
+            captured.append(dict(params or {}))
+            return FakeResponse()
+
+    opportunity = MagicMock()
+    opportunity.id = "opportunity:1"
+
+    monkeypatch.setenv("SAM_GOV_API_KEY", "test-key")
+    monkeypatch.setattr(collectors.httpx, "AsyncClient", FakeClient)
+    monkeypatch.setattr(
+        collectors,
+        "normalize_sam_opportunity",
+        AsyncMock(
+            return_value={
+                "source_key": "sam_gov_hawaii",
+                "external_id": notice,
+                "title": "Repair Building",
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        collectors,
+        "upsert_opportunity",
+        AsyncMock(return_value=(opportunity, True)),
+    )
+
+    result = await collectors.import_sam_opportunity_from_url(
+        f"https://sam.gov/opp/{notice}/view"
+    )
+    assert result["created"] is True
+    assert result["updated"] is False
+    assert result["opportunity"].id == "opportunity:1"
+    assert len(captured) == 1
+    assert captured[0]["noticeid"] == notice
+    assert "state" not in captured[0]
+    assert "postedFrom" in captured[0]
+    assert "postedTo" in captured[0]
+
+
+@pytest.mark.asyncio
+async def test_import_sam_opportunity_from_url_not_found(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    from construction_os.exceptions import NotFoundError
+    from construction_os.services import opportunity_collectors as collectors
+
+    class FakeResponse:
+        status_code = 200
+        headers: dict = {}
+        url = "https://api.sam.gov/opportunities/v2/search"
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"opportunitiesData": [], "totalRecords": 0}
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def get(self, url, params=None):
+            return FakeResponse()
+
+    monkeypatch.setenv("SAM_GOV_API_KEY", "test-key")
+    monkeypatch.setattr(collectors.httpx, "AsyncClient", FakeClient)
+
+    with pytest.raises(NotFoundError, match="did not return"):
+        await collectors.import_sam_opportunity_from_url(
+            "https://sam.gov/opp/missing-notice/view"
+        )

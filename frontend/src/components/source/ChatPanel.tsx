@@ -1,6 +1,6 @@
 'use client'
 
-import { type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   SourceChatMessage,
@@ -145,6 +145,8 @@ export function ChatPanel({
   onRetryQueueStream,
 }: ChatPanelProps) {
   const { t } = useTranslation()
+  const [nearBottom, setNearBottom] = useState(true)
+  const scrollToBottomRef = useRef<(() => void) | null>(null)
   const isImmersive = variant === 'immersive'
   const resolvedTitle =
     title ||
@@ -200,6 +202,8 @@ export function ChatPanel({
           modelOverride={modelOverride}
           contextType={contextType}
           variant={variant}
+          onNearBottomChange={setNearBottom}
+          scrollToBottomRef={scrollToBottomRef}
         />
 
         {hasQueueControls ? (
@@ -244,6 +248,8 @@ export function ChatPanel({
           currentSessionId={currentSessionId}
           messageCount={messages.length}
           queue={queue}
+          showJumpToBottom={!nearBottom && messages.length > 0}
+          onJumpToBottom={() => scrollToBottomRef.current?.()}
         />
       </CardContent>
     </Card>

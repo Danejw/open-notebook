@@ -360,6 +360,8 @@ export const trTR = {
     "deleteProjectNoSources": "Bu defterde kaynak yok.",
     "deleteExclusiveSourcesLabel": "Özel kaynakları sil",
     "keepExclusiveSourcesLabel": "Bağlantıyı kes ve sakla",
+    "deleteTypeConfirmLabel": "Silmeyi onaylamak için \"{name}\" yazın",
+    "deleteTypeConfirmPlaceholder": "Proje adı",
     "activeProjects": "Aktif Projeler",
     "archivedProjects": "Arşivlenmiş Projeler",
     "tileView": "Döşeme görünümü",

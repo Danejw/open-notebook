@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   AlertTriangle,
@@ -11,6 +11,7 @@ import {
   Eye,
   FileSearch,
   Inbox,
+  Link2,
   MapPin,
   RefreshCw,
   Search,
@@ -22,10 +23,12 @@ import {
 import { useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
+import { FormDialogShell, formDialogFormClassName } from '@/components/common/FormDialogShell'
 import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   ResizableHandle,
   ResizablePanel,
@@ -50,6 +53,7 @@ import { useIsMobile, useIsTablet } from '@/lib/hooks/use-media-query'
 import { useCollectionsCatalog } from '@/lib/hooks/use-collections'
 import {
   useArchiveOpportunity,
+  useImportSamGovOpportunityUrl,
   useOpportunities,
   useOpportunity,
   useOpportunityDashboard,
@@ -857,6 +861,8 @@ export default function OpportunitiesPage() {
   const [listCollapsed, setListCollapsed] = useState(false)
   const [syncCollectionId, setSyncCollectionId] = useState<string>('none')
   const [syncCollectionHydrated, setSyncCollectionHydrated] = useState(false)
+  const [importUrlOpen, setImportUrlOpen] = useState(false)
+  const [importUrl, setImportUrl] = useState('')
   const detailsRef = useRef<HTMLElement | null>(null)
   const listPanelRef = usePanelRef()
   const isMobile = useIsMobile()
@@ -926,6 +932,7 @@ export default function OpportunitiesPage() {
   const { data: collectionsCatalog } = useCollectionsCatalog()
   const seedSources = useSeedOpportunitySources()
   const syncSamGov = useSyncSamGovOpportunities()
+  const importSamGovUrl = useImportSamGovOpportunityUrl()
   const setSamSyncCollection = useSetSamSyncCollection()
 
   const syncCollections = useMemo(
@@ -935,6 +942,22 @@ export default function OpportunitiesPage() {
       ),
     [collectionsCatalog]
   )
+
+  const handleImportSamUrl = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const url = importUrl.trim()
+    if (!url || importSamGovUrl.isPending) {
+      return
+    }
+    try {
+      const result = await importSamGovUrl.mutateAsync(url)
+      setImportUrlOpen(false)
+      setImportUrl('')
+      selectOpportunity(result.opportunity.id)
+    } catch {
+      // Toast handled by the mutation hook.
+    }
+  }
 
   useEffect(() => {
     if (syncCollectionHydrated || !sources) return
@@ -1258,24 +1281,33 @@ export default function OpportunitiesPage() {
               <p className="mt-1 max-w-md text-xs leading-relaxed text-muted-foreground">
                 {filtersActive
                   ? 'Clear a filter or broaden the search.'
-                  : 'Click Sync SAM.gov to pull recent federal Hawaii opportunities into this inbox.'}
+                  : 'Sync recent federal Hawaii notices, or paste a SAM.gov opportunity link to add one by hand.'}
               </p>
               {!filtersActive ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="mt-3"
-                  disabled={syncSamGov.isPending}
-                  onClick={runSamGovSync}
-                >
-                  <RefreshCw
-                    className={cn(
-                      'mr-1.5 size-3.5',
-                      syncSamGov.isPending && 'animate-spin'
-                    )}
-                  />
-                  {syncSamGov.isPending ? 'Syncing SAM.gov…' : 'Sync SAM.gov'}
-                </Button>
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={syncSamGov.isPending}
+                    onClick={runSamGovSync}
+                  >
+                    <RefreshCw
+                      className={cn(
+                        'mr-1.5 size-3.5',
+                        syncSamGov.isPending && 'animate-spin'
+                      )}
+                    />
+                    {syncSamGov.isPending ? 'Syncing SAM.gov…' : 'Sync SAM.gov'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setImportUrlOpen(true)}
+                  >
+                    <Link2 className="mr-1.5 size-3.5" />
+                    Add SAM.gov link
+                  </Button>
+                </div>
               ) : (
                 <Button size="sm" variant="outline" className="mt-3" onClick={clearFilters}>
                   Clear filters
@@ -1355,6 +1387,16 @@ export default function OpportunitiesPage() {
               variant="outline"
               size="sm"
               className="h-7 px-2 text-xs"
+              onClick={() => setImportUrlOpen(true)}
+              aria-label="Add SAM.gov opportunity by URL"
+            >
+              <Link2 className="size-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Add SAM.gov link</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-xs"
               disabled={syncSamGov.isPending}
               onClick={runSamGovSync}
               aria-label="Sync SAM.gov opportunities"
@@ -1372,6 +1414,39 @@ export default function OpportunitiesPage() {
           </div>
         }
       />
+
+      <FormDialogShell
+        open={importUrlOpen}
+        onOpenChange={(open) => {
+          setImportUrlOpen(open)
+          if (!open) {
+            setImportUrl('')
+          }
+        }}
+        title="Add SAM.gov link"
+        description="Paste a sam.gov opportunity URL. We fetch the notice and add it to this inbox like a sync result."
+        onSubmit={handleImportSamUrl}
+        isSubmitting={importSamGovUrl.isPending}
+        disableSubmit={!importUrl.trim()}
+        submitLabel="Add opportunity"
+        submittingLabel="Importing…"
+        compactFooter
+      >
+        <div className={formDialogFormClassName}>
+          <div className="space-y-1.5">
+            <Label htmlFor="sam-opportunity-url">Opportunity URL</Label>
+            <Input
+              id="sam-opportunity-url"
+              type="url"
+              value={importUrl}
+              onChange={(event) => setImportUrl(event.target.value)}
+              placeholder="https://sam.gov/workspace/contract/opp/…/view"
+              autoFocus
+              disabled={importSamGovUrl.isPending}
+            />
+          </div>
+        </div>
+      </FormDialogShell>
 
       <section
         aria-label="Overview"

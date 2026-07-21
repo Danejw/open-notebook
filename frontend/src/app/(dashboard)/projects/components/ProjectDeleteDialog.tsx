@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type MouseEvent } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,12 +13,14 @@ import {
 } from '@/components/ui/alert-dialog'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
 import { buttonVariants } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProjectDeletePreview, useDeleteProject } from '@/lib/hooks/use-projects'
 import { useRouter } from 'next/navigation'
+import { clearBodyPointerLock } from '@/lib/utils/clear-body-pointer-lock'
 
 interface ProjectDeleteDialogProps {
   open: boolean
@@ -38,11 +40,20 @@ export function ProjectDeleteDialog({
   const { t } = useTranslation()
   const router = useRouter()
   const [sourceAction, setSourceAction] = useState<'keep' | 'delete'>('keep')
+  const [confirmText, setConfirmText] = useState('')
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    onOpenChange(nextOpen)
+    if (!nextOpen) {
+      clearBodyPointerLock()
+    }
+  }
 
   // Reset state when dialog opens
   useEffect(() => {
     if (open) {
       setSourceAction('keep')
+      setConfirmText('')
     }
   }, [open, projectId])
 
@@ -54,25 +65,40 @@ export function ProjectDeleteDialog({
 
   const deleteProject = useDeleteProject()
 
-  const handleConfirm = async () => {
-    await deleteProject.mutateAsync({
-      id: projectId,
-      deleteExclusiveSources: sourceAction === 'delete',
-    })
-    onOpenChange(false)
-    if (redirectAfterDelete) {
-      router.push('/projects')
+  const nameMatches = confirmText === projectName
+  const canConfirm =
+    nameMatches && !isLoadingPreview && !previewError && !deleteProject.isPending
+
+  const handleConfirm = async (event: MouseEvent) => {
+    // Prevent Radix from racing close with DropdownMenu teardown, which
+    // can leave document.body.style.pointerEvents = 'none'.
+    event.preventDefault()
+    if (!canConfirm) {
+      return
+    }
+
+    try {
+      await deleteProject.mutateAsync({
+        id: projectId,
+        deleteExclusiveSources: sourceAction === 'delete',
+      })
+      handleOpenChange(false)
+      if (redirectAfterDelete) {
+        router.push('/projects')
+      }
+    } catch {
+      // Error toast handled by useDeleteProject; keep dialog open for retry
     }
   }
 
   const isDeleting = deleteProject.isPending
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{t('projects.deleteProject')}</AlertDialogTitle>
-          <AlertDialogDescription>
+          <AlertDialogDescription className="select-text">
             {t('projects.deleteProjectDesc').replace('{name}', projectName)}
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -154,13 +180,33 @@ export function ProjectDeleteDialog({
               )}
             </>
           ) : null}
+
+          {!isLoadingPreview && !previewError && (
+            <div className="pt-3 border-t space-y-2">
+              <Label
+                htmlFor="delete-project-confirm"
+                className="block text-sm font-medium leading-snug select-text"
+              >
+                {t('projects.deleteTypeConfirmLabel').replace('{name}', projectName)}
+              </Label>
+              <Input
+                id="delete-project-confirm"
+                value={confirmText}
+                onChange={(event) => setConfirmText(event.target.value)}
+                placeholder={t('projects.deleteTypeConfirmPlaceholder')}
+                disabled={isDeleting}
+                autoComplete="off"
+                data-testid="delete-project-confirm-input"
+              />
+            </div>
+          )}
         </div>
 
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isDeleting}>{t('common.cancel')}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
-            disabled={isDeleting || isLoadingPreview}
+            disabled={!canConfirm}
             className={buttonVariants({ variant: 'destructive' })}
           >
             {isDeleting ? (

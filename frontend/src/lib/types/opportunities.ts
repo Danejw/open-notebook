@@ -272,24 +272,6 @@ export interface OpportunitySource {
   sync_collection_id?: string | null
 }
 
-export interface OpportunityNaicsCollectionItem {
-  code: string
-  title: string
-  description: string
-  priority: number | null
-  item_id: string
-}
-
-export interface OpportunityNaicsCollection {
-  id: string
-  name: string
-  slug: string
-  description: string
-  codes: string[]
-  items: OpportunityNaicsCollectionItem[]
-  is_default: boolean
-}
-
 export interface PursueOpportunityResponse {
   opportunity: Opportunity
   project_id: string

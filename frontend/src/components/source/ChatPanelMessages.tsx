@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback, type MutableRefObject } from 'react'
 import { SourceChatMessage } from '@/lib/types/api'
 import { ChatToolCall } from '@/lib/types/mcp'
 import { ToolCallGroup } from '@/components/mcp/ToolCallGroup'
@@ -31,6 +31,8 @@ export interface ChatPanelMessagesProps {
   modelOverride?: string
   contextType?: 'source' | 'project'
   variant?: 'column' | 'immersive'
+  onNearBottomChange?: (nearBottom: boolean) => void
+  scrollToBottomRef?: MutableRefObject<(() => void) | null>
 }
 
 export function ChatPanelMessages({
@@ -48,6 +50,8 @@ export function ChatPanelMessages({
   modelOverride,
   contextType = 'source',
   variant = 'column',
+  onNearBottomChange,
+  scrollToBottomRef,
 }: ChatPanelMessagesProps) {
   const { t } = useTranslation()
   const { openModal } = useModalManager()
@@ -159,6 +163,8 @@ export function ChatPanelMessages({
       onCancelEdit={cancelEditingMessage}
       onSubmitEdit={submitEditedMessage}
       onEditKeyDown={handleEditKeyDown}
+      onNearBottomChange={onNearBottomChange}
+      scrollToBottomRef={scrollToBottomRef}
       className={
         isImmersive ? 'px-4 pt-5 sm:px-6 sm:pt-6 md:px-10 lg:px-14' : undefined
       }

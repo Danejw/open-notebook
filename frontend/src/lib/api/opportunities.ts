@@ -6,7 +6,6 @@ import type {
   OpportunityFilters,
   OpportunityListResponse,
   OpportunityMonitoringHealthSummary,
-  OpportunityNaicsCollection,
   OpportunityRefreshResponse,
   OpportunityScoringProfile,
   OpportunityScoringProfileUpdate,
@@ -32,6 +31,12 @@ export interface OpportunitySyncResult {
   posted_to: string
   collection_id?: string
   filter_strings?: string[]
+}
+
+export interface SamOpportunityUrlImportResponse {
+  opportunity: Opportunity
+  created: boolean
+  updated: boolean
 }
 
 async function watchOpportunity(id: string) {
@@ -98,13 +103,6 @@ export const opportunitiesApi = {
     return response.data
   },
 
-  naicsCollections: async () => {
-    const response = await apiClient.get<OpportunityNaicsCollection[]>(
-      '/opportunities/naics-collections'
-    )
-    return response.data
-  },
-
   syncSamGov: async (daysBack = 14, collectionId?: string | null) => {
     const params: { days_back: number; collection_id?: string } = {
       days_back: daysBack,
@@ -117,6 +115,14 @@ export const opportunitiesApi = {
       '/opportunity-sources/sam_gov_hawaii/sync',
       undefined,
       { params }
+    )
+    return response.data
+  },
+
+  importSamGovUrl: async (url: string) => {
+    const response = await apiClient.post<SamOpportunityUrlImportResponse>(
+      '/opportunity-sources/sam_gov_hawaii/import-url',
+      { url }
     )
     return response.data
   },

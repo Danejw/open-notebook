@@ -33,14 +33,18 @@ from construction_os.exceptions import (
 from construction_os.services.opportunities import (
     import_opportunities,
     seed_opportunity_sources,
+    upsert_opportunity,
 )
 
 SAM_OPPORTUNITIES_URL = "https://api.sam.gov/opportunities/v2/search"
 SAM_DOWNLOAD_TIMEOUT_SECONDS = 60.0
 SAM_REQUEST_MAX_ATTEMPTS = 4
 SAM_REQUEST_BASE_DELAY_SECONDS = 2.0
+SAM_NOTICE_LOOKUP_MAX_DAYS = 364
 _API_KEY_QUERY_RE = re.compile(r"(api_key=)[^&\s\"']+", re.IGNORECASE)
 _URL_RE = re.compile(r"^https?://", re.IGNORECASE)
+_SAM_OPP_PATH_RE = re.compile(r"/opp/([^/]+)/view/?$", re.IGNORECASE)
+_SAM_GOV_HOSTS = frozenset({"sam.gov", "www.sam.gov", "api.sam.gov"})
 
 
 def _parse_datetime(value: Any) -> Optional[datetime]:
@@ -872,6 +876,116 @@ def record_matches_collection_filters(
         if (code := _normalize_filter_code(value))
     }
     return bool(found & wanted)
+
+
+def parse_sam_opportunity_notice_id(url: str) -> str:
+    """Extract a SAM.gov notice ID from a public or API opportunity URL."""
+
+    text = (url or "").strip()
+    if not text:
+        raise InvalidInputError("A SAM.gov opportunity URL is required")
+
+    parsed = urlparse(text if "://" in text else f"https://{text}")
+    host = (parsed.hostname or "").lower()
+    if host not in _SAM_GOV_HOSTS:
+        raise InvalidInputError("URL must be a sam.gov opportunity link")
+
+    path_match = _SAM_OPP_PATH_RE.search(parsed.path or "")
+    if path_match:
+        notice_id = path_match.group(1).strip()
+        if notice_id:
+            return notice_id
+
+    query = {
+        key.lower(): value
+        for key, value in parse_qsl(parsed.query, keep_blank_values=False)
+    }
+    for key in ("noticeid", "notice_id"):
+        notice_id = (query.get(key) or "").strip()
+        if notice_id:
+            return notice_id
+
+    raise InvalidInputError("Could not find a notice ID in that SAM.gov URL")
+
+
+def sam_notice_lookup_params(
+    notice_id: str,
+    api_key: str,
+    *,
+    published_at: Optional[datetime] = None,
+    today: Optional[date] = None,
+) -> Dict[str, str]:
+    """Build a SAM.gov notice lookup including the required posting window."""
+
+    today = today or date.today()
+    earliest = today - timedelta(days=SAM_NOTICE_LOOKUP_MAX_DAYS)
+    if published_at is not None:
+        published = published_at.date()
+        earliest = max(earliest, published - timedelta(days=1))
+    return {
+        "api_key": api_key,
+        "noticeid": notice_id,
+        "postedFrom": earliest.strftime("%m/%d/%Y"),
+        "postedTo": today.strftime("%m/%d/%Y"),
+        "limit": "10",
+        "offset": "0",
+    }
+
+
+async def import_sam_opportunity_from_url(url: str) -> Dict[str, Any]:
+    """Fetch one SAM.gov notice by URL and upsert it into the Opportunity Hub."""
+
+    notice_id = parse_sam_opportunity_notice_id(url)
+    api_key = os.getenv("SAM_GOV_API_KEY", "").strip()
+    if not api_key:
+        raise ConfigurationError(
+            "SAM_GOV_API_KEY is required to import a SAM.gov opportunity URL"
+        )
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
+            payload = await _sam_search(
+                client,
+                sam_notice_lookup_params(notice_id, api_key),
+            )
+            records = [
+                item
+                for item in (payload.get("opportunitiesData") or [])
+                if isinstance(item, dict)
+            ]
+            if not records:
+                raise NotFoundError(
+                    "SAM.gov did not return that notice. It may be archived, "
+                    "outside the searchable posting window, or the URL may be wrong."
+                )
+            record = next(
+                (
+                    item
+                    for item in records
+                    if str(item.get("noticeId") or item.get("noticeID") or "").strip()
+                    == notice_id
+                ),
+                records[0],
+            )
+            normalized = await normalize_sam_opportunity(
+                record,
+                api_key=api_key,
+                client=client,
+            )
+            opportunity, created = await upsert_opportunity(normalized)
+    except (NotFoundError, InvalidInputError, ConfigurationError, ExternalServiceError):
+        raise
+    except (httpx.HTTPError, ValueError) as exc:
+        message = redact_sam_error_message(str(exc))
+        raise ExternalServiceError(
+            f"SAM.gov opportunity import failed: {message}"
+        ) from exc
+
+    return {
+        "opportunity": opportunity,
+        "created": created,
+        "updated": not created,
+    }
 
 
 async def _sam_search(

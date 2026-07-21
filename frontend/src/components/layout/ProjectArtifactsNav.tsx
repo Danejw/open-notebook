@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Book, Inbox, ListFilter } from 'lucide-react'
+import { Book, Inbox } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,
@@ -30,7 +30,6 @@ export function ProjectArtifactsNav({ isCollapsed }: ProjectArtifactsNavProps) {
 
   const isProjectsSectionActive = pathname?.startsWith('/projects') ?? false
   const isOpportunitiesActive = pathname === '/opportunities'
-  const isDiscoveryActive = pathname?.startsWith('/opportunities/discovery') ?? false
   const projectsLabel = t('navigation.projects')
 
   if (isCollapsed) {
@@ -60,32 +59,6 @@ export function ProjectArtifactsNav({ isCollapsed }: ProjectArtifactsNavProps) {
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right">Opportunity Hub</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              asChild
-              variant={isDiscoveryActive ? 'secondary' : 'ghost'}
-              size="icon"
-              className={cn(
-                'mx-auto h-7 w-7 shrink-0 justify-center px-0 text-sidebar-foreground sidebar-menu-item',
-                isDiscoveryActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
-              )}
-            >
-              <Link
-                href="/opportunities/discovery"
-                prefetch={false}
-                onMouseEnter={() => prefetchRoute('/opportunities/discovery')}
-                aria-current={isDiscoveryActive ? 'page' : undefined}
-                className="flex justify-center"
-                aria-label="Opportunity Discovery"
-              >
-                <ListFilter className="h-3.5 w-3.5 shrink-0" />
-              </Link>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Opportunity Discovery</TooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -141,26 +114,6 @@ export function ProjectArtifactsNav({ isCollapsed }: ProjectArtifactsNavProps) {
           >
             <Inbox className="mr-1 h-3.5 w-3.5 shrink-0 opacity-80" />
             <span className="truncate text-[13px] leading-none">Opportunity Hub</span>
-          </Link>
-        </Button>
-
-        <Button
-          asChild
-          variant={isDiscoveryActive ? 'secondary' : 'ghost'}
-          size="sm"
-          className={cn(
-            'h-7 w-full justify-start truncate px-1.5 text-sidebar-foreground sidebar-menu-item',
-            isDiscoveryActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
-          )}
-        >
-          <Link
-            href="/opportunities/discovery"
-            prefetch={false}
-            onMouseEnter={() => prefetchRoute('/opportunities/discovery')}
-            aria-current={isDiscoveryActive ? 'page' : undefined}
-          >
-            <ListFilter className="mr-1 h-3.5 w-3.5 shrink-0 opacity-80" />
-            <span className="truncate text-[13px] leading-none">Discovery Settings</span>
           </Link>
         </Button>
 

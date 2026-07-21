@@ -1,6 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  type MutableRefObject,
+  type ReactNode,
+} from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { SourceChatMessage } from '@/lib/types/api'
 import { ChatToolCall } from '@/lib/types/mcp'
@@ -32,12 +39,16 @@ export interface ChatMessageListProps {
   onCancelEdit: () => void
   onSubmitEdit: () => void
   onEditKeyDown: (e: React.KeyboardEvent) => void
-  emptyState: React.ReactNode
-  footer?: React.ReactNode
+  emptyState: ReactNode
+  footer?: ReactNode
   /** Extra classes on the scroll container (padding, spacing) */
   className?: string
   /** Extra classes on the message stack (e.g. top margin under header) */
   contentClassName?: string
+  /** Fired when pinned-to-bottom stickiness changes (for jump-to-latest control). */
+  onNearBottomChange?: (nearBottom: boolean) => void
+  /** Parent can call this to smoothly scroll to the latest message. */
+  scrollToBottomRef?: MutableRefObject<(() => void) | null>
 }
 
 export function ChatMessageList({
@@ -63,6 +74,8 @@ export function ChatMessageList({
   footer,
   className,
   contentClassName,
+  onNearBottomChange,
+  scrollToBottomRef,
 }: ChatMessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -75,6 +88,8 @@ export function ChatMessageList({
   const programmaticScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   )
+  const onNearBottomChangeRef = useRef(onNearBottomChange)
+  onNearBottomChangeRef.current = onNearBottomChange
   const useVirtual = messages.length >= VIRTUALIZE_THRESHOLD
 
   const virtualizer = useVirtualizer({
@@ -91,6 +106,11 @@ export function ChatMessageList({
     return el.scrollHeight - el.scrollTop - el.clientHeight <= NEAR_BOTTOM_PX
   }, [])
 
+  const publishNearBottom = useCallback((nearBottom: boolean) => {
+    stickyToBottomRef.current = nearBottom
+    onNearBottomChangeRef.current?.(nearBottom)
+  }, [])
+
   const scrollToBottom = useCallback(
     (behavior: ScrollBehavior) => {
       const el = scrollRef.current
@@ -104,7 +124,7 @@ export function ChatMessageList({
       programmaticScrollTimerRef.current = setTimeout(
         () => {
           programmaticScrollRef.current = false
-          stickyToBottomRef.current = isNearBottom()
+          publishNearBottom(isNearBottom())
         },
         behavior === 'smooth' ? 400 : 50
       )
@@ -122,9 +142,19 @@ export function ChatMessageList({
       } else {
         el.scrollTop = el.scrollHeight
       }
+
+      publishNearBottom(true)
     },
-    [isNearBottom, messages.length, useVirtual, virtualizer]
+    [isNearBottom, messages.length, publishNearBottom, useVirtual, virtualizer]
   )
+
+  useEffect(() => {
+    if (!scrollToBottomRef) return
+    scrollToBottomRef.current = () => scrollToBottom('smooth')
+    return () => {
+      scrollToBottomRef.current = null
+    }
+  }, [scrollToBottom, scrollToBottomRef])
 
   // Track whether the user is pinned near the bottom (manual scroll up disables auto-scroll).
   useEffect(() => {
@@ -133,12 +163,14 @@ export function ChatMessageList({
 
     const onScroll = () => {
       if (programmaticScrollRef.current) return
-      stickyToBottomRef.current = isNearBottom()
+      publishNearBottom(isNearBottom())
     }
 
     el.addEventListener('scroll', onScroll, { passive: true })
+    // Publish initial stickiness for the jump-to-latest control.
+    publishNearBottom(isNearBottom())
     return () => el.removeEventListener('scroll', onScroll)
-  }, [isNearBottom, messages.length])
+  }, [isNearBottom, messages.length, publishNearBottom])
 
   useEffect(() => {
     return () => {
@@ -152,7 +184,7 @@ export function ChatMessageList({
   useLayoutEffect(() => {
     if (prevSessionIdRef.current !== sessionId) {
       prevSessionIdRef.current = sessionId
-      stickyToBottomRef.current = true
+      publishNearBottom(true)
       prevMessageCountRef.current = 0
       prevLastMessageIdRef.current = undefined
       pendingSessionScrollRef.current = true
@@ -167,7 +199,7 @@ export function ChatMessageList({
       requestAnimationFrame(() => scrollToBottom('auto'))
     })
     return () => cancelAnimationFrame(frame)
-  }, [sessionId, messages, scrollToBottom])
+  }, [sessionId, messages, publishNearBottom, scrollToBottom])
 
   useEffect(() => {
     const lastMessageId = messages[messages.length - 1]?.id
@@ -177,13 +209,13 @@ export function ChatMessageList({
     prevLastMessageIdRef.current = lastMessageId
 
     if (messages.length === 0) {
-      stickyToBottomRef.current = true
+      publishNearBottom(true)
       return
     }
 
     // New or replaced messages (send / session switch) re-pin to the bottom.
     if (grew || lastChanged) {
-      stickyToBottomRef.current = true
+      publishNearBottom(true)
     }
 
     if (!stickyToBottomRef.current) return
@@ -196,7 +228,7 @@ export function ChatMessageList({
         : 'smooth'
 
     scrollToBottom(behavior)
-  }, [messages, isStreaming, scrollToBottom])
+  }, [messages, isStreaming, publishNearBottom, scrollToBottom])
 
   const rowProps = (message: SourceChatMessage): ChatMessageRowProps => ({
     message,

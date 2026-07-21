@@ -360,6 +360,8 @@ export const ruRU = {
     "deleteProjectNoSources": "В этом блокноте нет источников.",
     "deleteExclusiveSourcesLabel": "Удалить эксклюзивные источники",
     "keepExclusiveSourcesLabel": "Отвязать и сохранить",
+    "deleteTypeConfirmLabel": "Введите «{name}», чтобы подтвердить удаление",
+    "deleteTypeConfirmPlaceholder": "Название проекта",
     "activeProjects": "Активные блокноты",
     "archivedProjects": "Архивные блокноты",
     "tileView": "Вид плиткой",

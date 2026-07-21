@@ -360,6 +360,8 @@ export const frFR = {
     "deleteProjectNoSources": "Aucune source dans ce projet.",
     "deleteExclusiveSourcesLabel": "Supprimer les sources exclusives",
     "keepExclusiveSourcesLabel": "Délier et les conserver",
+    "deleteTypeConfirmLabel": "Tapez « {name} » pour confirmer la suppression",
+    "deleteTypeConfirmPlaceholder": "Nom du projet",
     "activeProjects": "Projets actifs",
     "archivedProjects": "Projets archivés",
     "tileView": "Vue en mosaïque",

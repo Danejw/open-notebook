@@ -9,8 +9,18 @@ from surrealdb import RecordID
 
 from construction_os.database.repository import ensure_record_id, repo_query
 from construction_os.domain.base import ObjectModel
+from construction_os.domain.chat_queue import ChatQueueRepository
 from construction_os.domain.project_artifact import Note, ProjectArtifact
 from construction_os.exceptions import DatabaseOperationError, InvalidInputError
+
+# SurrealQL: classify sources linked to a project as exclusive (no other projects)
+# or shared. Safe when the project has zero sources (empty FROM yields no rows).
+_SOURCE_ASSIGNMENT_QUERY = """
+SELECT
+    id,
+    count(->reference[WHERE out != $project_id].out) AS assigned_others
+FROM (SELECT VALUE in FROM reference WHERE out = $project_id)
+"""
 
 
 class Project(ObjectModel):
@@ -155,22 +165,15 @@ class Project(ObjectModel):
             )
             note_count = note_result[0]["count"] if note_result else 0
 
-            # Get sources with count of references to OTHER projects
-            # If assigned_others = 0, source is exclusive to this Project
-            # If assigned_others > 0, source is shared with other projects
+            # Classify sources: assigned_others = 0 means exclusive to this Project
             source_counts = await repo_query(
-                """
-                SELECT
-                    id,
-                    count(->reference[WHERE out != $project_id].out) as assigned_others
-                FROM (SELECT VALUE <-reference.in AS sources FROM $project_id)[0]
-                """,
+                _SOURCE_ASSIGNMENT_QUERY,
                 {"project_id": project_id},
             )
 
             exclusive_count = 0
             shared_count = 0
-            for src in source_counts:
+            for src in source_counts or []:
                 if src.get("assigned_others", 0) == 0:
                     exclusive_count += 1
                 else:
@@ -188,7 +191,11 @@ class Project(ObjectModel):
 
     async def delete(self, delete_exclusive_sources: bool = False) -> Dict[str, int]:
         """
-        Delete Project with cascade deletion of notes and optional source deletion.
+        Delete Project with cascade deletion of linked data and optional source deletion.
+
+        Always removes: artifacts, chat sessions/queues, documents, knowledge graph,
+        drawing data, opportunity links, and source reference edges.
+        Optionally deletes exclusive sources when ``delete_exclusive_sources`` is True.
 
         Args:
             delete_exclusive_sources: If True, also delete sources that belong
@@ -202,41 +209,88 @@ class Project(ObjectModel):
 
         try:
             project_id = ensure_record_id(self.id)
+            project_id_str = str(self.id)
             deleted_notes = 0
             deleted_sources = 0
             unlinked_sources = 0
 
-            # 1. Get and delete all notes linked to this Project
+            # 1. Delete all notes/artifacts linked to this Project
             notes = await self.get_notes()
             for note in notes:
                 await note.delete()
                 deleted_notes += 1
             logger.info(f"Deleted {deleted_notes} notes for Project {self.id}")
 
-            # Delete project_note relationships
             await repo_query(
                 "DELETE project_note WHERE out = $project_id",
                 {"project_id": project_id},
             )
 
-            # 2. Handle sources
+            # 2. Chat sessions, queues, and refers_to edges
+            sessions = await self.get_chat_sessions()
+            for session in sessions:
+                if not session.id:
+                    continue
+                try:
+                    await ChatQueueRepository.delete_for_session(session.id)
+                    await session.delete()
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to delete chat session {session.id} "
+                        f"for Project {self.id}: {e}"
+                    )
+            await repo_query(
+                "DELETE refers_to WHERE out = $project_id",
+                {"project_id": project_id},
+            )
+
+            # 3. HTML documents (project_id stored as string)
+            await repo_query(
+                "DELETE document WHERE project_id = $project_id_str",
+                {"project_id_str": project_id_str},
+            )
+
+            # 4. Knowledge graph rows
+            await repo_query(
+                """
+                DELETE kg_mention WHERE project_id = $project_id;
+                DELETE kg_claim WHERE project_id = $project_id;
+                DELETE kg_relation WHERE project_id = $project_id;
+                DELETE kg_entity WHERE project_id = $project_id;
+                DELETE kg_community WHERE project_id = $project_id;
+                DELETE kg_graph_layout WHERE project_id = $project_id;
+                DELETE kg_query_run WHERE project_id = $project_id;
+                DELETE kg_extraction_run WHERE project_id = $project_id;
+                """,
+                {"project_id": project_id},
+            )
+
+            # 5. Drawing extraction data
+            await repo_query(
+                """
+                DELETE drawing_embedding WHERE project_id = $project_id;
+                DELETE drawing_semantic_record WHERE project_id = $project_id;
+                DELETE drawing_extraction_run WHERE project_id = $project_id;
+                """,
+                {"project_id": project_id},
+            )
+
+            # 6. Unlink opportunities (do not delete opportunity records)
+            await repo_query(
+                "UPDATE opportunity SET project_id = NONE WHERE project_id = $project_id_str",
+                {"project_id_str": project_id_str},
+            )
+
+            # 7. Handle sources
             if delete_exclusive_sources:
-                # Find sources with count of references to OTHER projects
-                # If assigned_others = 0, source is exclusive to this Project
                 source_counts = await repo_query(
-                    """
-                    SELECT
-                        id,
-                        count(->reference[WHERE out != $project_id].out) as assigned_others
-                    FROM (SELECT VALUE <-reference.in AS sources FROM $project_id)[0]
-                    """,
+                    _SOURCE_ASSIGNMENT_QUERY,
                     {"project_id": project_id},
                 )
 
-                for src in source_counts:
+                for src in source_counts or []:
                     source_id = src.get("id")
                     if source_id and src.get("assigned_others", 0) == 0:
-                        # Exclusive source - delete it
                         try:
                             source = await Source.get(str(source_id))
                             await source.delete()
@@ -248,14 +302,12 @@ class Project(ObjectModel):
                     else:
                         unlinked_sources += 1
             else:
-                # Just count sources that will be unlinked
                 source_result = await repo_query(
                     "SELECT count() as count FROM reference WHERE out = $project_id GROUP ALL",
                     {"project_id": project_id},
                 )
                 unlinked_sources = source_result[0]["count"] if source_result else 0
 
-            # Delete reference relationships (unlink all sources)
             await repo_query(
                 "DELETE reference WHERE out = $project_id",
                 {"project_id": project_id},
@@ -265,7 +317,7 @@ class Project(ObjectModel):
                 f"exclusive sources for Project {self.id}"
             )
 
-            # 3. Delete the Project record itself
+            # 8. Delete the Project record itself
             await super().delete()
             logger.info(f"Deleted Project {self.id}")
 

@@ -360,6 +360,8 @@ export const zhTW = {
     "deleteProjectNoSources": "此專案中沒有來源。",
     "deleteExclusiveSourcesLabel": "刪除專屬來源",
     "keepExclusiveSourcesLabel": "取消關聯並保留",
+    "deleteTypeConfirmLabel": "輸入「{name}」以確認刪除",
+    "deleteTypeConfirmPlaceholder": "專案名稱",
     "activeProjects": "活動中的專案",
     "archivedProjects": "封存的專案",
     "tileView": "並排檢視",

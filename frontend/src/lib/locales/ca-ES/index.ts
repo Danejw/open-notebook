@@ -360,6 +360,8 @@ export const caES = {
     "deleteProjectNoSources": "No hi ha fonts en aquest quadern.",
     "deleteExclusiveSourcesLabel": "Suprimeix les fonts exclusives",
     "keepExclusiveSourcesLabel": "Desenllaça i conserva",
+    "deleteTypeConfirmLabel": "Escriu «{name}» per confirmar la supressió",
+    "deleteTypeConfirmPlaceholder": "Nom del projecte",
     "activeProjects": "Projectes actius",
     "archivedProjects": "Projectes arxivats",
     "tileView": "Vista de mosaic",

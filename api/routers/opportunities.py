@@ -22,6 +22,8 @@ from api.opportunity_models import (
     OpportunityStatusRequest,
     OpportunityUpdate,
     PursueOpportunityResponse,
+    SamOpportunityUrlImportRequest,
+    SamOpportunityUrlImportResponse,
     SamSyncCollectionUpdate,
 )
 from construction_os.domain.opportunity import Opportunity, OpportunitySource
@@ -46,6 +48,7 @@ from construction_os.services.opportunities import (
     upsert_opportunity,
 )
 from construction_os.services.opportunity_collectors import (
+    import_sam_opportunity_from_url,
     resolve_collection_filter_strings,
     set_sam_sync_collection_id,
     sync_sam_gov_hawaii,
@@ -199,6 +202,36 @@ async def sync_sam_gov_hawaii_source(
     except Exception as exc:
         logger.error(f"Unexpected SAM.gov sync error: {exc}")
         raise HTTPException(status_code=500, detail="Failed to sync SAM.gov opportunities")
+
+
+@router.post(
+    "/opportunity-sources/sam_gov_hawaii/import-url",
+    response_model=SamOpportunityUrlImportResponse,
+)
+async def import_sam_gov_opportunity_url(body: SamOpportunityUrlImportRequest):
+    """Import one SAM.gov notice by public opportunity URL into the Opportunity Hub."""
+
+    try:
+        result = await import_sam_opportunity_from_url(body.url)
+        opportunity = result["opportunity"]
+        return SamOpportunityUrlImportResponse(
+            opportunity=_opportunity_response(opportunity),
+            created=bool(result["created"]),
+            updated=bool(result["updated"]),
+        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except InvalidInputError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except ConfigurationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except ExternalServiceError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"Unexpected SAM.gov URL import error: {exc}")
+        raise HTTPException(
+            status_code=500, detail="Failed to import SAM.gov opportunity URL"
+        )
 
 
 @router.put(

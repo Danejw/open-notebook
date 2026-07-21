@@ -360,6 +360,8 @@ export const itIT = {
     "deleteProjectNoSources": "Nessuna fonte in questo quaderno.",
     "deleteExclusiveSourcesLabel": "Elimina fonti esclusive",
     "keepExclusiveSourcesLabel": "Scollega e mantieni",
+    "deleteTypeConfirmLabel": "Digita \"{name}\" per confermare l'eliminazione",
+    "deleteTypeConfirmPlaceholder": "Nome del progetto",
     "activeProjects": "Quaderni attivi",
     "archivedProjects": "Quaderni archiviati",
     "tileView": "Vista a riquadri",

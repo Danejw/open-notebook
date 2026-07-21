@@ -69,6 +69,25 @@ Before testing:
 
 ---
 
+## 2b. Add one opportunity by SAM.gov URL
+
+Use this when a notice is on SAM.gov but not yet in the inbox (for example outside the sync window or filtered out by collection).
+
+1. Click **Add SAM.gov link** in the page header (also available in the empty-inbox state).
+2. Paste a public opportunity URL such as `https://sam.gov/workspace/contract/opp/{noticeId}/view` (shorter `/opp/{noticeId}/view` and API `noticeid=` links also work).
+3. Click **Add opportunity** and wait for the dialog to close.
+4. Expect a toast: **SAM.gov opportunity added** (new) or **SAM.gov opportunity refreshed** (already in the inbox).
+5. Confirm the detail pane opens on that notice so you can Watch, Ignore, or Pursue as usual.
+
+**If import fails:**
+
+- Toast: **Could not import SAM.gov link** with the API message.
+- Common causes: missing `SAM_GOV_API_KEY`, invalid/non-SAM URL, or SAM returning no match (archived / outside the searchable posting window).
+
+**Pass:** Notice appears or refreshes in the inbox; detail pane selects it; Watch / Pursue still work.
+
+---
+
 ## 3. Read the Overview metrics
 
 1. Confirm the **Overview** strip is a single dense row under the page header (no cards, no expand/collapse).
@@ -269,6 +288,7 @@ With the API up and auth header if required:
 | Sources | `GET /opportunity-sources?enabled=true` |
 | Seed sources | `POST /opportunity-sources/seed` |
 | Sync SAM.gov | `POST /opportunity-sources/sam_gov_hawaii/sync?days_back=14` |
+| Import SAM.gov URL | `POST /opportunity-sources/sam_gov_hawaii/import-url` body `{ "url": "https://sam.gov/opp/.../view" }` |
 | Set status | `POST /opportunities/{id}/status` body `{"status":"watching"}` (workflow only; does not change `source_stage`) |
 | Pursue | `POST /opportunities/{id}/pursue` |
 | Archive | `DELETE /opportunities/{id}` |

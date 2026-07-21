@@ -29,6 +29,7 @@ from construction_os.services.opportunities import get_opportunity, upsert_oppor
 from construction_os.services.opportunity_collectors import (
     download_sam_attachment,
     normalize_sam_opportunity,
+    sam_notice_lookup_params,
     _sam_search,
 )
 from construction_os.services.project_artifacts import create_project_artifact
@@ -137,19 +138,12 @@ def sam_lookup_params(
 ) -> Dict[str, str]:
     """Build a valid SAM.gov notice lookup with the required posting window."""
 
-    today = today or date.today()
-    earliest = today - timedelta(days=364)
-    if opportunity.published_at:
-        published = opportunity.published_at.date()
-        earliest = max(earliest, published - timedelta(days=1))
-    return {
-        "api_key": api_key,
-        "noticeid": opportunity.external_id,
-        "postedFrom": earliest.strftime("%m/%d/%Y"),
-        "postedTo": today.strftime("%m/%d/%Y"),
-        "limit": "10",
-        "offset": "0",
-    }
+    return sam_notice_lookup_params(
+        opportunity.external_id,
+        api_key,
+        published_at=opportunity.published_at,
+        today=today,
+    )
 
 
 def _canonical_document(document: Dict[str, Any]) -> Dict[str, Any]:

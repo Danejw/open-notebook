@@ -360,6 +360,8 @@ export const jaJP = {
     "deleteProjectNoSources": "このプロジェクトにソースはありません。",
     "deleteExclusiveSourcesLabel": "専用ソースを削除",
     "keepExclusiveSourcesLabel": "リンク解除して保持",
+    "deleteTypeConfirmLabel": "削除を確認するには \"{name}\" と入力してください",
+    "deleteTypeConfirmPlaceholder": "プロジェクト名",
     "activeProjects": "アクティブなプロジェクト",
     "archivedProjects": "アーカイブ済みプロジェクト",
     "tileView": "タイル表示",

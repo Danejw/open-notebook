@@ -261,6 +261,18 @@ class SamSyncCollectionUpdate(BaseModel):
     collection_id: Optional[str] = None
 
 
+class SamOpportunityUrlImportRequest(BaseModel):
+    """Paste a SAM.gov opportunity URL to import one notice into the hub."""
+
+    url: str = Field(..., min_length=1)
+
+
+class SamOpportunityUrlImportResponse(BaseModel):
+    opportunity: OpportunityResponse
+    created: bool
+    updated: bool
+
+
 class OpportunityNaicsCollectionItemResponse(BaseModel):
     code: str
     title: str

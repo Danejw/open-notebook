@@ -60,6 +60,8 @@ export interface ChatComposerProps {
   currentSessionId?: string | null
   messageCount: number
   queue?: ChatQueueResponse
+  showJumpToBottom?: boolean
+  onJumpToBottom?: () => void
 }
 
 export function ChatComposer({
@@ -90,6 +92,8 @@ export function ChatComposer({
   currentSessionId,
   messageCount,
   queue,
+  showJumpToBottom = false,
+  onJumpToBottom,
 }: ChatComposerProps) {
   const { t } = useTranslation()
   const chatInputId = useId()
@@ -220,6 +224,8 @@ export function ChatComposer({
         selectedMcpToolIds={selectedMcpToolIds}
         onMcpToolIdsChange={onMcpToolIdsChange}
         onOpenPicker={(picker) => openChatAttachPicker(setActivePicker, picker)}
+        showJumpToBottom={showJumpToBottom}
+        onJumpToBottom={onJumpToBottom}
       />
       <div className={cn('flex min-w-0 items-end', isImmersive ? 'gap-2' : 'gap-1')}>
         <ChatComposerAttachMenu

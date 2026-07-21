@@ -360,6 +360,8 @@ export const bnIN = {
     "deleteProjectNoSources": "এই প্রকল্পে কোন উৎস নেই।",
     "deleteExclusiveSourcesLabel": "এক্সক্লুসিভ উৎসগুলি মুছে ফেলুন",
     "keepExclusiveSourcesLabel": "আনলিংক করে রাখুন",
+    "deleteTypeConfirmLabel": "মুছে ফেলার নিশ্চিতকরণে \"{name}\" টাইপ করুন",
+    "deleteTypeConfirmPlaceholder": "প্রকল্পের নাম",
     "activeProjects": "সক্রিয় প্রকল্প",
     "archivedProjects": "আর্কাইভ প্রকল্প",
     "tileView": "টাইল ভিউ",

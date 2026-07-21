@@ -360,6 +360,8 @@ export const zhCN = {
     "deleteProjectNoSources": "此项目中没有来源。",
     "deleteExclusiveSourcesLabel": "删除专属来源",
     "keepExclusiveSourcesLabel": "取消关联并保留",
+    "deleteTypeConfirmLabel": "输入“{name}”以确认删除",
+    "deleteTypeConfirmPlaceholder": "项目名称",
     "activeProjects": "活动的项目",
     "archivedProjects": "归档的项目",
     "tileView": "平铺视图",

@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, type ReactNode } from 'react'
-import { FileCode2, Library, Settings2, Sparkles, Wrench, X } from 'lucide-react'
+import { ChevronDown, FileCode2, Library, Settings2, Sparkles, Wrench, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,
@@ -27,6 +27,9 @@ export interface ChatComposerSelectionIndicatorsProps {
   selectedMcpToolIds?: string[]
   onMcpToolIdsChange?: (ids: string[]) => void
   onOpenPicker: (picker: Exclude<ChatAttachPicker, null>) => void
+  /** Show a down-caret that scrolls the transcript to the latest message. */
+  showJumpToBottom?: boolean
+  onJumpToBottom?: () => void
 }
 
 function SelectionChip({
@@ -99,6 +102,8 @@ export function ChatComposerSelectionIndicators({
   selectedMcpToolIds,
   onMcpToolIdsChange,
   onOpenPicker,
+  showJumpToBottom = false,
+  onJumpToBottom,
 }: ChatComposerSelectionIndicatorsProps) {
   const { t } = useTranslation()
   const { data: models } = useModels()
@@ -122,89 +127,106 @@ export function ChatComposerSelectionIndicators({
   const showTools = Boolean(onMcpToolIdsChange && toolCount > 0)
   const showCollections = Boolean(onCollectionIdsChange && collectionCount > 0)
   const showTemplate = Boolean(onHtmlTemplateIdChange && hasTemplate)
+  const hasChips =
+    showModel || showSkills || showTools || showCollections || showTemplate
 
-  if (
-    !showModel &&
-    !showSkills &&
-    !showTools &&
-    !showCollections &&
-    !showTemplate
-  ) {
+  if (!hasChips && !showJumpToBottom) {
     return null
   }
 
+  const jumpLabel = t('chat.scrollToLatest', 'Scroll to latest')
+
   return (
     <div
-      className="flex min-w-0 flex-wrap items-center gap-0.5 px-0.5 pb-0.5"
+      className="flex min-w-0 items-center gap-0.5 px-0.5 pb-0.5"
       data-testid="chat-composer-selection-indicators"
     >
-      {showModel ? (
-        <SelectionChip
-          icon={<Settings2 className="size-3" />}
-          label={modelName ?? modelOverride!}
-          tooltip={t('common.modelConfiguration')}
-          disabled={disabled}
-          onOpen={() => onOpenPicker('model')}
-          onClear={() => onModelChange?.(undefined)}
-          clearLabel={t('common.resetToDefault')}
-        />
-      ) : null}
-      {showSkills ? (
-        <SelectionChip
-          icon={<Sparkles className="size-3" />}
-          label={String(skillCount)}
-          tooltip={t('skills.pickerSelected').replace(
-            '{count}',
-            String(skillCount)
-          )}
-          disabled={disabled}
-          onOpen={() => onOpenPicker('skills')}
-          onClear={() => onSkillIdsChange?.([])}
-          clearLabel={t('common.clearSelection')}
-        />
-      ) : null}
-      {showTools ? (
-        <SelectionChip
-          icon={<Wrench className="size-3" />}
-          label={String(toolCount)}
-          tooltip={t('tools.pickerSelected').replace(
-            '{count}',
-            String(toolCount)
-          )}
-          disabled={disabled}
-          onOpen={() => onOpenPicker('tools')}
-          onClear={() => onMcpToolIdsChange?.([])}
-          clearLabel={t('common.clearSelection')}
-        />
-      ) : null}
-      {showCollections ? (
-        <SelectionChip
-          icon={<Library className="size-3" />}
-          label={String(collectionCount)}
-          tooltip={t('collections.pickerSelected').replace(
-            '{count}',
-            String(collectionCount)
-          )}
-          disabled={disabled}
-          onOpen={() => onOpenPicker('collections')}
-          onClear={() => onCollectionIdsChange?.([])}
-          clearLabel={t('common.clearSelection')}
-        />
-      ) : null}
-      {showTemplate ? (
-        <SelectionChip
-          icon={<FileCode2 className="size-3" />}
-          label={htmlTemplate?.name ?? t('templates.pickerLabel')}
-          tooltip={
-            htmlTemplate?.name
-              ? htmlTemplate.name
-              : t('templates.pickerSelected')
-          }
-          disabled={disabled}
-          onOpen={() => onOpenPicker('templates')}
-          onClear={() => onHtmlTemplateIdChange?.(null)}
-          clearLabel={t('templates.pickerClear')}
-        />
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-0.5">
+        {showModel ? (
+          <SelectionChip
+            icon={<Settings2 className="size-3" />}
+            label={modelName ?? modelOverride!}
+            tooltip={t('common.modelConfiguration')}
+            disabled={disabled}
+            onOpen={() => onOpenPicker('model')}
+            onClear={() => onModelChange?.(undefined)}
+            clearLabel={t('common.resetToDefault')}
+          />
+        ) : null}
+        {showSkills ? (
+          <SelectionChip
+            icon={<Sparkles className="size-3" />}
+            label={String(skillCount)}
+            tooltip={t('skills.pickerSelected').replace(
+              '{count}',
+              String(skillCount)
+            )}
+            disabled={disabled}
+            onOpen={() => onOpenPicker('skills')}
+            onClear={() => onSkillIdsChange?.([])}
+            clearLabel={t('common.clearSelection')}
+          />
+        ) : null}
+        {showTools ? (
+          <SelectionChip
+            icon={<Wrench className="size-3" />}
+            label={String(toolCount)}
+            tooltip={t('tools.pickerSelected').replace(
+              '{count}',
+              String(toolCount)
+            )}
+            disabled={disabled}
+            onOpen={() => onOpenPicker('tools')}
+            onClear={() => onMcpToolIdsChange?.([])}
+            clearLabel={t('common.clearSelection')}
+          />
+        ) : null}
+        {showCollections ? (
+          <SelectionChip
+            icon={<Library className="size-3" />}
+            label={String(collectionCount)}
+            tooltip={t('collections.pickerSelected').replace(
+              '{count}',
+              String(collectionCount)
+            )}
+            disabled={disabled}
+            onOpen={() => onOpenPicker('collections')}
+            onClear={() => onCollectionIdsChange?.([])}
+            clearLabel={t('common.clearSelection')}
+          />
+        ) : null}
+        {showTemplate ? (
+          <SelectionChip
+            icon={<FileCode2 className="size-3" />}
+            label={htmlTemplate?.name ?? t('templates.pickerLabel')}
+            tooltip={
+              htmlTemplate?.name
+                ? htmlTemplate.name
+                : t('templates.pickerSelected')
+            }
+            disabled={disabled}
+            onOpen={() => onOpenPicker('templates')}
+            onClear={() => onHtmlTemplateIdChange?.(null)}
+            clearLabel={t('templates.pickerClear')}
+          />
+        ) : null}
+      </div>
+      {showJumpToBottom ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-6 shrink-0"
+              aria-label={jumpLabel}
+              onClick={onJumpToBottom}
+            >
+              <ChevronDown className="size-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top">{jumpLabel}</TooltipContent>
+        </Tooltip>
       ) : null}
     </div>
   )

@@ -363,6 +363,8 @@ export const enUS = {
     "deleteProjectNoSources": "No sources in this project.",
     "deleteExclusiveSourcesLabel": "Delete exclusive sources",
     "keepExclusiveSourcesLabel": "Unlink and keep them",
+    "deleteTypeConfirmLabel": "Type \"{name}\" to confirm deletion",
+    "deleteTypeConfirmPlaceholder": "Project name",
     "activeProjects": "Active Projects",
     "archivedProjects": "Archived Projects",
     "tileView": "Tile view",

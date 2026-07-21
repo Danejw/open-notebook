@@ -360,6 +360,8 @@ export const plPL = {
     "deleteProjectNoSources": "Brak źródeł w tym notatniku.",
     "deleteExclusiveSourcesLabel": "Usuń źródła wyłączne",
     "keepExclusiveSourcesLabel": "Odłącz i zachowaj je",
+    "deleteTypeConfirmLabel": "Wpisz „{name}”, aby potwierdzić usunięcie",
+    "deleteTypeConfirmPlaceholder": "Nazwa projektu",
     "activeProjects": "Aktywne notatniki",
     "archivedProjects": "Zarchiwizowane notatniki",
     "tileView": "Widok kafelków",

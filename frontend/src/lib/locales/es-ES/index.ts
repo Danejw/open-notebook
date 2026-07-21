@@ -360,6 +360,8 @@ export const esES = {
     "deleteProjectNoSources": "No hay fuentes en este cuaderno.",
     "deleteExclusiveSourcesLabel": "Eliminar fuentes exclusivas",
     "keepExclusiveSourcesLabel": "Desvincular y conservarlas",
+    "deleteTypeConfirmLabel": "Escribe \"{name}\" para confirmar la eliminación",
+    "deleteTypeConfirmPlaceholder": "Nombre del proyecto",
     "activeProjects": "Proyectos activos",
     "archivedProjects": "Proyectos archivados",
     "tileView": "Vista de mosaico",

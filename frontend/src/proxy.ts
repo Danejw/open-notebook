@@ -24,6 +24,13 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(`/artifact-templates${suffix}`, request.url))
   }
 
+  if (
+    pathname === '/opportunities/discovery' ||
+    pathname.startsWith('/opportunities/discovery/')
+  ) {
+    return NextResponse.redirect(new URL('/opportunities', request.url))
+  }
+
   return NextResponse.next()
 }
 

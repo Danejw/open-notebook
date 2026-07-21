@@ -360,6 +360,8 @@ export const ptBR = {
     "deleteProjectNoSources": "Nenhuma fonte neste caderno.",
     "deleteExclusiveSourcesLabel": "Excluir fontes exclusivas",
     "keepExclusiveSourcesLabel": "Desvincular e manter",
+    "deleteTypeConfirmLabel": "Digite \"{name}\" para confirmar a exclusão",
+    "deleteTypeConfirmPlaceholder": "Nome do projeto",
     "activeProjects": "Projetos Ativos",
     "archivedProjects": "Projetos Arquivados",
     "tileView": "Visualização em blocos",

@@ -3,9 +3,11 @@
 import Link from 'next/link'
 import {
   createContext,
+  useCallback,
   useContext,
   type ComponentPropsWithoutRef,
   type ElementType,
+  type KeyboardEvent,
   type ReactNode,
 } from 'react'
 import { cn } from '@/lib/utils'
@@ -49,6 +51,19 @@ export function CompactListRow({
     className,
   )
 
+  const isInteractive = Boolean(onClick) && !href
+
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLElement>) => {
+      if (!isInteractive || !onClick) return
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        onClick(event as unknown as Parameters<NonNullable<typeof onClick>>[0])
+      }
+    },
+    [isInteractive, onClick],
+  )
+
   const content = (
     <CompactListRowContext.Provider value={{ rowHref: href }}>
       {children}
@@ -64,7 +79,17 @@ export function CompactListRow({
   }
 
   return (
-    <Tag className={rowClassName} onClick={onClick}>
+    <Tag
+      className={rowClassName}
+      onClick={onClick}
+      {...(isInteractive
+        ? {
+            role: 'button',
+            tabIndex: 0,
+            onKeyDown: handleKeyDown,
+          }
+        : {})}
+    >
       {content}
     </Tag>
   )

@@ -5,8 +5,6 @@ import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, dialogLargeContentClassName } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import {
   useCreateProjectArtifact,
   useUpdateProjectArtifact,
@@ -15,11 +13,11 @@ import {
 import { QUERY_KEYS } from '@/lib/api/query-client'
 import { MarkdownEditor } from '@/components/ui/markdown-editor'
 import { InlineEdit } from '@/components/common/InlineEdit'
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { DialogBodyLoading } from '@/components/common/LoadingSkeletons'
 import { FieldError } from '@/components/common/FieldError'
 import { normalizeArtifactId } from '@/lib/utils/export-artifact'
+import { MarkdownArtifactEditorShell } from '@/components/common/MarkdownArtifactEditorShell'
 
 const createArtifactSchema = z.object({
   title: z.string().optional(),
@@ -122,85 +120,70 @@ export function ArtifactEditorDialog({ open, onOpenChange, projectId, note }: Ar
     onOpenChange(false)
   }
 
+  const showLoading = isEditing && artifactLoading
+
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent
+    <MarkdownArtifactEditorShell
+      open={open}
+      onOpenChange={onOpenChange}
+      accessibilityTitle={isEditing ? t('sources.editNote') : t('sources.createNote')}
+      header={
+        showLoading ? undefined : (
+          <InlineEdit
+            id="artifact-title"
+            name="title"
+            value={watchTitle ?? ''}
+            onSave={(value) => setValue('title', value || '')}
+            placeholder={t('sources.addTitle')}
+            emptyText={t('sources.untitledNote')}
+            className="text-base font-semibold leading-snug"
+            inputClassName="text-base font-semibold leading-snug"
+          />
+        )
+      }
+      onSave={handleSubmit(onSubmit)}
+      onCancel={handleClose}
+      isSaving={isSaving}
+      disableSave={showLoading}
+      isLoading={showLoading}
+      loadingLabel={t('common.loading')}
+      saveLabel={isEditing ? t('sources.saveNote') : t('sources.createNoteBtn')}
+      savingLabel={
+        isEditing ? `${t('common.saving')}...` : `${t('common.creating')}...`
+      }
+      contentClassName={
+        isEditorFullscreen
+          ? '!max-w-screen !max-h-screen !w-screen !h-screen border-none'
+          : undefined
+      }
+    >
+      <div
         className={cn(
-          dialogLargeContentClassName,
-          'overflow-hidden p-0',
-          isEditorFullscreen && '!max-w-screen !max-h-screen !w-screen !h-screen border-none'
+          'min-h-0 flex-1 overflow-y-auto px-1 py-1',
+          isEditorFullscreen && 'px-0 py-0'
         )}
       >
-        <DialogTitle className="sr-only">
-          {isEditing ? t('sources.editNote') : t('sources.createNote')}
-        </DialogTitle>
-        <form onSubmit={handleSubmit(onSubmit)} className="flex h-full min-w-0 flex-col">
-          {isEditing && artifactLoading ? (
-            <DialogBodyLoading label={t('common.loading')} />
-          ) : (
-            <>
-              <DialogHeader className="border-b">
-                <InlineEdit
-                  id="artifact-title"
-                  name="title"
-                  value={watchTitle ?? ''}
-                  onSave={(value) => setValue('title', value || '')}
-                  placeholder={t('sources.addTitle')}
-                  emptyText={t('sources.untitledNote')}
-                  className="text-base font-semibold leading-snug"
-                  inputClassName="text-base font-semibold leading-snug"
-                />
-              </DialogHeader>
-
-              <div
-                className={cn(
-                  'min-h-0 flex-1 overflow-y-auto px-1 py-1',
-                  isEditorFullscreen && 'px-0 py-0'
-                )}
-              >
-                <Controller
-                  control={control}
-                  name="content"
-                  render={({ field }) => (
-                    <MarkdownEditor
-                      key={note?.id ?? 'new'}
-                      textareaId="artifact-content"
-                      value={field.value}
-                      onChange={field.onChange}
-                      height={420}
-                      placeholder={t('sources.writeNotePlaceholder')}
-                      className={cn(
-                        'h-full min-h-[420px] w-full overflow-hidden [&_.w-md-editor]:!static [&_.w-md-editor]:!h-full [&_.w-md-editor]:!w-full [&_.w-md-editor-content]:overflow-y-auto',
-                        !isEditorFullscreen && 'rounded-md border'
-                      )}
-                    />
-                  )}
-                />
-                <FieldError message={errors.content?.message} />
-              </div>
-            </>
+        <Controller
+          control={control}
+          name="content"
+          render={({ field }) => (
+            <MarkdownEditor
+              key={note?.id ?? 'new'}
+              textareaId="artifact-content"
+              value={field.value}
+              onChange={field.onChange}
+              height={420}
+              placeholder={t('sources.writeNotePlaceholder')}
+              className={cn(
+                'h-full min-h-[420px] w-full overflow-hidden [&_.w-md-editor]:!static [&_.w-md-editor]:!h-full [&_.w-md-editor]:!w-full [&_.w-md-editor-content]:overflow-y-auto',
+                !isEditorFullscreen && 'rounded-md border'
+              )}
+            />
           )}
-
-          <DialogFooter className="border-t">
-            <Button type="button" variant="outline" size="sm" className="h-7" onClick={handleClose}>
-              {t('common.cancel')}
-            </Button>
-            <Button
-              type="submit"
-              size="sm"
-              className="h-7"
-              disabled={isSaving || (isEditing && artifactLoading)}
-            >
-              {isSaving
-                ? isEditing ? `${t('common.saving')}...` : `${t('common.creating')}...`
-                : isEditing
-                  ? t('sources.saveNote')
-                  : t('sources.createNoteBtn')}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        />
+        <FieldError message={errors.content?.message} />
+      </div>
+    </MarkdownArtifactEditorShell>
   )
 }
 

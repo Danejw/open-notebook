@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { DetailPageSkeleton } from '@/components/common/LoadingSkeletons'
+import { PageError } from '@/components/common/PageError'
 import { CollectionItemsEditor } from '../components/CollectionItemsEditor'
 import { shouldShowCollectionStatus } from '../components/collection-status'
 import {
@@ -153,11 +154,17 @@ export default function CollectionDetailPage() {
 
   if (!collection) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-1.5 p-1">
-        <p className="text-sm text-muted-foreground">{t('collections.notFound')}</p>
-        <Button asChild variant="outline" size="sm" className="h-7">
-          <Link href="/collections">{t('collections.backToList')}</Link>
-        </Button>
+      <div className="flex flex-1 flex-col items-center justify-center p-1">
+        <PageError
+          title={t('collections.notFound')}
+          tone="muted"
+          centered
+          action={
+            <Button asChild variant="outline" size="sm" className="h-7">
+              <Link href="/collections">{t('collections.backToList')}</Link>
+            </Button>
+          }
+        />
       </div>
     )
   }

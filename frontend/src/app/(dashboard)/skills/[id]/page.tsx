@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { FormDialogShell } from '@/components/common/FormDialogShell'
+import { PageError } from '@/components/common/PageError'
 import { DetailPageSkeleton } from '@/components/common/LoadingSkeletons'
 import { SkillFileTree } from '../components/SkillFileTree'
 import { SkillEditorPanel } from '../components/SkillEditorPanel'
@@ -241,12 +242,18 @@ export default function SkillDetailPage() {
 
   if (!skill) {
     return (
-              <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6">
-          <p className="text-muted-foreground">{t('skills.notFound')}</p>
-          <Button asChild variant="outline">
-            <Link href="/skills">{t('skills.backToList')}</Link>
-          </Button>
-        </div>
+      <div className="flex flex-1 flex-col items-center justify-center p-6">
+        <PageError
+          title={t('skills.notFound')}
+          tone="muted"
+          centered
+          action={
+            <Button asChild variant="outline">
+              <Link href="/skills">{t('skills.backToList')}</Link>
+            </Button>
+          }
+        />
+      </div>
     )
   }
 

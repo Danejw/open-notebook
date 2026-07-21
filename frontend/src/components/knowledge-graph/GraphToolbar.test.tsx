@@ -12,6 +12,9 @@ vi.mock('@/lib/stores/knowledge-graph-store', () => ({
   NODE_SIZE_SCALE_DEFAULT: 1,
   NODE_SIZE_SCALE_MIN: 0.5,
   NODE_SIZE_SCALE_MAX: 2,
+  EDGE_OPACITY_DEFAULT: 0.55,
+  EDGE_OPACITY_MIN: 0.05,
+  EDGE_OPACITY_MAX: 1,
   useKnowledgeGraphStore: () => ({
     searchQuery: '',
     setSearchQuery: vi.fn(),
@@ -21,11 +24,12 @@ vi.mock('@/lib/stores/knowledge-graph-store', () => ({
     setShowLabels: vi.fn(),
     nodeSizeScale: 1,
     setNodeSizeScale: vi.fn(),
+    edgeOpacity: 0.55,
+    setEdgeOpacity: vi.fn(),
     enabledKinds: ['source', 'community', 'entity', 'chunk', 'claim'],
     toggleKind: vi.fn(),
     minConfidence: 0,
     setMinConfidence: vi.fn(),
-    pathPick: 'idle',
     viewMode: 'explore',
     setViewMode: vi.fn(),
     setQueryRunId: vi.fn(),
@@ -51,8 +55,6 @@ describe('GraphToolbar bar layout', () => {
           leading={<button type="button">LeadingTabs</button>}
           trailing={<button type="button">TrailingAdd</button>}
           onSearch={noop}
-          onExpand={noop}
-          onFindPath={noop}
           onResetView={noop}
           onFit={noop}
         />
@@ -74,5 +76,17 @@ describe('GraphToolbar bar layout', () => {
     expect(leadingIsland?.className).toMatch(/left-0/)
     expect(trailingIsland?.className).toMatch(/right-0/)
     expect(toolsIsland?.textContent).not.toContain('TrailingAdd')
+    expect(
+      screen.queryByRole('button', { name: 'knowledge.graphExpand' })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'knowledge.graphShortestPath' })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'knowledge.graphNodeSize' })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'knowledge.graphEdgeOpacity' })
+    ).toBeInTheDocument()
   })
 })

@@ -99,51 +99,10 @@ export const knowledgeGraphApi = {
     return response.data
   },
 
-  getNeighbors: async (
-    nodeId: string,
-    projectId: string,
-    params?: {
-      depth?: number
-      relation_types?: string
-      node_kinds?: string
-      min_confidence?: number
-      limit?: number
-    }
-  ) => {
-    const response = await apiClient.get<GraphSliceDTO>(
-      `/knowledge-graph/nodes/${encodeURIComponent(nodeId)}/neighbors`,
-      {
-        params: {
-          project_id: projectId,
-          ...params,
-        },
-      }
-    )
-    return response.data
-  },
-
   search: async (projectId: string, q: string, limit = 30) => {
     const response = await apiClient.post<GraphSliceDTO>(
       `/knowledge-graph/search`,
       { project_id: projectId, q, limit }
-    )
-    return response.data
-  },
-
-  paths: async (
-    projectId: string,
-    fromId: string,
-    toId: string,
-    maxDepth = 4
-  ) => {
-    const response = await apiClient.post<GraphSliceDTO>(
-      `/knowledge-graph/paths`,
-      {
-        project_id: projectId,
-        from_id: fromId,
-        to_id: toId,
-        max_depth: maxDepth,
-      }
     )
     return response.data
   },

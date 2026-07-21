@@ -29,6 +29,7 @@ interface GraphCanvasProps {
   embedded?: boolean
   showLabels?: boolean
   nodeSizeScale?: number
+  edgeOpacity?: number
   cameraCommand?: { type: 'fit' | 'reset'; token: number } | null
   graphRevision?: number
 }
@@ -177,6 +178,7 @@ export function GraphCanvas({
   embedded = false,
   showLabels = false,
   nodeSizeScale = 1,
+  edgeOpacity = 0.55,
   cameraCommand = null,
   graphRevision = 0,
 }: GraphCanvasProps) {
@@ -193,6 +195,8 @@ export function GraphCanvas({
   showLabelsRef.current = showLabels
   const nodeSizeScaleRef = useRef(nodeSizeScale)
   nodeSizeScaleRef.current = nodeSizeScale
+  const edgeOpacityRef = useRef(edgeOpacity)
+  edgeOpacityRef.current = edgeOpacity
   const onNodeClickRef = useRef(onNodeClick)
   onNodeClickRef.current = onNodeClick
   const onEdgeClickRef = useRef(onEdgeClick)
@@ -240,7 +244,7 @@ export function GraphCanvas({
       .nodeRelSize(4)
       .nodeOpacity(0.92)
       .linkWidth(1.2)
-      .linkOpacity(0.55)
+      .linkOpacity(edgeOpacityRef.current)
       .linkDirectionalArrowLength(3.5)
       .linkDirectionalArrowRelPos(1)
       .enableNodeDrag(false)
@@ -411,6 +415,12 @@ export function GraphCanvas({
     if (!fg) return
     fg.nodeVal((n) => (Number((n as FgNode).val) || 8) * nodeSizeScale)
   }, [nodeSizeScale])
+
+  useEffect(() => {
+    const fg = fgRef.current
+    if (!fg) return
+    fg.linkOpacity(edgeOpacity)
+  }, [edgeOpacity])
 
   useEffect(() => {
     const fg = fgRef.current

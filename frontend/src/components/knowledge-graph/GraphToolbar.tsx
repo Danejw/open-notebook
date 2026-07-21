@@ -4,15 +4,15 @@ import type { ReactNode } from 'react'
 import {
   CircleDot,
   Focus,
+  Link2,
   Maximize2,
-  Network,
   PanelLeft,
   RefreshCw,
   Search,
   SlidersHorizontal,
   Tag,
-  Waypoints,
 } from 'lucide-react'
+import { GraphScaleTool } from '@/components/knowledge-graph/GraphScaleTool'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -24,12 +24,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
-import { Slider } from '@/components/ui/slider'
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -37,6 +31,9 @@ import {
 import type { GraphNodeKind } from '@/lib/api/knowledge-graph'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import {
+  EDGE_OPACITY_DEFAULT,
+  EDGE_OPACITY_MAX,
+  EDGE_OPACITY_MIN,
   NODE_SIZE_SCALE_DEFAULT,
   NODE_SIZE_SCALE_MAX,
   NODE_SIZE_SCALE_MIN,
@@ -54,8 +51,6 @@ const KIND_OPTIONS: GraphNodeKind[] = [
 
 interface GraphToolbarProps {
   onSearch: (q: string) => void
-  onExpand: () => void
-  onFindPath: () => void
   onResetView: () => void
   onFit: () => void
   /** Show sources drawer toggle (full-page only). */
@@ -109,8 +104,6 @@ function ToolIconButton({
 
 export function GraphToolbar({
   onSearch,
-  onExpand,
-  onFindPath,
   onResetView,
   onFit,
   showSourcesToggle = false,
@@ -131,11 +124,12 @@ export function GraphToolbar({
     setShowLabels,
     nodeSizeScale,
     setNodeSizeScale,
+    edgeOpacity,
+    setEdgeOpacity,
     enabledKinds,
     toggleKind,
     minConfidence,
     setMinConfidence,
-    pathPick,
     viewMode,
     setViewMode,
     setQueryRunId,
@@ -146,6 +140,7 @@ export function GraphToolbar({
     minConfidence > 0 ||
     enabledKinds.length !== KIND_OPTIONS.length
   const nodeSizeActive = nodeSizeScale !== NODE_SIZE_SCALE_DEFAULT
+  const edgeOpacityActive = edgeOpacity !== EDGE_OPACITY_DEFAULT
 
   const isBar = layout === 'bar'
 
@@ -182,21 +177,6 @@ export function GraphToolbar({
       ) : null}
 
       <ToolIconButton
-        label={t('knowledge.graphExpand')}
-        onClick={onExpand}
-        compact={isBar}
-      >
-        <Network className="size-3.5" />
-      </ToolIconButton>
-      <ToolIconButton
-        label={t('knowledge.graphShortestPath')}
-        onClick={onFindPath}
-        active={pathPick !== 'idle'}
-        compact={isBar}
-      >
-        <Waypoints className="size-3.5" />
-      </ToolIconButton>
-      <ToolIconButton
         label={t('knowledge.graphFit')}
         onClick={onFit}
         compact={isBar}
@@ -219,51 +199,30 @@ export function GraphToolbar({
         <Tag className="size-3.5" />
       </ToolIconButton>
 
-      <Popover>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                size="icon"
-                variant={nodeSizeActive ? 'secondary' : 'ghost'}
-                className={cn('shrink-0', isBar ? 'size-6' : 'size-7')}
-                aria-label={t('knowledge.graphNodeSize')}
-              >
-                <CircleDot className="size-3.5" />
-              </Button>
-            </PopoverTrigger>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            {t('knowledge.graphNodeSize')}
-          </TooltipContent>
-        </Tooltip>
-        <PopoverContent align="start" className="w-52 p-1.5">
-          <div className="flex items-center justify-between gap-0.5 pb-1">
-            <span className="text-[11px] font-medium">
-              {t('knowledge.graphNodeSize')}
-            </span>
-            <span className="text-[11px] tabular-nums text-muted-foreground">
-              {Math.round(nodeSizeScale * 100)}%
-            </span>
-          </div>
-          <Slider
-            min={NODE_SIZE_SCALE_MIN}
-            max={NODE_SIZE_SCALE_MAX}
-            step={0.05}
-            value={[nodeSizeScale]}
-            aria-label={t('knowledge.graphNodeSize')}
-            onValueChange={(values) => {
-              const next = values[0]
-              if (typeof next === 'number') setNodeSizeScale(next)
-            }}
-          />
-          <div className="flex justify-between pt-0.5 text-[11px] text-muted-foreground">
-            <span>{t('knowledge.graphNodeSizeSmall')}</span>
-            <span>{t('knowledge.graphNodeSizeLarge')}</span>
-          </div>
-        </PopoverContent>
-      </Popover>
+      <GraphScaleTool
+        label={t('knowledge.graphNodeSize')}
+        lowLabel={t('knowledge.graphNodeSizeSmall')}
+        highLabel={t('knowledge.graphNodeSizeLarge')}
+        value={nodeSizeScale}
+        min={NODE_SIZE_SCALE_MIN}
+        max={NODE_SIZE_SCALE_MAX}
+        onChange={setNodeSizeScale}
+        active={nodeSizeActive}
+        compact={isBar}
+        icon={<CircleDot className="size-3.5" />}
+      />
+      <GraphScaleTool
+        label={t('knowledge.graphEdgeOpacity')}
+        lowLabel={t('knowledge.graphEdgeOpacityFaint')}
+        highLabel={t('knowledge.graphEdgeOpacitySolid')}
+        value={edgeOpacity}
+        min={EDGE_OPACITY_MIN}
+        max={EDGE_OPACITY_MAX}
+        onChange={setEdgeOpacity}
+        active={edgeOpacityActive}
+        compact={isBar}
+        icon={<Link2 className="size-3.5" />}
+      />
 
       <DropdownMenu>
         <Tooltip>

@@ -3,12 +3,16 @@ import { persist } from 'zustand/middleware'
 import type { GraphNodeKind } from '@/lib/api/knowledge-graph'
 
 export type GraphViewMode = 'explore' | 'queryTrace'
-export type PathPickState = 'idle' | 'pickFrom' | 'pickTo'
 
 /** Multiplier applied to base node radii (visual + hit target). */
-export const NODE_SIZE_SCALE_MIN = 0.25
+export const NODE_SIZE_SCALE_MIN = 0.05
 export const NODE_SIZE_SCALE_MAX = 1.5
 export const NODE_SIZE_SCALE_DEFAULT = 1
+
+/** Opacity applied to graph connection (edge) lines. */
+export const EDGE_OPACITY_MIN = 0.05
+export const EDGE_OPACITY_MAX = 1
+export const EDGE_OPACITY_DEFAULT = 0.55
 
 interface KnowledgeGraphState {
   selectedNodeId: string | null
@@ -18,14 +22,13 @@ interface KnowledgeGraphState {
   showLabels: boolean
   /** Scales rendered node size and click targets. */
   nodeSizeScale: number
+  /** Opacity of connection lines between nodes. */
+  edgeOpacity: number
   viewMode: GraphViewMode
   queryRunId: string | null
   minConfidence: number
   enabledKinds: GraphNodeKind[]
   searchQuery: string
-  pathPick: PathPickState
-  pathFromId: string | null
-  pathToId: string | null
   focusNodeId: string | null
   setSelectedNodeId: (id: string | null) => void
   setSelectedEdgeId: (id: string | null) => void
@@ -33,23 +36,26 @@ interface KnowledgeGraphState {
   setProvenanceMode: (value: boolean) => void
   setShowLabels: (value: boolean) => void
   setNodeSizeScale: (value: number) => void
+  setEdgeOpacity: (value: number) => void
   setViewMode: (mode: GraphViewMode) => void
   setQueryRunId: (id: string | null) => void
   setMinConfidence: (value: number) => void
   toggleKind: (kind: GraphNodeKind) => void
   setSearchQuery: (q: string) => void
-  setPathPick: (state: PathPickState) => void
-  setPathFromId: (id: string | null) => void
-  setPathToId: (id: string | null) => void
   setFocusNodeId: (id: string | null) => void
   resetSelection: () => void
 }
 
 const DEFAULT_KINDS: GraphNodeKind[] = ['source', 'entity', 'community']
 
-function clampNodeSizeScale(value: number): number {
-  if (!Number.isFinite(value)) return NODE_SIZE_SCALE_DEFAULT
-  return Math.min(NODE_SIZE_SCALE_MAX, Math.max(NODE_SIZE_SCALE_MIN, value))
+function clampRange(
+  value: number,
+  min: number,
+  max: number,
+  fallback: number
+): number {
+  if (!Number.isFinite(value)) return fallback
+  return Math.min(max, Math.max(min, value))
 }
 
 export const useKnowledgeGraphStore = create<KnowledgeGraphState>()(
@@ -61,14 +67,12 @@ export const useKnowledgeGraphStore = create<KnowledgeGraphState>()(
       provenanceMode: false,
       showLabels: false,
       nodeSizeScale: NODE_SIZE_SCALE_DEFAULT,
+      edgeOpacity: EDGE_OPACITY_DEFAULT,
       viewMode: 'explore',
       queryRunId: null,
       minConfidence: 0,
       enabledKinds: DEFAULT_KINDS,
       searchQuery: '',
-      pathPick: 'idle',
-      pathFromId: null,
-      pathToId: null,
       focusNodeId: null,
       setSelectedNodeId: (id) => set({ selectedNodeId: id, selectedEdgeId: null }),
       setSelectedEdgeId: (id) => set({ selectedEdgeId: id }),
@@ -85,7 +89,24 @@ export const useKnowledgeGraphStore = create<KnowledgeGraphState>()(
         set({ provenanceMode: value, enabledKinds: Array.from(kinds) })
       },
       setShowLabels: (value) => set({ showLabels: value }),
-      setNodeSizeScale: (value) => set({ nodeSizeScale: clampNodeSizeScale(value) }),
+      setNodeSizeScale: (value) =>
+        set({
+          nodeSizeScale: clampRange(
+            value,
+            NODE_SIZE_SCALE_MIN,
+            NODE_SIZE_SCALE_MAX,
+            NODE_SIZE_SCALE_DEFAULT
+          ),
+        }),
+      setEdgeOpacity: (value) =>
+        set({
+          edgeOpacity: clampRange(
+            value,
+            EDGE_OPACITY_MIN,
+            EDGE_OPACITY_MAX,
+            EDGE_OPACITY_DEFAULT
+          ),
+        }),
       setViewMode: (mode) => set({ viewMode: mode }),
       setQueryRunId: (id) => set({ queryRunId: id, viewMode: id ? 'queryTrace' : 'explore' }),
       setMinConfidence: (value) => set({ minConfidence: value }),
@@ -97,18 +118,12 @@ export const useKnowledgeGraphStore = create<KnowledgeGraphState>()(
         set({ enabledKinds: next.length ? next : current })
       },
       setSearchQuery: (q) => set({ searchQuery: q }),
-      setPathPick: (state) => set({ pathPick: state }),
-      setPathFromId: (id) => set({ pathFromId: id }),
-      setPathToId: (id) => set({ pathToId: id }),
       setFocusNodeId: (id) => set({ focusNodeId: id }),
       resetSelection: () =>
         set({
           selectedNodeId: null,
           selectedEdgeId: null,
           highlightedSourceId: null,
-          pathPick: 'idle',
-          pathFromId: null,
-          pathToId: null,
           focusNodeId: null,
         }),
     }),
@@ -118,6 +133,7 @@ export const useKnowledgeGraphStore = create<KnowledgeGraphState>()(
         provenanceMode: state.provenanceMode,
         showLabels: state.showLabels,
         nodeSizeScale: state.nodeSizeScale,
+        edgeOpacity: state.edgeOpacity,
         minConfidence: state.minConfidence,
         enabledKinds: state.enabledKinds,
       }),

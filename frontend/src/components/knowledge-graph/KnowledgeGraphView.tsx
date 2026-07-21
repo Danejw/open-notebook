@@ -92,14 +92,9 @@ export function KnowledgeGraphView({
     provenanceMode,
     showLabels,
     nodeSizeScale,
+    edgeOpacity,
     enabledKinds,
     minConfidence,
-    pathPick,
-    setPathPick,
-    pathFromId,
-    setPathFromId,
-    pathToId,
-    setPathToId,
     focusNodeId,
     setFocusNodeId,
     queryRunId,
@@ -282,80 +277,12 @@ export function KnowledgeGraphView({
 
   const handleNodeClick = useCallback(
     (nodeId: string) => {
-      if (pathPick === 'pickFrom') {
-        setPathFromId(nodeId)
-        setPathPick('pickTo')
-        toast.message(t('knowledge.graphPickTo'))
-        return
-      }
-      if (pathPick === 'pickTo') {
-        setPathToId(nodeId)
-        setPathPick('idle')
-        void (async () => {
-          try {
-            const fromId = pathFromId
-            if (!fromId) return
-            const slice = await knowledgeGraphApi.paths(projectId, fromId, nodeId)
-            bumpGraphFromSlice(slice)
-            setSelectedNodeId(nodeId)
-            setFocusNodeId(nodeId)
-          } catch {
-            toast.error(t('knowledge.graphPathFailed'))
-          }
-        })()
-        return
-      }
       setSelectedNodeId(nodeId)
       setSelectedEdgeId(null)
       setFocusNodeId(nodeId)
     },
-    [
-      pathPick,
-      pathFromId,
-      projectId,
-      setPathFromId,
-      setPathPick,
-      setPathToId,
-      setSelectedNodeId,
-      setSelectedEdgeId,
-      setFocusNodeId,
-      bumpGraphFromSlice,
-      t,
-    ]
+    [setSelectedNodeId, setSelectedEdgeId, setFocusNodeId]
   )
-
-  const handleExpand = useCallback(async () => {
-    if (!selectedNodeId) {
-      toast.message(t('knowledge.graphSelectNode'))
-      return
-    }
-    try {
-      const kinds = provenanceMode
-        ? 'entity,community,source,chunk,claim'
-        : enabledKinds.join(',')
-      const slice = await knowledgeGraphApi.getNeighbors(
-        selectedNodeId,
-        projectId,
-        {
-          depth: 1,
-          node_kinds: kinds,
-          min_confidence: minConfidence,
-          limit: 60,
-        }
-      )
-      bumpGraphFromSlice(slice)
-    } catch {
-      toast.error(t('knowledge.graphExpandFailed'))
-    }
-  }, [
-    selectedNodeId,
-    projectId,
-    provenanceMode,
-    enabledKinds,
-    minConfidence,
-    bumpGraphFromSlice,
-    t,
-  ])
 
   const handleSearch = useCallback(
     async (q: string) => {
@@ -420,11 +347,6 @@ export function KnowledgeGraphView({
       sourcesOpen={sourcesOpen}
       onToggleSources={() => setSourcesOpen((v) => !v)}
       onSearch={handleSearch}
-      onExpand={handleExpand}
-      onFindPath={() => {
-        setPathPick('pickFrom')
-        toast.message(t('knowledge.graphPickFrom'))
-      }}
       onResetView={() => {
         resetSelection()
         setMergedSlice(overviewQuery.data ?? null)
@@ -464,6 +386,7 @@ export function KnowledgeGraphView({
             runLayout={runLayout}
             showLabels={showLabels}
             nodeSizeScale={nodeSizeScale}
+            edgeOpacity={edgeOpacity}
             onNodeClick={handleNodeClick}
             onEdgeClick={(edgeId) => {
               setSelectedEdgeId(edgeId)

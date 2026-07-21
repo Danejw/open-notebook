@@ -9,8 +9,6 @@ export const GRAPH_QUERY_KEYS = {
     ['knowledge-graph', 'overview', projectId] as const,
   node: (projectId: string, nodeId: string) =>
     ['knowledge-graph', 'node', projectId, nodeId] as const,
-  neighbors: (projectId: string, nodeId: string, key: string) =>
-    ['knowledge-graph', 'neighbors', projectId, nodeId, key] as const,
   layout: (projectId: string, version?: string) =>
     ['knowledge-graph', 'layout', projectId, version ?? ''] as const,
   queryRun: (runId: string) =>

@@ -644,7 +644,7 @@ export const plPL = {
     "edit": "Edytuj",
     "editMessage": "Edytuj wiadomość",
     "resend": "Wyślij ponownie",
-    "artifactSendPlaceholder": "Send to generate this artifact from project context...",
+    "artifactSendPlaceholder": "Ask anything",
     "saveAsArtifact": "Save as artifact",
     "suggestionsLabel": "Sugerowane wiadomosci",
     "suggestionsLoading": "Ladowanie sugestii...",

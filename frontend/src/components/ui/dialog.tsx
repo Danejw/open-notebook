@@ -6,6 +6,10 @@ import { X } from "lucide-react"
 import { useTranslation } from "@/lib/hooks/use-translation"
 
 import { cn } from "@/lib/utils"
+import {
+  clearBodyPointerLock,
+  scheduleClearBodyPointerLock,
+} from "@/lib/utils/clear-body-pointer-lock"
 
 /**
  * Shared compact dialog shell.
@@ -44,9 +48,20 @@ export const dialogCloseButtonClassName =
   "absolute right-1 top-1 z-10 flex size-7 items-center justify-center rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
 
 function Dialog({
+  onOpenChange,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+  return (
+    <DialogPrimitive.Root
+      data-slot="dialog"
+      {...props}
+      onOpenChange={(open) => {
+        onOpenChange?.(open)
+        // Radix may restore a stale pointer-events:none from nested layers.
+        if (!open) scheduleClearBodyPointerLock()
+      }}
+    />
+  )
 }
 
 function DialogTrigger({
@@ -87,11 +102,19 @@ const DialogContent = ({
   className,
   children,
   showCloseButton = true,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) => {
   const { t } = useTranslation()
+
+  // Clear any leftover DropdownMenu lock before DismissableLayer snapshots
+  // originalBodyPointerEvents (layout effect runs before layer useEffect).
+  React.useLayoutEffect(() => {
+    clearBodyPointerLock()
+  }, [])
+
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -100,6 +123,10 @@ const DialogContent = ({
         aria-describedby={undefined}
         className={cn(dialogContentClassName, className)}
         {...props}
+        onCloseAutoFocus={(event) => {
+          onCloseAutoFocus?.(event)
+          scheduleClearBodyPointerLock()
+        }}
       >
         {children}
         {showCloseButton && (

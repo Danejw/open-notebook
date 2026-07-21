@@ -644,7 +644,7 @@ export const zhCN = {
     "edit": "编辑",
     "editMessage": "编辑消息",
     "resend": "重新发送",
-    "artifactSendPlaceholder": "Send to generate this artifact from project context...",
+    "artifactSendPlaceholder": "Ask anything",
     "saveAsArtifact": "Save as artifact",
     "suggestionsLabel": "建议消息",
     "suggestionsLoading": "正在加载建议...",

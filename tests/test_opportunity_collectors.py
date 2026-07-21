@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from construction_os.services.opportunity_collectors import (
@@ -433,6 +435,11 @@ async def test_sync_sam_gov_hawaii_without_collection_omits_ncode(monkeypatch):
     monkeypatch.setattr(collectors, "_get_source", AsyncMock(return_value=source))
     monkeypatch.setattr(
         collectors,
+        "get_pipeline_active_external_ids",
+        AsyncMock(return_value=set()),
+    )
+    monkeypatch.setattr(
+        collectors,
         "import_opportunities",
         AsyncMock(return_value={"created": 0, "updated": 0, "failed": 0, "items": []}),
     )
@@ -443,6 +450,8 @@ async def test_sync_sam_gov_hawaii_without_collection_omits_ncode(monkeypatch):
     assert captured[0]["state"] == "HI"
     assert "collection_id" not in result
     assert "filter_strings" not in result
+    assert result["skipped_overdue"] == 0
+    assert result["skipped_missing_deadline"] == 0
 
 
 @pytest.mark.asyncio
@@ -516,6 +525,7 @@ async def test_sync_sam_gov_hawaii_with_collection_filters_naics_locally(monkeyp
             "external_id": record["noticeId"],
             "title": record["title"],
             "agency": record.get("department", ""),
+            "bid_due_at": datetime.now(timezone.utc) + timedelta(days=14),
         }
 
     imported: list = []
@@ -533,6 +543,11 @@ async def test_sync_sam_gov_hawaii_with_collection_filters_naics_locally(monkeyp
         AsyncMock(return_value=["236220", "238210"]),
     )
     monkeypatch.setattr(collectors, "normalize_sam_opportunity", fake_normalize)
+    monkeypatch.setattr(
+        collectors,
+        "get_pipeline_active_external_ids",
+        AsyncMock(return_value=set()),
+    )
     monkeypatch.setattr(collectors, "import_opportunities", fake_import)
 
     result = await collectors.sync_sam_gov_hawaii(
@@ -572,6 +587,11 @@ async def test_sync_sam_gov_hawaii_reuses_persisted_collection(monkeypatch):
         collectors,
         "_sam_search",
         AsyncMock(return_value={"opportunitiesData": [], "totalRecords": 0}),
+    )
+    monkeypatch.setattr(
+        collectors,
+        "get_pipeline_active_external_ids",
+        AsyncMock(return_value=set()),
     )
     monkeypatch.setattr(
         collectors,
@@ -821,3 +841,152 @@ async def test_import_sam_opportunity_from_url_not_found(monkeypatch):
         await collectors.import_sam_opportunity_from_url(
             "https://sam.gov/opp/missing-notice/view"
         )
+
+
+@pytest.mark.asyncio
+async def test_sync_sam_gov_hawaii_skips_overdue_and_missing_deadlines(monkeypatch):
+    from unittest.mock import AsyncMock, MagicMock
+
+    from construction_os.services import opportunity_collectors as collectors
+
+    now = datetime.now(timezone.utc)
+
+    class FakeResponse:
+        status_code = 200
+        headers: dict = {}
+        url = "https://api.sam.gov/opportunities/v2/search"
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "opportunitiesData": [
+                    {"noticeId": "future", "title": "Future"},
+                    {"noticeId": "overdue", "title": "Overdue"},
+                    {"noticeId": "missing", "title": "Missing"},
+                    {"noticeId": "watched-overdue", "title": "Watched Overdue"},
+                ],
+                "totalRecords": 4,
+            }
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def get(self, url, params=None):
+            return FakeResponse()
+
+    async def fake_normalize(record, *, api_key=None, client=None):
+        due_by_id = {
+            "future": now + timedelta(days=5),
+            "overdue": now - timedelta(days=2),
+            "missing": None,
+            "watched-overdue": now - timedelta(days=1),
+        }
+        return {
+            "source_key": "sam_gov_hawaii",
+            "external_id": record["noticeId"],
+            "title": record["title"],
+            "bid_due_at": due_by_id[record["noticeId"]],
+        }
+
+    imported: list = []
+
+    async def fake_import(rows):
+        imported.extend(rows)
+        return {"created": len(rows), "updated": 0, "failed": 0, "items": []}
+
+    source = MagicMock()
+    source.key = "sam_gov_hawaii"
+    source.settings = {}
+    source.save = AsyncMock()
+
+    monkeypatch.setenv("SAM_GOV_API_KEY", "test-key")
+    monkeypatch.setattr(collectors.httpx, "AsyncClient", FakeClient)
+    monkeypatch.setattr(collectors, "_get_source", AsyncMock(return_value=source))
+    monkeypatch.setattr(collectors, "normalize_sam_opportunity", fake_normalize)
+    monkeypatch.setattr(
+        collectors,
+        "get_pipeline_active_external_ids",
+        AsyncMock(return_value={"watched-overdue"}),
+    )
+    monkeypatch.setattr(collectors, "import_opportunities", fake_import)
+
+    result = await collectors.sync_sam_gov_hawaii(days_back=7, limit=50)
+
+    assert {row["external_id"] for row in imported} == {"future", "watched-overdue"}
+    assert result["skipped_overdue"] == 1
+    assert result["skipped_missing_deadline"] == 1
+
+
+@pytest.mark.asyncio
+async def test_import_sam_opportunity_from_url_allows_overdue(monkeypatch):
+    from unittest.mock import AsyncMock, MagicMock
+
+    from construction_os.services import opportunity_collectors as collectors
+
+    notice = "past-due-notice"
+    opportunity = MagicMock()
+    opportunity.id = "opportunity:past"
+
+    class FakeResponse:
+        status_code = 200
+        headers: dict = {}
+        url = "https://api.sam.gov/opportunities/v2/search"
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "opportunitiesData": [
+                    {"noticeId": notice, "title": "Past Due Repair"}
+                ],
+                "totalRecords": 1,
+            }
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def get(self, url, params=None):
+            return FakeResponse()
+
+    monkeypatch.setenv("SAM_GOV_API_KEY", "test-key")
+    monkeypatch.setattr(collectors.httpx, "AsyncClient", FakeClient)
+    monkeypatch.setattr(
+        collectors,
+        "normalize_sam_opportunity",
+        AsyncMock(
+            return_value={
+                "source_key": "sam_gov_hawaii",
+                "external_id": notice,
+                "title": "Past Due Repair",
+                "bid_due_at": datetime.now(timezone.utc) - timedelta(days=3),
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        collectors,
+        "upsert_opportunity",
+        AsyncMock(return_value=(opportunity, True)),
+    )
+
+    result = await collectors.import_sam_opportunity_from_url(
+        f"https://sam.gov/opp/{notice}/view"
+    )
+    assert result["created"] is True
+    assert result["opportunity"].id == "opportunity:past"

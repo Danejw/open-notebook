@@ -1,0 +1,9 @@
+-- Migration 47: repair artifact chat-default fields wiped by rebrand OVERWRITE
+
+DEFINE FIELD IF NOT EXISTS lifecycle_phase ON TABLE artifact TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS skill_ids ON TABLE artifact TYPE option<array<string>>;
+DEFINE FIELD IF NOT EXISTS collection_ids ON TABLE artifact TYPE option<array<string>>;
+DEFINE FIELD IF NOT EXISTS mcp_tool_ids ON TABLE artifact TYPE option<array<string>>;
+DEFINE FIELD IF NOT EXISTS html_template_id ON TABLE artifact TYPE option<string>;
+
+RETURN true;

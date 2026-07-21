@@ -644,7 +644,7 @@ export const ptBR = {
     "edit": "Editar",
     "editMessage": "Editar mensagem",
     "resend": "Reenviar",
-    "artifactSendPlaceholder": "Send to generate this artifact from project context...",
+    "artifactSendPlaceholder": "Ask anything",
     "saveAsArtifact": "Save as artifact",
     "suggestionsLabel": "Mensagens sugeridas",
     "suggestionsLoading": "Carregando sugestoes...",

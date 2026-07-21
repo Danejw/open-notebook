@@ -644,7 +644,7 @@ export const zhTW = {
     "edit": "編輯",
     "editMessage": "編輯訊息",
     "resend": "重新傳送",
-    "artifactSendPlaceholder": "Send to generate this artifact from project context...",
+    "artifactSendPlaceholder": "Ask anything",
     "saveAsArtifact": "Save as artifact",
     "suggestionsLabel": "建議訊息",
     "suggestionsLoading": "正在載入建議...",

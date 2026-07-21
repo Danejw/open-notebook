@@ -644,7 +644,7 @@ export const esES = {
     "edit": "Editar",
     "editMessage": "Editar mensaje",
     "resend": "Reenviar",
-    "artifactSendPlaceholder": "Send to generate this artifact from project context...",
+    "artifactSendPlaceholder": "Ask anything",
     "saveAsArtifact": "Save as artifact",
     "suggestionsLabel": "Mensajes sugeridos",
     "suggestionsLoading": "Cargando sugerencias...",

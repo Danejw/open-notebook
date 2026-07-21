@@ -121,6 +121,53 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+PIPELINE_ACTIVE_STATUSES = frozenset({"watching", "pursuing", "submitted"})
+
+
+def _aware_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
+
+
+def has_actionable_deadline(
+    bid_due_at: Optional[datetime],
+    now: Optional[datetime] = None,
+) -> bool:
+    """True when a bid deadline exists and has not yet passed."""
+
+    if bid_due_at is None:
+        return False
+    current = now or utcnow()
+    return _aware_utc(bid_due_at) >= _aware_utc(current)
+
+
+def is_pipeline_active(status: str) -> bool:
+    return status in PIPELINE_ACTIVE_STATUSES
+
+
+def should_show_in_default_inbox(
+    opportunity: Opportunity,
+    now: Optional[datetime] = None,
+) -> bool:
+    """Future deadline, or actively watching/pursuing/submitted."""
+
+    return has_actionable_deadline(opportunity.bid_due_at, now) or is_pipeline_active(
+        opportunity.status
+    )
+
+
+async def get_pipeline_active_external_ids(source_key: str) -> set[str]:
+    """External IDs for opportunities already in watching/pursuing/submitted."""
+
+    opportunities = await Opportunity.get_all()
+    return {
+        item.external_id
+        for item in opportunities
+        if item.source_key == source_key and is_pipeline_active(item.status)
+    }
+
+
 def normalize_token(value: Optional[str]) -> str:
     value = (value or "").strip().lower()
     return re.sub(r"[^a-z0-9]+", " ", value).strip()
@@ -216,6 +263,7 @@ async def list_opportunities(
     fit_score_band: Optional[FitScoreBand] = None,
     sort: OpportunitySort = "due",
     include_archived: bool = False,
+    include_stale: bool = False,
     offset: int = 0,
     limit: int = 100,
 ) -> Tuple[List[Opportunity], int]:
@@ -238,6 +286,11 @@ async def list_opportunities(
 
     if not include_archived:
         opportunities = [item for item in opportunities if not item.archived]
+    if not include_stale:
+        now = utcnow()
+        opportunities = [
+            item for item in opportunities if should_show_in_default_inbox(item, now)
+        ]
     if query:
         opportunities = [item for item in opportunities if _matches_text(item, query)]
     if status:
@@ -291,9 +344,7 @@ async def list_opportunities(
 
     def _aware_datetime(value: Optional[datetime], fallback: datetime) -> datetime:
         resolved = value or fallback
-        if resolved.tzinfo is None:
-            return resolved.replace(tzinfo=timezone.utc)
-        return resolved
+        return _aware_utc(resolved) if value is not None else fallback
 
     def due_key(item: Opportunity) -> tuple[datetime, int, datetime]:
         due = _aware_datetime(item.bid_due_at, far_future)

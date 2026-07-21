@@ -76,3 +76,89 @@ async def test_list_opportunities_rejects_invalid_sort(monkeypatch):
 
     with pytest.raises(InvalidInputError, match="sort must be one of"):
         await opportunities_service.list_opportunities(sort="invalid_sort")  # type: ignore[arg-type]
+
+
+@pytest.mark.asyncio
+async def test_list_opportunities_hides_stale_by_default(monkeypatch):
+    now = datetime.now(timezone.utc)
+    items = [
+        Opportunity(
+            source_key="test",
+            external_id="future",
+            fingerprint="fp-future",
+            title="Future",
+            agency="Test Agency",
+            source_url="https://example.test/future",
+            bid_due_at=now + timedelta(days=5),
+            status="none",
+        ),
+        Opportunity(
+            source_key="test",
+            external_id="overdue",
+            fingerprint="fp-overdue",
+            title="Overdue",
+            agency="Test Agency",
+            source_url="https://example.test/overdue",
+            bid_due_at=now - timedelta(days=2),
+            status="none",
+        ),
+        Opportunity(
+            source_key="test",
+            external_id="missing",
+            fingerprint="fp-missing",
+            title="Missing Deadline",
+            agency="Test Agency",
+            source_url="https://example.test/missing",
+            bid_due_at=None,
+            status="none",
+        ),
+        Opportunity(
+            source_key="test",
+            external_id="watching-overdue",
+            fingerprint="fp-watching",
+            title="Watching Overdue",
+            agency="Test Agency",
+            source_url="https://example.test/watching",
+            bid_due_at=now - timedelta(days=1),
+            status="watching",
+        ),
+    ]
+    monkeypatch.setattr(Opportunity, "get_all", AsyncMock(return_value=items))
+
+    result, total = await opportunities_service.list_opportunities()
+
+    assert total == 2
+    assert {item.external_id for item in result} == {"future", "watching-overdue"}
+
+
+@pytest.mark.asyncio
+async def test_list_opportunities_include_stale_returns_all(monkeypatch):
+    now = datetime.now(timezone.utc)
+    items = [
+        Opportunity(
+            source_key="test",
+            external_id="future",
+            fingerprint="fp-future",
+            title="Future",
+            agency="Test Agency",
+            source_url="https://example.test/future",
+            bid_due_at=now + timedelta(days=5),
+            status="none",
+        ),
+        Opportunity(
+            source_key="test",
+            external_id="overdue",
+            fingerprint="fp-overdue",
+            title="Overdue",
+            agency="Test Agency",
+            source_url="https://example.test/overdue",
+            bid_due_at=now - timedelta(days=2),
+            status="none",
+        ),
+    ]
+    monkeypatch.setattr(Opportunity, "get_all", AsyncMock(return_value=items))
+
+    result, total = await opportunities_service.list_opportunities(include_stale=True)
+
+    assert total == 2
+    assert {item.external_id for item in result} == {"future", "overdue"}

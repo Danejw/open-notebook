@@ -644,7 +644,7 @@ export const ruRU = {
     "edit": "Редактировать",
     "editMessage": "Редактировать сообщение",
     "resend": "Отправить снова",
-    "artifactSendPlaceholder": "Send to generate this artifact from project context...",
+    "artifactSendPlaceholder": "Ask anything",
     "saveAsArtifact": "Save as artifact",
     "suggestionsLabel": "Предлагаемые сообщения",
     "suggestionsLoading": "Загрузка предложений...",

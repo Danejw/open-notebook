@@ -337,6 +337,13 @@ async def get_opportunities(
         description="Sort order: due (default), fit_score_desc, fit_score_asc",
     ),
     include_archived: bool = Query(False),
+    include_stale: bool = Query(
+        False,
+        description=(
+            "Include overdue and deadline-missing opportunities. "
+            "Default hides them unless status is watching, pursuing, or submitted."
+        ),
+    ),
     offset: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
 ):
@@ -355,6 +362,7 @@ async def get_opportunities(
             fit_score_band=fit_score_band,
             sort=sort,
             include_archived=include_archived,
+            include_stale=include_stale,
             offset=offset,
             limit=limit,
         )

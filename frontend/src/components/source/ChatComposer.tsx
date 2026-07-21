@@ -187,8 +187,6 @@ export function ChatComposer({
   }
 
   const isImmersive = variant === 'immersive'
-  const keyHint = 'Enter'
-
   return (
     <div
       className={cn(
@@ -253,7 +251,7 @@ export function ChatComposer({
           onKeyDown={handleKeyDown}
           placeholder={
             activeArtifact
-              ? `${t('chat.artifactSendPlaceholder')} (${keyHint})`
+              ? t('chat.artifactSendPlaceholder')
               : t('chat.sendPlaceholder')
           }
           aria-label="chat-message"

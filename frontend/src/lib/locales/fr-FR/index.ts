@@ -644,7 +644,7 @@ export const frFR = {
     "edit": "Modifier",
     "editMessage": "Modifier le message",
     "resend": "Renvoyer",
-    "artifactSendPlaceholder": "Send to generate this artifact from project context...",
+    "artifactSendPlaceholder": "Ask anything",
     "saveAsArtifact": "Save as artifact",
     "suggestionsLabel": "Messages suggeres",
     "suggestionsLoading": "Chargement des suggestions...",

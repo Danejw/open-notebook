@@ -644,7 +644,7 @@ export const deDE = {
     "edit": "Bearbeiten",
     "editMessage": "Nachricht bearbeiten",
     "resend": "Erneut senden",
-    "artifactSendPlaceholder": "Send to generate this artifact from project context...",
+    "artifactSendPlaceholder": "Ask anything",
     "saveAsArtifact": "Save as artifact",
     "suggestionsLabel": "Vorgeschlagene Nachrichten",
     "suggestionsLoading": "Vorschlage werden geladen...",

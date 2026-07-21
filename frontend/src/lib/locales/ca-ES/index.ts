@@ -644,7 +644,7 @@ export const caES = {
     "edit": "Edita",
     "editMessage": "Edita el missatge",
     "resend": "Reenvia",
-    "artifactSendPlaceholder": "Send to generate this artifact from project context...",
+    "artifactSendPlaceholder": "Ask anything",
     "saveAsArtifact": "Save as artifact",
     "suggestionsLabel": "Missatges suggerits",
     "suggestionsLoading": "S'estan carregant els suggeriments...",

@@ -3,14 +3,14 @@
 import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { FileCode2, Pencil, Trash2, Upload } from 'lucide-react'
-import { toast } from 'sonner'
 import { PageHeader, pageContentClassName, pageSectionGapClassName } from '@/components/layout/PageHeader'
 import { PageRefreshButton } from '@/components/layout/PageRefreshButton'
 import { EmptyState } from '@/components/common/EmptyState'
+import { BulkDeleteConfirmDialog } from '@/components/common/BulkDeleteConfirmDialog'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { FormDialogShell } from '@/components/common/FormDialogShell'
 import { ResourceList } from '@/components/common/ResourceList'
-import { settleBulkActions } from '@/components/common/bulk-settle'
+import { reportBulkResults, settleBulkActions } from '@/components/common/bulk-settle'
 import { TemplateHtmlPreview } from '@/components/templates/TemplateHtmlPreview'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -100,12 +100,7 @@ export default function TemplatesPage() {
       const { succeeded, failed } = await settleBulkActions(bulkDeleteIds, (id) =>
         htmlDocumentsApi.deleteTemplate(id)
       )
-      if (failed > 0) {
-        toast.error(t('common.bulkPartial').replace('{failed}', failed.toString()))
-      }
-      if (succeeded > 0) {
-        toast.success(t('common.bulkSuccess').replace('{count}', succeeded.toString()))
-      }
+      reportBulkResults(t, succeeded, failed)
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.htmlTemplates })
       setBulkDeleteIds(null)
     } finally {
@@ -267,18 +262,11 @@ export default function TemplatesPage() {
         onConfirm={() => void handleDeleteConfirm()}
       />
 
-      <ConfirmDialog
-        open={Boolean(bulkDeleteIds?.length)}
+      <BulkDeleteConfirmDialog
+        ids={bulkDeleteIds}
         onOpenChange={(open) => {
           if (!open) setBulkDeleteIds(null)
         }}
-        title={t('common.delete')}
-        description={t('common.bulkDeleteConfirm').replace(
-          '{count}',
-          String(bulkDeleteIds?.length ?? 0)
-        )}
-        confirmText={t('common.delete')}
-        confirmVariant="destructive"
         onConfirm={() => void handleBulkDeleteConfirm()}
         isLoading={bulkBusy}
       />

@@ -4,13 +4,12 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useQueryClient } from '@tanstack/react-query'
 import { Archive, Library, Plus, Trash2, Upload } from 'lucide-react'
-import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/common/EmptyState'
-import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { BulkDeleteConfirmDialog } from '@/components/common/BulkDeleteConfirmDialog'
 import { ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
 import { ListSelectionBar } from '@/components/common/ListSelectionBar'
-import { settleBulkActions } from '@/components/common/bulk-settle'
+import { reportBulkResults, settleBulkActions } from '@/components/common/bulk-settle'
 import { Collection } from '@/lib/types/collections'
 import { CollectionCard } from './CollectionCard'
 import { CollectionImportDialog } from './CollectionImportDialog'
@@ -45,15 +44,6 @@ export function CollectionsList({ collections, isLoading }: CollectionsListProps
   const items = collections ?? []
   const visibleIds = items.map((collection) => collection.id)
 
-  const reportBulk = (succeeded: number, failed: number) => {
-    if (failed > 0) {
-      toast.error(t('common.bulkPartial').replace('{failed}', failed.toString()))
-    }
-    if (succeeded > 0) {
-      toast.success(t('common.bulkSuccess').replace('{count}', succeeded.toString()))
-    }
-  }
-
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.collections })
     await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.collectionsCatalog })
@@ -66,7 +56,7 @@ export function CollectionsList({ collections, isLoading }: CollectionsListProps
       const { succeeded, failed } = await settleBulkActions(selectedList, (id) =>
         collectionsApi.archive(id)
       )
-      reportBulk(succeeded, failed)
+      reportBulkResults(t, succeeded, failed)
       await invalidate()
       clearSelection()
     } finally {
@@ -81,7 +71,7 @@ export function CollectionsList({ collections, isLoading }: CollectionsListProps
       const { succeeded, failed } = await settleBulkActions(bulkDeleteIds, (id) =>
         collectionsApi.delete(id)
       )
-      reportBulk(succeeded, failed)
+      reportBulkResults(t, succeeded, failed)
       await invalidate()
       setBulkDeleteIds(null)
       clearSelection()
@@ -204,18 +194,11 @@ export function CollectionsList({ collections, isLoading }: CollectionsListProps
 
       <CollectionImportDialog open={importOpen} onOpenChange={setImportOpen} />
 
-      <ConfirmDialog
-        open={Boolean(bulkDeleteIds?.length)}
+      <BulkDeleteConfirmDialog
+        ids={bulkDeleteIds}
         onOpenChange={(open) => {
           if (!open) setBulkDeleteIds(null)
         }}
-        title={t('common.delete')}
-        description={t('common.bulkDeleteConfirm').replace(
-          '{count}',
-          String(bulkDeleteIds?.length ?? 0)
-        )}
-        confirmText={t('common.delete')}
-        confirmVariant="destructive"
         onConfirm={() => void handleBulkDeleteConfirm()}
         isLoading={bulkBusy}
       />

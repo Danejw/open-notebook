@@ -5,7 +5,10 @@ from typing import List, Optional
 from pydantic import Field, field_validator
 from surreal_commands import CommandInput, CommandOutput, command
 
-from construction_os.services.project_memory import consolidate_project_memory
+from construction_os.services.project_memory import (
+    consolidate_project_memory,
+    normalize_server_timestamp,
+)
 
 
 class ConsolidateProjectMemoryInput(CommandInput):
@@ -14,6 +17,7 @@ class ConsolidateProjectMemoryInput(CommandInput):
     candidate_text: Optional[str] = None
     evidence_ids: List[str] = Field(default_factory=list)
     model_id: Optional[str] = None
+    event_at: str
 
     @field_validator("project_id")
     @classmethod
@@ -30,6 +34,13 @@ class ConsolidateProjectMemoryInput(CommandInput):
         if not normalized:
             raise ValueError("reason cannot be empty")
         return normalized[:120]
+
+    @field_validator("event_at")
+    @classmethod
+    def validate_event_at(cls, value: str) -> str:
+        # The scheduler creates this value. Validation prevents malformed or naive
+        # timestamps from entering retryable commands or fact validity windows.
+        return normalize_server_timestamp(value)
 
 
 class ConsolidateProjectMemoryOutput(CommandOutput):
@@ -60,6 +71,7 @@ async def consolidate_project_memory_command(
         candidate_text=input_data.candidate_text,
         evidence_ids=input_data.evidence_ids,
         model_id=input_data.model_id,
+        event_at=input_data.event_at,
     )
     return ConsolidateProjectMemoryOutput(
         success=True,

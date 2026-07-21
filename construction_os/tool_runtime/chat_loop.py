@@ -5,7 +5,13 @@ from __future__ import annotations
 from typing import Any, Callable, Optional
 
 from langchain_core.callbacks.manager import dispatch_custom_event
-from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+)
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
 from loguru import logger
@@ -18,6 +24,12 @@ from construction_os.mcp.limits import MAX_TOOL_CALLS, MAX_TOOL_ITERATIONS
 from construction_os.services.html_template_binding import (
     attach_rendered_html,
     render_selected_html_template,
+)
+from construction_os.services.project_memory import (
+    extract_evidence_ids,
+    inject_project_memory,
+    schedule_project_memory_consolidation,
+    should_consolidate_chat,
 )
 from construction_os.tool_runtime.execution import (
     DuplicateCallGuard,
@@ -59,6 +71,25 @@ def emit_html_template_output(
         return False
 
 
+def _latest_human_text(messages: list[BaseMessage]) -> str:
+    """Return the latest human message without including system/tool context."""
+    for message in reversed(messages):
+        if isinstance(message, HumanMessage) or getattr(message, "type", None) == "human":
+            return extract_text_content(message.content).strip()
+    return ""
+
+
+def _system_evidence_ids(messages: list[BaseMessage]) -> list[str]:
+    """Collect source/note IDs already retrieved into the grounded system prompt."""
+    system_text = "\n".join(
+        extract_text_content(message.content)
+        for message in messages
+        if isinstance(message, SystemMessage)
+        or getattr(message, "type", None) == "system"
+    )
+    return extract_evidence_ids(system_text)
+
+
 async def generate_with_tools(
     *,
     provision_model: Callable[..., Any],
@@ -76,7 +107,24 @@ async def generate_with_tools(
 
     `provision_model` should be an async callable matching provision_langchain_model.
     """
-    model = await provision_model(str(payload), model_id, "chat", max_tokens=8192)
+    effective_payload = list(payload)
+    if capability_context is not None and not capability_context.is_guest:
+        try:
+            effective_payload = await inject_project_memory(
+                effective_payload,
+                project_id=capability_context.project_id,
+            )
+        except Exception as error:
+            # Memory is an augmentation. It must never block grounded project chat.
+            logger.warning(
+                "Unable to inject project memory for {}: {}",
+                capability_context.project_id,
+                error,
+            )
+
+    model = await provision_model(
+        str(effective_payload), model_id, "chat", max_tokens=8192
+    )
     allowlist = await build_allowlist(
         mcp_tool_ids,
         strict_selected_tools=strict_mcp_tools,
@@ -110,7 +158,7 @@ async def generate_with_tools(
         model = model.bind_tools(tools)
 
     invoke_config = config or {}
-    working: list[BaseMessage] = list(payload)
+    working: list[BaseMessage] = list(effective_payload)
     call_count = 0
     ai_message: AIMessage | None = None
 
@@ -192,6 +240,7 @@ async def generate_with_tools(
             ai_message = plain.invoke(working, config=invoke_config)
 
     assert ai_message is not None
+    canonical_assistant_text = extract_text_content(ai_message.content)
 
     html_template_id = (
         capability_context.explicit_html_template_id
@@ -200,10 +249,9 @@ async def generate_with_tools(
     )
     if html_template_id:
         try:
-            assistant_text = extract_text_content(ai_message.content)
             rendered_html = await render_selected_html_template(
                 template_id=html_template_id,
-                assistant_text=assistant_text,
+                assistant_text=canonical_assistant_text,
                 grounding_messages=working,
                 model_id=model_id,
                 provision_model=provision_model,
@@ -219,7 +267,7 @@ async def generate_with_tools(
             ai_message = ai_message.model_copy(
                 update={
                     "content": attach_rendered_html(
-                        assistant_text,
+                        canonical_assistant_text,
                         rendered_html,
                     )
                 }
@@ -230,6 +278,20 @@ async def generate_with_tools(
                 "Unable to attach selected HTML template {}: {}",
                 html_template_id,
                 error,
+            )
+
+    if capability_context is not None and not capability_context.is_guest:
+        user_text = _latest_human_text(effective_payload)
+        if should_consolidate_chat(user_text, canonical_assistant_text):
+            schedule_project_memory_consolidation(
+                project_id=capability_context.project_id,
+                reason="project_chat_completed",
+                candidate_text=(
+                    f"USER MESSAGE\n{user_text}\n\n"
+                    f"ASSISTANT RESULT\n{canonical_assistant_text}"
+                ),
+                evidence_ids=_system_evidence_ids(effective_payload),
+                model_id=model_id,
             )
 
     if message_id:

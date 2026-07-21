@@ -12,6 +12,7 @@ from construction_os.domain.project import Project, get_project_scope_ids
 from construction_os.exceptions import NotFoundError
 from construction_os.utils.chat_session import session_record_fields
 from construction_os.domain.project import ChatSession
+from construction_os.services.project_memory import get_project_memory
 
 
 class GetProjectContextInput(BaseModel):
@@ -25,6 +26,7 @@ class GetProjectContextOutput(BaseModel):
     session_id: str
     counts: dict[str, int]
     explicit_selections: dict[str, Any]
+    project_memory: Optional[dict[str, Any]] = None
     context_config: Optional[dict[str, Any]] = None
     relevant_config: dict[str, Any] = Field(default_factory=dict)
 
@@ -41,6 +43,7 @@ async def get_project_context(
     source_ids, artifact_ids = await get_project_scope_ids(ctx.project_id)
     session = await ChatSession.get(ctx.session_id)
     session_fields = session_record_fields(session) if session else {}
+    memory = await get_project_memory(ctx.project_id)
 
     return GetProjectContextOutput(
         project={
@@ -67,6 +70,7 @@ async def get_project_context(
                 "model_override": session_fields.get("model_override"),
             },
         },
+        project_memory=memory.model_dump() if memory else None,
         context_config=ctx.context_config,
         relevant_config={
             "model_override": ctx.model_override,

@@ -805,8 +805,6 @@ async def test_import_sam_opportunity_from_url_upserts_notice(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_import_sam_opportunity_from_url_not_found(monkeypatch):
-    from unittest.mock import AsyncMock
-
     from construction_os.exceptions import NotFoundError
     from construction_os.services import opportunity_collectors as collectors
 

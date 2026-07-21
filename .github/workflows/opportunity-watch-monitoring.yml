@@ -61,7 +61,9 @@ jobs:
             --ignore I001 2>&1 | tee ruff-opportunity-monitoring.log
 
       - name: Lint integrated legacy Opportunity Hub surface
+        id: legacy-opportunity-lint
         run: |
+          set -o pipefail
           python -m ruff check \
             api/routers/opportunities.py \
             construction_os/services/opportunities.py \
@@ -69,7 +71,7 @@ jobs:
             construction_os/services/opportunity_scoring.py \
             tests/test_opportunity_collectors.py \
             tests/test_opportunity_scoring.py \
-            --ignore I001,E402
+            --ignore I001,E402 2>&1 | tee ruff-opportunity-legacy.log
 
       - name: Compile backend modules
         run: python -m compileall -q api construction_os
@@ -94,6 +96,7 @@ jobs:
           name: opportunity-monitoring-backend-errors
           path: |
             ruff-opportunity-monitoring.log
+            ruff-opportunity-legacy.log
             pytest-opportunity-monitoring.log
           if-no-files-found: warn
           retention-days: 3

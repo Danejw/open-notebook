@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { BookOpen } from 'lucide-react'
 import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
 import { Button } from '@/components/ui/button'
-import { CheckboxList } from '@/components/ui/checkbox-list'
+import { InlinePickerList } from '@/components/common/InlinePickerList'
 import { useProjects } from '@/lib/hooks/use-projects'
 import { useAddSourcesToProject, useRemoveSourceFromProject } from '@/lib/hooks/use-sources'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -112,12 +112,12 @@ export function ProjectAssociations({
         <span className="text-[11px] font-medium">{t('sources.manageProjects')}</span>
       </div>
 
-      <CheckboxList
+      <InlinePickerList
         items={projectItems}
         selectedIds={selectedProjectIds}
         onToggle={handleToggleProject}
         loading={isLoading}
-        emptyMessage={t('sources.noProjectsAvailable')}
+        emptyTitle={t('sources.noProjectsAvailable')}
       />
 
       {!isLoading && activeProjects.length > 0 && hasChanges && (

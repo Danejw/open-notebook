@@ -1,21 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  dialogBodyClassName,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { CheckboxList } from '@/components/ui/checkbox-list'
+import { ResourcePicker } from '@/components/common/ResourcePicker'
 import { useProjects } from '@/lib/hooks/use-projects'
 import { useCreateProjectArtifact } from '@/lib/hooks/use-project-artifacts'
-import { InlineSkeleton, PickerDialogSkeleton } from '@/components/common/LoadingSkeletons'
-import { toast } from 'sonner'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import type { ProjectResponse } from '@/lib/types/api'
+import { toast } from 'sonner'
 
 interface SaveToProjectsDialogProps {
   open: boolean
@@ -28,92 +18,56 @@ export function SaveToProjectsDialog({
   open,
   onOpenChange,
   question,
-  answer
+  answer,
 }: SaveToProjectsDialogProps) {
   const { t } = useTranslation()
-  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([])
   const { data: projects, isLoading } = useProjects(false)
   const createNote = useCreateProjectArtifact()
 
-  const handleToggle = (projectId: string) => {
-    setSelectedProjectIds(prev =>
-      prev.includes(projectId)
-        ? prev.filter(id => id !== projectId)
-        : [...prev, projectId]
-    )
-  }
+  const projectItems: ProjectResponse[] = projects ?? []
 
-  const handleSave = async () => {
+  const handleSave = (selectedProjectIds: string[]) => {
     if (selectedProjectIds.length === 0) {
       toast.error(t('searchPage.selectProject'))
       return
     }
 
-    try {
-      for (const projectId of selectedProjectIds) {
-        await createNote.mutateAsync({
-          title: question,
-          content: answer,
-          artifact_kind: 'ai',
-          project_id: projectId
-        })
-      }
+    void (async () => {
+      try {
+        for (const projectId of selectedProjectIds) {
+          await createNote.mutateAsync({
+            title: question,
+            content: answer,
+            artifact_kind: 'ai',
+            project_id: projectId,
+          })
+        }
 
-      toast.success(t('searchPage.saveSuccess'))
-      setSelectedProjectIds([])
-      onOpenChange(false)
-    } catch {
-      toast.error(t('searchPage.saveError'))
-    }
+        toast.success(t('searchPage.saveSuccess'))
+      } catch {
+        toast.error(t('searchPage.saveError'))
+      }
+    })()
   }
 
-  const projectItems = projects?.map(project => ({
-    id: project.id,
-    title: project.name,
-    description: project.description || undefined
-  })) || []
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t('searchPage.saveToProjects')}</DialogTitle>
-        </DialogHeader>
-
-        <div className={dialogBodyClassName}>
-          {isLoading ? (
-            <PickerDialogSkeleton rows={4} />
-          ) : (
-            <CheckboxList
-              items={projectItems}
-              selectedIds={selectedProjectIds}
-              onToggle={handleToggle}
-              emptyMessage={t('sources.noProjectsFound')}
-            />
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" size="sm" className="h-7" onClick={() => onOpenChange(false)}>
-            {t('common.cancel')}
-          </Button>
-          <Button
-            size="sm"
-            className="h-7"
-            onClick={handleSave}
-            disabled={selectedProjectIds.length === 0 || createNote.isPending}
-          >
-            {createNote.isPending ? (
-              <>
-                <InlineSkeleton className="mr-2" />
-                {t('searchPage.saving')}
-              </>
-            ) : (
-              t('searchPage.saveToProject')
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ResourcePicker
+      selectionMode="multi"
+      open={open}
+      onOpenChange={onOpenChange}
+      value={[]}
+      onChange={handleSave}
+      title={t('searchPage.saveToProjects')}
+      items={projectItems}
+      getItemId={(project) => project.id}
+      getItemProps={(project) => ({
+        title: project.name,
+        description: project.description || undefined,
+      })}
+      isLoading={isLoading}
+      emptyTitle={t('sources.noProjectsFound')}
+      cancelLabel={t('common.cancel')}
+      saveLabel={t('searchPage.saveToProject')}
+    />
   )
 }

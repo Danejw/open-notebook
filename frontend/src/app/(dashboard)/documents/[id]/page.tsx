@@ -5,12 +5,11 @@ import { useParams, useRouter } from 'next/navigation'
 import { Copy, Download, Image as ImageIcon, Pencil, Save, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
-import { FormDialogShell } from '@/components/common/FormDialogShell'
+import { RenameFieldDialog } from '@/components/common/RenameFieldDialog'
 import { DetailPageSkeleton } from '@/components/common/LoadingSkeletons'
 import { ImageLibraryPicker } from '@/components/media/ImageLibraryPicker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -478,29 +477,23 @@ export default function DocumentWorkspacePage() {
         </DialogContent>
       </Dialog>
 
-      <FormDialogShell
+      <RenameFieldDialog
         open={renameOpen}
         onOpenChange={setRenameOpen}
         title={t('documents.renameDocument')}
+        label={t('common.title')}
+        value={renameTitle}
+        onChange={setRenameTitle}
         isSubmitting={updateDocument.isPending}
         contentClassName="sm:max-w-md"
         formClassName="space-y-4"
-        disableSubmit={!renameTitle.trim()}
+        fieldClassName="space-y-2"
+        inputId="document-rename-title"
         onSubmit={(event) => {
           event.preventDefault()
           void handleRename()
         }}
-      >
-        <div className="space-y-2">
-          <Label htmlFor="document-rename-title">{t('common.title')}</Label>
-          <Input
-            id="document-rename-title"
-            value={renameTitle}
-            onChange={(e) => setRenameTitle(e.target.value)}
-            autoFocus
-          />
-        </div>
-      </FormDialogShell>
+      />
 
       <ImageLibraryPicker
         open={imagePickerOpen}

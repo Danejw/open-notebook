@@ -8,8 +8,6 @@ import { Plus, Trash2, FileText, EyeOff } from 'lucide-react'
 import { CompactListRowSkeleton } from '@/components/common/LoadingSkeletons'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ListSelectionBar } from '@/components/common/ListSelectionBar'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { ArtifactEditorDialog } from './ArtifactEditorDialog'
 import { ArtifactTemplatePhases } from './ArtifactTemplatePhases'
 import { ArtifactListRow } from './ArtifactListRow'
@@ -26,7 +24,7 @@ import { useIngestAsSource } from '@/lib/hooks/use-sources'
 import { useListSelection } from '@/lib/hooks/useListSelection'
 import { useToast } from '@/lib/hooks/use-toast'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
-import { FormDialogShell } from '@/components/common/FormDialogShell'
+import { RenameFieldDialog } from '@/components/common/RenameFieldDialog'
 import { CollapsibleColumn, createCollapseButton } from '@/components/projects/CollapsibleColumn'
 import {
   ColumnHeader,
@@ -415,7 +413,7 @@ export function ArtifactsColumn({
         ingestPending={ingestAsSource.isPending}
       />
 
-      <FormDialogShell
+      <RenameFieldDialog
         open={Boolean(renamingNote)}
         onOpenChange={(open) => {
           if (!open) {
@@ -424,26 +422,19 @@ export function ArtifactsColumn({
           }
         }}
         title={t('projects.renameArtifact')}
+        label={t('common.title')}
+        value={renameTitle}
+        onChange={setRenameTitle}
         isSubmitting={updateNote.isPending}
         compactFooter
         contentClassName="sm:max-w-md"
-        disableSubmit={!renameTitle.trim()}
+        inputId="artifact-rename-title"
+        placeholder={t('sources.addTitle')}
         onSubmit={(event) => {
           event.preventDefault()
           void handleRenameConfirm()
         }}
-      >
-        <div className="space-y-1.5">
-          <Label htmlFor="artifact-rename-title">{t('common.title')}</Label>
-          <Input
-            id="artifact-rename-title"
-            value={renameTitle}
-            onChange={(event) => setRenameTitle(event.target.value)}
-            placeholder={t('sources.addTitle')}
-            autoFocus
-          />
-        </div>
-      </FormDialogShell>
+      />
 
       <ConfirmDialog
         open={deleteDialogOpen}

@@ -8,14 +8,12 @@ import { PageRefreshButton } from '@/components/layout/PageRefreshButton'
 import { EmptyState } from '@/components/common/EmptyState'
 import { BulkDeleteConfirmDialog } from '@/components/common/BulkDeleteConfirmDialog'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
-import { FormDialogShell } from '@/components/common/FormDialogShell'
+import { RenameFieldDialog } from '@/components/common/RenameFieldDialog'
 import { ResourceList } from '@/components/common/ResourceList'
 import { reportBulkResults, settleBulkActions } from '@/components/common/bulk-settle'
 import { TemplateHtmlPreview } from '@/components/templates/TemplateHtmlPreview'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   useCreateHtmlTemplate,
   useHtmlTemplates,
@@ -217,30 +215,24 @@ export default function TemplatesPage() {
         </details>
       </div>
 
-      <FormDialogShell
+      <RenameFieldDialog
         open={Boolean(renaming)}
         onOpenChange={(open) => {
           if (!open) setRenaming(null)
         }}
         title={t('templates.renameTemplate')}
+        label={t('common.name')}
+        value={renameValue}
+        onChange={setRenameValue}
         isSubmitting={updateTemplate.isPending}
         compactFooter
         contentClassName="sm:max-w-2xl"
-        disableSubmit={!renameValue.trim()}
+        inputId="template-rename-name"
         onSubmit={(event) => {
           event.preventDefault()
           void handleRename()
         }}
       >
-        <div className="space-y-1.5">
-          <Label htmlFor="template-rename-name">{t('common.name')}</Label>
-          <Input
-            id="template-rename-name"
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            autoFocus
-          />
-        </div>
         {renaming?.html_body ? (
           <TemplateHtmlPreview
             html={renaming.html_body}
@@ -248,7 +240,7 @@ export default function TemplatesPage() {
             maxHeightPx={360}
           />
         ) : null}
-      </FormDialogShell>
+      </RenameFieldDialog>
 
       <ConfirmDialog
         open={Boolean(deleting)}

@@ -1,0 +1,129 @@
+name: Temporary Temporal Merge Safety
+
+on:
+  push:
+    branches:
+      - feature/project-memory-v3
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/project-memory-v3
+          fetch-depth: 0
+
+      - name: Enforce immutable fact history during merge
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          service_path = Path('construction_os/services/project_memory.py')
+          text = service_path.read_text()
+          old_prompt = '''                "explicit operations. MERGE adds a compatible fact or enriches an active "
+                "fact without changing its meaning. SUPERSEDE replaces an active fact "
+'''
+          new_prompt = '''                "explicit operations. MERGE adds a compatible new fact, or targets an "
+                "identical active fact only to merge evidence. It never rewrites a fact's "
+                "subject or value. SUPERSEDE replaces an active fact "
+'''
+          if old_prompt not in text:
+              raise SystemExit('memory prompt anchor not found')
+          text = text.replace(old_prompt, new_prompt, 1)
+
+          old_merge = '''        if operation.operation == "merge" and target is not None:
+            if target.status != "active":
+                logger.warning("Skipping merge into inactive fact {}", target.fact_id)
+                continue
+            target.category = operation.category
+            target.subject = operation.subject
+            target.value = operation.value
+            target.evidence_ids = list(
+                dict.fromkeys([*target.evidence_ids, *proposed_evidence])
+            )
+            target.updated_at = recorded_at
+            target.last_operation = "merge"
+            changed = True
+            continue
+'''
+          new_merge = '''        if operation.operation == "merge" and target is not None:
+            if target.status != "active":
+                logger.warning("Skipping merge into inactive fact {}", target.fact_id)
+                continue
+            target_key = _normalized_fact_key(
+                target.category, target.subject, target.value
+            )
+            proposed_key = _normalized_fact_key(
+                operation.category, operation.subject, operation.value
+            )
+            if proposed_key != target_key:
+                logger.warning(
+                    "Skipping merge that would rewrite fact {}; use supersede instead",
+                    target.fact_id,
+                )
+                continue
+            merged_evidence = list(
+                dict.fromkeys([*target.evidence_ids, *proposed_evidence])
+            )
+            if merged_evidence != target.evidence_ids:
+                target.evidence_ids = merged_evidence
+                target.updated_at = recorded_at
+                target.last_operation = "merge"
+                changed = True
+            continue
+'''
+          if old_merge not in text:
+              raise SystemExit('merge operation anchor not found')
+          service_path.write_text(text.replace(old_merge, new_merge, 1))
+
+          test_path = Path('tests/test_project_memory.py')
+          tests = test_path.read_text()
+          anchor = '''def test_merge_deduplicates_identical_active_fact():
+'''
+          addition = '''def test_merge_target_cannot_rewrite_fact_history():
+    existing = _fact()
+    operations = [
+        ProjectMemoryOperation(
+            operation="merge",
+            target_fact_id=existing.fact_id,
+            category="requirement",
+            subject="Budget ceiling",
+            value="$210,000",
+            evidence_ids=["note:changed-budget"],
+        )
+    ]
+
+    facts, changed = apply_project_memory_operations(
+        project_id="project:abc",
+        previous_facts=[existing],
+        operations=operations,
+        requested_evidence_ids=["note:changed-budget"],
+        event_at=EVENT_AT,
+    )
+
+    assert changed is False
+    assert len(facts) == 1
+    assert facts[0].value == "$180,000"
+    assert facts[0].status == "active"
+
+
+'''
+          if anchor not in tests:
+              raise SystemExit('test insertion anchor not found')
+          test_path.write_text(tests.replace(anchor, addition + anchor, 1))
+          PY
+
+      - name: Commit merge safety and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/temporary-temporal-merge-safety.yml
+          git add construction_os/services/project_memory.py tests/test_project_memory.py
+          git commit -m "fix: preserve temporal fact history during merge"
+          git push origin HEAD:feature/project-memory-v3

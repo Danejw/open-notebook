@@ -16,7 +16,14 @@ from construction_os.exceptions import (
     RateLimitError,
 )
 
+QUOTA_BILLING_MESSAGE = (
+    "AI provider quota or billing limit reached. "
+    "Check your provider plan and billing, then try again."
+)
+RATE_LIMIT_MESSAGE = "Rate limit exceeded. Please wait a moment and try again."
+
 # Classification rules: (keywords, exception_class, user_message or None to pass through)
+# Quota/billing must come before rate-limit so insufficient_quota 429s are not mislabeled.
 _CLASSIFICATION_RULES: list[tuple[list[str], type[ConstructionOSError], str | None]] = [
     # Authentication errors
     (
@@ -24,11 +31,23 @@ _CLASSIFICATION_RULES: list[tuple[list[str], type[ConstructionOSError], str | No
         AuthenticationError,
         "Authentication failed. Please check your API key in Settings -> Credentials.",
     ),
-    # Rate limit errors
+    # Quota / billing (providers often return HTTP 429 with these phrases)
     (
-        ["rate limit", "rate_limit", "429", "too many requests", "quota exceeded"],
+        [
+            "insufficient_quota",
+            "quota exceeded",
+            "exceeded your current quota",
+            "check your plan and billing",
+            "billing details",
+        ],
+        ExternalServiceError,
+        QUOTA_BILLING_MESSAGE,
+    ),
+    # Temporary rate / request throttle
+    (
+        ["rate limit", "rate_limit", "429", "too many requests"],
         RateLimitError,
-        "Rate limit exceeded. Please wait a moment and try again.",
+        RATE_LIMIT_MESSAGE,
     ),
     # Model not found (pass through original message)
     (
@@ -79,6 +98,10 @@ def classify_error(exception: BaseException) -> tuple[type[ConstructionOSError],
     Returns:
         Tuple of (exception_class, user_friendly_message)
     """
+    # Already-typed app errors: keep the message as-is (avoid double-classification).
+    if isinstance(exception, ConstructionOSError):
+        return type(exception), str(exception)
+
     error_str = str(exception).lower()
     error_type_name = type(exception).__name__.lower()
     combined = f"{error_type_name}: {error_str}"

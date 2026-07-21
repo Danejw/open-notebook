@@ -7,12 +7,20 @@ from api.models import (
     ProjectCreate,
     ProjectDeletePreview,
     ProjectDeleteResponse,
+    ProjectMemoryResponse,
+    ProjectMemoryUpdate,
     ProjectResponse,
     ProjectUpdate,
 )
 from construction_os.database.repository import ensure_record_id, repo_query
 from construction_os.domain.project import Project, Source
 from construction_os.exceptions import InvalidInputError, NotFoundError
+from construction_os.services.project_memory import (
+    ProjectMemorySnapshot,
+    delete_project_memory,
+    get_project_memory,
+    save_project_memory,
+)
 
 router = APIRouter()
 
@@ -177,6 +185,86 @@ async def get_project(project_id: str):
         logger.error(f"Error fetching Project {project_id}: {str(e)}")
         raise HTTPException(
             status_code=500, detail=f"Error fetching Project: {str(e)}"
+        )
+
+
+def _memory_response(snapshot: ProjectMemorySnapshot) -> ProjectMemoryResponse:
+    return ProjectMemoryResponse(
+        project_id=snapshot.project_id,
+        content=snapshot.content,
+        evidence_ids=list(snapshot.evidence_ids),
+        revision=snapshot.revision,
+        last_reason=snapshot.last_reason,
+        created_at=snapshot.created_at,
+        updated_at=snapshot.updated_at,
+    )
+
+
+@router.get(
+    "/projects/{project_id}/memory",
+    response_model=Optional[ProjectMemoryResponse],
+)
+async def get_project_memory_endpoint(project_id: str):
+    """Return the synthesized project memory, or null when none exists yet."""
+    try:
+        await Project.get(project_id)
+        snapshot = await get_project_memory(project_id)
+        if snapshot is None:
+            return None
+        return _memory_response(snapshot)
+    except NotFoundError:
+        raise HTTPException(status_code=404, detail="Project not found")
+    except Exception as e:
+        logger.error(f"Error fetching project memory for {project_id}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching project memory: {str(e)}"
+        )
+
+
+@router.put(
+    "/projects/{project_id}/memory",
+    response_model=ProjectMemoryResponse,
+)
+async def update_project_memory_endpoint(
+    project_id: str, body: ProjectMemoryUpdate
+):
+    """Create or replace the synthesized project memory content (preserves evidence IDs)."""
+    try:
+        await Project.get(project_id)
+        existing = await get_project_memory(project_id)
+        snapshot = await save_project_memory(
+            project_id=project_id,
+            content=body.content,
+            evidence_ids=existing.evidence_ids if existing else [],
+            revision=(existing.revision + 1) if existing else 1,
+            reason="user_edit",
+            created_at=existing.created_at if existing else None,
+        )
+        return _memory_response(snapshot)
+    except NotFoundError:
+        raise HTTPException(status_code=404, detail="Project not found")
+    except InvalidInputError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error updating project memory for {project_id}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error updating project memory: {str(e)}"
+        )
+
+
+@router.delete("/projects/{project_id}/memory")
+async def delete_project_memory_endpoint(project_id: str):
+    """Clear the synthesized project memory for a project."""
+    try:
+        await Project.get(project_id)
+        await delete_project_memory(project_id)
+        return {"message": "Project memory cleared"}
+    except NotFoundError:
+        raise HTTPException(status_code=404, detail="Project not found")
+    except Exception as e:
+        logger.error(f"Error clearing project memory for {project_id}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error clearing project memory: {str(e)}"
         )
 
 

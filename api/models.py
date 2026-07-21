@@ -29,6 +29,20 @@ class ProjectResponse(BaseModel):
     note_count: int
 
 
+class ProjectMemoryResponse(BaseModel):
+    project_id: str
+    content: str
+    evidence_ids: List[str] = Field(default_factory=list)
+    revision: int = 0
+    last_reason: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class ProjectMemoryUpdate(BaseModel):
+    content: str = Field(..., description="Synthesized project memory markdown")
+
+
 # Search models
 class SearchRequest(BaseModel):
     query: str = Field(..., description="Search query")

@@ -93,7 +93,6 @@ jobs:
         run: |
           npx eslint \
             'src/app/(dashboard)/collections/components/CollectionItemsEditor.tsx' \
-            'src/app/(dashboard)/opportunities/discovery/page.tsx' \
             src/components/layout/ProjectArtifactsNav.tsx \
             src/lib/api/opportunities.ts \
             src/lib/hooks/use-opportunities.ts \

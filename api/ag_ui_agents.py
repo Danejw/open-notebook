@@ -10,6 +10,7 @@ from ag_ui_langgraph import LangGraphAgent
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
+from construction_os.exceptions import ConstructionOSError
 from construction_os.graphs import ag_ui_runtime
 from construction_os.graphs.ag_ui_runtime import (
     build_run_input,
@@ -69,7 +70,17 @@ async def stream_agent_events(
             yield encoder.encode(event)
     except Exception as e:
         _, user_message = classify_error(e)
-        logger.error(f"AG-UI agent stream error: {e}")
+        cause = e.__cause__
+        if cause is not None:
+            logger.exception(
+                "AG-UI agent stream error: {} (cause: {})",
+                e,
+                cause,
+            )
+        elif isinstance(e, ConstructionOSError):
+            logger.error("AG-UI agent stream error: {}", e)
+        else:
+            logger.exception("AG-UI agent stream error: {}", e)
         yield encoder.encode(
             RunErrorEvent(type=EventType.RUN_ERROR, message=user_message)
         )

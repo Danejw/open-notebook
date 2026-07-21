@@ -644,7 +644,7 @@ export const jaJP = {
     "edit": "編集",
     "editMessage": "メッセージを編集",
     "resend": "再送信",
-    "artifactSendPlaceholder": "Send to generate this artifact from project context...",
+    "artifactSendPlaceholder": "Ask anything",
     "saveAsArtifact": "Save as artifact",
     "suggestionsLabel": "提案メッセージ",
     "suggestionsLoading": "提案を読み込み中...",

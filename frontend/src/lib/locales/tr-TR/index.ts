@@ -644,7 +644,7 @@ export const trTR = {
     "edit": "Düzenle",
     "editMessage": "Mesajı düzenle",
     "resend": "Yeniden gönder",
-    "artifactSendPlaceholder": "Send to generate this artifact from project context...",
+    "artifactSendPlaceholder": "Ask anything",
     "saveAsArtifact": "Save as artifact",
     "suggestionsLabel": "Onerilen mesajlar",
     "suggestionsLoading": "Oneriler yukleniyor...",

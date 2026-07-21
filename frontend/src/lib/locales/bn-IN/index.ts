@@ -644,7 +644,7 @@ export const bnIN = {
     "edit": "সম্পাদনা",
     "editMessage": "বার্তা সম্পাদনা",
     "resend": "পুনরায় পাঠান",
-    "artifactSendPlaceholder": "Send to generate this artifact from project context...",
+    "artifactSendPlaceholder": "Ask anything",
     "saveAsArtifact": "Save as artifact",
     "suggestionsLabel": "প্রস্তাবিত বার্তা",
     "suggestionsLoading": "পরামর্শ লোড হচ্ছে...",

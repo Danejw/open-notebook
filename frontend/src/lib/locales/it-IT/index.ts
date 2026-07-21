@@ -644,7 +644,7 @@ export const itIT = {
     "edit": "Modifica",
     "editMessage": "Modifica messaggio",
     "resend": "Reinvia",
-    "artifactSendPlaceholder": "Send to generate this artifact from project context...",
+    "artifactSendPlaceholder": "Ask anything",
     "saveAsArtifact": "Save as artifact",
     "suggestionsLabel": "Messaggi suggeriti",
     "suggestionsLoading": "Caricamento suggerimenti...",

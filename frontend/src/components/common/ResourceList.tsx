@@ -1,12 +1,13 @@
 'use client'
 
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useMemo, type ReactNode } from 'react'
 import { CheckSquare, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
 import { ListSelectionBar } from '@/components/common/ListSelectionBar'
+import { useListSelection } from '@/lib/hooks/useListSelection'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { cn } from '@/lib/utils'
 
@@ -61,36 +62,31 @@ export function ResourceList<T>({
   enableSelection = true,
 }: ResourceListProps<T>) {
   const { t } = useTranslation()
-  const [selectionMode, setSelectionMode] = useState(false)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const {
+    selectedIds,
+    selectionMode,
+    clearSelection,
+    enterSelection,
+    exitSelection,
+    selectAllVisible,
+    isSelected,
+    toggleSelect,
+  } = useListSelection({ mode: 'explicit' })
 
   const allIds = useMemo(() => items.map(getItemId), [items, getItemId])
 
-  const clearSelection = useCallback(() => {
-    setSelectedIds(new Set())
-  }, [])
-
-  const exitSelection = useCallback(() => {
-    setSelectedIds(new Set())
-    setSelectionMode(false)
-  }, [])
-
   const selectAll = useCallback(() => {
-    setSelectedIds(new Set(allIds))
-  }, [allIds])
+    selectAllVisible(allIds)
+  }, [allIds, selectAllVisible])
 
-  const toggleId = useCallback((id: string, checked: boolean) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (checked) next.add(id)
-      else next.delete(id)
-      return next
-    })
-  }, [])
-
-  const enterSelection = () => {
-    setSelectionMode(true)
-  }
+  const toggleId = useCallback(
+    (id: string, checked: boolean) => {
+      if (checked !== isSelected(id)) {
+        toggleSelect(id)
+      }
+    },
+    [isSelected, toggleSelect]
+  )
 
   if (isLoading) {
     return <ListRowsSkeleton rows={5} />
@@ -122,7 +118,7 @@ export function ResourceList<T>({
               variant="ghost"
               size="sm"
               className="h-7 gap-1 text-xs"
-              onClick={enterSelection}
+              onClick={() => enterSelection()}
             >
               <CheckSquare className="h-3.5 w-3.5" />
               {t('common.selectMode')}
@@ -153,7 +149,7 @@ export function ResourceList<T>({
       <div className="divide-y">
         {items.map((item) => {
           const id = getItemId(item)
-          const selected = selectedIds.has(id)
+          const selected = isSelected(id)
           return (
             <div key={id} className="flex items-stretch gap-0">
               {selectionMode ? (

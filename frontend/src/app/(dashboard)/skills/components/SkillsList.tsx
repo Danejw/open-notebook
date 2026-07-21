@@ -2,12 +2,11 @@
 
 import { useState } from 'react'
 import { Archive, Trash2, Upload, Sparkles } from 'lucide-react'
-import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/common/EmptyState'
-import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { BulkDeleteConfirmDialog } from '@/components/common/BulkDeleteConfirmDialog'
 import { ResourceList } from '@/components/common/ResourceList'
-import { settleBulkActions } from '@/components/common/bulk-settle'
+import { reportBulkResults, settleBulkActions } from '@/components/common/bulk-settle'
 import { Skill } from '@/lib/types/skills'
 import { SkillCard } from './SkillCard'
 import { SkillImportDialog } from './SkillImportDialog'
@@ -30,15 +29,6 @@ export function SkillsList({ skills, isLoading }: SkillsListProps) {
 
   const items = skills ?? []
 
-  const reportBulk = (succeeded: number, failed: number) => {
-    if (failed > 0) {
-      toast.error(t('common.bulkPartial').replace('{failed}', failed.toString()))
-    }
-    if (succeeded > 0) {
-      toast.success(t('common.bulkSuccess').replace('{count}', succeeded.toString()))
-    }
-  }
-
   const invalidateSkills = async () => {
     await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.skills })
     await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.skillsCatalog })
@@ -50,7 +40,7 @@ export function SkillsList({ skills, isLoading }: SkillsListProps) {
       const { succeeded, failed } = await settleBulkActions(selectedIds, (id) =>
         skillsApi.archive(id, true)
       )
-      reportBulk(succeeded, failed)
+      reportBulkResults(t, succeeded, failed)
       await invalidateSkills()
       exitSelection()
     } finally {
@@ -65,7 +55,7 @@ export function SkillsList({ skills, isLoading }: SkillsListProps) {
       const { succeeded, failed } = await settleBulkActions(bulkDeleteIds, (id) =>
         skillsApi.delete(id)
       )
-      reportBulk(succeeded, failed)
+      reportBulkResults(t, succeeded, failed)
       await invalidateSkills()
       setBulkDeleteIds(null)
     } finally {
@@ -147,18 +137,11 @@ export function SkillsList({ skills, isLoading }: SkillsListProps) {
 
       <SkillImportDialog open={importOpen} onOpenChange={setImportOpen} />
 
-      <ConfirmDialog
-        open={Boolean(bulkDeleteIds?.length)}
+      <BulkDeleteConfirmDialog
+        ids={bulkDeleteIds}
         onOpenChange={(open) => {
           if (!open) setBulkDeleteIds(null)
         }}
-        title={t('common.delete')}
-        description={t('common.bulkDeleteConfirm').replace(
-          '{count}',
-          String(bulkDeleteIds?.length ?? 0)
-        )}
-        confirmText={t('common.delete')}
-        confirmVariant="destructive"
         onConfirm={() => void handleBulkDeleteConfirm()}
         isLoading={bulkBusy}
       />

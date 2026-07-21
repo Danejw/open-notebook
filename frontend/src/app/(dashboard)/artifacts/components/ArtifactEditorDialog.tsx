@@ -4,8 +4,7 @@ import { useEffect, useId } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogFooter, dialogBodyClassName, dialogLargeContentClassName } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import { DialogTitle, dialogBodyClassName } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -18,8 +17,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { QUERY_KEYS } from '@/lib/api/query-client'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { cn } from '@/lib/utils'
-import { DialogBodyLoading } from '@/components/common/LoadingSkeletons'
 import { FieldError } from '@/components/common/FieldError'
+import { MarkdownArtifactEditorShell } from '@/components/common/MarkdownArtifactEditorShell'
 
 const artifactSchema = z.object({
   name: z.string().min(1),
@@ -142,138 +141,131 @@ export function ArtifactEditorDialog({ open, onOpenChange, artifact }: ArtifactE
   const isSaving = artifact ? updateArtifact.isPending : createArtifact.isPending
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className={cn(dialogLargeContentClassName, 'overflow-hidden p-0')}>
-        <DialogHeader className="border-b">
-          <DialogTitle>
-            {isEditing ? t('common.edit') : t('artifacts.createNew')}
-          </DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="flex h-full min-h-0 flex-col">
-          {isEditing && isLoading ? (
-            <DialogBodyLoading label={t('common.loading')} />
-          ) : (
-            <div className={cn(dialogBodyClassName, 'space-y-3')}>
-              <div className="space-y-1.5">
-                <Label htmlFor={nameId}>{t('artifacts.name')}</Label>
-                <Controller
-                  control={control}
-                  name="name"
-                  render={({ field }) => (
-                    <Input
-                      id={nameId}
-                      {...field}
-                      placeholder={t('artifacts.namePlaceholder')}
-                      autoComplete="off"
-                    />
-                  )}
-                />
-                <FieldError message={errors.name?.message} />
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor={titleId}>{t('common.title')}</Label>
-                  <Controller
-                    control={control}
-                    name="title"
-                    render={({ field }) => (
-                      <Input
-                        id={titleId}
-                        {...field}
-                        placeholder={t('artifacts.titlePlaceholder')}
-                        autoComplete="off"
-                      />
-                    )}
-                  />
-                </div>
-                <div className="flex items-center gap-2 md:pt-6">
-                  <Controller
-                    control={control}
-                    name="apply_default"
-                    render={({ field }) => (
-                      <Checkbox
-                        id={defaultId}
-                        checked={field.value}
-                        onCheckedChange={(checked) => field.onChange(Boolean(checked))}
-                      />
-                    )}
-                  />
-                  <Label htmlFor={defaultId} className="text-sm">
-                    {t('artifacts.suggestDefault')}
-                  </Label>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor={descriptionId}>
-                  {t('projects.addDescription').replace('...', '')}
-                </Label>
-                <Controller
-                  control={control}
-                  name="description"
-                  render={({ field }) => (
-                    <Textarea
-                      id={descriptionId}
-                      {...field}
-                      placeholder={t('artifacts.descriptionPlaceholder')}
-                      rows={2}
-                      autoComplete="off"
-                    />
-                  )}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor={promptId}>{t('artifacts.systemPrompt')}</Label>
-                <Controller
-                  control={control}
-                  name="prompt"
-                  render={({ field }) => (
-                    <MarkdownEditor
-                      key={artifact?.id ?? 'new-artifact'}
-                      value={field.value}
-                      onChange={field.onChange}
-                      height={320}
-                      placeholder={t('artifacts.promptPlaceholder')}
-                      className="rounded-md border"
-                      textareaId={promptId}
-                      name={field.name}
-                    />
-                  )}
-                />
-                <FieldError message={errors.prompt?.message} />
-                <p className="text-[11px] text-muted-foreground">
-                  {t('artifacts.promptHint')}
-                </p>
-              </div>
-
-              <div className="space-y-2 rounded-md border p-3">
-                <div>
-                  <p className="text-sm font-medium">{t('artifacts.chatDefaults')}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {t('artifacts.chatDefaultsHint')}
-                  </p>
-                </div>
-                <ChatDefaultsPickerRow control={control} />
-              </div>
-            </div>
+    <MarkdownArtifactEditorShell
+      open={open}
+      onOpenChange={onOpenChange}
+      header={
+        <DialogTitle>
+          {isEditing ? t('common.edit') : t('artifacts.createNew')}
+        </DialogTitle>
+      }
+      onSave={handleSubmit(onSubmit)}
+      onCancel={handleClose}
+      isSaving={isSaving}
+      disableSave={isEditing && isLoading}
+      isLoading={isEditing && isLoading}
+      loadingLabel={t('common.loading')}
+      saveLabel={
+        isEditing ? t('common.editArtifact') : t('artifacts.createNew')
+      }
+      savingLabel={
+        isEditing ? `${t('common.saving')}...` : `${t('common.creating')}...`
+      }
+      bodyClassName={cn(dialogBodyClassName, 'space-y-3')}
+    >
+      <div className="space-y-1.5">
+        <Label htmlFor={nameId}>{t('artifacts.name')}</Label>
+        <Controller
+          control={control}
+          name="name"
+          render={({ field }) => (
+            <Input
+              id={nameId}
+              {...field}
+              placeholder={t('artifacts.namePlaceholder')}
+              autoComplete="off"
+            />
           )}
+        />
+        <FieldError message={errors.name?.message} />
+      </div>
 
-          <DialogFooter className="border-t">
-            <Button type="button" variant="outline" size="sm" className="h-7" onClick={handleClose}>
-              {t('common.cancel')}
-            </Button>
-            <Button type="submit" size="sm" className="h-7" disabled={isSaving || (isEditing && isLoading)}>
-              {isSaving
-                ? isEditing ? `${t('common.saving')}...` : `${t('common.creating')}...`
-                : isEditing
-                  ? t('sources.saveNote')
-                  : t('artifacts.createNew')}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor={titleId}>{t('common.title')}</Label>
+          <Controller
+            control={control}
+            name="title"
+            render={({ field }) => (
+              <Input
+                id={titleId}
+                {...field}
+                placeholder={t('artifacts.titlePlaceholder')}
+                autoComplete="off"
+              />
+            )}
+          />
+        </div>
+        <div className="flex items-center gap-2 md:pt-6">
+          <Controller
+            control={control}
+            name="apply_default"
+            render={({ field }) => (
+              <Checkbox
+                id={defaultId}
+                checked={field.value}
+                onCheckedChange={(checked) => field.onChange(Boolean(checked))}
+              />
+            )}
+          />
+          <Label htmlFor={defaultId} className="text-sm">
+            {t('artifacts.suggestDefault')}
+          </Label>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor={descriptionId}>
+          {t('projects.addDescription').replace('...', '')}
+        </Label>
+        <Controller
+          control={control}
+          name="description"
+          render={({ field }) => (
+            <Textarea
+              id={descriptionId}
+              {...field}
+              placeholder={t('artifacts.descriptionPlaceholder')}
+              rows={2}
+              autoComplete="off"
+            />
+          )}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor={promptId}>{t('artifacts.systemPrompt')}</Label>
+        <Controller
+          control={control}
+          name="prompt"
+          render={({ field }) => (
+            <MarkdownEditor
+              key={artifact?.id ?? 'new-artifact'}
+              value={field.value}
+              onChange={field.onChange}
+              height={320}
+              placeholder={t('artifacts.promptPlaceholder')}
+              className="rounded-md border"
+              textareaId={promptId}
+              name={field.name}
+            />
+          )}
+        />
+        <FieldError message={errors.prompt?.message} />
+        <p className="text-[11px] text-muted-foreground">
+          {t('artifacts.promptHint')}
+        </p>
+      </div>
+
+      <div className="space-y-2 rounded-md border p-3">
+        <div>
+          <p className="text-sm font-medium">{t('artifacts.chatDefaults')}</p>
+          <p className="text-[11px] text-muted-foreground">
+            {t('artifacts.chatDefaultsHint')}
+          </p>
+        </div>
+        <ChatDefaultsPickerRow control={control} />
+      </div>
+    </MarkdownArtifactEditorShell>
   )
 }

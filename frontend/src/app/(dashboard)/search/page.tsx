@@ -21,6 +21,7 @@ import { useAsk } from '@/lib/hooks/use-ask'
 import { useModelDefaults, useModels } from '@/lib/hooks/use-models'
 import { useProjects } from '@/lib/hooks/use-projects'
 import { useModalManager } from '@/lib/hooks/use-modal-manager'
+import { EmptyState } from '@/components/common/EmptyState'
 import { InlineSkeleton, SearchButtonSkeleton } from '@/components/common/LoadingSkeletons'
 import { StreamingResponse } from '@/components/search/StreamingResponse'
 import { AdvancedModelsDialog } from '@/components/search/AdvancedModelsDialog'
@@ -548,8 +549,11 @@ export default function SearchPage() {
 
                     {searchMutation.data.results.length === 0 ? (
                       <Card>
-                        <CardContent className="pt-6 text-center text-muted-foreground">
-                          {t('searchPage.noResultsFor').replace('{query}', searchQuery)}
+                        <CardContent className="pt-6">
+                          <EmptyState
+                            variant="subtle"
+                            title={t('searchPage.noResultsFor').replace('{query}', searchQuery)}
+                          />
                         </CardContent>
                       </Card>
                     ) : (

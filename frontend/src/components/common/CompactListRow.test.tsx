@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { Zap } from 'lucide-react'
 import {
   CompactListRow,
@@ -66,5 +66,46 @@ describe('CompactListRow', () => {
       'href',
       '/skills/skill-2',
     )
+  })
+
+  it('activates onClick rows with Enter and Space when href is not set', () => {
+    const onClick = vi.fn()
+
+    render(
+      <CompactListRow onClick={onClick}>
+        <CompactListRowContent>
+          <CompactListRowTitleRow>
+            <CompactListRowTitle>Clickable Row</CompactListRowTitle>
+          </CompactListRowTitleRow>
+        </CompactListRowContent>
+      </CompactListRow>,
+    )
+
+    const row = screen.getByRole('button', { name: /Clickable Row/i })
+    expect(row).toHaveAttribute('tabindex', '0')
+
+    fireEvent.keyDown(row, { key: 'Enter' })
+    expect(onClick).toHaveBeenCalledTimes(1)
+
+    fireEvent.keyDown(row, { key: ' ' })
+    expect(onClick).toHaveBeenCalledTimes(2)
+
+    fireEvent.click(row)
+    expect(onClick).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not add button semantics when onClick is not provided', () => {
+    render(
+      <CompactListRow as="li">
+        <CompactListRowContent>
+          <CompactListRowTitleRow>
+            <CompactListRowTitle>Static Row</CompactListRowTitle>
+          </CompactListRowTitleRow>
+        </CompactListRowContent>
+      </CompactListRow>,
+    )
+
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.getByText('Static Row').closest('li')).not.toHaveAttribute('tabindex')
   })
 })

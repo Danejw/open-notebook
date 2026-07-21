@@ -90,4 +90,88 @@ describe('useListSelection', () => {
 
     expect(result.current.selectedList).toEqual(['b'])
   })
+
+  describe('explicit mode', () => {
+    it('starts with no selection and selectionMode false', () => {
+      const { result } = renderHook(() => useListSelection({ mode: 'explicit' }))
+
+      expect(result.current.selectionMode).toBe(false)
+      expect(result.current.selectedIds.size).toBe(0)
+      expect(result.current.selectedList).toEqual([])
+    })
+
+    it('enterSelection without id enables selectionMode with zero selected', () => {
+      const { result } = renderHook(() => useListSelection({ mode: 'explicit' }))
+
+      act(() => {
+        result.current.enterSelection()
+      })
+
+      expect(result.current.selectionMode).toBe(true)
+      expect(result.current.selectedList).toEqual([])
+    })
+
+    it('enterSelection with id enables selectionMode and selects the id', () => {
+      const { result } = renderHook(() => useListSelection({ mode: 'explicit' }))
+
+      act(() => {
+        result.current.enterSelection('a')
+      })
+
+      expect(result.current.selectionMode).toBe(true)
+      expect(result.current.selectedList).toEqual(['a'])
+    })
+
+    it('clearSelection clears ids but keeps selectionMode', () => {
+      const { result } = renderHook(() => useListSelection({ mode: 'explicit' }))
+
+      act(() => {
+        result.current.enterSelection()
+        result.current.selectAllVisible(['a', 'b'])
+      })
+
+      act(() => {
+        result.current.clearSelection()
+      })
+
+      expect(result.current.selectionMode).toBe(true)
+      expect(result.current.selectedList).toEqual([])
+    })
+
+    it('exitSelection clears ids and exits selectionMode', () => {
+      const { result } = renderHook(() => useListSelection({ mode: 'explicit' }))
+
+      act(() => {
+        result.current.enterSelection()
+        result.current.selectAllVisible(['a', 'b'])
+      })
+
+      act(() => {
+        result.current.exitSelection()
+      })
+
+      expect(result.current.selectionMode).toBe(false)
+      expect(result.current.selectedList).toEqual([])
+      expect(result.current.selectedIds.size).toBe(0)
+    })
+
+    it('toggleSelect and selectAllVisible work in explicit mode', () => {
+      const { result } = renderHook(() => useListSelection({ mode: 'explicit' }))
+
+      act(() => {
+        result.current.enterSelection()
+        result.current.toggleSelect('a')
+      })
+
+      expect(result.current.selectionMode).toBe(true)
+      expect(result.current.selectedList).toEqual(['a'])
+
+      act(() => {
+        result.current.selectAllVisible(['x', 'y'])
+      })
+
+      expect(result.current.selectedList).toEqual(expect.arrayContaining(['x', 'y']))
+      expect(result.current.selectedList).toHaveLength(2)
+    })
+  })
 })

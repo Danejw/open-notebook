@@ -2,14 +2,13 @@
 
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
 import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { BulkDeleteConfirmDialog } from '@/components/common/BulkDeleteConfirmDialog'
 import { ResourceList } from '@/components/common/ResourceList'
-import { settleBulkActions } from '@/components/common/bulk-settle'
+import { reportBulkResults, settleBulkActions } from '@/components/common/bulk-settle'
 import {
   Key,
   AlertTriangle,
@@ -67,6 +66,22 @@ export function CredentialItem({
   const testResult = testResults[credential.id]
 
   const testModelLabel = t('models.testModel')
+
+  const handleBulkDeleteConfirm = async () => {
+    if (!bulkDeleteIds?.length) return
+    setBulkBusy(true)
+    try {
+      const { succeeded, failed } = await settleBulkActions(bulkDeleteIds, (id) =>
+        modelsApi.delete(id)
+      )
+      reportBulkResults(t, succeeded, failed)
+      await queryClient.invalidateQueries({ queryKey: MODEL_QUERY_KEYS.models })
+      await queryClient.invalidateQueries({ queryKey: MODEL_QUERY_KEYS.defaults })
+      setBulkDeleteIds(null)
+    } finally {
+      setBulkBusy(false)
+    }
+  }
 
   const defaultSlots: Record<string, string> = {}
   if (defaults) {
@@ -262,40 +277,13 @@ export function CredentialItem({
         />
       )}
 
-      <ConfirmDialog
-        open={Boolean(bulkDeleteIds?.length)}
+      <BulkDeleteConfirmDialog
+        ids={bulkDeleteIds}
+        title={t('models.deleteModel')}
         onOpenChange={(open) => {
           if (!open) setBulkDeleteIds(null)
         }}
-        title={t('models.deleteModel')}
-        description={t('common.bulkDeleteConfirm').replace(
-          '{count}',
-          String(bulkDeleteIds?.length ?? 0)
-        )}
-        confirmText={t('common.delete')}
-        confirmVariant="destructive"
-        onConfirm={() => {
-          void (async () => {
-            if (!bulkDeleteIds?.length) return
-            setBulkBusy(true)
-            try {
-              const { succeeded, failed } = await settleBulkActions(bulkDeleteIds, (id) =>
-                modelsApi.delete(id)
-              )
-              if (failed > 0) {
-                toast.error(t('common.bulkPartial').replace('{failed}', failed.toString()))
-              }
-              if (succeeded > 0) {
-                toast.success(t('common.bulkSuccess').replace('{count}', succeeded.toString()))
-              }
-              await queryClient.invalidateQueries({ queryKey: MODEL_QUERY_KEYS.models })
-              await queryClient.invalidateQueries({ queryKey: MODEL_QUERY_KEYS.defaults })
-              setBulkDeleteIds(null)
-            } finally {
-              setBulkBusy(false)
-            }
-          })()
-        }}
+        onConfirm={() => void handleBulkDeleteConfirm()}
         isLoading={bulkBusy}
       />
 

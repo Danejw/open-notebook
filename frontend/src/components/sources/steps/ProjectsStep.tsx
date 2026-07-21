@@ -2,7 +2,7 @@
 
 import { FormSection } from "@/components/ui/form-section"
 import { useTranslation } from "@/lib/hooks/use-translation"
-import { CheckboxList } from "@/components/ui/checkbox-list"
+import { InlinePickerList } from "@/components/common/InlinePickerList"
 import { ProjectResponse } from "@/lib/types/api"
 
 interface ProjectsStepProps {
@@ -31,12 +31,12 @@ export function ProjectsStep({
         title={`${t('projects.title')} (${t('common.optional')})`}
         description={t('sources.addExistingDesc')}
       >
-        <CheckboxList
+        <InlinePickerList
           items={projectItems}
           selectedIds={selectedProjectIds}
           onToggle={onToggleProject}
           loading={loading}
-          emptyMessage={t('sources.noProjectsFound')}
+          emptyTitle={t('sources.noProjectsFound')}
         />
       </FormSection>
     </div>

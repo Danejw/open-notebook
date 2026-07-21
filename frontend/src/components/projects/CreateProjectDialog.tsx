@@ -1,26 +1,16 @@
 'use client'
 
-import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  dialogBodyClassName,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import { FormDialogShell } from '@/components/common/FormDialogShell'
+import { FieldError } from '@/components/common/FieldError'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { useCreateProject } from '@/lib/hooks/use-projects'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { cn } from '@/lib/utils'
-import { FieldError } from '@/components/common/FieldError'
 
 const createProjectSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -59,51 +49,46 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
     reset()
   }
 
-  useEffect(() => {
-    if (!open) {
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
       reset()
     }
-  }, [open, reset])
+    onOpenChange(nextOpen)
+  }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t('projects.createNew')}</DialogTitle>
-        </DialogHeader>
+    <FormDialogShell
+      open={open}
+      onOpenChange={handleOpenChange}
+      title={t('projects.createNew')}
+      contentClassName="sm:max-w-md"
+      compactFooter
+      submitLabel={t('projects.createNew')}
+      submittingLabel={t('common.creating')}
+      disableSubmit={!isValid}
+      isSubmitting={createProject.isPending}
+      onSubmit={handleSubmit(onSubmit)}
+    >
+      <div className="space-y-1.5">
+        <Label htmlFor="project-name">{t('common.name')} *</Label>
+        <Input
+          id="project-name"
+          {...register('name')}
+          placeholder={t('projects.namePlaceholder')}
+          autoComplete="off"
+        />
+        <FieldError message={errors.name?.message} />
+      </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className={cn(dialogBodyClassName, 'space-y-3')}>
-          <div className="space-y-1.5">
-            <Label htmlFor="project-name">{t('common.name')} *</Label>
-            <Input
-              id="project-name"
-              {...register('name')}
-              placeholder={t('projects.namePlaceholder')}
-              autoComplete="off"
-            />
-            <FieldError message={errors.name?.message} />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="project-description">{t('common.description')}</Label>
-            <Textarea
-              id="project-description"
-              {...register('description')}
-              placeholder={t('projects.descPlaceholder')}
-              rows={3}
-            />
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" size="sm" className="h-7" onClick={closeDialog}>
-              {t('common.cancel')}
-            </Button>
-            <Button type="submit" size="sm" className="h-7" disabled={!isValid || createProject.isPending}>
-              {createProject.isPending ? t('common.creating') : t('projects.createNew')}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <div className="space-y-1.5">
+        <Label htmlFor="project-description">{t('common.description')}</Label>
+        <Textarea
+          id="project-description"
+          {...register('description')}
+          placeholder={t('projects.descPlaceholder')}
+          rows={3}
+        />
+      </div>
+    </FormDialogShell>
   )
 }

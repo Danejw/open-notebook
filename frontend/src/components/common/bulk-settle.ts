@@ -1,3 +1,23 @@
+import { toast } from 'sonner'
+
+export type BulkTranslateFn = (key: string) => string
+
+/**
+ * Show success/error toasts for bulk action results.
+ */
+export function reportBulkResults(
+  t: BulkTranslateFn,
+  succeeded: number,
+  failed: number
+): void {
+  if (failed > 0) {
+    toast.error(t('common.bulkPartial').replace('{failed}', failed.toString()))
+  }
+  if (succeeded > 0) {
+    toast.success(t('common.bulkSuccess').replace('{count}', succeeded.toString()))
+  }
+}
+
 /**
  * Run per-id async actions and return settled counts (no backend bulk API).
  */

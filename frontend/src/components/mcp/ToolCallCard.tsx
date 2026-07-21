@@ -10,12 +10,14 @@ import {
 import { useTranslation } from '@/lib/hooks/use-translation'
 import type { ChatToolCall } from '@/lib/types/mcp'
 import { cn } from '@/lib/utils'
+import { McpToolRiskBadge } from '@/components/mcp/McpToolRiskBadge'
 import {
   isActiveToolCallStatus,
   TOOL_CALL_ROW_CLASS,
   TOOL_CALL_SHELL_CLASS,
   toolCallLabel,
 } from '@/components/mcp/tool-call-display'
+import type { McpRiskLevel } from '@/lib/types/mcp'
 
 interface ToolCallCardProps {
   toolCall: ChatToolCall
@@ -44,11 +46,9 @@ export function ToolCallCard({ toolCall, embedded = false }: ToolCallCardProps) 
   const writeMeta = toolCall.performed_write
     ? t('tools.performedWrite', 'wrote data')
     : null
-  const riskMeta =
-    toolCall.risk_level && toolCall.risk_level !== 'read'
-      ? t(`tools.risk.${toolCall.risk_level}`, toolCall.risk_level)
-      : null
-  const metaParts = [statusMeta, writeMeta, riskMeta].filter(Boolean)
+  const metaParts = [statusMeta, writeMeta].filter(Boolean)
+  const riskLevel = toolCall.risk_level
+  const showRiskBadge = riskLevel === 'action' || riskLevel === 'unknown'
 
   return (
     <Collapsible
@@ -70,9 +70,19 @@ export function ToolCallCard({ toolCall, embedded = false }: ToolCallCardProps) 
         <span className="min-w-0 flex-1 truncate text-xs font-medium">
           {label}
         </span>
-        {metaParts.length > 0 ? (
-          <span className="shrink-0 text-[11px] text-muted-foreground">
-            {metaParts.join(' · ')}
+        {metaParts.length > 0 || showRiskBadge ? (
+          <span className="flex shrink-0 items-center gap-1.5">
+            {metaParts.length > 0 ? (
+              <span className="text-[11px] text-muted-foreground">
+                {metaParts.join(' · ')}
+              </span>
+            ) : null}
+            {showRiskBadge ? (
+              <McpToolRiskBadge
+                risk={riskLevel as McpRiskLevel}
+                className="text-[10px]"
+              />
+            ) : null}
           </span>
         ) : null}
       </CollapsibleTrigger>

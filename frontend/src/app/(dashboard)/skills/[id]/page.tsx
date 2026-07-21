@@ -19,6 +19,8 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { FormDialogShell } from '@/components/common/FormDialogShell'
+import { RenameFieldDialog } from '@/components/common/RenameFieldDialog'
+import { PageError } from '@/components/common/PageError'
 import { DetailPageSkeleton } from '@/components/common/LoadingSkeletons'
 import { SkillFileTree } from '../components/SkillFileTree'
 import { SkillEditorPanel } from '../components/SkillEditorPanel'
@@ -241,12 +243,18 @@ export default function SkillDetailPage() {
 
   if (!skill) {
     return (
-              <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6">
-          <p className="text-muted-foreground">{t('skills.notFound')}</p>
-          <Button asChild variant="outline">
-            <Link href="/skills">{t('skills.backToList')}</Link>
-          </Button>
-        </div>
+      <div className="flex flex-1 flex-col items-center justify-center p-6">
+        <PageError
+          title={t('skills.notFound')}
+          tone="muted"
+          centered
+          action={
+            <Button asChild variant="outline">
+              <Link href="/skills">{t('skills.backToList')}</Link>
+            </Button>
+          }
+        />
+      </div>
     )
   }
 
@@ -451,7 +459,7 @@ export default function SkillDetailPage() {
         </div>
       </FormDialogShell>
 
-      <FormDialogShell
+      <RenameFieldDialog
         open={!!renameFrom}
         onOpenChange={(open) => {
           if (!open) setRenameFrom(null)
@@ -459,22 +467,17 @@ export default function SkillDetailPage() {
         title={t('skills.renameFile')}
         description={t('skills.renameFileDesc')}
         submitLabel={t('skills.renameFile')}
+        label={t('skills.filePath')}
+        value={renameTo}
+        onChange={setRenameTo}
         isSubmitting={moveFile.isPending}
-        disableSubmit={!renameTo.trim()}
+        inputId={renameFileId}
+        fieldClassName="space-y-2"
         onSubmit={(event) => {
           event.preventDefault()
           void handleRenameFile()
         }}
-      >
-        <div className="space-y-2">
-          <Label htmlFor={renameFileId}>{t('skills.filePath')}</Label>
-          <Input
-            id={renameFileId}
-            value={renameTo}
-            onChange={(e) => setRenameTo(e.target.value)}
-          />
-        </div>
-      </FormDialogShell>
+      />
 
       <ConfirmDialog
         open={showUnsavedDialog}

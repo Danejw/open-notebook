@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { FormDialogShell } from '@/components/common/FormDialogShell'
 import { DetailPageSkeleton, ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
+import { PageError } from '@/components/common/PageError'
 import { McpAuthFields } from '@/components/mcp/McpAuthFields'
 import { McpToolRiskBadge } from '@/components/mcp/McpToolRiskBadge'
 import {
@@ -109,12 +110,18 @@ export default function ToolConnectionDetailPage() {
 
   if (!connection) {
     return (
-              <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6">
-          <p className="text-muted-foreground">{t('tools.notFound')}</p>
-          <Button asChild variant="outline">
-            <Link href="/tools">{t('tools.backToList')}</Link>
-          </Button>
-        </div>
+      <div className="flex flex-1 flex-col items-center justify-center p-6">
+        <PageError
+          title={t('tools.notFound')}
+          tone="muted"
+          centered
+          action={
+            <Button asChild variant="outline">
+              <Link href="/tools">{t('tools.backToList')}</Link>
+            </Button>
+          }
+        />
+      </div>
     )
   }
 

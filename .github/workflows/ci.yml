@@ -63,6 +63,11 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Run project memory tests
+        env:
+          CONSTRUCTION_OS_PASSWORD: ''
+        run: python -m pytest -q tests/test_project_memory.py
+
       - name: Detect Opportunity Hub tests
         id: opportunity-hub
         run: |

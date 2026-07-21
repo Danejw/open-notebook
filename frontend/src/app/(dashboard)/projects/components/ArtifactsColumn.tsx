@@ -12,6 +12,7 @@ import { ArtifactEditorDialog } from './ArtifactEditorDialog'
 import { ArtifactTemplatePhases } from './ArtifactTemplatePhases'
 import { ArtifactListRow } from './ArtifactListRow'
 import { ArtifactViewerDialog } from './ArtifactViewerDialog'
+import { ProjectMemorySection } from './ProjectMemorySection'
 import type { NoteContextMode } from '@/lib/types/project-context'
 import {
   useDeleteProjectArtifact,
@@ -377,6 +378,8 @@ export function ArtifactsColumn({
                 </div>
               )}
             </div>
+
+            <ProjectMemorySection projectId={projectId} />
           </CardContent>
         </Card>
       </CollapsibleColumn>

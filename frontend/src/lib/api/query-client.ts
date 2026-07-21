@@ -22,6 +22,7 @@ export const QUERY_KEYS = {
   artifactDefaultPrompt: ['artifacts', 'default-prompt'] as const,
   projectArtifacts: (projectId?: string) => ['projectArtifacts', projectId] as const,
   projectArtifact: (id: string) => ['projectArtifacts', id] as const,
+  projectMemory: (projectId: string) => ['projectMemory', projectId] as const,
   /** @deprecated Use projectArtifacts */
   notes: (projectId?: string) => ['projectArtifacts', projectId] as const,
   /** @deprecated Use projectArtifact */

@@ -1,5 +1,6 @@
 'use client'
 
+import { EmptyState } from '@/components/common/EmptyState'
 import { MarkdownEditor } from '@/components/ui/markdown-editor'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -30,9 +31,11 @@ export function SkillEditorPanel({
 
   if (!path) {
     return (
-      <div className="flex h-full min-h-[320px] items-center justify-center rounded-md border border-dashed p-8 text-sm text-muted-foreground">
-        {t('skills.selectFile')}
-      </div>
+      <EmptyState
+        variant="subtle"
+        title={t('skills.selectFile')}
+        className="flex h-full min-h-[320px] items-center justify-center rounded-md border border-dashed p-8"
+      />
     )
   }
 

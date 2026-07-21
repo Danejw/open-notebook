@@ -22,6 +22,7 @@ import {
 
 import { useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 
+import { EmptyState } from '@/components/common/EmptyState'
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
 import { FormDialogShell, formDialogFormClassName } from '@/components/common/FormDialogShell'
 import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
@@ -1273,47 +1274,50 @@ export default function OpportunitiesPage() {
               />
             ))
           ) : (
-            <div className="flex min-h-[280px] flex-col items-center justify-center px-6 text-center">
-              <Inbox className="size-9 text-muted-foreground/50" />
-              <h3 className="mt-3 text-sm font-semibold">
-                {filtersActive ? 'No opportunities match these filters' : 'The inbox is ready'}
-              </h3>
-              <p className="mt-1 max-w-md text-xs leading-relaxed text-muted-foreground">
-                {filtersActive
+            <EmptyState
+              icon={Inbox}
+              title={
+                filtersActive ? 'No opportunities match these filters' : 'The inbox is ready'
+              }
+              description={
+                filtersActive
                   ? 'Clear a filter or broaden the search.'
-                  : 'Sync recent federal Hawaii notices, or paste a SAM.gov opportunity link to add one by hand.'}
-              </p>
-              {!filtersActive ? (
-                <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={syncSamGov.isPending}
-                    onClick={runSamGovSync}
-                  >
-                    <RefreshCw
-                      className={cn(
-                        'mr-1.5 size-3.5',
-                        syncSamGov.isPending && 'animate-spin'
-                      )}
-                    />
-                    {syncSamGov.isPending ? 'Syncing SAM.gov…' : 'Sync SAM.gov'}
+                  : 'Sync recent federal Hawaii notices, or paste a SAM.gov opportunity link to add one by hand.'
+              }
+              className="flex min-h-[280px] flex-col items-center justify-center px-6"
+              action={
+                !filtersActive ? (
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={syncSamGov.isPending}
+                      onClick={runSamGovSync}
+                    >
+                      <RefreshCw
+                        className={cn(
+                          'mr-1.5 size-3.5',
+                          syncSamGov.isPending && 'animate-spin'
+                        )}
+                      />
+                      {syncSamGov.isPending ? 'Syncing SAM.gov…' : 'Sync SAM.gov'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setImportUrlOpen(true)}
+                    >
+                      <Link2 className="mr-1.5 size-3.5" />
+                      Add SAM.gov link
+                    </Button>
+                  </div>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={clearFilters}>
+                    Clear filters
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setImportUrlOpen(true)}
-                  >
-                    <Link2 className="mr-1.5 size-3.5" />
-                    Add SAM.gov link
-                  </Button>
-                </div>
-              ) : (
-                <Button size="sm" variant="outline" className="mt-3" onClick={clearFilters}>
-                  Clear filters
-                </Button>
-              )}
-            </div>
+                )
+              }
+            />
           )}
         </div>
       </ScrollArea>

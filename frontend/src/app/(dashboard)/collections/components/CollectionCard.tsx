@@ -1,39 +1,32 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { Archive, Library } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Collection } from '@/lib/types/collections'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { useSelectableRow } from '@/lib/hooks/useSelectableRow'
 import { shouldShowCollectionStatus } from './collection-status'
 import {
+  CompactListRow,
   CompactListRowContent,
   CompactListRowIcon,
   CompactListRowMeta,
   CompactListRowTitle,
   CompactListRowTitleRow,
 } from '@/components/common/CompactListRow'
-import { cn } from '@/lib/utils'
 
 interface CollectionCardProps {
   collection: Collection
+  /** When true, row is not a navigation link (bulk selection). */
   selectionMode?: boolean
-  selected?: boolean
-  onToggleSelect?: (collectionId: string) => void
-  onEnterSelection?: (collectionId: string) => void
+  onSelectToggle?: () => void
 }
 
 export function CollectionCard({
   collection,
   selectionMode = false,
-  selected = false,
-  onToggleSelect,
-  onEnterSelection,
+  onSelectToggle,
 }: CollectionCardProps) {
   const { t } = useTranslation()
-  const router = useRouter()
 
   const metaParts: string[] = []
   if (shouldShowCollectionStatus(collection.status)) {
@@ -46,38 +39,14 @@ export function CollectionCard({
     metaParts.push(new Date(collection.updated).toLocaleDateString())
   }
 
-  const { rowProps, selectedClassName } = useSelectableRow({
-    selectionMode,
-    selected,
-    onToggleSelect: () => onToggleSelect?.(collection.id),
-    onEnterSelection: onEnterSelection
-      ? () => onEnterSelection(collection.id)
-      : undefined,
-    onActivate: () => router.push(`/collections/${collection.id}`),
-    longPressDisabled: !onEnterSelection && !selectionMode,
-  })
-
   return (
-    <div
-      {...rowProps}
-      className={cn(
-        'group flex cursor-pointer items-center gap-2 px-3 py-1.5 transition-colors hover:bg-muted/40',
-        selectedClassName
-      )}
+    <CompactListRow
+      href={selectionMode ? undefined : `/collections/${collection.id}`}
+      onClick={selectionMode ? () => onSelectToggle?.() : undefined}
     >
-      {selectionMode ? (
-        <Checkbox
-          checked={selected}
-          onCheckedChange={() => onToggleSelect?.(collection.id)}
-          onClick={(e) => e.stopPropagation()}
-          className="shrink-0"
-          aria-label={collection.name}
-        />
-      ) : (
-        <CompactListRowIcon>
-          <Library aria-hidden />
-        </CompactListRowIcon>
-      )}
+      <CompactListRowIcon>
+        <Library aria-hidden />
+      </CompactListRowIcon>
       <CompactListRowContent>
         <CompactListRowTitleRow className="gap-2">
           <CompactListRowTitle>{collection.name}</CompactListRowTitle>
@@ -98,6 +67,6 @@ export function CollectionCard({
           {metaParts.join(' · ')}
         </CompactListRowMeta>
       </CompactListRowContent>
-    </div>
+    </CompactListRow>
   )
 }

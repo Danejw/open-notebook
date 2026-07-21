@@ -211,6 +211,12 @@ class AsyncMigrationManager:
             AsyncMigration.from_file(
                 "construction_os/database/migrations/45.surrealql"
             ),
+            AsyncMigration.from_file(
+                "construction_os/database/migrations/46.surrealql"
+            ),
+            AsyncMigration.from_file(
+                "construction_os/database/migrations/47.surrealql"
+            ),
         ]
         self.down_migrations = [
             AsyncMigration.from_file(
@@ -347,6 +353,12 @@ class AsyncMigrationManager:
             ),
             AsyncMigration.from_file(
                 "construction_os/database/migrations/45_down.surrealql"
+            ),
+            AsyncMigration.from_file(
+                "construction_os/database/migrations/46_down.surrealql"
+            ),
+            AsyncMigration.from_file(
+                "construction_os/database/migrations/47_down.surrealql"
             ),
         ]
         self.runner = AsyncMigrationRunner(

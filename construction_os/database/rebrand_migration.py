@@ -133,6 +133,25 @@ async def _remove_table_if_exists(table_name: str) -> None:
         logger.debug(f"Could not remove table {table_name}: {exc}")
 
 
+async def _is_legacy_artifact_relation_table() -> bool:
+    """True when `artifact` is still the note→notebook relation, not templates."""
+    if not await _table_exists("artifact"):
+        return False
+    try:
+        info = await repo_query("INFO FOR TABLE artifact")
+    except Exception:
+        return False
+    fields = info.get("fields", {}) if isinstance(info, dict) else {}
+    # Relation tables expose in/out; template table defines prompt (and never in/out).
+    return "in" in fields and "out" in fields and "prompt" not in fields
+
+
+async def _remove_legacy_artifact_relation_table() -> None:
+    """Drop legacy relation `artifact` only — never wipe template records."""
+    if await _is_legacy_artifact_relation_table():
+        await _remove_table_if_exists("artifact")
+
+
 async def _collect_orphan_notebook_ids() -> set[str]:
     orphan_ids: set[str] = set()
 
@@ -244,7 +263,7 @@ async def migrate_notebook_to_project() -> None:
 
     if not notebooks and not orphan_notebook_ids:
         logger.debug("No notebook records or legacy notebook references found; skipping migration")
-        await _remove_table_if_exists("artifact")
+        await _remove_legacy_artifact_relation_table()
         await _remove_table_if_exists("notebook")
         return
 
@@ -308,7 +327,7 @@ async def migrate_notebook_to_project() -> None:
         """
     )
 
-    if await _table_exists("artifact"):
+    if await _is_legacy_artifact_relation_table():
         artifact_edges = await repo_query("SELECT in, out FROM artifact")
         for edge in artifact_edges:
             note_id = str(edge["in"])
@@ -329,21 +348,28 @@ async def migrate_notebook_to_project() -> None:
     await _retarget_notebook_relations(id_map)
     await _rewrite_json_metadata_notebook_ids(id_map)
 
-    await _remove_table_if_exists("artifact")
+    await _remove_legacy_artifact_relation_table()
     await _remove_table_if_exists("notebook")
 
     logger.info(f"notebook → project migration complete ({len(id_map)} projects)")
 
 
 async def _ensure_artifact_schema() -> None:
+    # Never DEFINE TABLE OVERWRITE here — that wipes fields added by later
+    # migrations (lifecycle_phase, chat defaults) on every API startup.
     await repo_query(
         """
-        DEFINE TABLE OVERWRITE artifact SCHEMAFULL;
+        DEFINE TABLE IF NOT EXISTS artifact SCHEMAFULL;
         DEFINE FIELD IF NOT EXISTS name ON TABLE artifact TYPE string;
         DEFINE FIELD IF NOT EXISTS title ON TABLE artifact TYPE string;
         DEFINE FIELD IF NOT EXISTS description ON TABLE artifact TYPE string;
         DEFINE FIELD IF NOT EXISTS prompt ON TABLE artifact TYPE string;
         DEFINE FIELD IF NOT EXISTS apply_default ON TABLE artifact TYPE bool DEFAULT False;
+        DEFINE FIELD IF NOT EXISTS lifecycle_phase ON TABLE artifact TYPE option<string>;
+        DEFINE FIELD IF NOT EXISTS skill_ids ON TABLE artifact TYPE option<array<string>>;
+        DEFINE FIELD IF NOT EXISTS collection_ids ON TABLE artifact TYPE option<array<string>>;
+        DEFINE FIELD IF NOT EXISTS mcp_tool_ids ON TABLE artifact TYPE option<array<string>>;
+        DEFINE FIELD IF NOT EXISTS html_template_id ON TABLE artifact TYPE option<string>;
         DEFINE FIELD IF NOT EXISTS created ON artifact DEFAULT time::now() VALUE $before OR time::now();
         DEFINE FIELD IF NOT EXISTS updated ON artifact DEFAULT time::now() VALUE time::now();
         """

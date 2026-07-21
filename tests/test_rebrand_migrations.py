@@ -88,6 +88,29 @@ class TestConstructionArtifactSeeds:
                 template["name"] == name for template in CONSTRUCTION_ARTIFACT_TEMPLATES
             )
 
+    def test_ensure_artifact_schema_preserves_chat_defaults(self):
+        """Rebrand schema ensure must not wipe chat-default fields on SCHEMAFULL artifact."""
+        source = inspect.getsource(rebrand_migration._ensure_artifact_schema)
+        assert "DEFINE TABLE OVERWRITE artifact" not in source
+        assert "DEFINE TABLE IF NOT EXISTS artifact" in source
+        for field in (
+            "lifecycle_phase",
+            "skill_ids",
+            "collection_ids",
+            "mcp_tool_ids",
+            "html_template_id",
+        ):
+            assert field in source, f"missing DEFINE FIELD for {field}"
+
+    def test_notebook_migration_does_not_drop_artifact_templates(self):
+        """Skip/cleanup paths must not REMOVE the post-rebrand artifact template table."""
+        source = inspect.getsource(rebrand_migration.migrate_notebook_to_project)
+        assert "_remove_legacy_artifact_relation_table" in source
+        assert '_remove_table_if_exists("artifact")' not in source
+        helper = inspect.getsource(rebrand_migration._is_legacy_artifact_relation_table)
+        assert "prompt" in helper
+        assert '"in"' in helper or "'in'" in helper
+
 
 class TestRewriteNotebookIds:
     def test_rewrites_notebook_id_strings(self):

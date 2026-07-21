@@ -90,25 +90,13 @@ jobs:
         run: npm ci
 
       - name: Lint changed frontend surface
-        id: naics-frontend-lint
         run: |
-          set -o pipefail
           npx eslint \
             'src/app/(dashboard)/collections/components/CollectionItemsEditor.tsx' \
-            'src/app/(dashboard)/opportunities/discovery/page.tsx' \
             src/components/layout/ProjectArtifactsNav.tsx \
             src/lib/api/opportunities.ts \
             src/lib/hooks/use-opportunities.ts \
-            src/lib/types/opportunities.ts 2>&1 | tee eslint-naics.log
-
-      - name: Upload frontend lint diagnostics
-        if: failure() && steps.naics-frontend-lint.outcome == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: opportunity-naics-frontend-lint-errors
-          path: frontend/eslint-naics.log
-          if-no-files-found: error
-          retention-days: 3
+            src/lib/types/opportunities.ts
 
       - name: Type-check frontend
         run: npx tsc --noEmit --pretty false

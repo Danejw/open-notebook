@@ -1,0 +1,55 @@
+---
+description: Never delete SurrealDB or other persisted app data without explicit user approval; prefer UI-initiated deletes only
+alwaysApply: true
+---
+
+# Never Delete Database Data Without Approval
+
+**Hard rule:** Do not delete, wipe, truncate, drop, or unlink persisted application data unless the user has explicitly approved that specific deletion after you explain what will be removed and the impact.
+
+This applies especially during development. Accidental deletes (e.g. removing a project) unlink sources, artifacts, chat, and other relationships and cause serious breakage.
+
+## Scope
+
+Treat as protected data:
+
+- **SurrealDB** records and relationships (projects, sources, notes/artifacts, chat sessions, credentials, edges, embeddings, etc.)
+- Local persistence used by the app (e.g. SQLite checkpoints under `data/`, uploaded files tied to records)
+- Any API/script/REPL call that permanently removes or orphans that data
+
+## Allowed without asking
+
+- Delete **code**, docs, caches, build artifacts, `__pycache__`, `.next`, test fixtures that are not live DB records
+- Soft-fail or skip a destructive step and ask instead of proceeding
+- Implement or fix **delete UI / API endpoints** in code — but do **not** invoke them against live data yourself
+
+## Forbidden without prior approval
+
+- `DELETE` / `REMOVE` / `DROP` / truncate / wipe via SurrealQL, HTTP API, Python scripts, `curl`, or DB clients
+- Calling app delete endpoints (e.g. delete project/source) against the running API
+- “Cleanup,” “reset,” “start fresh,” or “fix by recreating” that removes existing records
+- Cascading or bulk deletes, even if the user asked to “fix” or “redo” something
+- Deleting related records to “unlink” or “re-link” without approval of each destructive step
+
+## Required approval flow
+
+Before any destructive data operation:
+
+1. **Stop** — do not run the delete
+2. **Explain** — what records/relationships will be removed, and likely side effects (orphaned links, broken UI, lost chat/history)
+3. **Ask** — wait for explicit approval of that deletion
+4. **Proceed only** after a clear yes for that specific action
+
+User-initiated deletes through the **application UI** are the preferred path. As the development agent, you must not perform those deletes yourself without approval.
+
+## Do
+
+- Prefer update/create/relink over delete when fixing issues
+- If a flow seems to require a delete, propose the safer alternative first
+- If you already deleted something by mistake, say so immediately and help recover if possible
+
+## Do not
+
+- Assume “development data” is disposable
+- Treat “clean up” or “reset the project” as permission to wipe the DB
+- Soften this rule for local/dev SurrealDB — same approval requirement

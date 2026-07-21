@@ -124,7 +124,18 @@ class ProjectArtifact(ObjectModel):
     async def add_to_project(self, project_id: str) -> Any:
         if not project_id:
             raise InvalidInputError("Project ID must be provided")
-        return await self.relate("project_note", project_id)
+        relation = await self.relate("project_note", project_id)
+        if self.id:
+            from construction_os.services.project_memory import (
+                schedule_project_memory_consolidation,
+            )
+
+            schedule_project_memory_consolidation(
+                project_id=project_id,
+                reason="project_artifact_saved",
+                evidence_ids=[str(self.id)],
+            )
+        return relation
 
     def get_context(
         self, context_size: Literal["short", "long"] = "short"

@@ -114,7 +114,6 @@ interface TestConnectionResult { provider: string; success: boolean; message: st
 | `getStatus()` | Get configuration status of all providers | `GET /credentials/status` |
 | `getEnvStatus()` | Get which providers have env vars set | `GET /credentials/env-status` |
 | `list(provider?)` | List all credentials (optional filter) | `GET /credentials` |
-| `listByProvider(provider)` | List credentials for a provider | `GET /credentials/by-provider/{provider}` |
 | `get(credentialId)` | Get a specific credential | `GET /credentials/{credentialId}` |
 | `create(data)` | Create a new credential | `POST /credentials` |
 | `update(credentialId, data)` | Update a credential | `PUT /credentials/{credentialId}` |
@@ -122,7 +121,6 @@ interface TestConnectionResult { provider: string; success: boolean; message: st
 | `test(credentialId)` | Test connection using credential | `POST /credentials/{credentialId}/test` |
 | `discover(credentialId)` | Discover available models | `POST /credentials/{credentialId}/discover` |
 | `registerModels(credentialId, data)` | Register discovered models | `POST /credentials/{credentialId}/register-models` |
-| `migrateFromProviderConfig()` | Migrate from legacy ProviderConfig | `POST /credentials/migrate-from-provider-config` |
 | `migrateFromEnv()` | Migrate from env vars | `POST /credentials/migrate-from-env` |
 
 ### Usage Example

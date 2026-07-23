@@ -196,10 +196,9 @@ jobs:
         run: python -m ruff check . --select F401
 
   frontend-knip:
-    name: Frontend knip (warn-only)
+    name: Frontend knip (unused files)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    continue-on-error: true
 
     defaults:
       run:
@@ -219,5 +218,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Run knip
-        run: npm run knip
+      # Unused-export noise (shadcn barrels, internal helpers) stays warn-only via local `npm run knip`.
+      # Blocking gate covers orphan files only — currently stable at 0.
+      - name: Check for unused files
+        run: npx knip --include files --no-progress

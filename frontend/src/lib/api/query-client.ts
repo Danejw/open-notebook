@@ -23,10 +23,6 @@ export const QUERY_KEYS = {
   projectArtifacts: (projectId?: string) => ['projectArtifacts', projectId] as const,
   projectArtifact: (id: string) => ['projectArtifacts', id] as const,
   projectMemory: (projectId: string) => ['projectMemory', projectId] as const,
-  /** @deprecated Use projectArtifacts */
-  notes: (projectId?: string) => ['projectArtifacts', projectId] as const,
-  /** @deprecated Use projectArtifact */
-  note: (id: string) => ['projectArtifacts', id] as const,
   sources: (projectId?: string) => ['sources', projectId] as const,
   sourcesInfinite: (projectId: string) => ['sources', 'infinite', projectId] as const,
   sourcesAllInfinite: (sortBy: string, sortOrder: string) =>

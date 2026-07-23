@@ -1,6 +1,5 @@
 'use client'
 
-import dynamic from 'next/dynamic'
 import {
   useCallback,
   useEffect,
@@ -12,13 +11,10 @@ import {
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { GraphControlsHelp } from '@/components/knowledge-graph/GraphControlsHelp'
-import { GraphDetailsPanel } from '@/components/knowledge-graph/GraphDetailsPanel'
-import { GraphSourcePanel } from '@/components/knowledge-graph/GraphSourcePanel'
 import { GraphToolbar } from '@/components/knowledge-graph/GraphToolbar'
+import { KnowledgeGraphCanvasArea } from '@/components/knowledge-graph/KnowledgeGraphCanvasArea'
 import {
   knowledgeGraphApi,
-  type GraphEdgeDTO,
   type GraphSliceDTO,
 } from '@/lib/api/knowledge-graph'
 import {
@@ -44,21 +40,6 @@ import { useTranslation } from '@/lib/hooks/use-translation'
 import { useGraphLiveStore } from '@/lib/stores/graph-live-store'
 import { useKnowledgeGraphStore } from '@/lib/stores/knowledge-graph-store'
 import { cn } from '@/lib/utils'
-
-const GraphCanvas = dynamic(
-  () =>
-    import('@/components/knowledge-graph/GraphCanvas').then((m) => ({
-      default: m.GraphCanvas,
-    })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex h-full items-center justify-center text-[11px] text-muted-foreground">
-        Loading graph…
-      </div>
-    ),
-  }
-)
 
 interface KnowledgeGraphViewProps {
   projectId: string
@@ -368,86 +349,51 @@ export function KnowledgeGraphView({
   )
 
   const canvasArea = (
-    <div className="relative min-h-0 flex-1 overflow-hidden">
-      <div className="absolute inset-0">
-        {isEmpty ? (
-          <div className="flex h-full items-center justify-center p-0.5 text-center text-[11px] text-muted-foreground">
-            {t('knowledge.graphEmpty')}
-          </div>
-        ) : (
-          <GraphCanvas
-            embedded={embedded}
-            cameraCommand={cameraCommand}
-            graph={graphRef.current}
-            graphRevision={graphRevision}
-            selectedNodeId={selectedNodeId}
-            highlightedNodeIds={highlightIds}
-            focusNodeId={focusNodeId}
-            runLayout={runLayout}
-            showLabels={showLabels}
-            nodeSizeScale={nodeSizeScale}
-            edgeOpacity={edgeOpacity}
-            onNodeClick={handleNodeClick}
-            onEdgeClick={(edgeId) => {
-              setSelectedEdgeId(edgeId)
-              setSelectedNodeId(null)
-            }}
-            onStageClick={clearSelection}
-            onLayoutSettled={handleLayoutSettled}
-          />
-        )}
-      </div>
-
-      {toolbar}
-
-      {viewMode === 'queryTrace' && queryRunQuery.data?.run ? (
-        <div className="pointer-events-none absolute inset-x-0 top-9 z-20 flex justify-center p-0.5">
-          <div className="max-w-[90%] truncate rounded-md border border-cyan-200/60 bg-cyan-50/90 px-1.5 py-0.5 text-[11px] text-cyan-900 shadow-sm backdrop-blur-sm dark:border-cyan-800/60 dark:bg-cyan-950/90 dark:text-cyan-100">
-            {t('knowledge.graphQueryTrace').replace(
+    <KnowledgeGraphCanvasArea
+      embedded={embedded}
+      isEmpty={isEmpty}
+      toolbar={toolbar}
+      cameraCommand={cameraCommand}
+      graph={graphRef.current}
+      graphRevision={graphRevision}
+      selectedNodeId={selectedNodeId}
+      highlightedNodeIds={highlightIds}
+      focusNodeId={focusNodeId}
+      runLayout={runLayout}
+      showLabels={showLabels}
+      nodeSizeScale={nodeSizeScale}
+      edgeOpacity={edgeOpacity}
+      onNodeClick={handleNodeClick}
+      onEdgeClick={(edgeId) => {
+        setSelectedEdgeId(edgeId)
+        setSelectedNodeId(null)
+      }}
+      onStageClick={clearSelection}
+      onLayoutSettled={handleLayoutSettled}
+      queryTraceLabel={
+        viewMode === 'queryTrace' && queryRunQuery.data?.run
+          ? t('knowledge.graphQueryTrace').replace(
               '{query}',
               queryRunQuery.data.run.query
-            )}
-          </div>
-        </div>
-      ) : null}
-
-      {/* Full-page sources drawer overlay (hidden in embedded) */}
-      {!embedded && sourcesOpen ? (
-        <div className="pointer-events-none absolute bottom-0 left-0 top-9 z-20 p-0.5">
-          <div className="pointer-events-auto h-[calc(100%-0.25rem)]">
-            <GraphSourcePanel
-              sources={sources}
-              selectedSourceId={highlightedSourceId}
-              onSelect={setHighlightedSourceId}
-              onClose={() => setSourcesOpen(false)}
-            />
-          </div>
-        </div>
-      ) : null}
-
-      {/* Selection detail overlay — only when something is selected */}
-      {hasSelection || (nodeDetail.isLoading && !!selectedNodeId) ? (
-        <div className="pointer-events-none absolute bottom-0 right-0 z-20 p-0.5">
-          <div className="pointer-events-auto">
-            <GraphDetailsPanel
-              compact
-              detail={nodeDetail.data}
-              loading={nodeDetail.isLoading && !!selectedNodeId}
-              edgeSummary={selectedEdge ? edgeToSummary(selectedEdge) : null}
-              onClose={clearSelection}
-              onOpenSource={openSource}
-              onSelectNeighbor={(id) => {
-                setSelectedNodeId(id)
-                setFocusNodeId(id)
-              }}
-            />
-          </div>
-        </div>
-      ) : null}
-
-      {/* Gesture help — bottom-left HUD; collapsed by default */}
-      <GraphControlsHelp />
-    </div>
+            )
+          : null
+      }
+      sourcesOpen={sourcesOpen}
+      onCloseSources={() => setSourcesOpen(false)}
+      sources={sources}
+      highlightedSourceId={highlightedSourceId}
+      onSelectSource={setHighlightedSourceId}
+      hasSelection={hasSelection}
+      nodeDetailLoading={nodeDetail.isLoading}
+      nodeDetail={nodeDetail.data}
+      selectedEdge={selectedEdge}
+      onCloseSelection={clearSelection}
+      onOpenSource={openSource}
+      onSelectNeighbor={(id) => {
+        setSelectedNodeId(id)
+        setFocusNodeId(id)
+      }}
+    />
   )
 
   return (
@@ -460,15 +406,4 @@ export function KnowledgeGraphView({
       {canvasArea}
     </div>
   )
-}
-
-function edgeToSummary(edge: GraphEdgeDTO) {
-  return {
-    id: edge.id,
-    relation: edge.relation,
-    source: edge.source,
-    target: edge.target,
-    evidenceCount: edge.evidence_count,
-    confidence: edge.confidence,
-  }
 }

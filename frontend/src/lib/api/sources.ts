@@ -82,21 +82,6 @@ export const sourcesApi = {
     return response.data
   },
 
-  upload: async (file: File, project_id: string) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('project_id', project_id)
-    formData.append('type', 'upload')
-    formData.append('async_processing', 'true')
-    
-    const response = await apiClient.post<SourceResponse>('/sources', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    })
-    return response.data
-  },
-
   retry: async (id: string) => {
     const response = await apiClient.post<SourceResponse>(`/sources/${id}/retry`)
     return response.data

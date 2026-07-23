@@ -97,31 +97,12 @@ export const drawingExtractionApi = {
     return data
   },
 
-  deactivateRun: async (runId: string) => {
-    const { data } = await apiClient.post<{ run: DrawingExtractionRun }>(
-      `/drawing-extractions/runs/${encodeURIComponent(runId)}/deactivate`
-    )
-    return data
-  },
-
   retryRun: async (runId: string, force = true) => {
     const { data } = await apiClient.post<{ jobs: DrawingExtractionJob[] }>(
       `/drawing-extractions/runs/${encodeURIComponent(runId)}/retry`,
       null,
       { params: { force } }
     )
-    return data
-  },
-
-  search: async (payload: {
-    query: string
-    project_id: string
-    limit?: number
-  }) => {
-    const { data } = await apiClient.post<{
-      mode: string
-      results: Array<Record<string, unknown>>
-    }>('/drawing-extractions/search', payload)
     return data
   },
 }

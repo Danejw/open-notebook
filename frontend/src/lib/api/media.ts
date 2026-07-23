@@ -7,16 +7,6 @@ export const mediaApi = {
     return response.data
   },
 
-  get: async (id: string) => {
-    const response = await apiClient.get<MediaAsset>(`/media/${id}`)
-    return response.data
-  },
-
-  getBySlug: async (slug: string) => {
-    const response = await apiClient.get<MediaAsset>(`/media/by-slug/${slug}`)
-    return response.data
-  },
-
   upload: async (file: File, options?: { name?: string; slug?: string }) => {
     const formData = new FormData()
     formData.append('file', file)

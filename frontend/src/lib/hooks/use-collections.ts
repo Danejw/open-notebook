@@ -165,31 +165,6 @@ export function useArchiveCollection() {
   })
 }
 
-export function useDuplicateCollection() {
-  const queryClient = useQueryClient()
-  const { toast } = useToast()
-  const { t } = useTranslation()
-
-  return useMutation({
-    mutationFn: (id: string) => collectionsApi.duplicate(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.collections })
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.collectionsCatalog })
-      toast({
-        title: t('common.success'),
-        description: t('collections.duplicateSuccess'),
-      })
-    },
-    onError: (error: unknown) => {
-      toast({
-        title: t('common.error'),
-        description: getApiErrorMessage(error, (key) => t(key)),
-        variant: 'destructive',
-      })
-    },
-  })
-}
-
 export function useValidateCollection() {
   const queryClient = useQueryClient()
   const { toast } = useToast()

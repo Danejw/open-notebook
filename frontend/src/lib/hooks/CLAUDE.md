@@ -8,7 +8,7 @@ React hooks for API data fetching, state management, and complex workflows (chat
 - **Mutation hooks** (`useCreateSource`, `useDeleteSource`, `useRetrySource`): Server mutations with toast notifications and cache invalidation
 - **Chat hooks** (`useProjectChat`): Complex session management, context building, and message streaming
 - **Model/config hooks** (`useModels`, `useSettings`, `useArtifacts`): Application-level settings and model management
-- **Utility hooks** (`useMediaQuery`, `useToast`, `useNavigation`, `useAuth`): UI state and auth checking
+- **Utility hooks** (`useIsMobile`, `useToast`, `useNavigation`, `useAuth`): UI state and auth checking
 - **i18n hook** (`useTranslation`): Thin wrapper around react-i18next with `t('section.key')` pattern and language switching
 
 ## Important Patterns
@@ -88,20 +88,19 @@ export const CREDENTIAL_QUERY_KEYS = {
 | `useCredentialStatus()` | Get configuration status of all providers | `{ configured, source, encryption_configured }` |
 | `useEnvStatus()` | Get which providers have env vars set | `{ [provider]: boolean }` |
 | `useCredentials(provider?)` | List all credentials (optional filter) | `Credential[]` |
-| `useCredentialsByProvider(provider)` | List credentials for a specific provider | `Credential[]` |
 | `useCredential(credentialId)` | Get a specific credential | `Credential` |
 
 ### Mutation Hooks
 
 | Hook | Description | Cache Invalidation |
 |------|-------------|-------------------|
-| `useCreateCredential()` | Create new credential | `all`, `providers` |
-| `useUpdateCredential()` | Update credential | `all`, `providers` |
-| `useDeleteCredential()` | Delete credential | `all`, `models`, `providers` |
+| `useCreateCredential()` | Create new credential | `all` |
+| `useUpdateCredential()` | Update credential | `all` |
+| `useDeleteCredential()` | Delete credential | `all`, `models` |
 | `useTestCredential()` | Test credential connection | None (stores result locally) |
 | `useDiscoverModels()` | Discover models for credential | None |
 | `useRegisterModels()` | Register discovered models | `models`, `all` |
-| `useMigrateFromEnv()` | Migrate from env vars | `status`, `envStatus`, `models`, `providers` |
+| `useMigrateFromEnv()` | Migrate from env vars | `status`, `envStatus`, `models` |
 
 ### useTestCredential Details
 
@@ -121,7 +120,6 @@ const {
 
 All mutation hooks invalidate:
 - `CREDENTIAL_QUERY_KEYS.all` — refreshes all credential queries (cascades to filtered queries)
-- `MODEL_QUERY_KEYS.providers` — refreshes provider list
 
 Delete hook additionally invalidates:
 - `MODEL_QUERY_KEYS.models` — refreshes full model list (linked models may be deleted)
@@ -129,6 +127,7 @@ Delete hook additionally invalidates:
 Migration hooks additionally invalidate:
 - `CREDENTIAL_QUERY_KEYS.status` — refreshes configured/source info
 - `CREDENTIAL_QUERY_KEYS.envStatus` — refreshes env var status
+- `MODEL_QUERY_KEYS.models` — refreshes full model list
 
 ### Usage Example
 

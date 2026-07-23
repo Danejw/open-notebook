@@ -1,12 +1,12 @@
 'use client'
 
-import { Suspense, useState, useEffect, useMemo, useCallback, useRef, type PointerEvent as ReactPointerEvent } from 'react'
+import { Suspense, useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
-import { useDefaultLayout, usePanelRef } from 'react-resizable-panels'
-import { ProjectHeader } from '../components/ProjectHeader'
-import { SourcesColumn } from '../components/SourcesColumn'
-import { ArtifactsColumn } from '../components/ArtifactsColumn'
-import { ChatColumn } from '../components/ChatColumn'
+import { ProjectHeader } from '@/app/(dashboard)/projects/components/ProjectHeader'
+import { ProjectDesktopLayout } from '@/app/(dashboard)/projects/[id]/components/ProjectDesktopLayout'
+import { ProjectMobileLayout } from '@/app/(dashboard)/projects/[id]/components/ProjectMobileLayout'
+import { useProjectColumnPanels } from '@/app/(dashboard)/projects/[id]/hooks/useProjectColumnPanels'
+import { useProjectChatContext } from '@/app/(dashboard)/projects/[id]/hooks/useProjectChatContext'
 import { DashboardContentSkeleton } from '@/components/layout/DashboardContentSkeleton'
 import { PageError } from '@/components/common/PageError'
 import { useProject } from '@/lib/hooks/use-projects'
@@ -14,41 +14,14 @@ import { useProjectSources } from '@/lib/hooks/use-sources'
 import { useProjectArtifacts } from '@/lib/hooks/use-project-artifacts'
 import { isGeneratedArtifact } from '@/lib/utils/project-artifact-kind'
 import { useArtifacts } from '@/lib/hooks/use-artifacts'
-import { useProjectColumnsStore } from '@/lib/stores/project-columns-store'
 import { useProjectActivityStore } from '@/lib/stores/project-activity-store'
 import { useIsDesktop } from '@/lib/hooks/use-media-query'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { UnreadDot } from '@/components/ui/unread-dot'
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from '@/components/ui/resizable'
-import { FileText, MessageSquare, Boxes } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   projectPageInsetClassName,
   projectPageStackGapClassName,
 } from '@/components/projects/ColumnHeader'
-import {
-  applyBulkSourceContext,
-  computeSourceSelections,
-  computeNoteSelections,
-  type SourceContextDefault,
-  type SourceBulkAction,
-  type NoteContextDefault,
-} from '@/lib/utils/source-context'
-
-// Re-exported from the shared types module for backward compatibility; several
-// components historically import these from this route file.
-import type { ContextMode, ContextSelections, NoteContextMode } from '@/lib/types/project-context'
-export type { ContextMode, ContextSelections, NoteContextMode }
-
-const PROJECT_LAYOUT_STORAGE =
-  typeof window === 'undefined'
-    ? { getItem: () => null, setItem: () => {} }
-    : localStorage
 
 export default function ProjectPage() {
   return (
@@ -79,11 +52,11 @@ function ProjectPageContent() {
   } = useProjectSources(projectId)
   const { data: notes, isLoading: notesLoading } = useProjectArtifacts(projectId)
 
-  const { sourcesCollapsed, artifactsCollapsed, chatCollapsed, setSources, setArtifacts, setChat } =
-    useProjectColumnsStore()
   const syncArtifactIds = useProjectActivityStore((state) => state.syncArtifactIds)
   const setChatViewing = useProjectActivityStore((state) => state.setChatViewing)
-  const setArtifactsViewing = useProjectActivityStore((state) => state.setArtifactsViewing)
+  const setArtifactsViewing = useProjectActivityStore(
+    (state) => state.setArtifactsViewing
+  )
   const hasUnseenArtifacts = useProjectActivityStore((state) =>
     Boolean(state.unseenArtifactIdsByProject[projectId]?.length)
   )
@@ -91,113 +64,18 @@ function ProjectPageContent() {
     Boolean(state.chatUnreadByProject[projectId])
   )
 
-  // Detect desktop to avoid double-mounting ChatColumn on desktop+mobile simultaneously
   const isDesktop = useIsDesktop()
+  const panels = useProjectColumnPanels(isDesktop)
+  const {
+    contextSelections,
+    handleSourceContextModeChange,
+    handleNoteContextModeChange,
+    handleBulkSourceContext,
+  } = useProjectChatContext(sources, notes)
 
-  // Persist column widths across reloads (desktop only)
-  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
-    id: 'project-detail-columns',
-    panelIds: ['sources', 'notes', 'chat'],
-    storage: PROJECT_LAYOUT_STORAGE,
-    onlySaveAfterUserInteractions: true,
-  })
-
-  const sourcesPanelRef = usePanelRef()
-  const notesPanelRef = usePanelRef()
-  const chatPanelRef = usePanelRef()
-
-  // Keep resizable panels in sync with the existing collapse toggles
-  useEffect(() => {
-    if (!isDesktop) return
-    const panel = sourcesPanelRef.current
-    if (!panel) return
-    if (sourcesCollapsed && !panel.isCollapsed()) {
-      panel.collapse()
-    } else if (!sourcesCollapsed && panel.isCollapsed()) {
-      panel.expand()
-    }
-  }, [isDesktop, sourcesCollapsed, sourcesPanelRef])
-
-  useEffect(() => {
-    if (!isDesktop) return
-    const panel = notesPanelRef.current
-    if (!panel) return
-    if (artifactsCollapsed && !panel.isCollapsed()) {
-      panel.collapse()
-    } else if (!artifactsCollapsed && panel.isCollapsed()) {
-      panel.expand()
-    }
-  }, [isDesktop, artifactsCollapsed, notesPanelRef])
-
-  useEffect(() => {
-    if (!isDesktop) return
-    const panel = chatPanelRef.current
-    if (!panel) return
-    if (chatCollapsed && !panel.isCollapsed()) {
-      panel.collapse()
-    } else if (!chatCollapsed && panel.isCollapsed()) {
-      panel.expand()
-    }
-  }, [isDesktop, chatCollapsed, chatPanelRef])
-
-  const handleSourcesPanelResize = () => {
-    const isCollapsed = sourcesPanelRef.current?.isCollapsed() ?? false
-    if (useProjectColumnsStore.getState().sourcesCollapsed !== isCollapsed) {
-      setSources(isCollapsed)
-    }
-  }
-
-  const handleNotesPanelResize = () => {
-    const isCollapsed = notesPanelRef.current?.isCollapsed() ?? false
-    if (useProjectColumnsStore.getState().artifactsCollapsed !== isCollapsed) {
-      setArtifacts(isCollapsed)
-    }
-  }
-
-  const handleChatPanelResize = () => {
-    const isCollapsed = chatPanelRef.current?.isCollapsed() ?? false
-    if (useProjectColumnsStore.getState().chatCollapsed !== isCollapsed) {
-      setChat(isCollapsed)
-    }
-  }
-
-  // When Artifacts is already collapsed, the shared separator can't shrink Chat
-  // via the library (it would try to expand Artifacts first). Intercept a
-  // rightward drag on that handle and collapse Chat imperatively instead.
-  const collapseChatDragRef = useRef<{ startX: number; active: boolean } | null>(null)
-
-  const handleNotesChatSeparatorPointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!artifactsCollapsed || chatCollapsed) return
-
-      collapseChatDragRef.current = { startX: event.clientX, active: true }
-
-      const onPointerMove = (moveEvent: PointerEvent) => {
-        const drag = collapseChatDragRef.current
-        if (!drag?.active) return
-        if (moveEvent.clientX - drag.startX < 28) return
-
-        drag.active = false
-        chatPanelRef.current?.collapse()
-        setChat(true)
-        window.removeEventListener('pointermove', onPointerMove)
-        window.removeEventListener('pointerup', onPointerUp)
-      }
-
-      const onPointerUp = () => {
-        collapseChatDragRef.current = null
-        window.removeEventListener('pointermove', onPointerMove)
-        window.removeEventListener('pointerup', onPointerUp)
-      }
-
-      window.addEventListener('pointermove', onPointerMove)
-      window.addEventListener('pointerup', onPointerUp)
-    },
-    [artifactsCollapsed, chatCollapsed, chatPanelRef, setChat]
-  )
-
-  // Mobile tab state (Sources, Notes, or Chat)
-  const [mobileActiveTab, setMobileActiveTab] = useState<'sources' | 'notes' | 'chat'>('chat')
+  const [mobileActiveTab, setMobileActiveTab] = useState<
+    'sources' | 'notes' | 'chat'
+  >('chat')
   const [artifactRunKey, setArtifactRunKey] = useState(0)
 
   const activeArtifact = useMemo(() => {
@@ -210,7 +88,6 @@ function ProjectPageContent() {
     [notes]
   )
 
-  // Baseline + mark newly appeared project artifacts as unseen (session-only).
   useEffect(() => {
     if (!projectId || notes === undefined) return
     syncArtifactIds(
@@ -219,102 +96,42 @@ function ProjectPageContent() {
     )
   }, [projectId, notes, syncArtifactIds])
 
-  // Sync which panels the user is actively viewing (tabs on mobile, collapse on desktop).
   useEffect(() => {
     if (!projectId) return
     const chatViewing = isDesktop
-      ? !chatCollapsed
+      ? !panels.chatCollapsed
       : mobileActiveTab === 'chat'
     const artifactsViewing = isDesktop
-      ? !artifactsCollapsed
+      ? !panels.artifactsCollapsed
       : mobileActiveTab === 'notes'
     setChatViewing(projectId, chatViewing)
     setArtifactsViewing(projectId, artifactsViewing)
   }, [
     projectId,
     isDesktop,
-    chatCollapsed,
-    artifactsCollapsed,
+    panels.chatCollapsed,
+    panels.artifactsCollapsed,
     mobileActiveTab,
     setChatViewing,
     setArtifactsViewing,
   ])
 
-  const handleTemplateClick = useCallback((artifactId: string) => {
-    router.replace(`/projects/${encodeURIComponent(projectId)}?artifact=${encodeURIComponent(artifactId)}`)
-    setArtifactRunKey((key) => key + 1)
-    setMobileActiveTab('chat')
-  }, [router, projectId])
+  const handleTemplateClick = useCallback(
+    (artifactId: string) => {
+      router.replace(
+        `/projects/${encodeURIComponent(projectId)}?artifact=${encodeURIComponent(artifactId)}`
+      )
+      setArtifactRunKey((key) => key + 1)
+      setMobileActiveTab('chat')
+    },
+    [router, projectId]
+  )
 
   useEffect(() => {
     if (artifactParam && activeArtifact) {
       setMobileActiveTab('chat')
     }
   }, [artifactParam, activeArtifact])
-
-  // Context selection state
-  const [contextSelections, setContextSelections] = useState<ContextSelections>({
-    sources: {},
-    notes: {}
-  })
-
-  // The default context mode applied to sources as they load. A bulk
-  // include/exclude updates this so sources loaded later via pagination follow
-  // the same intent instead of reverting to "included" (#223/#915).
-  const [sourceContextDefault, setSourceContextDefault] = useState<SourceContextDefault>('include')
-
-  // Same idea for notes loaded later (notes are binary: included/off).
-  const [noteContextDefault, setNoteContextDefault] = useState<NoteContextDefault>('include')
-
-  // Initialize and update selections when sources load or change
-  useEffect(() => {
-    if (sources && sources.length > 0) {
-      setContextSelections(prev => ({
-        ...prev,
-        sources: computeSourceSelections(prev.sources, sources, sourceContextDefault),
-      }))
-    }
-  }, [sources, sourceContextDefault])
-
-  useEffect(() => {
-    if (notes && notes.length > 0) {
-      setContextSelections(prev => ({
-        ...prev,
-        notes: computeNoteSelections(prev.notes, notes, noteContextDefault),
-      }))
-    }
-  }, [notes, noteContextDefault])
-
-  const handleSourceContextModeChange = (sourceId: string, mode: ContextMode) => {
-    setContextSelections(prev => ({
-      ...prev,
-      sources: {
-        ...prev.sources,
-        [sourceId]: mode
-      }
-    }))
-  }
-
-  const handleNoteContextModeChange = (noteId: string, mode: NoteContextMode) => {
-    setContextSelections(prev => ({
-      ...prev,
-      notes: {
-        ...prev.notes,
-        [noteId]: mode
-      }
-    }))
-  }
-
-  // Bulk-apply a context action (full / exclude) to every
-  // source at once (#223). Also records the action as the default for sources
-  // loaded later (#915).
-  const handleBulkSourceContext = (action: SourceBulkAction) => {
-    setSourceContextDefault(action)
-    setContextSelections(prev => ({
-      ...prev,
-      sources: applyBulkSourceContext(prev.sources, sources ?? [], action),
-    }))
-  }
 
   if (projectLoading && !project) {
     return <DashboardContentSkeleton projectDetail />
@@ -342,190 +159,78 @@ function ProjectPageContent() {
     artifactRunKey,
   }
 
+  const sourcesColumnProps = {
+    sources,
+    isLoading: sourcesLoading,
+    projectId,
+    projectName: project.name,
+    onRefresh: refetchSources,
+    contextSelections: contextSelections.sources,
+    onContextModeChange: handleSourceContextModeChange,
+    onBulkContextModeChange: handleBulkSourceContext,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    hasArtifactTemplates: artifacts.length > 0,
+    hasIngestibleArtifacts,
+  }
+
+  const artifactsColumnProps = {
+    notes,
+    isLoading: notesLoading,
+    projectId,
+    contextSelections: contextSelections.notes,
+    onContextModeChange: handleNoteContextModeChange,
+    onTemplateClick: handleTemplateClick,
+  }
+
   return (
-          <div className="flex flex-col flex-1 min-h-0">
-        <div className="flex-shrink-0 px-2 pt-px pb-0">
-          <ProjectHeader project={project} />
-        </div>
-
-        <div
-          className={cn(
-            // CSS pairs overflow-x:auto with overflow-y:auto unless y is set explicitly.
-            'flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-hidden',
-            projectPageInsetClassName,
-            projectPageStackGapClassName
-          )}
-        >
-          {/* Mobile: Tabbed interface - only render on mobile to avoid double-mounting */}
-          {!isDesktop && (
-            <>
-              <div className="shrink-0 lg:hidden">
-                <Tabs
-                  className="gap-0"
-                  value={mobileActiveTab}
-                  onValueChange={(value) => setMobileActiveTab(value as 'sources' | 'notes' | 'chat')}
-                >
-                  <TabsList className="grid h-auto w-full grid-cols-3 gap-0 p-0.5">
-                    <TabsTrigger value="sources" className="h-7 gap-1 px-2 text-xs">
-                      <FileText className="h-3.5 w-3.5" />
-                      {t('navigation.sources')}
-                    </TabsTrigger>
-                    <TabsTrigger value="notes" className="relative h-7 gap-1 px-2 text-xs">
-                      <Boxes className="h-3.5 w-3.5" />
-                      <span className="inline-flex items-center gap-1">
-                        {t('common.notes')}
-                        {hasUnseenArtifacts ? <UnreadDot /> : null}
-                      </span>
-                    </TabsTrigger>
-                    <TabsTrigger value="chat" className="relative h-7 gap-1 px-2 text-xs">
-                      <MessageSquare className="h-3.5 w-3.5" />
-                      <span className="inline-flex items-center gap-1">
-                        {t('common.chat')}
-                        {chatUnread ? <UnreadDot /> : null}
-                      </span>
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-
-              {/* Mobile: absolute fill so tab content gets a bounded height and scrolls inside.
-                  Keep Chat mounted (hidden) so queue/SSE keep running. */}
-              <div className="relative min-h-0 flex-1 overflow-hidden lg:hidden">
-                {mobileActiveTab === 'sources' ? (
-                  <div className="absolute inset-0 min-h-0 overflow-hidden">
-                    <SourcesColumn
-                      sources={sources}
-                      isLoading={sourcesLoading}
-                      projectId={projectId}
-                      projectName={project?.name}
-                      onRefresh={refetchSources}
-                      contextSelections={contextSelections.sources}
-                      onContextModeChange={handleSourceContextModeChange}
-                      onBulkContextModeChange={handleBulkSourceContext}
-                      hasNextPage={hasNextPage}
-                      isFetchingNextPage={isFetchingNextPage}
-                      fetchNextPage={fetchNextPage}
-                      hasArtifactTemplates={artifacts.length > 0}
-                      hasIngestibleArtifacts={hasIngestibleArtifacts}
-                    />
-                  </div>
-                ) : null}
-                {mobileActiveTab === 'notes' ? (
-                  <div className="absolute inset-0 min-h-0 overflow-hidden">
-                    <ArtifactsColumn
-                      notes={notes}
-                      isLoading={notesLoading}
-                      projectId={projectId}
-                      contextSelections={contextSelections.notes}
-                      onContextModeChange={handleNoteContextModeChange}
-                      onTemplateClick={handleTemplateClick}
-                    />
-                  </div>
-                ) : null}
-                <div
-                  className={cn(
-                    'absolute inset-0 min-h-0 overflow-hidden',
-                    mobileActiveTab !== 'chat' && 'hidden'
-                  )}
-                >
-                  <ChatColumn {...chatColumnProps} />
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Desktop: Resizable collapsible columns */}
-          {isDesktop && (
-            <ResizablePanelGroup
-              id="project-detail-columns"
-              orientation="horizontal"
-              defaultLayout={defaultLayout}
-              onLayoutChanged={onLayoutChanged}
-              className="h-full min-h-0"
-            >
-              <ResizablePanel
-                id="sources"
-                panelRef={sourcesPanelRef}
-                defaultSize="28%"
-                minSize="14%"
-                collapsible
-                collapsedSize={48}
-                className="min-h-0"
-                onResize={handleSourcesPanelResize}
-              >
-                <SourcesColumn
-                  sources={sources}
-                  isLoading={sourcesLoading}
-                  projectId={projectId}
-                  projectName={project?.name}
-                  onRefresh={refetchSources}
-                  contextSelections={contextSelections.sources}
-                  onContextModeChange={handleSourceContextModeChange}
-                  onBulkContextModeChange={handleBulkSourceContext}
-                  hasNextPage={hasNextPage}
-                  isFetchingNextPage={isFetchingNextPage}
-                  fetchNextPage={fetchNextPage}
-                  hasArtifactTemplates={artifacts.length > 0}
-                  hasIngestibleArtifacts={hasIngestibleArtifacts}
-                />
-              </ResizablePanel>
-
-              <ResizableHandle
-                withHandle
-                disabled={sourcesCollapsed}
-                className="mx-0 w-1 rounded-full bg-transparent hover:bg-border/60"
-              />
-
-              <ResizablePanel
-                id="notes"
-                panelRef={notesPanelRef}
-                defaultSize="28%"
-                minSize="14%"
-                collapsible
-                collapsedSize={48}
-                className="min-h-0"
-                onResize={handleNotesPanelResize}
-              >
-                <ArtifactsColumn
-                  notes={notes}
-                  isLoading={notesLoading}
-                  projectId={projectId}
-                  contextSelections={contextSelections.notes}
-                  onContextModeChange={handleNoteContextModeChange}
-                  onTemplateClick={handleTemplateClick}
-                />
-              </ResizablePanel>
-
-              <ResizableHandle
-                withHandle
-                // When Artifacts is collapsed, disable library resize so a rightward
-                // drag doesn't expand it. onPointerDown still collapses Chat.
-                disabled={artifactsCollapsed}
-                disableDoubleClick={artifactsCollapsed && !chatCollapsed}
-                onPointerDown={handleNotesChatSeparatorPointerDown}
-                style={
-                  artifactsCollapsed && !chatCollapsed
-                    ? { cursor: 'col-resize' }
-                    : undefined
-                }
-                className="mx-0 w-1 rounded-full bg-transparent hover:bg-border/60"
-              />
-
-              <ResizablePanel
-                id="chat"
-                panelRef={chatPanelRef}
-                defaultSize="44%"
-                minSize="14%"
-                collapsible
-                collapsedSize={48}
-                className="min-h-0 min-w-0"
-                onResize={handleChatPanelResize}
-              >
-                <ChatColumn {...chatColumnProps} />
-              </ResizablePanel>
-            </ResizablePanelGroup>
-          )}
-        </div>
+    <div className="flex flex-col flex-1 min-h-0">
+      <div className="flex-shrink-0 px-2 pt-px pb-0">
+        <ProjectHeader project={project} />
       </div>
+
+      <div
+        className={cn(
+          'flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-hidden',
+          projectPageInsetClassName,
+          projectPageStackGapClassName
+        )}
+      >
+        {!isDesktop && (
+          <ProjectMobileLayout
+            mobileActiveTab={mobileActiveTab}
+            onMobileTabChange={setMobileActiveTab}
+            hasUnseenArtifacts={hasUnseenArtifacts}
+            chatUnread={chatUnread}
+            sourcesColumnProps={sourcesColumnProps}
+            artifactsColumnProps={artifactsColumnProps}
+            chatColumnProps={chatColumnProps}
+          />
+        )}
+
+        {isDesktop && (
+          <ProjectDesktopLayout
+            defaultLayout={panels.defaultLayout}
+            onLayoutChanged={panels.onLayoutChanged}
+            sourcesPanelRef={panels.sourcesPanelRef}
+            notesPanelRef={panels.notesPanelRef}
+            chatPanelRef={panels.chatPanelRef}
+            sourcesCollapsed={panels.sourcesCollapsed}
+            artifactsCollapsed={panels.artifactsCollapsed}
+            chatCollapsed={panels.chatCollapsed}
+            onSourcesPanelResize={panels.handleSourcesPanelResize}
+            onNotesPanelResize={panels.handleNotesPanelResize}
+            onChatPanelResize={panels.handleChatPanelResize}
+            onNotesChatSeparatorPointerDown={
+              panels.handleNotesChatSeparatorPointerDown
+            }
+            sourcesColumnProps={sourcesColumnProps}
+            artifactsColumnProps={artifactsColumnProps}
+            chatColumnProps={chatColumnProps}
+          />
+        )}
+      </div>
+    </div>
   )
 }

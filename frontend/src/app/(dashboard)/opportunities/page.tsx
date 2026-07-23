@@ -1,11 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { Inbox, Link2, RefreshCw } from 'lucide-react'
+import { Inbox } from 'lucide-react'
 import { useDefaultLayout, usePanelRef } from 'react-resizable-panels'
-
 import { PageHeader, pageContentClassName } from '@/components/layout/PageHeader'
-import { Button } from '@/components/ui/button'
 import {
   ResizableHandle,
   ResizablePanel,
@@ -41,6 +39,7 @@ import {
   OpportunityDetailsPanel,
   OpportunityListPanel,
 } from '@/app/(dashboard)/opportunities/components/OpportunityListPanel'
+import { SamGovActionButtons } from '@/app/(dashboard)/opportunities/components/SamGovActionButtons'
 import {
   formatMoney,
   isSourceStage,
@@ -304,34 +303,13 @@ export default function OpportunitiesPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={() => setImportUrlOpen(true)}
-              aria-label="Add SAM.gov opportunity by URL"
-            >
-              <Link2 className="size-3.5 sm:mr-1.5" />
-              <span className="hidden sm:inline">Add SAM.gov link</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              disabled={syncSamGov.isPending}
-              onClick={runSamGovSync}
-              aria-label="Sync SAM.gov opportunities"
-            >
-              <RefreshCw
-                className={cn(
-                  'size-3.5 sm:mr-1.5',
-                  syncSamGov.isPending && 'animate-spin'
-                )}
-              />
-              <span className="hidden sm:inline">
-                {syncSamGov.isPending ? 'Syncing SAM.gov…' : 'Sync SAM.gov'}
-              </span>
-            </Button>
+            <SamGovActionButtons
+              syncPending={syncSamGov.isPending}
+              onSyncSamGov={runSamGovSync}
+              onOpenImportUrl={() => setImportUrlOpen(true)}
+              compactLabels
+              className="gap-1.5"
+            />
           </div>
         }
       />
@@ -416,20 +394,7 @@ export default function OpportunitiesPage() {
             aria-label="Opportunity list"
             className="@container flex min-h-[280px] min-w-0 flex-col overflow-hidden rounded-md border bg-card"
           >
-            <OpportunityListPanel
-              opportunities={opportunities}
-              selected={selected}
-              isLoading={isLoading}
-              total={data?.total ?? 0}
-              filtersActive={filtersActive}
-              collapsed={false}
-              filterBarProps={filterBarProps}
-              onSelect={selectOpportunity}
-              onClearFilters={clearFilters}
-              onSyncSamGov={runSamGovSync}
-              onOpenImportUrl={() => setImportUrlOpen(true)}
-              syncPending={syncSamGov.isPending}
-            />
+            {listPanel}
           </section>
           <section
             ref={detailsRef}

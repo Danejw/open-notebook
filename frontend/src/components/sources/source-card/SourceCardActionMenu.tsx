@@ -27,7 +27,7 @@ import {
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { listActionTriggerClassName } from '@/lib/utils/list-action-trigger'
 import { cn } from '@/lib/utils'
-import type { ContextMode } from '@/app/(dashboard)/projects/[id]/page'
+import type { ContextMode } from '@/lib/types/project-context'
 import type { StageActionState } from '@/components/sources/SourceStageActions'
 
 export interface SourceCardActionMenuProps {

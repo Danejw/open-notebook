@@ -60,13 +60,6 @@ export const htmlDocumentsApi = {
     await apiClient.delete(`/templates/html/${id}`)
   },
 
-  listDocuments: async (projectId: string) => {
-    const response = await apiClient.get<BidDocument[]>(
-      `/projects/${projectId}/documents`
-    )
-    return response.data
-  },
-
   getDocument: async (id: string) => {
     const response = await apiClient.get<BidDocument>(`/documents/${id}`)
     return response.data

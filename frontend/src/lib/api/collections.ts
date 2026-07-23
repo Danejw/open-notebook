@@ -63,13 +63,6 @@ export const collectionsApi = {
     return response.data
   },
 
-  duplicate: async (id: string) => {
-    const response = await apiClient.post<CollectionDetail>(
-      `/collections/${id}/duplicate`
-    )
-    return response.data
-  },
-
   archive: async (id: string) => {
     const response = await apiClient.post<Collection>(`/collections/${id}/archive`)
     return response.data

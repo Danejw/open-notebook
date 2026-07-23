@@ -1,5 +1,3 @@
-import type { Dispatch, SetStateAction } from 'react'
-
 /** Optimistic human message appended before an SSE chat turn. */
 export interface OptimisticHumanMessage {
   id: string
@@ -33,23 +31,6 @@ export function createDefaultAiMessage<
     content,
     timestamp: new Date().toISOString(),
   } as T
-}
-
-export interface StreamTurnResetSetters {
-  setStreamStatus: Dispatch<SetStateAction<string | null>>
-  setActivityLog: Dispatch<SetStateAction<string[]>>
-  setLiveMcpToolCalls: Dispatch<SetStateAction<unknown[]>>
-}
-
-/** Reset per-turn streaming UI state before a new SSE response. */
-export function resetStreamTurnState({
-  setStreamStatus,
-  setActivityLog,
-  setLiveMcpToolCalls,
-}: StreamTurnResetSetters): void {
-  setStreamStatus(null)
-  setActivityLog([])
-  setLiveMcpToolCalls([])
 }
 
 export interface EnsureChatSessionOptions {

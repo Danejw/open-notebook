@@ -2,9 +2,6 @@ export function normalizeArtifactId(artifactId: string): string {
   return artifactId.includes(':') ? artifactId : `note:${artifactId}`
 }
 
-/** @deprecated Use normalizeArtifactId */
-export const normalizeNoteId = normalizeArtifactId
-
 export function sanitizeExportFilename(title: string): string {
   const slug = title
     .toLowerCase()
@@ -31,6 +28,3 @@ export function downloadArtifactMarkdown(title: string, content: string) {
   const blob = new Blob([content || ''], { type: 'text/markdown;charset=utf-8' })
   triggerBlobDownload(blob, filename)
 }
-
-/** @deprecated Use downloadArtifactMarkdown */
-export const downloadNoteMarkdown = downloadArtifactMarkdown

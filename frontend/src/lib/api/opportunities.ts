@@ -5,7 +5,6 @@ import type {
   OpportunityDashboard,
   OpportunityFilters,
   OpportunityListResponse,
-  OpportunityMonitoringHealthSummary,
   OpportunityRefreshResponse,
   OpportunityScoringProfile,
   OpportunityScoringProfileUpdate,
@@ -155,13 +154,6 @@ export const opportunitiesApi = {
   acknowledgeChanges: async (id: string) => {
     const response = await apiClient.post<Opportunity>(
       `/opportunities/${id}/changes/acknowledge`
-    )
-    return response.data
-  },
-
-  monitoringHealth: async () => {
-    const response = await apiClient.get<OpportunityMonitoringHealthSummary>(
-      '/opportunities/monitoring/health'
     )
     return response.data
   },

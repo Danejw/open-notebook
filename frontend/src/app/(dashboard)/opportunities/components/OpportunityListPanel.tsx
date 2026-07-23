@@ -1,6 +1,6 @@
 'use client'
 
-import { FileSearch, Inbox, Link2, RefreshCw } from 'lucide-react'
+import { FileSearch, Inbox } from 'lucide-react'
 import { EmptyState } from '@/components/common/EmptyState'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -12,7 +12,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import type { Opportunity } from '@/lib/types/opportunities'
-import { cn } from '@/lib/utils'
 import { OpportunityDetail } from '@/app/(dashboard)/opportunities/components/OpportunityDetail'
 import {
   OpportunityFilterBar,
@@ -22,6 +21,18 @@ import {
   OpportunityRailItem,
   OpportunityRow,
 } from '@/app/(dashboard)/opportunities/components/OpportunityListItems'
+import { SamGovActionButtons } from '@/app/(dashboard)/opportunities/components/SamGovActionButtons'
+
+export const OPPORTUNITY_INBOX_EMPTY_TITLE = {
+  filtered: 'No opportunities match these filters',
+  ready: 'The inbox is ready',
+} as const
+
+export const OPPORTUNITY_INBOX_EMPTY_DESCRIPTION = {
+  filtered: 'Clear a filter or broaden the search.',
+  ready:
+    'Sync recent federal Hawaii notices, or paste a SAM.gov opportunity link to add one by hand.',
+} as const
 
 export interface OpportunityListPanelProps {
   opportunities: Opportunity[]
@@ -92,8 +103,8 @@ export function OpportunityListCollapsedRail({
                 </TooltipTrigger>
                 <TooltipContent side="right">
                   {filtersActive
-                    ? 'No opportunities match these filters'
-                    : 'The inbox is ready'}
+                    ? OPPORTUNITY_INBOX_EMPTY_TITLE.filtered
+                    : OPPORTUNITY_INBOX_EMPTY_TITLE.ready}
                 </TooltipContent>
               </Tooltip>
             )}
@@ -155,37 +166,23 @@ export function OpportunityListPanel({
               icon={Inbox}
               title={
                 filtersActive
-                  ? 'No opportunities match these filters'
-                  : 'The inbox is ready'
+                  ? OPPORTUNITY_INBOX_EMPTY_TITLE.filtered
+                  : OPPORTUNITY_INBOX_EMPTY_TITLE.ready
               }
               description={
                 filtersActive
-                  ? 'Clear a filter or broaden the search.'
-                  : 'Sync recent federal Hawaii notices, or paste a SAM.gov opportunity link to add one by hand.'
+                  ? OPPORTUNITY_INBOX_EMPTY_DESCRIPTION.filtered
+                  : OPPORTUNITY_INBOX_EMPTY_DESCRIPTION.ready
               }
               className="flex min-h-[280px] flex-col items-center justify-center px-6"
               action={
                 !filtersActive ? (
-                  <div className="flex flex-wrap items-center justify-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={syncPending}
-                      onClick={onSyncSamGov}
-                    >
-                      <RefreshCw
-                        className={cn(
-                          'mr-1.5 size-3.5',
-                          syncPending && 'animate-spin'
-                        )}
-                      />
-                      {syncPending ? 'Syncing SAM.gov…' : 'Sync SAM.gov'}
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={onOpenImportUrl}>
-                      <Link2 className="mr-1.5 size-3.5" />
-                      Add SAM.gov link
-                    </Button>
-                  </div>
+                  <SamGovActionButtons
+                    syncPending={syncPending}
+                    onSyncSamGov={onSyncSamGov}
+                    onOpenImportUrl={onOpenImportUrl}
+                    className="justify-center"
+                  />
                 ) : (
                   <Button size="sm" variant="outline" onClick={onClearFilters}>
                     Clear filters
@@ -218,16 +215,12 @@ export function OpportunityDetailsPanel({
         {selected ? (
           <OpportunityDetail opportunity={selected} />
         ) : (
-          <div className="flex flex-1 items-center justify-center px-6 text-center">
-            <div className="max-w-sm min-w-0">
-              <FileSearch className="mx-auto size-9 text-muted-foreground/50" />
-              <h3 className="mt-3 text-sm font-semibold">Select an opportunity</h3>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Pick a notice from the list, then review scope, deadline, fit, risks, and bid
-                actions here.
-              </p>
-            </div>
-          </div>
+          <EmptyState
+            icon={FileSearch}
+            title="Select an opportunity"
+            description="Pick a notice from the list, then review scope, deadline, fit, risks, and bid actions here."
+            className="flex flex-1 flex-col items-center justify-center border-0 px-6"
+          />
         )}
       </div>
     </div>

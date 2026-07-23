@@ -59,7 +59,7 @@ type CommonChatRuntime = {
   loadingSessions: ChatPanelSessionControls['loadingSessions']
 }
 
-export function bindCommonChatPanelBags(chat: CommonChatRuntime): {
+function bindCommonChatPanelBags(chat: CommonChatRuntime): {
   streaming: Pick<
     ChatPanelStreamingState,
     'messages' | 'streamStatus' | 'activityLog' | 'onEnqueueMessage'

@@ -11,7 +11,7 @@ import {
   isArtifactDragEvent,
   clearArtifactDragData,
 } from '@/lib/utils/artifact-drag'
-import type { ContextMode } from '@/app/(dashboard)/projects/[id]/page'
+import type { ContextMode } from '@/lib/types/project-context'
 import { SourceStageActions } from '@/components/sources/SourceStageActions'
 import { SourceCardActionMenu } from '@/components/sources/source-card/SourceCardActionMenu'
 import { SourceCardStatusBadge } from '@/components/sources/source-card/SourceCardStatusBadge'

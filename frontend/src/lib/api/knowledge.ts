@@ -56,39 +56,6 @@ export const knowledgeApi = {
     return response.data
   },
 
-  listProjectEntities: async (
-    projectId: string,
-    params?: { entity_type?: string; q?: string; limit?: number }
-  ) => {
-    const response = await apiClient.get<{
-      entities: KnowledgeEntity[]
-      total_count: number
-    }>(`/projects/${encodeURIComponent(projectId)}/knowledge/entities`, { params })
-    return response.data
-  },
-
-  getEntityDetail: async (projectId: string, entityId: string) => {
-    const response = await apiClient.get<{
-      entity: KnowledgeEntity
-      claims: Array<Record<string, unknown>>
-      relations: Array<Record<string, unknown>>
-    }>(
-      `/projects/${encodeURIComponent(projectId)}/knowledge/entities/${encodeURIComponent(entityId)}`
-    )
-    return response.data
-  },
-
-  rebuildProject: async (
-    projectId: string,
-    data?: { force?: boolean; extractor?: string }
-  ) => {
-    const response = await apiClient.post(
-      `/projects/${encodeURIComponent(projectId)}/knowledge/rebuild`,
-      data ?? { force: true, extractor: 'generic' }
-    )
-    return response.data
-  },
-
   getCommandStatus: async (commandId: string) => {
     const response = await apiClient.get<CommandJobStatusResponse>(
       `/commands/jobs/${encodeURIComponent(commandId)}`

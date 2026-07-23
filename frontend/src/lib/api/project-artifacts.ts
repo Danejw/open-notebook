@@ -3,8 +3,6 @@ import {
   ProjectArtifactResponse,
   CreateProjectArtifactRequest,
   UpdateProjectArtifactRequest,
-  PromoteToSourceRequest,
-  SourceResponse,
 } from '@/lib/types/api'
 import { normalizeArtifactId, sanitizeExportFilename } from '@/lib/utils/export-artifact'
 
@@ -61,14 +59,6 @@ export const projectArtifactsApi = {
 
   delete: async (id: string) => {
     await apiClient.delete(`/project-artifacts/${id}`)
-  },
-
-  ingestAsSource: async (id: string, data: PromoteToSourceRequest = {}) => {
-    const response = await apiClient.post<SourceResponse>(
-      `/project-artifacts/${id}/ingest-as-source`,
-      data
-    )
-    return response.data
   },
 
   exportPdf: async (id: string) => {

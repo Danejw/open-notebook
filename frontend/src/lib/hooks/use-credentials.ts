@@ -53,18 +53,6 @@ export function useCredentials(provider?: string) {
 }
 
 /**
- * Hook to list credentials for a specific provider.
- * Uses the same list endpoint with provider filter for cache consistency.
- */
-export function useCredentialsByProvider(provider: string) {
-  return useQuery({
-    queryKey: CREDENTIAL_QUERY_KEYS.byProvider(provider),
-    queryFn: () => credentialsApi.list(provider),
-    enabled: !!provider,
-  })
-}
-
-/**
  * Hook to get a specific credential
  */
 export function useCredential(credentialId: string) {
@@ -87,7 +75,6 @@ export function useCreateCredential() {
     mutationFn: (data: CreateCredentialRequest) => credentialsApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CREDENTIAL_QUERY_KEYS.all })
-      queryClient.invalidateQueries({ queryKey: MODEL_QUERY_KEYS.providers })
       toast({
         title: t('common.success'),
         description: t('apiKeys.configSaveSuccess'),
@@ -121,7 +108,6 @@ export function useUpdateCredential() {
     }) => credentialsApi.update(credentialId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CREDENTIAL_QUERY_KEYS.all })
-      queryClient.invalidateQueries({ queryKey: MODEL_QUERY_KEYS.providers })
       toast({
         title: t('common.success'),
         description: t('apiKeys.configUpdateSuccess'),
@@ -156,7 +142,6 @@ export function useDeleteCredential() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CREDENTIAL_QUERY_KEYS.all })
       queryClient.invalidateQueries({ queryKey: MODEL_QUERY_KEYS.models })
-      queryClient.invalidateQueries({ queryKey: MODEL_QUERY_KEYS.providers })
       toast({
         title: t('common.success'),
         description: t('apiKeys.configDeleteSuccess'),
@@ -298,7 +283,6 @@ export function useMigrateFromEnv() {
       queryClient.invalidateQueries({ queryKey: CREDENTIAL_QUERY_KEYS.status })
       queryClient.invalidateQueries({ queryKey: CREDENTIAL_QUERY_KEYS.envStatus })
       queryClient.invalidateQueries({ queryKey: MODEL_QUERY_KEYS.models })
-      queryClient.invalidateQueries({ queryKey: MODEL_QUERY_KEYS.providers })
 
       const migratedCount = result.migrated.length
       const errorCount = result.errors?.length ?? 0

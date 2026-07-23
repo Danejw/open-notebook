@@ -13,7 +13,7 @@ function getInitialMatch(query: string): boolean {
  * Hook to detect if viewport matches a media query.
  * Initializes from window on first client render to avoid desktop layout flash.
  */
-export function useMediaQuery(query: string): boolean {
+function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(() => getInitialMatch(query))
 
   useEffect(() => {

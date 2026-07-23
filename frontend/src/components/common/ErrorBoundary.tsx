@@ -96,10 +96,3 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     return this.props.children
   }
 }
-
-// Hook version for functional components
-export function useErrorBoundary() {
-  return (error: Error) => {
-    throw error
-  }
-}

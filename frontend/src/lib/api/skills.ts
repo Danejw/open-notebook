@@ -3,15 +3,11 @@ import {
   BulkImportConfirmRequest,
   BulkImportConfirmResult,
   BulkImportPreview,
-  CreateSkillRequest,
-  ImportConfirmRequest,
-  ImportPreview,
   Skill,
   SkillCatalogItem,
   SkillDetail,
   SkillFileMoveRequest,
   SkillFileUpsertRequest,
-  SkillReplaceFilesRequest,
   UpdateSkillRequest,
   ValidationResult,
 } from '@/lib/types/skills'
@@ -43,11 +39,6 @@ export const skillsApi = {
     return response.data
   },
 
-  create: async (data: CreateSkillRequest) => {
-    const response = await apiClient.post<SkillDetail>('/skills', data)
-    return response.data
-  },
-
   update: async (id: string, data: UpdateSkillRequest) => {
     const response = await apiClient.put<Skill>(`/skills/${id}`, data)
     return response.data
@@ -64,13 +55,6 @@ export const skillsApi = {
     return response.data
   },
 
-  importPreview: async (file: File) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    const response = await apiClient.post<ImportPreview>('/skills/import/preview', formData)
-    return response.data
-  },
-
   importPreviewBulk: async (files: File[]) => {
     const formData = new FormData()
     for (const file of files) {
@@ -83,21 +67,11 @@ export const skillsApi = {
     return response.data
   },
 
-  importConfirm: async (data: ImportConfirmRequest) => {
-    const response = await apiClient.post<SkillDetail>('/skills/import/confirm', data)
-    return response.data
-  },
-
   importConfirmBulk: async (data: BulkImportConfirmRequest) => {
     const response = await apiClient.post<BulkImportConfirmResult>(
       '/skills/import/confirm-bulk',
       data
     )
-    return response.data
-  },
-
-  replaceFiles: async (id: string, data: SkillReplaceFilesRequest) => {
-    const response = await apiClient.put<SkillDetail>(`/skills/${id}/files`, data)
     return response.data
   },
 

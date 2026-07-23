@@ -141,14 +141,6 @@ export const credentialsApi = {
   },
 
   /**
-   * List credentials for a specific provider
-   */
-  listByProvider: async (provider: string): Promise<Credential[]> => {
-    const response = await apiClient.get<Credential[]>(`/credentials/by-provider/${provider}`)
-    return response.data
-  },
-
-  /**
    * Get a specific credential by ID
    */
   get: async (credentialId: string): Promise<Credential> => {
@@ -219,16 +211,6 @@ export const credentialsApi = {
     const response = await apiClient.post<RegisterModelsResponse>(
       `/credentials/${credentialId}/register-models`,
       data
-    )
-    return response.data
-  },
-
-  /**
-   * Migrate from ProviderConfig to individual credentials
-   */
-  migrateFromProviderConfig: async (): Promise<MigrationResult> => {
-    const response = await apiClient.post<MigrationResult>(
-      '/credentials/migrate-from-provider-config'
     )
     return response.data
   },

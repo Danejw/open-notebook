@@ -23,7 +23,12 @@ from construction_os.graphs.chat_intent import (
     needs_project_context,
     requests_project_artifact_save,
 )
-from construction_os.graphs.progress import emit_agent_progress
+from construction_os.graphs.progress import (
+    EMPTY_TOOL_TURN_FALLBACK,
+    emit_agent_progress,
+    emit_assistant_text_message,
+    emit_evidence_focus,
+)
 from construction_os.graphs.a2ui_emit import (
     format_a2ui_agent_catalog,
     is_a2ui_chat_enabled,
@@ -301,7 +306,11 @@ def retrieving_context(state: ThreadState, config: RunnableConfig) -> dict:
                 "sourceCount": int(result.get("sourceCount") or 0),
                 "noteCount": int(result.get("noteCount") or 0),
                 "tokenCount": int(result.get("tokenCount") or 0),
+                "retrievalModeUsed": result.get("retrievalModeUsed"),
+                "fallbackReason": result.get("fallbackReason"),
             }
+            evidence_focus = result.get("evidenceFocus") or []
+            emit_evidence_focus(evidence_focus, config)
             emit_agent_progress("completed", "retrieving_context", detail, config)
             return {
                 "context": formatted,
@@ -390,8 +399,22 @@ def generating(state: ThreadState, config: RunnableConfig) -> dict:
 
         content = extract_text_content(ai_message.content)
         cleaned_content = clean_thinking_content(content)
+        tools_available = bool(
+            (capability_context is not None and capability_context.enable_native_tools)
+            or state.get("mcp_tool_ids")
+        )
+        if not cleaned_content.strip() and tools_available:
+            cleaned_content = EMPTY_TOOL_TURN_FALLBACK
         cleaned_message = ai_message.model_copy(
             update={"content": cleaned_content, "id": assistant_message_id}
+        )
+
+        # Non-streaming invoke does not emit TEXT_MESSAGE_*; push final text
+        # onto the AG-UI wire so the client and queue see the reply.
+        emit_assistant_text_message(
+            message_id=assistant_message_id,
+            message=cleaned_content,
+            config=config,
         )
 
         emit_agent_progress("completed", "generating", {}, config)

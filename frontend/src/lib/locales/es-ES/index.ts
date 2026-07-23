@@ -1103,7 +1103,9 @@ export const esES = {
       "howLong": "¿Cuánto tiempo tarda la reconstrucción?",
       "howLongAns": "El tiempo de procesamiento depende de la cantidad de elementos, velocidad del modelo y límites de la API. Los modelos locales suelen ser muy rápidos.",
       "isSafe": "¿Es seguro reconstruir mientras uso la aplicación?",
-      "isSafeAns": "Sí, la reconstrucción es segura. No elimina contenido, solo reemplaza embeddings, y maneja errores de forma controlada."
+      "isSafeAns": "Sí, la reconstrucción es segura. No elimina contenido, solo reemplaza embeddings, y maneja errores de forma controlada.",
+      "chainKg": "Also rebuild knowledge graph",
+      "chainKgDesc": "Off by default (faster). Turn on when graph nodes must match re-chunked embeddings — costs more LLM/time per source."
     }
   },
   "artifacts": {

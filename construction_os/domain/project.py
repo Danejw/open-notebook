@@ -341,6 +341,10 @@ class Asset(BaseModel):
 class SourceEmbedding(ObjectModel):
     table_name: ClassVar[str] = "source_embedding"
     content: str
+    char_start: Optional[int] = None
+    char_end: Optional[int] = None
+    page: Optional[int] = None
+    nullable_fields: ClassVar[set[str]] = {"char_start", "char_end", "page"}
 
     async def get_source(self) -> "Source":
         try:

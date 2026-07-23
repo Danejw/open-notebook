@@ -8,13 +8,9 @@ import { SourceChatMessage } from '@/lib/types/api'
 import { ChatToolCall } from '@/lib/types/mcp'
 import { ToolCallGroup } from '@/components/mcp/ToolCallGroup'
 import { MessageActions } from '@/components/source/MessageActions'
-import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
+import { CitedMarkdownContent } from '@/components/common/CitedMarkdownContent'
 import { TemplateHtmlPreview } from '@/components/templates/TemplateHtmlPreview'
 import { A2uiMessageSurface } from '@/components/a2ui/A2uiMessageSurface'
-import {
-  convertReferencesToCompactMarkdown,
-  createCompactReferenceLinkComponent,
-} from '@/lib/utils/source-references'
 import {
   extractHtmlFromChatContent,
   stripHtmlFromChatContent,
@@ -293,25 +289,12 @@ const AIMessageContent = memo(function AIMessageContent({
   isStreaming: boolean
   onReferenceClick: (type: string, id: string) => void
 }) {
-  const { t } = useTranslation()
-
-  if (isStreaming) {
-    return <p className="whitespace-pre-wrap break-words text-sm">{content}</p>
-  }
-
-  const markdownWithCompactRefs = convertReferencesToCompactMarkdown(
-    content,
-    t('common.references'),
-    {
-      source: t('common.source'),
-      note: t('common.note'),
-    }
-  )
-  const LinkComponent = createCompactReferenceLinkComponent(onReferenceClick)
-
   return (
-    <MarkdownRenderer size="sm" components={{ a: LinkComponent }}>
-      {markdownWithCompactRefs}
-    </MarkdownRenderer>
+    <CitedMarkdownContent
+      content={content}
+      isStreaming={isStreaming}
+      size="sm"
+      onReferenceClick={(type, id) => onReferenceClick(type, id)}
+    />
   )
 })

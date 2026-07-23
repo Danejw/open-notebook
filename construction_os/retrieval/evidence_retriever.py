@@ -103,6 +103,17 @@ def _result_to_item(result: Dict[str, Any], source: str) -> EvidenceItem:
     matches = result.get("matches") or []
     if not matches and result.get("content") is not None:
         matches = [result.get("content")]
+
+    def _opt_int(key: str) -> Optional[int]:
+        raw = result.get(key)
+        if raw is None:
+            return None
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            return None
+
+    chunk_id = result.get("chunk_id")
     return EvidenceItem(
         id=str(result.get("id") or ""),
         parent_id=str(result["parent_id"]) if result.get("parent_id") else None,
@@ -112,6 +123,10 @@ def _result_to_item(result: Dict[str, Any], source: str) -> EvidenceItem:
         content=result.get("content"),
         source=source,  # type: ignore[arg-type]
         raw=dict(result),
+        chunk_id=str(chunk_id) if chunk_id is not None else None,
+        char_start=_opt_int("char_start"),
+        char_end=_opt_int("char_end"),
+        page=_opt_int("page"),
     )
 
 

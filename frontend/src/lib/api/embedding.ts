@@ -22,6 +22,11 @@ export interface RebuildEmbeddingsRequest {
   include_artifacts?: boolean
   /** @deprecated Prefer include_artifacts */
   include_notes?: boolean
+  /**
+   * When true, source embeds continue into knowledge-graph extraction.
+   * Default false (embeddings only). More expensive when enabled.
+   */
+  chain_kg?: boolean
 }
 
 export interface RebuildEmbeddingsResponse {
@@ -59,6 +64,19 @@ export interface RebuildStatusResponse {
   error_message?: string
 }
 
+export interface EmbeddingDimensionHealth {
+  expected_dimension: number | null
+  source_embedding_matched: number
+  source_embedding_mismatched: number
+  note_matched: number
+  note_mismatched: number
+  mismatched_total: number
+  indexed_total: number
+  needs_rebuild: boolean
+  dimensions_by_table: Record<string, Record<string, number>>
+  message: string
+}
+
 export const embeddingApi = {
   embedContent: async (
     itemId: string,
@@ -71,6 +89,13 @@ export const embeddingApi = {
       async_processing: options.asyncProcessing ?? false,
       chain_kg: options.chainKg ?? true,
     })
+    return response.data
+  },
+
+  getDimensionHealth: async (): Promise<EmbeddingDimensionHealth> => {
+    const response = await apiClient.get<EmbeddingDimensionHealth>(
+      '/embeddings/dimension-health'
+    )
     return response.data
   },
 

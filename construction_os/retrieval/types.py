@@ -20,6 +20,10 @@ class EvidenceItem(BaseModel):
     content: Optional[Any] = None
     source: Literal["vector", "text", "graph", "drawing"] = "vector"
     raw: Dict[str, Any] = Field(default_factory=dict)
+    chunk_id: Optional[str] = None
+    char_start: Optional[int] = None
+    char_end: Optional[int] = None
+    page: Optional[int] = None
 
     def to_search_result(self) -> Dict[str, Any]:
         """Serialize to the shape expected by Ask prompts and Search API."""
@@ -35,6 +39,14 @@ class EvidenceItem(BaseModel):
             result["matches"] = self.matches
         if self.content is not None and "content" not in result:
             result["content"] = self.content
+        if self.chunk_id is not None:
+            result["chunk_id"] = self.chunk_id
+        if self.char_start is not None:
+            result["char_start"] = self.char_start
+        if self.char_end is not None:
+            result["char_end"] = self.char_end
+        if self.page is not None:
+            result["page"] = self.page
         if self.source == "vector":
             result.setdefault("similarity", self.score)
         elif self.source == "text":

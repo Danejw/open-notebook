@@ -8,7 +8,7 @@
 
 - **`embed_note_command`**: Embeds a single note using unified embedding pipeline with content-type aware processing. Uses MARKDOWN content type detection. Retry: 5 attempts, exponential jitter 1-60s.
 - **`embed_source_command`**: Embeds a source by chunking full_text with content-type aware splitters (HTML, Markdown, plain), then batch embedding all chunks (batches of 50 with per-batch retry). Retry: 5 attempts, exponential jitter 1-60s.
-- **`rebuild_embeddings_command`**: Submits individual embed_* commands for all sources/notes. Returns immediately; actual embedding happens async. No retry (coordinator only).
+- **`rebuild_embeddings_command`**: Submits individual embed_* commands for all sources/notes. Returns immediately; actual embedding happens async. No retry (coordinator only). Passes `chain_kg` through to `begin_embed_stage` (**default False** — embeddings only; set True to also refresh knowledge graph).
 
 ### Other Commands
 

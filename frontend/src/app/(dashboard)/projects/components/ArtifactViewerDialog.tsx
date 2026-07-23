@@ -1,5 +1,6 @@
 'use client'
 
+import { useCallback } from 'react'
 import { ProjectArtifactResponse } from '@/lib/types/api'
 import { isGeneratedArtifact } from '@/lib/utils/project-artifact-kind'
 import { Button } from '@/components/ui/button'
@@ -11,8 +12,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Download, FileText, Database } from 'lucide-react'
-import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
+import { CitedMarkdownContent } from '@/components/common/CitedMarkdownContent'
+import { useModalManager } from '@/lib/hooks/use-modal-manager'
+import { useCitationFocusStore } from '@/lib/stores/citation-focus-store'
 import type { TFunction } from 'i18next'
+import { toast } from 'sonner'
 
 export interface ArtifactViewerDialogProps {
   open: boolean
@@ -41,6 +45,22 @@ export function ArtifactViewerDialog({
   exportPdfPending,
   ingestPending,
 }: ArtifactViewerDialogProps) {
+  const { openModal } = useModalManager()
+
+  const handleReferenceClick = useCallback(
+    (type: 'source' | 'note', id: string) => {
+      try {
+        if (type === 'source') {
+          useCitationFocusStore.getState().openWithFocus(id)
+        }
+        openModal(type, id)
+      } catch {
+        toast.error(t('common.noResults'))
+      }
+    },
+    [openModal, t]
+  )
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[92vh] max-h-[92vh] max-w-5xl flex-col overflow-hidden p-0">
@@ -53,7 +73,10 @@ export function ArtifactViewerDialog({
           {isLoading ? (
             <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
           ) : (
-            <MarkdownRenderer>{displayNote?.content || ''}</MarkdownRenderer>
+            <CitedMarkdownContent
+              content={displayNote?.content || ''}
+              onReferenceClick={handleReferenceClick}
+            />
           )}
         </div>
         <DialogFooter className="border-t">

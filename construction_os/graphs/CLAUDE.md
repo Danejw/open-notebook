@@ -5,8 +5,6 @@ LangGraph-based workflow orchestration for content processing, chat interactions
 ## Key Components
 
 - **`chat.py`**: Conversational agent with message history, project context, and model override support
-- **`source_chat.py`**: Source-focused chat with ContextBuilder for content injection and context tracking
-- **`ask.py`**: Multi-search strategy agent (generates search terms, retrieves results, synthesizes answers)
 - **`source.py`**: Content ingestion pipeline (extract → save → apply artifacts with content-core)
 - **`artifact.py`**: Single-node artifact executor with prompt templating via ai_prompter
 - **`prompt.py`**: Generic pattern chain for arbitrary prompt-based LLM calls
@@ -15,11 +13,11 @@ LangGraph-based workflow orchestration for content processing, chat interactions
 
 ## Important Patterns
 
-- **Async/sync bridging in graphs**: Both `chat.py` and `source_chat.py` use `asyncio.new_event_loop()` workaround because LangGraph nodes are sync but `provision_langchain_model()` is async
-- **State machines via StateGraph**: Each graph compiles to stateful runnable; conditional edges fan out work (ask.py, source.py do parallel artifact runs)
-- **Prompt templating**: `ai_prompter.Prompter` with Jinja2 templates referenced by path ("chat/system", "ask/entry", etc.)
+- **Async/sync bridging in graphs**: `chat.py` uses `asyncio.new_event_loop()` workaround because LangGraph nodes are sync but `provision_langchain_model()` is async
+- **State machines via StateGraph**: Each graph compiles to stateful runnable; conditional edges fan out work (source.py does parallel artifact runs)
+- **Prompt templating**: `ai_prompter.Prompter` with Jinja2 templates referenced by path ("chat/system", etc.)
 - **Model provisioning via context**: Config dict passed to node via `RunnableConfig`; defaults fall back to state overrides
-- **Checkpointing**: `chat.py` and `source_chat.py` use AsyncSqliteSaver for message history (LangGraph's built-in persistence)
+- **Checkpointing**: `chat.py` uses AsyncSqliteSaver for message history (LangGraph's built-in persistence)
 - **Content extraction**: `source.py` uses content-core library with provider/model from DefaultModels; URLs and files both supported
 
 ## Error Handling in Graphs
@@ -43,10 +41,8 @@ except Exception as e:
 
 - **Async loop gymnastics**: ThreadPoolExecutor workaround needed because LangGraph invokes sync nodes but we call async functions; fragile if event loop state changes
 - **`clean_thinking_content()` ubiquitous**: Strips `<think>...</think>` tags from model responses (handles extended thinking models)
-- **source_chat.py builds context twice**: ContextBuilder runs during node execution to fetch source content; rebuilds list from context_data (inefficient but safe)
 - **source.py embedding is async**: `source.vectorize()` returns job command ID; not awaited (fire-and-forget)
 - **artifact.py nullable source**: Accepts `input_text` or `source.full_text` (falls back to second if first missing)
-- **ask.py hard-coded vector_search**: No fallback to text search despite commented code suggesting it was planned
 - **AsyncSqliteSaver location**: Checkpoints stored in path from `LANGGRAPH_CHECKPOINT_FILE` env var; connection shared across graphs
 
 ## Key Dependencies

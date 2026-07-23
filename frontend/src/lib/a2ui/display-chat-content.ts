@@ -30,12 +30,13 @@ export function formatChatContentForDisplay(
     const parsed = parseInlineA2uiFromText(text, {
       messageId: options?.messageId,
     })
-    text = parsed.displayText
-    // Mid-stream: hide an unfinished component/protocol JSON blob.
+    text = scrubOrphanJsonClosers(parsed.displayText)
+    // Mid-stream only: hide an unfinished component/protocol JSON blob.
+    // Balanced JSON that parse rejected must stay visible (do not blank it).
     text = stripOpenA2uiJson(text)
   }
 
-  text = stripA2uiProtocolCallLeaks(text)
+  text = scrubOrphanJsonClosers(stripA2uiProtocolCallLeaks(text))
 
   if (A2UI_TAG_RE.test(text)) {
     // Wire tags → short client-facing copy (single-line is fine).
@@ -220,8 +221,30 @@ function stripRanges(
 }
 
 /**
- * While the model is still streaming, drop an incomplete leading/trailing
- * JSON object that looks like catalog UI so users never see raw braces.
+ * Drop leftover `}` / `]` (and empty fence ticks) after A2UI JSON was removed,
+ * so models that emit an extra closer do not leave a lone brace in the bubble.
+ */
+function scrubOrphanJsonClosers(text: string): string {
+  let out = (text ?? '').trim()
+  if (!out) {
+    return ''
+  }
+
+  // Trailing orphan closers after a successful strip (e.g. `...}\n}`).
+  out = out.replace(/(?:[\r\n]+\s*[}\]]\s*)+$/g, '').trim()
+  out = out.replace(/^[}\]]+\s*/, '').trim()
+
+  // Entire remainder is only braces / brackets / fence ticks / whitespace.
+  if (/^[\s}\]`]+$/.test(out)) {
+    return ''
+  }
+
+  return out
+}
+
+/**
+ * While the model is still streaming, hide an unfinished A2UI-looking JSON
+ * blob. Complete/balanced JSON is left alone — parseInlineA2ui owns removals.
  */
 function stripOpenA2uiJson(text: string): string {
   if (!/"component"\s*:/.test(text) && !/"createSurface"\s*:/.test(text)) {
@@ -242,8 +265,8 @@ function stripOpenA2uiJson(text: string): string {
   const afterCandidate = text.slice(start)
   const closed = findBalancedEnd(afterCandidate)
   if (closed >= 0) {
-    const after = afterCandidate.slice(closed).replace(/^```\w*\s*/i, '').trim()
-    return [before, after].filter(Boolean).join('\n\n').trim()
+    // Balanced JSON: keep it. Stripping here blanks parse-rejected lookalikes.
+    return text
   }
   return before
 }

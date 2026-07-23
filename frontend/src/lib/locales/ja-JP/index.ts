@@ -1103,7 +1103,9 @@ export const jaJP = {
       "howLong": "再構築にはどのくらい時間がかかる？",
       "howLongAns": "処理時間はアイテム数、モデル速度、APIレート制限によって異なります。ローカルモデルは通常非常に高速です。",
       "isSafe": "アプリ使用中に再構築しても安全？",
-      "isSafeAns": "はい、再構築は安全です！コンテンツは削除されず、Embeddingのみが置き換えられ、エラーは適切に処理されます。"
+      "isSafeAns": "はい、再構築は安全です！コンテンツは削除されず、Embeddingのみが置き換えられ、エラーは適切に処理されます。",
+      "chainKg": "Also rebuild knowledge graph",
+      "chainKgDesc": "Off by default (faster). Turn on when graph nodes must match re-chunked embeddings — costs more LLM/time per source."
     }
   },
   "artifacts": {

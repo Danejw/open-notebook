@@ -6,7 +6,7 @@ Supports HTML, Markdown, and plain text with appropriate splitters for each type
 
 Key functions:
 - detect_content_type(): Detects content type from file extension or content heuristics
-- chunk_text(): Splits text into chunks using appropriate splitter for content type
+- chunk_text(): Splits text into TextChunk values with char offsets / best-effort page
 
 Environment Variables:
     CONSTRUCTION_OS_CHUNK_SIZE: Maximum chunk size in tokens (default: 400)
@@ -16,9 +16,10 @@ Environment Variables:
 """
 
 import re
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 from langchain_text_splitters import (
     HTMLHeaderTextSplitter,
@@ -28,7 +29,20 @@ from langchain_text_splitters import (
 from loguru import logger
 
 from .env import get_env
-from .token_utils import token_count
+from .token_utils import EMBEDDER_MAX_INPUT_TOKENS, estimate_wordpiece_tokens, token_count
+
+
+@dataclass(frozen=True)
+class TextChunk:
+    """A chunk of source text with optional provenance for citation deep-links."""
+
+    content: str
+    char_start: int
+    char_end: int
+    page: Optional[int] = None
+
+    def __str__(self) -> str:
+        return self.content
 
 
 def _get_chunk_size() -> int:
@@ -396,6 +410,50 @@ def _get_plain_splitter() -> RecursiveCharacterTextSplitter:
     )
 
 
+def _get_embedder_budget_splitter() -> RecursiveCharacterTextSplitter:
+    """Splitter that sizes chunks with the WordPiece estimate (RAG-007)."""
+    overlap = min(CHUNK_OVERLAP, max(0, EMBEDDER_MAX_INPUT_TOKENS // 10))
+    return RecursiveCharacterTextSplitter(
+        chunk_size=EMBEDDER_MAX_INPUT_TOKENS,
+        chunk_overlap=overlap,
+        length_function=estimate_wordpiece_tokens,
+        separators=["\n\n", "\n", ". ", ", ", " ", ""],
+    )
+
+
+def _enforce_embedder_token_budget(chunks: List[str]) -> List[str]:
+    """
+    Re-split any chunk whose WordPiece estimate exceeds embedder max tokens.
+
+    Primary chunking uses tiktoken ``o200k_base``. This pass closes the gap for
+    BERT-family embedders (common 512-token ceiling).
+    """
+    if not chunks:
+        return chunks
+
+    result: List[str] = []
+    budget_splitter: Optional[RecursiveCharacterTextSplitter] = None
+
+    for chunk in chunks:
+        if estimate_wordpiece_tokens(chunk) <= EMBEDDER_MAX_INPUT_TOKENS:
+            result.append(chunk)
+            continue
+        if budget_splitter is None:
+            budget_splitter = _get_embedder_budget_splitter()
+        sub_chunks = budget_splitter.split_text(chunk)
+        if not sub_chunks:
+            result.append(chunk)
+            continue
+        result.extend(sub_chunks)
+        logger.debug(
+            "Re-split chunk exceeding embedder WordPiece budget "
+            f"({estimate_wordpiece_tokens(chunk)} > {EMBEDDER_MAX_INPUT_TOKENS}) "
+            f"into {len(sub_chunks)} piece(s)"
+        )
+
+    return result
+
+
 def _apply_secondary_chunking(chunks: List[str]) -> List[str]:
     """
     Apply secondary chunking to ensure no chunk exceeds CHUNK_SIZE tokens.
@@ -416,11 +474,73 @@ def _apply_secondary_chunking(chunks: List[str]) -> List[str]:
     return result
 
 
+def _page_for_offset(text: str, char_start: int) -> Optional[int]:
+    """Best-effort 1-based page from form-feed markers; None when absent."""
+    if "\f" not in text:
+        return None
+    start = max(0, min(char_start, len(text)))
+    return text[:start].count("\f") + 1
+
+
+def attach_chunk_provenance(
+    text: str, chunk_strings: Sequence[str]
+) -> List[TextChunk]:
+    """Locate each chunk string in ``text`` with a forward cursor (overlap-safe)."""
+    if not chunk_strings:
+        return []
+
+    results: List[TextChunk] = []
+    cursor = 0
+    text_len = len(text)
+
+    for raw in chunk_strings:
+        content = raw.strip() if raw else ""
+        if not content:
+            continue
+
+        idx = text.find(content, cursor)
+        if idx < 0:
+            # Strip may have changed whitespace vs original; try unstripped.
+            idx = text.find(raw, cursor) if raw else -1
+            if idx >= 0:
+                content = raw
+            else:
+                # Last resort: search from start (may mis-order on duplicates).
+                idx = text.find(content)
+                if idx < 0:
+                    idx = min(cursor, text_len)
+                    end = min(idx + len(content), text_len)
+                    results.append(
+                        TextChunk(
+                            content=content,
+                            char_start=idx,
+                            char_end=end,
+                            page=_page_for_offset(text, idx),
+                        )
+                    )
+                    cursor = end
+                    continue
+
+        end = idx + len(content)
+        results.append(
+            TextChunk(
+                content=content,
+                char_start=idx,
+                char_end=end,
+                page=_page_for_offset(text, idx),
+            )
+        )
+        # Advance past overlap region but allow next find from near end.
+        cursor = max(idx + 1, end - max(0, end - idx) // 4)
+
+    return results
+
+
 def chunk_text(
     text: str,
     content_type: Optional[ContentType] = None,
     file_path: Optional[str] = None,
-) -> List[str]:
+) -> List[TextChunk]:
     """
     Split text into chunks using appropriate splitter for content type.
 
@@ -430,15 +550,16 @@ def chunk_text(
         file_path: Optional file path for content type detection
 
     Returns:
-        List of text chunks, each approximately <= CHUNK_SIZE tokens
+        List of TextChunk values with char offsets and best-effort page numbers
     """
     if not text or not text.strip():
         return []
 
-    # Short text doesn't need chunking
+    # Short text doesn't need primary chunking — still enforce embedder budget.
     text_tokens = token_count(text)
     if text_tokens <= CHUNK_SIZE:
-        return [text]
+        strings = _enforce_embedder_token_budget([text])
+        return attach_chunk_provenance(text, strings)
 
     # Detect content type if not provided
     if content_type is None:
@@ -472,6 +593,9 @@ def chunk_text(
     if content_type in (ContentType.HTML, ContentType.MARKDOWN):
         chunks = _apply_secondary_chunking(chunks)
 
+    # Keep chunks under BERT-family embedder max (WordPiece estimate).
+    chunks = _enforce_embedder_token_budget(chunks)
+
     # Filter out empty chunks
     chunks = [c.strip() for c in chunks if c and c.strip()]
 
@@ -492,4 +616,4 @@ def chunk_text(
             chunks = kept
 
     logger.debug(f"Created {len(chunks)} chunks from {text_tokens} tokens")
-    return chunks
+    return attach_chunk_provenance(text, chunks)

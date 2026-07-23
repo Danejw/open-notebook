@@ -14,6 +14,7 @@ import {
 } from '@/lib/ag-ui/mcp-tool-calls'
 import { useModalManager } from '@/lib/hooks/use-modal-manager'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { useCitationFocusStore } from '@/lib/stores/citation-focus-store'
 import { toast } from 'sonner'
 
 export interface ChatPanelMessagesProps {
@@ -48,7 +49,7 @@ export function ChatPanelMessages({
   onEditMessage,
   historyEditDisabled,
   modelOverride,
-  contextType = 'source',
+  contextType = 'project',
   variant = 'column',
   onNearBottomChange,
   scrollToBottomRef,
@@ -85,6 +86,9 @@ export function ChatPanelMessages({
       }
 
       try {
+        if (type === 'source') {
+          useCitationFocusStore.getState().openWithFocus(id)
+        }
         openModal(type, id)
       } catch {
         toast.error(t('common.noResults'))

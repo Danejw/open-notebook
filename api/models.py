@@ -46,7 +46,18 @@ class ProjectMemoryUpdate(BaseModel):
 # Search models
 class SearchRequest(BaseModel):
     query: str = Field(..., description="Search query")
-    type: Literal["text", "vector", "hybrid"] = Field("text", description="Search type")
+    type: Literal["text", "vector", "hybrid", "auto"] = Field(
+        "auto",
+        description=(
+            "Search type (default 'auto', same retrieve() heuristics as project chat): "
+            "'auto' = retrieve(mode='auto') — hybrid for identifier-style queries, "
+            "else vector; optional graph when CONSTRUCTION_OS_GRAPH_RAG_MODE=on; "
+            "'hybrid' = BM25 + vector via RRF; "
+            "'vector' = dense similarity only (no keyword fusion); "
+            "'text' = keyword/BM25 only. "
+            "Use vector/text only when that mode is intentional."
+        ),
+    )
     limit: int = Field(100, description="Maximum number of results", ge=1, le=1000)
     search_sources: bool = Field(True, description="Include sources in search")
     search_artifacts: Optional[bool] = Field(
@@ -72,29 +83,13 @@ class SearchRequest(BaseModel):
 class SearchResponse(BaseModel):
     results: List[Dict[str, Any]] = Field(..., description="Search results")
     total_count: int = Field(..., description="Total number of results")
-    search_type: str = Field(..., description="Type of search performed")
-
-
-class AskRequest(BaseModel):
-    question: str = Field(..., description="Question to ask the knowledge base")
-    strategy_model: str = Field(..., description="Model ID for query strategy")
-    answer_model: str = Field(..., description="Model ID for individual answers")
-    final_answer_model: str = Field(..., description="Model ID for final answer")
-    project_id: Optional[str] = Field(
+    search_type: str = Field(..., description="Requested search type")
+    retrieval_mode_used: Optional[str] = Field(
         None,
-        description="Optional project scope; when set, retrieval is limited to that project",
-    )
-    retrieval_mode: Literal["auto", "vector", "hybrid", "graph"] = Field(
-        "auto",
-        description="Retrieval mode for Ask evidence gathering",
-    )
-
-
-class AskResponse(BaseModel):
-    answer: str = Field(..., description="Final answer from the knowledge base")
-    question: str = Field(..., description="Original question")
-    query_run_id: Optional[str] = Field(
-        None, description="Persisted retrieval graph run id for visualization"
+        description=(
+            "Actual retrieve() mode used when type is hybrid or auto "
+            "(e.g. vector, hybrid, graph); null for text/vector"
+        ),
     )
 
 
@@ -340,6 +335,14 @@ class RebuildRequest(BaseModel):
     )
     include_notes: bool = Field(
         True, description="Deprecated alias for include_artifacts"
+    )
+    chain_kg: bool = Field(
+        False,
+        description=(
+            "When True, source rebuild jobs continue into knowledge-graph extraction. "
+            "Default False refreshes embeddings only (faster, lower cost). "
+            "Enable when graph nodes must match re-chunked embeddings."
+        ),
     )
 
     def resolve_include_artifacts(self) -> bool:

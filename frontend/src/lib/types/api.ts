@@ -191,11 +191,7 @@ export interface BaseChatSession {
   guest_key?: string | null
 }
 
-export interface SourceChatSession extends BaseChatSession {
-  source_id: string
-  model_override?: string
-}
-
+/** Shared chat message shape used by project Chat UI (historical name). */
 export interface SourceChatMessage {
   id: string
   type: 'human' | 'ai'
@@ -208,28 +204,6 @@ export interface SourceChatContextIndicator {
   notes: string[]
 }
 
-export interface SourceChatSessionWithMessages extends SourceChatSession {
-  messages: SourceChatMessage[]
-  context_indicators?: SourceChatContextIndicator
-}
-
-export interface CreateSourceChatSessionRequest {
-  source_id: string
-  title?: string
-  model_override?: string
-  skill_ids?: string[]
-  collection_ids?: string[]
-  html_template_id?: string | null
-}
-
-export interface UpdateSourceChatSessionRequest {
-  title?: string
-  model_override?: string
-  skill_ids?: string[]
-  collection_ids?: string[]
-  html_template_id?: string | null
-}
-
 export interface SendMessageRequest {
   message: string
   model_override?: string
@@ -237,14 +211,6 @@ export interface SendMessageRequest {
   collection_ids?: string[]
   mcp_tool_ids?: string[]
   html_template_id?: string | null
-}
-
-export interface SourceChatStreamEvent {
-  type: 'user_message' | 'ai_message' | 'context_indicators' | 'complete' | 'error'
-  content?: string
-  data?: unknown
-  message?: string
-  timestamp?: string
 }
 
 // Project Chat Types

@@ -32,7 +32,12 @@ from .text_utils import (
     remove_non_ascii,
     remove_non_printable,
 )
-from .token_utils import token_cost, token_count
+from .token_utils import (
+    EMBEDDER_MAX_INPUT_TOKENS,
+    estimate_wordpiece_tokens,
+    token_cost,
+    token_count,
+)
 from .version_utils import (
     compare_versions,
     get_installed_version,
@@ -59,6 +64,8 @@ __all__ = [
     # Token utils
     "token_count",
     "token_cost",
+    "EMBEDDER_MAX_INPUT_TOKENS",
+    "estimate_wordpiece_tokens",
     # Version utils
     "compare_versions",
     "get_installed_version",

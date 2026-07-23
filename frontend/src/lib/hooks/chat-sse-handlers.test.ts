@@ -5,6 +5,7 @@ import type { AgUiEvent } from '@/lib/ag-ui/events'
 import type { ChatToolCall } from '@/lib/types/mcp'
 import {
   createAgUiChatSseHandler,
+  extractAgUiSnapshotAssistantMessages,
   extractAgUiTextDelta,
   parseHtmlTemplateOutputEvent,
   resolveAgUiMessageId,
@@ -208,5 +209,71 @@ describe('createAgUiChatSseHandler', () => {
     const event = { type: 'CUSTOM', name: 'state_snapshot' } as AgUiEvent
     handler(event)
     expect(onCustomEvent).toHaveBeenCalledWith(event)
+  })
+
+  it('does not duplicate TEXT_MESSAGE_START for an existing message id', () => {
+    const deps = makeDeps()
+    const handler = createAgUiChatSseHandler(deps)
+
+    handler({ type: 'TEXT_MESSAGE_START', messageId: 'ai-1' })
+    handler({ type: 'TEXT_MESSAGE_START', messageId: 'ai-1' })
+
+    const firstUpdate = vi.mocked(deps.setMessages).mock.calls[0][0] as (
+      messages: TestMessage[]
+    ) => TestMessage[]
+    const secondUpdate = vi.mocked(deps.setMessages).mock.calls[1][0] as (
+      messages: TestMessage[]
+    ) => TestMessage[]
+
+    const afterFirst = firstUpdate([])
+    expect(afterFirst).toHaveLength(1)
+    expect(afterFirst[0].id).toBe('ai-1')
+
+    const afterSecond = secondUpdate(afterFirst)
+    expect(afterSecond).toHaveLength(1)
+    expect(afterSecond[0].id).toBe('ai-1')
+  })
+
+  it('upserts assistant content from MESSAGES_SNAPSHOT', () => {
+    const deps = makeDeps()
+    const handler = createAgUiChatSseHandler(deps)
+
+    handler({
+      type: 'MESSAGES_SNAPSHOT',
+      messages: [
+        { id: 'u-1', role: 'user', content: 'Hello' },
+        { id: 'ai-9', role: 'assistant', content: 'Bid scope summary…' },
+      ],
+    } as AgUiEvent)
+
+    expect(deps.aiMessageIdRef.current).toBe('ai-9')
+    expect(deps.streamContentRef.current.get('ai-9')).toBe('Bid scope summary…')
+
+    const update = vi.mocked(deps.setMessages).mock.calls[0][0] as (
+      messages: TestMessage[]
+    ) => TestMessage[]
+    const updated = update([])
+    expect(updated).toHaveLength(1)
+    expect(updated[0]).toMatchObject({
+      id: 'ai-9',
+      type: 'ai',
+      content: 'Bid scope summary…',
+    })
+  })
+})
+
+describe('extractAgUiSnapshotAssistantMessages', () => {
+  it('keeps non-empty assistant text only', () => {
+    expect(
+      extractAgUiSnapshotAssistantMessages([
+        { id: 'u-1', role: 'user', content: 'Hi' },
+        { id: 'ai-1', role: 'assistant', content: '  ' },
+        {
+          id: 'ai-2',
+          role: 'assistant',
+          content: [{ type: 'text', text: 'Answer' }],
+        },
+      ])
+    ).toEqual([{ id: 'ai-2', content: 'Answer' }])
   })
 })

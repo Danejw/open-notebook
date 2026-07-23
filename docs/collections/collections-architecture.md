@@ -41,6 +41,6 @@ Collections mirror the **Skills stack** with typed child items:
 | Validation | `construction_os/collections/standard.py` |
 | Loader | `construction_os/collections/loader.py` |
 | API | `api/collections_service.py`, `api/routers/collections.py` |
-| Graph | `construction_os/graphs/chat.py`, `source_chat.py` |
-| Prompts | `prompts/chat/system.jinja`, `prompts/source_chat/system.jinja` |
+| Graph | `construction_os/graphs/chat.py` |
+| Prompts | `prompts/chat/system.jinja` |
 | Frontend | `frontend/src/app/(dashboard)/collections/`, `CollectionPicker.tsx` |

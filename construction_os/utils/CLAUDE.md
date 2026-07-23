@@ -134,9 +134,9 @@ Note: Changes require restart of the application.
 
 ## Important Quirks & Gotchas
 
-- **Token count estimation**: Uses `o200k_base` encoding; may differ slightly from actual model tokens
+- **Token count estimation**: Uses `o200k_base` encoding; may differ slightly from actual model tokens. `estimate_wordpiece_tokens()` provides a conservative BERT-family ceiling (1.3× inflation + heuristic), and `chunk_text` re-splits any chunk over `EMBEDDER_MAX_INPUT_TOKENS` (512).
 - **Chunk size semantics changed**: `construction_os_CHUNK_SIZE` and `construction_os_CHUNK_OVERLAP` are token-based, not character-based
-- **Default chunk size**: The token-based default is 400 — leaves ~20% margin below the 512-token ceiling of BERT-family embedders (e.g. mxbai-embed-large) to absorb tokenizer mismatch (we measure with `o200k_base`, they tokenize with WordPiece), splitter overshoot, and special tokens
+- **Default chunk size**: The token-based default is 400 — leaves headroom below the 512-token ceiling of BERT-family embedders; WordPiece budget enforcement (RAG-007) is the hard gate when o200k under-counts
 - **Content type detection order**: Extension checked first, then heuristics; high-confidence heuristics (≥0.8) can override PLAIN extensions
 - **Mean pooling normalization**: Each embedding normalized before mean, result normalized after
 - **Priority weights default**: If not specified, ContextConfig uses default weights (source=1, note=0.8)

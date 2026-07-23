@@ -1103,7 +1103,9 @@ export const zhTW = {
       "howLong": "重建需要多長時間？",
       "howLongAns": "耗時取決於項目總數、模型速度和 API 速率限制。本地模型（如 Ollama）通常非常快。",
       "isSafe": "在使用應用時重建安全嗎？",
-      "isSafeAns": "是的，重建過程是安全的。它不會刪除您的原始内容，僅會逐步替換向量資料。在大批次處理時，搜尋速度可能會有輕微抖動。"
+      "isSafeAns": "是的，重建過程是安全的。它不會刪除您的原始内容，僅會逐步替換向量資料。在大批次處理時，搜尋速度可能會有輕微抖動。",
+      "chainKg": "Also rebuild knowledge graph",
+      "chainKgDesc": "Off by default (faster). Turn on when graph nodes must match re-chunked embeddings — costs more LLM/time per source."
     }
   },
   "artifacts": {

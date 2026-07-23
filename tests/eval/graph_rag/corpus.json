@@ -1,0 +1,62 @@
+[
+  {
+    "id": "source:eval_warranty",
+    "title": "Roofing Warranty Summary",
+    "full_text": "# Roofing Warranty\n\nThe manufacturer warranty for the standing-seam metal roofing system is ten (10) years from substantial completion. Labor warranty for roofing installation is two (2) years. Warranty claims require written notice within 30 days of discovery of a defect."
+  },
+  {
+    "id": "source:eval_safety_plan",
+    "title": "Site Safety Plan — Mobilization",
+    "full_text": "# Safety Plan\n\nDuring mobilization, all workers must complete site orientation, wear hard hats and high-visibility vests, and attend the daily stretch-and-flex meeting. Temporary fencing and gated access control are required before material staging begins. Fall protection is mandatory above 6 feet."
+  },
+  {
+    "id": "source:eval_envelope_notes",
+    "title": "Envelope Design Notes",
+    "full_text": "# Building Envelope\n\nThe vapor barrier approach uses a continuous self-adhered membrane on the warm side of the exterior wall insulation. Penetrations must be sealed with compatible flashing tape. Roof-to-wall transitions follow the manufacturer's detailing package."
+  },
+  {
+    "id": "source:eval_spec_09",
+    "title": "Specification Section 09 30 00",
+    "full_text": "# CSI Section 09 30 00 — Tiling\n\nProvide porcelain tile flooring meeting ANSI A137.1. Thin-set mortar shall comply with ANSI A118.4. Grout joints shall be 1/8 inch unless noted otherwise. Flooring submittals must include slip-resistance data."
+  },
+  {
+    "id": "source:eval_spec_07",
+    "title": "Specification Section 07 10 00",
+    "full_text": "# CSI Section 07 10 00 — Dampproofing and Waterproofing\n\nBelow-grade waterproofing shall be a fluid-applied membrane with a minimum dry-film thickness of 60 mils. Division 07 waterproofing submittals require product data, SDS, and applicator certifications before installation."
+  },
+  {
+    "id": "source:eval_spec_23",
+    "title": "Specification Section 23 00 00",
+    "full_text": "# CSI Section 23 — HVAC\n\nAir-handling unit AHU-2 shall provide 12,000 CFM supply air with MERV-13 filtration. Fire damper FD-4 shall be UL-listed and installed per SMACNA. Controls interface to the building management system."
+  },
+  {
+    "id": "source:eval_arch_plans",
+    "title": "Architectural Plans — Level 2",
+    "full_text": "# Architectural Plans\n\nSheet A-501 (revision dated 2024-06-12) includes interior elevations and detail callouts. Detail 3/A-501 shows the Level 2 waterproofing termination at the curtain wall. Room 201 finish notes reference the finish schedule."
+  },
+  {
+    "id": "source:eval_mech_schedule",
+    "title": "Mechanical Equipment Schedule",
+    "full_text": "# Mechanical Schedule\n\nAHU-2: rooftop unit, 12,000 CFM, cooling capacity 40 tons, heating capacity 350 MBH. Serving Room 201 and the east wing. Long-lead item with 16-week fabrication. Panel coordination with electrical package E is required."
+  },
+  {
+    "id": "source:eval_elec_schedule",
+    "title": "Electrical Panel Schedule",
+    "full_text": "# Electrical Schedule\n\nPanel LP-2 feeder: 400A, 480Y/277V, fed from switchboard MSB-1. Long-lead switchgear items are tracked in procurement. Electrical package E covers the east wing distribution."
+  },
+  {
+    "id": "source:eval_rfi_log",
+    "title": "RFI Log",
+    "full_text": "# RFI Log\n\nRFI-12 (open): Clarification requested on underground utilities conflict near grid line B. Blocks excavation of the east utility corridor until answered. Related to site utilities plan revision pending."
+  },
+  {
+    "id": "source:eval_submittal_log",
+    "title": "Submittal Log",
+    "full_text": "# Submittal Log\n\nSUB-07-01: Division 07 waterproofing product data — approved as noted. SUB-09-04: Division 09 flooring porcelain tile — under review. Both satisfy the corresponding specification sections when approved."
+  },
+  {
+    "id": "source:eval_addendum_3",
+    "title": "Addendum 3",
+    "full_text": "# Addendum 3\n\nAddendum 3 revises AHU-2 cooling capacity from 35 tons to 40 tons and updates associated duct main sizes on the mechanical plans. Long-lead procurement and RFI coordination for AHU-2 must use the revised schedule."
+  }
+]

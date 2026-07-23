@@ -115,7 +115,7 @@ export function ChatPanel({
   loadingSessions = false,
   title,
   titleAdornment,
-  contextType = 'source',
+  contextType = 'project',
   projectId,
   sourceId,
   guestKey = null,

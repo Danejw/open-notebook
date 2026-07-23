@@ -13,9 +13,7 @@ Centralized prompt repository using `ai_prompter` library to:
 ## Architecture Overview
 
 **Template Organization by Workflow**:
-- **`ask/`**: Multi-stage search synthesis (entry → query_process → final_answer)
 - **`chat/`**: Conversational agent with project context (system prompt only)
-- **`source_chat/`**: Source-focused chat with source content injection (system prompt only)
 - **`podcast/`**: Podcast generation pipeline (outline → transcript)
 
 **Rendering Pattern** (all workflows):
@@ -23,7 +21,7 @@ Centralized prompt repository using `ai_prompter` library to:
 from ai_prompter import Prompter
 
 # Load template + render with variables
-system_prompt = Prompter(prompt_template="ask/entry", parser=parser).render(
+system_prompt = Prompter(prompt_template="chat/system").render(
     data=state
 )
 
@@ -32,25 +30,11 @@ model = await provision_langchain_model(system_prompt, ...)
 response = await model.ainvoke(system_prompt)
 ```
 
-See detailed workflow integration in `construction_os/graphs/CLAUDE.md` for how each template fits into chat.py, ask.py, source_chat.py.
+See detailed workflow integration in `construction_os/graphs/CLAUDE.md` for how each template fits into chat.py and related graphs.
 
 ## Prompt Engineering Patterns
 
-### 1. Multi-Stage Chain (Ask Workflow)
-
-Three-template chain for intelligent search:
-
-```
-entry.jinja (user question → search strategy)
-    ↓
-query_process.jinja (run each search, generate sub-answer)
-    ↓ (multiple parallel)
-final_answer.jinja (synthesize all results into final response)
-```
-
-**Key pattern**: `entry.jinja` generates JSON-structured reasoning (via PydanticOutputParser). Each `query_process.jinja` invocation receives one search term + retrieved results. `final_answer.jinja` combines all answers with proper source citation.
-
-### 2. Conditional Variable Injection (Podcast Workflow)
+### 1. Conditional Variable Injection (Chat & Podcast)
 
 Templates accept optional variables for context assembly:
 
@@ -66,9 +50,9 @@ Templates accept optional variables for context assembly:
 {% endif %}
 ```
 
-Enabled by Jinja2's conditional blocks. Critical for podcast outline (handles list or string context) and source_chat (injects variable project/source data).
+Enabled by Jinja2's conditional blocks. Critical for podcast outline (handles list or string context) and chat (injects optional project/context data).
 
-### 3. Repeated Emphasis on Citation Format (Ask & Chat)
+### 2. Repeated Emphasis on Citation Format (Chat)
 
 All response-generating templates emphasize source citation rules:
 - Document ID syntax: `[source:id]`, `[note:id]`
@@ -77,7 +61,7 @@ All response-generating templates emphasize source citation rules:
 
 **Rationale**: LLMs naturally hallucinate citations without explicit guidance; repetition + examples reduce hallucination.
 
-### 4. Format Instructions Delegation
+### 3. Format Instructions Delegation
 
 Templates accept external `{{ format_instructions }}` variable:
 
@@ -88,7 +72,7 @@ Templates accept external `{{ format_instructions }}` variable:
 
 Allows caller to inject JSON schema, XML format, or other output constraints without modifying template. Decouples prompt from output format evolution.
 
-### 5. JSON Output with Extended Thinking Support
+### 4. JSON Output with Extended Thinking Support
 
 Podcast templates include extended thinking pattern:
 
@@ -102,16 +86,8 @@ Guides models with extended thinking capability to separate reasoning from outpu
 
 ## File Catalog
 
-**`ask/` - Search Synthesis Pipeline**:
-- **entry.jinja**: Analyzes user question, generates search strategy with JSON output (term + instructions per search)
-- **query_process.jinja**: Accepts one search term + retrieved results, generates sub-answer with citations
-- **final_answer.jinja**: Combines all sub-answers into coherent final response, enforces source citation
-
 **`chat/` - Conversational Agent**:
 - **system.jinja**: Single system prompt for general chat. Uses conditional blocks for optional project context. Emphasizes citation format.
-
-**`source_chat/` - Source-Focused Chat**:
-- **system.jinja**: Single system prompt for source-specific discussion. Injects source metadata (ID, title, topics) + selected context. Conditional blocks for optional project/context data.
 
 **`podcast/` - Podcast Generation**:
 - **outline.jinja**: Takes briefing + content + speaker profiles (list support via Jinja2 for-loop). Generates JSON outline with segments (name, description, size).
@@ -141,7 +117,7 @@ Guides models with extended thinking capability to separate reasoning from outpu
 
 ## Important Quirks & Gotchas
 
-1. **Template path syntax**: Uses forward slashes without `.jinja` extension in Prompter. `"ask/entry"` maps to `/prompts/ask/entry.jinja`
+1. **Template path syntax**: Uses forward slashes without `.jinja` extension in Prompter. `"chat/system"` maps to `/prompts/chat/system.jinja`
 2. **Variable key convention**: All data passed as `data=dict` arg to `.render()`. Template accesses variables directly (e.g., `{{ question }}`). Ensure dict keys match template variable names.
 3. **OutputParser binding**: When using PydanticOutputParser, Prompter auto-injects `{{ format_instructions }}` into template. If template doesn't have this placeholder, parser is ignored.
 4. **Jinja2 whitespace sensitivity**: Template indentation doesn't affect output, but raw newlines do. Use explicit `\n` or trim filters if output formatting matters.
@@ -158,8 +134,8 @@ Guides models with extended thinking capability to separate reasoning from outpu
 ```python
 from ai_prompter import Prompter
 
-prompt = Prompter(prompt_template="ask/entry").render(
-    data={"question": "What is RAG?"}
+prompt = Prompter(prompt_template="chat/system").render(
+    data={"project": {"name": "Demo"}, "context": None}
 )
 print(prompt)  # Inspect Jinja2 output before sending to LLM
 ```
@@ -169,22 +145,21 @@ print(prompt)  # Inspect Jinja2 output before sending to LLM
 from pydantic import BaseModel
 from langchain_core.output_parsers.pydantic import PydanticOutputParser
 
-class Strategy(BaseModel):
-    reasoning: str
-    searches: list
+class Outline(BaseModel):
+    segments: list
 
-parser = PydanticOutputParser(pydantic_object=Strategy)
-prompt = Prompter(prompt_template="ask/entry", parser=parser).render(
-    data={"question": "..."}
+parser = PydanticOutputParser(pydantic_object=Outline)
+prompt = Prompter(prompt_template="podcast/outline", parser=parser).render(
+    data={"content": "..."}
 )
 # prompt now includes {{ format_instructions }} substitution
 ```
 
 **Integration test** (invoke full graph):
-See `construction_os/graphs/ask.py` for how entry.jinja is invoked inside ask_graph workflow.
+See `construction_os/graphs/chat.py` for how `chat/system` is invoked inside the project chat workflow.
 
 ## Reference Documentation
 
 - **Jinja2 syntax guide**: See existing templates for for-loop, if-conditional, variable interpolation patterns
 - **Graph integration**: `construction_os/graphs/CLAUDE.md` documents which template is used in which workflow
-- **Sub-directory CLAUDE.md files**: `ask/CLAUDE.md`, `chat/CLAUDE.md`, `podcast/CLAUDE.md` (if created) provide template-specific implementation notes
+- **Sub-directory CLAUDE.md files**: `chat/CLAUDE.md`, `podcast/CLAUDE.md` (if created) provide template-specific implementation notes

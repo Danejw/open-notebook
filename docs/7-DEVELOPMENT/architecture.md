@@ -352,41 +352,11 @@ Output (complete message)
 
 ---
 
-### 3. **Ask Workflow** (`construction_os/graphs/ask.py`)
+### 3. **Ask Workflow** (retired)
 
-**Purpose**: Answer user questions by searching sources and synthesizing responses.
+**Status**: Removed. Multi-step Ask (`construction_os/graphs/ask.py`, `/search/ask`, Search Ask UI) is retired.
 
-**Flow**:
-```
-User Question
-  ↓
-Plan Search Strategy (LLM generates searches)
-  ↓
-Execute Searches (vector + text search)
-  ↓
-Score & Rank Results
-  ↓
-Provide Answers (LLM synthesizes from results)
-  ↓
-Stream Responses
-  ↓
-Output (final answer)
-```
-
-**State Dict**:
-```python
-{
-  "question": str,
-  "strategy": SearchStrategy,
-  "answers": List[str],
-  "final_answer": str,
-  "sources_used": List[Source],
-}
-```
-
-**Streaming**: Uses `astream()` to emit updates in real-time (strategy → answers → final answer)
-
-**Invoked By**: Search API (`POST /ask` with streaming)
+**Replacement**: Project chat (`construction_os/graphs/chat.py`) with hybrid retrieval via `build_relevance_context()` → `retrieve(mode="auto")`, plus the native `search_project_knowledge` tool. Raw search remains at `POST /api/search` (default `auto`, same heuristics as chat; also `text` | `vector` | `hybrid`) for pickers and APIs — it does not synthesize answers. `vector`/`text` are explicit opt-in modes.
 
 ---
 

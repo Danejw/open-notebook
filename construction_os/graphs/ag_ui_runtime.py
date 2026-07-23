@@ -9,9 +9,7 @@ from ag_ui.core import RunAgentInput, UserMessage
 from ag_ui_langgraph import LangGraphAgent
 from loguru import logger
 
-from construction_os.graphs import ask as ask_module
 from construction_os.graphs import chat as chat_module
-from construction_os.graphs import source_chat as source_chat_module
 
 
 def build_agent(name: str, graph: Any) -> LangGraphAgent:
@@ -20,16 +18,12 @@ def build_agent(name: str, graph: Any) -> LangGraphAgent:
 
 
 project_chat_agent = build_agent("project_chat", chat_module.graph)
-source_chat_agent = build_agent("source_chat", source_chat_module.source_chat_graph)
-ask_agent = build_agent("ask", ask_module.graph)
 
 
 def refresh_agents() -> None:
     """Rebuild process-global API agents after their graphs are rebound."""
-    global project_chat_agent, source_chat_agent, ask_agent
+    global project_chat_agent
     project_chat_agent = build_agent("project_chat", chat_module.graph)
-    source_chat_agent = build_agent("source_chat", source_chat_module.source_chat_graph)
-    ask_agent = build_agent("ask", ask_module.graph)
     logger.info("AG-UI LangGraph agents refreshed with current graphs")
 
 

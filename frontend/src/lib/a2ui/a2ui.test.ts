@@ -153,6 +153,58 @@ describe('A2UI parse + policy', () => {
     expect(display.toLowerCase()).not.toContain('a2ui.')
   })
 
+  it('does not leave a lone } after valid A2UI JSON with a trailing brace', async () => {
+    const { formatChatContentForDisplay } = await import(
+      '@/lib/a2ui/display-chat-content'
+    )
+    const content = `{
+  "component": "AskUser",
+  "id": "root",
+  "props": {
+    "question": "What would you like to focus on?",
+    "options": [{ "id": "gaps", "label": "Find scope gaps / exclusions" }]
+  }
+}
+}`
+    const display = formatChatContentForDisplay(content, {
+      role: 'ai',
+      messageId: 'ai-trailing-brace',
+    })
+    expect(display).not.toContain('"component"')
+    expect(display.trim()).not.toBe('}')
+    expect(display).not.toMatch(/^\s*\}\s*$/)
+  })
+
+  it('keeps lookalike createSurface JSON visible when parse rejects it', async () => {
+    const { formatChatContentForDisplay } = await import(
+      '@/lib/a2ui/display-chat-content'
+    )
+    // Missing version → not a protocol message; must not blank to lone }.
+    const content =
+      '{"createSurface":{"surfaceId":"s1","catalogId":"c"}}\n}'
+    const display = formatChatContentForDisplay(content, {
+      role: 'ai',
+      messageId: 'ai-lookalike',
+    })
+    expect(display.trim()).not.toBe('}')
+    expect(display).toContain('createSurface')
+  })
+
+  it('hides unfinished mid-stream A2UI JSON while keeping prior prose', async () => {
+    const { formatChatContentForDisplay } = await import(
+      '@/lib/a2ui/display-chat-content'
+    )
+    const content =
+      'Here is a draft while UI streams:\n{\n  "component": "AskUser",\n  "id": "root",\n  "props": {'
+    const display = formatChatContentForDisplay(content, {
+      role: 'ai',
+      messageId: 'ai-mid-stream',
+    })
+    expect(display).toContain('Here is a draft')
+    expect(display).not.toContain('"component"')
+    expect(display).not.toContain('{')
+  })
+
   it('formats ask_user_answer actions', () => {
     const text = formatA2uiActionMessage({
       name: 'ask_user_answer',

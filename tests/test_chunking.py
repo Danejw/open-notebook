@@ -15,7 +15,11 @@ from construction_os.utils.chunking import (
     detect_content_type_from_extension,
     detect_content_type_from_heuristics,
 )
-from construction_os.utils.token_utils import token_count
+from construction_os.utils.token_utils import (
+    EMBEDDER_MAX_INPUT_TOKENS,
+    estimate_wordpiece_tokens,
+    token_count,
+)
 
 
 def _build_text_with_max_tokens(fragment: str, max_tokens: int) -> str:
@@ -36,11 +40,12 @@ def _build_text_exceeding_tokens(fragment: str, threshold_tokens: int) -> str:
     return text
 
 
-def _assert_chunks_within_token_limit(chunks: list[str]) -> None:
+def _assert_chunks_within_token_limit(chunks: list) -> None:
     """Assert chunks stay within the configured token window."""
     assert chunks
     for chunk in chunks:
-        assert token_count(chunk) <= CHUNK_SIZE
+        content = chunk.content if hasattr(chunk, "content") else str(chunk)
+        assert token_count(content) <= CHUNK_SIZE
 
 # ============================================================================
 # TEST SUITE 1: Content Type Detection from Extension
@@ -246,14 +251,21 @@ class TestChunkText:
         text = "This is a short text."
         chunks = chunk_text(text)
         assert len(chunks) == 1
-        assert chunks[0] == text
+        assert chunks[0].content == text
+        assert chunks[0].char_start == 0
+        assert chunks[0].char_end == len(text)
+        assert chunks[0].page is None
 
     def test_text_at_chunk_limit(self):
         """Test text within the token chunk size limit."""
         text = _build_text_with_max_tokens("This is a sentence. ", CHUNK_SIZE)
         assert token_count(text) <= CHUNK_SIZE
         chunks = chunk_text(text)
-        assert len(chunks) == 1
+        # May re-split when WordPiece estimate exceeds embedder max (RAG-007).
+        assert len(chunks) >= 1
+        for chunk in chunks:
+            assert token_count(chunk.content) <= CHUNK_SIZE
+            assert estimate_wordpiece_tokens(chunk.content) <= EMBEDDER_MAX_INPUT_TOKENS
 
     def test_long_text_is_chunked(self):
         """Test that long English text is chunked by token budget."""
@@ -339,8 +351,8 @@ Content for section 2.
         md_text = f"# Real Title\n\n{large_section}\n\n# .\n"
         chunks = chunk_text(md_text, content_type=ContentType.MARKDOWN)
         assert len(chunks) >= 1
-        assert all(token_count(c) >= MIN_CHUNK_SIZE for c in chunks)
-        assert all(c.strip() not in (".", ",", ";", "#") for c in chunks)
+        assert all(token_count(c.content) >= MIN_CHUNK_SIZE for c in chunks)
+        assert all(c.content.strip() not in (".", ",", ";", "#") for c in chunks)
 
     def test_filter_never_empties_result(self):
         """Even if every chunk would be dropped, at least one survives."""

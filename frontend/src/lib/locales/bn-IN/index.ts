@@ -1103,7 +1103,9 @@ export const bnIN = {
       "howLong": "পুনর্নির্মাণে কত সময় লাগে?",
       "howLongAns": "প্রক্রিয়াকরণের সময় আইটেম সংখ্যা, মডেলের গতি এবং API রেট লিমিটের উপর নির্ভর করে। স্থানীয় মডেল সাধারণত খুব দ্রুত।",
       "isSafe": "অ্যাপ ব্যবহার করার সময় পুনর্নির্মাণ নিরাপদ?",
-      "isSafeAns": "হ্যাঁ, পুনর্নির্মাণ নিরাপদ! এটি কন্টেন্ট মুছে ফেলে না, শুধুমাত্র এমবেডিং প্রতিস্থাপন করে, এবং ত্রুটি সুন্দরভাবে পরিচালনা করে।"
+      "isSafeAns": "হ্যাঁ, পুনর্নির্মাণ নিরাপদ! এটি কন্টেন্ট মুছে ফেলে না, শুধুমাত্র এমবেডিং প্রতিস্থাপন করে, এবং ত্রুটি সুন্দরভাবে পরিচালনা করে।",
+      "chainKg": "Also rebuild knowledge graph",
+      "chainKgDesc": "Off by default (faster). Turn on when graph nodes must match re-chunked embeddings — costs more LLM/time per source."
     }
   },
   "artifacts": {

@@ -10,6 +10,7 @@ export type AgentProgressStep =
   | 'loading_skills'
   | 'retrieving_context'
   | 'generating'
+  | 'verifying_citations'
   | 'strategy'
   | 'provide_answer'
   | 'write_final_answer'
@@ -24,6 +25,16 @@ export interface AgentProgressDetail {
   sourceCount?: number
   noteCount?: number
   tokenCount?: number
+  /** Hybrid / vector / graph mode actually used for this turn's retrieve */
+  retrievalModeUsed?: string | null
+  /** Why retrieve fell back (e.g. graph_empty_or_unavailable), if any */
+  fallbackReason?: string | null
+  /** Count of citations stripped as not in retrieved evidence (RAG-015) */
+  citationViolations?: number
+  /** Removed citation IDs (capped server-side) */
+  removedCitationIds?: string[]
+  /** Count of citations that matched allowed evidence */
+  keptCitationCount?: number
   searchQueries?: number
   searchTerm?: string
   resultCount?: number

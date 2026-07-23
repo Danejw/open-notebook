@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react'
-import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { ChatMessageRow } from '@/components/source/ChatMessageRow'
 
@@ -54,15 +53,19 @@ vi.mock('@/components/mcp/ToolCallGroup', () => ({
   ToolCallGroup: () => null,
 }))
 
-vi.mock('@/components/common/MarkdownRenderer', () => ({
-  MarkdownRenderer: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-}))
-
-vi.mock('@/lib/utils/source-references', () => ({
-  convertReferencesToCompactMarkdown: (content: string) => content,
-  createCompactReferenceLinkComponent: () => () => null,
+vi.mock('@/components/common/CitedMarkdownContent', () => ({
+  CitedMarkdownContent: ({
+    content,
+    isStreaming,
+  }: {
+    content: string
+    isStreaming?: boolean
+  }) =>
+    isStreaming ? (
+      <p>{content}</p>
+    ) : (
+      <div data-testid="cited-markdown">{content}</div>
+    ),
 }))
 
 vi.mock('@/lib/utils/restore-template-media', () => ({

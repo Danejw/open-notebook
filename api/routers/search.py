@@ -1,45 +1,53 @@
-import uuid
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from loguru import logger
 
-from api import ag_ui_agents
-from api.models import AskRequest, AskResponse, SearchRequest, SearchResponse
-from construction_os.ai.models import Model, model_manager
+from api.models import SearchRequest, SearchResponse
+from construction_os.ai.models import model_manager
 from construction_os.domain.project import text_search, vector_search
 from construction_os.exceptions import DatabaseOperationError, InvalidInputError
-from construction_os.graphs.ask import graph as ask_graph
 from construction_os.retrieval import retrieve
-
-# Deprecated: the frontend uses POST /search/ask (SSE streaming) for search Q&A.
-# This non-streaming route remains for external API clients until 2026-12-31.
-DEPRECATED_ASK_SIMPLE_SUNSET = "2026-12-31"
 
 router = APIRouter()
 
 
 @router.post("/search", response_model=SearchResponse)
 async def search_knowledge_base(search_request: SearchRequest):
-    """Search the knowledge base using text, vector, or hybrid search."""
+    """Search the knowledge base.
+
+    Modes (RAG-005 / RAG-014):
+    - auto (default): retrieve(mode=\"auto\") — same heuristics as project chat
+    - hybrid: BM25 + vector via retrieve(mode=\"hybrid\")
+    - vector: dense similarity only (explicit; no RRF)
+    - text: keyword/BM25 only
+    """
     try:
-        if search_request.type == "hybrid":
+        retrieval_mode_used: Optional[str] = None
+
+        if search_request.type in ("hybrid", "auto"):
             if not await model_manager.get_embedding_model():
                 raise HTTPException(
                     status_code=400,
-                    detail="Hybrid search requires an embedding model. Please configure one in the Models section.",
+                    detail=(
+                        f"{search_request.type.capitalize()} search requires an "
+                        "embedding model. Please configure one in the Models section."
+                    ),
                 )
+            mode = "hybrid" if search_request.type == "hybrid" else "auto"
             bundle = await retrieve(
                 search_request.query,
                 project_id=search_request.project_id,
-                mode="hybrid",
+                mode=mode,  # type: ignore[arg-type]
                 limit=search_request.limit,
                 search_sources=search_request.search_sources,
                 search_notes=search_request.resolve_search_artifacts(),
                 minimum_score=search_request.minimum_score,
             )
             results = bundle.to_search_results()
+            retrieval_mode_used = bundle.retrieval_mode_used
         elif search_request.type == "vector":
-            # Check if embedding model is available for vector search
+            # Pure vector — intentionally skips hybrid RRF (use hybrid/auto instead).
             if not await model_manager.get_embedding_model():
                 raise HTTPException(
                     status_code=400,
@@ -68,6 +76,7 @@ async def search_knowledge_base(search_request: SearchRequest):
             results=results or [],
             total_count=len(results) if results else 0,
             search_type=search_request.type,
+            retrieval_mode_used=retrieval_mode_used,
         )
     except DatabaseOperationError as e:
         logger.error(f"Database error during search: {str(e)}")
@@ -78,140 +87,3 @@ async def search_knowledge_base(search_request: SearchRequest):
     except Exception as e:
         logger.error(f"Unexpected error during search: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
-
-
-def _ask_configurable(ask_request: AskRequest, strategy_model, answer_model, final_answer_model):
-    return {
-        "strategy_model": strategy_model.id,
-        "answer_model": answer_model.id,
-        "final_answer_model": final_answer_model.id,
-        "project_id": ask_request.project_id,
-        "retrieval_mode": ask_request.retrieval_mode,
-    }
-
-
-@router.post("/search/ask")
-async def ask_knowledge_base(ask_request: AskRequest):
-    """Ask the knowledge base a question using AI models (AG-UI stream)."""
-    try:
-        # Validate models exist
-        strategy_model = await Model.get(ask_request.strategy_model)
-        answer_model = await Model.get(ask_request.answer_model)
-        final_answer_model = await Model.get(ask_request.final_answer_model)
-
-        if not strategy_model:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Strategy model {ask_request.strategy_model} not found",
-            )
-        if not answer_model:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Answer model {ask_request.answer_model} not found",
-            )
-        if not final_answer_model:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Final answer model {ask_request.final_answer_model} not found",
-            )
-
-        # Check if embedding model is available
-        if not await model_manager.get_embedding_model():
-            raise HTTPException(
-                status_code=400,
-                detail="Ask feature requires an embedding model. Please configure one in the Models section.",
-            )
-
-        return ag_ui_agents.ag_ui_streaming_response(
-            ag_ui_agents.ask_agent,
-            ag_ui_agents.build_run_input(
-                thread_id=str(uuid.uuid4()),
-                state={"question": ask_request.question},
-                forwarded_props={"question": ask_request.question},
-                messages=[],
-            ),
-            configurable=_ask_configurable(
-                ask_request, strategy_model, answer_model, final_answer_model
-            ),
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in ask endpoint: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Ask operation failed: {str(e)}")
-
-
-@router.post(
-    "/search/ask/simple",
-    response_model=AskResponse,
-    deprecated=True,
-    summary="Ask knowledge base (non-streaming, deprecated)",
-    description=(
-        "Deprecated — sunset **2026-12-31**. Returns a single JSON response after "
-        "the ask graph completes. The Next.js UI uses `POST /search/ask` (SSE) "
-        "instead. Retained for simple API clients and scripts."
-    ),
-)
-async def ask_knowledge_base_simple(ask_request: AskRequest):
-    """Ask the knowledge base a question and return a simple response (non-streaming)."""
-    try:
-        # Validate models exist
-        strategy_model = await Model.get(ask_request.strategy_model)
-        answer_model = await Model.get(ask_request.answer_model)
-        final_answer_model = await Model.get(ask_request.final_answer_model)
-
-        if not strategy_model:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Strategy model {ask_request.strategy_model} not found",
-            )
-        if not answer_model:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Answer model {ask_request.answer_model} not found",
-            )
-        if not final_answer_model:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Final answer model {ask_request.final_answer_model} not found",
-            )
-
-        # Check if embedding model is available
-        if not await model_manager.get_embedding_model():
-            raise HTTPException(
-                status_code=400,
-                detail="Ask feature requires an embedding model. Please configure one in the Models section.",
-            )
-
-        # Run the ask graph and get final result
-        final_answer = None
-        query_run_id = None
-        async for chunk in ask_graph.astream(
-            input=dict(question=ask_request.question),  # type: ignore[arg-type]
-            config=dict(
-                configurable=_ask_configurable(
-                    ask_request, strategy_model, answer_model, final_answer_model
-                )
-                | {"thread_id": str(uuid.uuid4())}
-            ),
-            stream_mode="updates",
-        ):
-            if "write_final_answer" in chunk:
-                final_answer = chunk["write_final_answer"]["final_answer"]
-                query_run_id = chunk["write_final_answer"].get("query_run_id")
-
-        if not final_answer:
-            raise HTTPException(status_code=500, detail="No answer generated")
-
-        return AskResponse(
-            answer=final_answer,
-            question=ask_request.question,
-            query_run_id=query_run_id,
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in ask simple endpoint: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Ask operation failed: {str(e)}")

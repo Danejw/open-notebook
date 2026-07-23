@@ -225,7 +225,11 @@ class SuccessResponse(BaseModel):
 
 class ChatSuggestionsRequest(BaseModel):
     scope: Literal["project", "source"] = Field(
-        ..., description="Whether suggestions are for project or source chat"
+        ...,
+        description=(
+            "Suggestion scope. Prefer 'project' (project chat). "
+            "'source' remains for API compatibility but source chat UI is retired."
+        ),
     )
     project_id: Optional[str] = Field(
         None, description="Project ID (required for project scope)"

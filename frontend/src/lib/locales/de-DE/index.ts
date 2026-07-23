@@ -1103,7 +1103,9 @@ export const deDE = {
       "howLong": "Wie lange dauert der Neuaufbau?",
       "howLongAns": "Die Verarbeitungszeit hängt von der Anzahl der Elemente, der Modellgeschwindigkeit und den API-Rate-Limits ab. Lokale Modelle sind meist sehr schnell.",
       "isSafe": "Ist der Neuaufbau sicher, während die App verwendet wird?",
-      "isSafeAns": "Ja, der Neuaufbau ist sicher! Er löscht keine Inhalte, sondern ersetzt nur Embeddings und behandelt Fehler kontrolliert."
+      "isSafeAns": "Ja, der Neuaufbau ist sicher! Er löscht keine Inhalte, sondern ersetzt nur Embeddings und behandelt Fehler kontrolliert.",
+      "chainKg": "Also rebuild knowledge graph",
+      "chainKgDesc": "Off by default (faster). Turn on when graph nodes must match re-chunked embeddings — costs more LLM/time per source."
     }
   },
   "artifacts": {

@@ -244,22 +244,24 @@ class ModelManager:
         """
         defaults = await self.get_defaults()
         model_id = None
+        # Normalize so callers can pass "artifact" or legacy "Artifact".
+        resolved_type = model_type.lower()
 
-        if model_type == "chat":
+        if resolved_type == "chat":
             model_id = defaults.default_chat_model
-        elif model_type == "Artifact":
+        elif resolved_type == "artifact":
             model_id = (
                 defaults.default_artifact_model or defaults.default_chat_model
             )
-        elif model_type == "tools":
+        elif resolved_type == "tools":
             model_id = defaults.default_tools_model or defaults.default_chat_model
-        elif model_type == "embedding":
+        elif resolved_type == "embedding":
             model_id = defaults.default_embedding_model
-        elif model_type == "text_to_speech":
+        elif resolved_type == "text_to_speech":
             model_id = defaults.default_text_to_speech_model
-        elif model_type == "speech_to_text":
+        elif resolved_type == "speech_to_text":
             model_id = defaults.default_speech_to_text_model
-        elif model_type == "large_context":
+        elif resolved_type == "large_context":
             model_id = defaults.large_context_model
 
         if not model_id:
@@ -283,7 +285,7 @@ class ModelManager:
         # Tools extraction can fall back to the chat default when tools fails.
         if (
             model is None
-            and model_type == "tools"
+            and resolved_type == "tools"
             and defaults.default_chat_model
             and defaults.default_chat_model != model_id
         ):

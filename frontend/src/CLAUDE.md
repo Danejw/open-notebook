@@ -22,7 +22,7 @@ User interactions trigger mutations/queries via hooks, which communicate with th
 
 ### Pages (`src/app/`) — Next.js App Router
 - `(auth)/login`: Authentication entry point
-- `(dashboard)/`: Protected routes (projects, artifacts, sources, search, models, etc.)
+- `(dashboard)/`: Protected routes (projects, artifacts, sources, models, etc.)
 - Directory-based routing; each `page.tsx` is a route endpoint
 - **Key pattern**: Pages call hooks to fetch data, render components with state
 - **Router groups** `(auth)`, `(dashboard)` organize routes by feature without affecting URL
@@ -33,7 +33,7 @@ User interactions trigger mutations/queries via hooks, which communicate with th
 - **auth**: `LoginForm.tsx` — authentication UI
 - **common**: `CommandPalette`, `ErrorBoundary`, `ContextToggle`, `ModelSelector` — shared across pages
 - **ui**: Reusable Radix UI building blocks (see child CLAUDE.md)
-- **source**, **projects**, **search**, **podcasts**: Feature-specific components consuming hooks
+- **source**, **projects**, **podcasts**: Feature-specific components consuming hooks
 
 **Component composition pattern**: Pages → Feature components → UI components. Feature components handle page-level state (loading, error), UI components remain stateless and styled.
 
@@ -48,8 +48,8 @@ User interactions trigger mutations/queries via hooks, which communicate with th
 #### `lib/hooks/` — React Query + Custom Logic
 - **Query hooks**: `useProjectSources`, `useSources`, `useSource` — TanStack Query wrappers with cache keys
 - **Mutation hooks**: `useCreateSource`, `useUpdateSource`, `useDeleteSource` — mutations with toast feedback + cache invalidation
-- **Complex hooks**: `useProjectChat`, `useSourceChat` — session management, message streaming, context building
-- **SSE streaming**: `useAsk` — parses newline-delimited JSON from backend for multi-stage workflows
+- **Complex hooks**: `useProjectChat` — session management, message streaming, context building
+- **SSE streaming**: project chat uses AG-UI SSE via `readAgUiSseStream` / `createAgUiChatSseHandler`
 - **Pattern**: Hooks return `{ data, isLoading, error, refetch }` + action functions; cache invalidation on mutations
 
 #### `lib/stores/` — Application State

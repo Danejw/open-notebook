@@ -229,6 +229,40 @@ async def test_rebuild_sources_uses_linked_embed_stage(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_rebuild_sources_can_opt_in_to_kg_chain(monkeypatch):
+    """RAG-008: rebuild defaults to chain_kg=False; operators can opt in."""
+    monkeypatch.setattr(
+        embedding_commands.model_manager,
+        "get_embedding_model",
+        AsyncMock(return_value=MagicMock()),
+    )
+    monkeypatch.setattr(
+        embedding_commands,
+        "collect_items_for_rebuild",
+        AsyncMock(
+            return_value={
+                "sources": ["source:one"],
+                "notes": [],
+            }
+        ),
+    )
+    begin_embed = AsyncMock(return_value="command:one")
+    monkeypatch.setattr(embedding_commands, "begin_embed_stage", begin_embed)
+
+    result = await embedding_commands.rebuild_embeddings_command(
+        embedding_commands.RebuildEmbeddingsInput(
+            mode="existing",
+            include_sources=True,
+            include_notes=False,
+            chain_kg=True,
+        )
+    )
+
+    assert result.success is True
+    begin_embed.assert_awaited_once_with("source:one", chain_kg=True)
+
+
+@pytest.mark.asyncio
 async def test_legacy_embed_single_item_routes_notes(monkeypatch):
     async def fake_embed_note(input_data):
         assert input_data.note_id == "note:abc"

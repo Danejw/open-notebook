@@ -1103,7 +1103,9 @@ export const caES = {
       "howLong": "Quant de temps triga la reconstrucció?",
       "howLongAns": "El temps de processament depèn del nombre d'elements, la velocitat del model i els límits de taxa de l'API. Els models locals solen ser molt ràpids.",
       "isSafe": "És segur reconstruir mentre s'usa l'aplicació?",
-      "isSafeAns": "Sí, la reconstrucció és segura! No suprimeix el contingut, només substitueix les incrustacions, i gestiona els errors correctament."
+      "isSafeAns": "Sí, la reconstrucció és segura! No suprimeix el contingut, només substitueix les incrustacions, i gestiona els errors correctament.",
+      "chainKg": "Also rebuild knowledge graph",
+      "chainKgDesc": "Off by default (faster). Turn on when graph nodes must match re-chunked embeddings — costs more LLM/time per source."
     }
   },
   "artifacts": {

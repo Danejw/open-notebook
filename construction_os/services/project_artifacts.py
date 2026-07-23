@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from loguru import logger
+
 from construction_os.database.repository import repo_query
 from construction_os.domain.project import Project
 from construction_os.domain.project_artifact import (
@@ -12,6 +14,20 @@ from construction_os.domain.project_artifact import (
     resolve_kind_from_payload,
 )
 from construction_os.exceptions import InvalidInputError, NotFoundError
+
+_FALLBACK_TITLE_WORD_LIMIT = 12
+
+
+def fallback_artifact_title(content: str) -> str:
+    """Deterministic title from content when LLM title generation is unavailable."""
+    words = " ".join(str(content).split()).strip()
+    if not words:
+        return "Untitled Artifact"
+    parts = words.split(" ")
+    title = " ".join(parts[:_FALLBACK_TITLE_WORD_LIMIT])
+    if len(parts) > _FALLBACK_TITLE_WORD_LIMIT:
+        title = f"{title}…"
+    return title
 
 
 async def generate_artifact_title(content: str, kind: str) -> str:
@@ -28,13 +44,22 @@ async def generate_artifact_title(content: str, kind: str) -> str:
             "content, with max 15 words"
         )
 
-    result = await prompt_graph.ainvoke(
-        {  # type: ignore[arg-type]
-            "input_text": content,
-            "prompt": prompt,
-        }
-    )
-    return result.get("output", "Untitled Artifact")
+    try:
+        result = await prompt_graph.ainvoke(
+            {  # type: ignore[arg-type]
+                "input_text": content,
+                "prompt": prompt,
+            }
+        )
+        output = result.get("output")
+        if isinstance(output, str) and output.strip():
+            return output.strip()
+    except Exception as e:
+        logger.warning(
+            f"Artifact title generation failed ({e}); using fallback title"
+        )
+
+    return fallback_artifact_title(content)
 
 
 def project_artifact_to_dict(

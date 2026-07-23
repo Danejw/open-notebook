@@ -16,20 +16,20 @@ def client():
 class TestProjectArtifactCreation:
     """Test suite for project-artifacts API endpoints."""
 
-    @patch("api.routers.project_artifacts.ProjectArtifact")
-    def test_create_artifact_returns_command_id(self, mock_artifact_cls, client):
+    @patch("api.routers.project_artifacts.create_project_artifact", new_callable=AsyncMock)
+    def test_create_artifact_returns_command_id(self, mock_create, client):
         """Creating a project artifact returns the embed command_id."""
-        mock_artifact = AsyncMock()
-        mock_artifact.id = "note:abc123"
-        mock_artifact.title = "Test Artifact"
-        mock_artifact.content = "Some content"
-        mock_artifact.note_type = "manual"
-        mock_artifact.artifact_kind = "manual"
-        mock_artifact.created = "2026-01-01T00:00:00Z"
-        mock_artifact.updated = "2026-01-01T00:00:00Z"
-        mock_artifact.save.return_value = "command:embed123"
-        mock_artifact.add_to_project = AsyncMock()
-        mock_artifact_cls.return_value = mock_artifact
+        mock_create.return_value = {
+            "id": "note:abc123",
+            "title": "Test Artifact",
+            "content": "Some content",
+            "artifact_kind": "manual",
+            "note_type": "manual",
+            "created": "2026-01-01T00:00:00Z",
+            "updated": "2026-01-01T00:00:00Z",
+            "command_id": "command:embed123",
+            "idempotent_replay": False,
+        }
 
         response = client.post(
             "/api/project-artifacts",
@@ -42,23 +42,24 @@ class TestProjectArtifactCreation:
         assert data["id"] == "note:abc123"
         assert data["artifact_kind"] == "manual"
         assert data["note_type"] == "manual"
+        mock_create.assert_awaited_once()
 
-    @patch("api.routers.project_artifacts.ProjectArtifact")
+    @patch("api.routers.project_artifacts.create_project_artifact", new_callable=AsyncMock)
     def test_create_artifact_command_id_none_when_no_content_embedding(
-        self, mock_artifact_cls, client
+        self, mock_create, client
     ):
         """command_id is None when save returns None (no embedding)."""
-        mock_artifact = AsyncMock()
-        mock_artifact.id = "note:abc456"
-        mock_artifact.title = "Empty Artifact"
-        mock_artifact.content = "Some content"
-        mock_artifact.note_type = "manual"
-        mock_artifact.artifact_kind = "manual"
-        mock_artifact.created = "2026-01-01T00:00:00Z"
-        mock_artifact.updated = "2026-01-01T00:00:00Z"
-        mock_artifact.save.return_value = None
-        mock_artifact.add_to_project = AsyncMock()
-        mock_artifact_cls.return_value = mock_artifact
+        mock_create.return_value = {
+            "id": "note:abc456",
+            "title": "Empty Artifact",
+            "content": "Some content",
+            "artifact_kind": "manual",
+            "note_type": "manual",
+            "created": "2026-01-01T00:00:00Z",
+            "updated": "2026-01-01T00:00:00Z",
+            "command_id": None,
+            "idempotent_replay": False,
+        }
 
         response = client.post(
             "/api/project-artifacts",
@@ -69,25 +70,22 @@ class TestProjectArtifactCreation:
         data = response.json()
         assert data["command_id"] is None
 
-    @patch("api.routers.project_artifacts._generate_artifact_title", new_callable=AsyncMock)
-    @patch("api.routers.project_artifacts.ProjectArtifact")
-    def test_create_generated_artifact_auto_generates_title(
-        self, mock_artifact_cls, mock_generate_title, client
+    @patch("api.routers.project_artifacts.create_project_artifact", new_callable=AsyncMock)
+    def test_create_generated_artifact_passes_kind_without_title(
+        self, mock_create, client
     ):
-        """Generated artifacts without a title get an LLM-generated title from content."""
-        mock_generate_title.return_value = "Bid Scope Summary for Kona BBQ"
-
-        mock_artifact = AsyncMock()
-        mock_artifact.id = "note:generated123"
-        mock_artifact.title = "Bid Scope Summary for Kona BBQ"
-        mock_artifact.content = "Detailed scope breakdown for the kitchen renovation."
-        mock_artifact.note_type = "generated"
-        mock_artifact.artifact_kind = "generated"
-        mock_artifact.created = "2026-01-01T00:00:00Z"
-        mock_artifact.updated = "2026-01-01T00:00:00Z"
-        mock_artifact.save.return_value = None
-        mock_artifact.add_to_project = AsyncMock()
-        mock_artifact_cls.return_value = mock_artifact
+        """Generated artifacts without a title are created via the shared service."""
+        mock_create.return_value = {
+            "id": "note:generated123",
+            "title": "Bid Scope Summary for Kona BBQ",
+            "content": "Detailed scope breakdown for the kitchen renovation.",
+            "artifact_kind": "generated",
+            "note_type": "generated",
+            "created": "2026-01-01T00:00:00Z",
+            "updated": "2026-01-01T00:00:00Z",
+            "command_id": None,
+            "idempotent_replay": False,
+        }
 
         response = client.post(
             "/api/project-artifacts",
@@ -98,34 +96,31 @@ class TestProjectArtifactCreation:
         )
 
         assert response.status_code == 200
-        mock_generate_title.assert_awaited_once_with(
-            "Detailed scope breakdown for the kitchen renovation.",
-            "generated",
+        mock_create.assert_awaited_once_with(
+            content="Detailed scope breakdown for the kitchen renovation.",
+            project_id=None,
+            title=None,
+            artifact_kind="generated",
+            note_type=None,
         )
         data = response.json()
         assert data["title"] == "Bid Scope Summary for Kona BBQ"
         assert data["artifact_kind"] == "generated"
-        assert mock_artifact_cls.call_args.kwargs["note_type"] == "generated"
 
-    @patch("api.routers.project_artifacts._generate_artifact_title", new_callable=AsyncMock)
-    @patch("api.routers.project_artifacts.ProjectArtifact")
-    def test_create_ai_artifact_auto_generates_title(
-        self, mock_artifact_cls, mock_generate_title, client
-    ):
-        """AI artifacts without a title also get an auto-generated title."""
-        mock_generate_title.return_value = "Chat Capture Summary"
-
-        mock_artifact = AsyncMock()
-        mock_artifact.id = "note:ai123"
-        mock_artifact.title = "Chat Capture Summary"
-        mock_artifact.content = "Key points from the conversation."
-        mock_artifact.note_type = "ai"
-        mock_artifact.artifact_kind = "ai"
-        mock_artifact.created = "2026-01-01T00:00:00Z"
-        mock_artifact.updated = "2026-01-01T00:00:00Z"
-        mock_artifact.save.return_value = None
-        mock_artifact.add_to_project = AsyncMock()
-        mock_artifact_cls.return_value = mock_artifact
+    @patch("api.routers.project_artifacts.create_project_artifact", new_callable=AsyncMock)
+    def test_create_ai_artifact_passes_kind_without_title(self, mock_create, client):
+        """AI artifacts without a title are created via the shared service."""
+        mock_create.return_value = {
+            "id": "note:ai123",
+            "title": "Chat Capture Summary",
+            "content": "Key points from the conversation.",
+            "artifact_kind": "ai",
+            "note_type": "ai",
+            "created": "2026-01-01T00:00:00Z",
+            "updated": "2026-01-01T00:00:00Z",
+            "command_id": None,
+            "idempotent_replay": False,
+        }
 
         response = client.post(
             "/api/project-artifacts",
@@ -136,9 +131,12 @@ class TestProjectArtifactCreation:
         )
 
         assert response.status_code == 200
-        mock_generate_title.assert_awaited_once_with(
-            "Key points from the conversation.",
-            "ai",
+        mock_create.assert_awaited_once_with(
+            content="Key points from the conversation.",
+            project_id=None,
+            title=None,
+            artifact_kind="ai",
+            note_type=None,
         )
         assert response.json()["artifact_kind"] == "ai"
 
@@ -146,19 +144,19 @@ class TestProjectArtifactCreation:
 class TestNotesAliasSmoke:
     """Deprecated /notes routes delegate to project-artifacts handlers."""
 
-    @patch("api.routers.project_artifacts.ProjectArtifact")
-    def test_create_note_alias_returns_command_id(self, mock_artifact_cls, client):
-        mock_artifact = AsyncMock()
-        mock_artifact.id = "note:alias123"
-        mock_artifact.title = "Alias Artifact"
-        mock_artifact.content = "Alias content"
-        mock_artifact.note_type = "manual"
-        mock_artifact.artifact_kind = "manual"
-        mock_artifact.created = "2026-01-01T00:00:00Z"
-        mock_artifact.updated = "2026-01-01T00:00:00Z"
-        mock_artifact.save.return_value = "command:embed999"
-        mock_artifact.add_to_project = AsyncMock()
-        mock_artifact_cls.return_value = mock_artifact
+    @patch("api.routers.project_artifacts.create_project_artifact", new_callable=AsyncMock)
+    def test_create_note_alias_returns_command_id(self, mock_create, client):
+        mock_create.return_value = {
+            "id": "note:alias123",
+            "title": "Alias Artifact",
+            "content": "Alias content",
+            "artifact_kind": "manual",
+            "note_type": "manual",
+            "created": "2026-01-01T00:00:00Z",
+            "updated": "2026-01-01T00:00:00Z",
+            "command_id": "command:embed999",
+            "idempotent_replay": False,
+        }
 
         response = client.post(
             "/api/notes",

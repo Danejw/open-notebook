@@ -1103,7 +1103,9 @@ export const ruRU = {
       "howLong": "Сколько времени занимает пересоздание?",
       "howLongAns": "Время зависит от количества элементов, скорости модели и лимитов API. Локальные модели обычно очень быстрые.",
       "isSafe": "Безопасно ли пересоздавать во время работы с приложением?",
-      "isSafeAns": "Да, пересоздание безопасно! Оно не удаляет контент, только заменяет эмбеддинги, и корректно обрабатывает ошибки."
+      "isSafeAns": "Да, пересоздание безопасно! Оно не удаляет контент, только заменяет эмбеддинги, и корректно обрабатывает ошибки.",
+      "chainKg": "Also rebuild knowledge graph",
+      "chainKgDesc": "Off by default (faster). Turn on when graph nodes must match re-chunked embeddings — costs more LLM/time per source."
     }
   },
   "artifacts": {

@@ -42,7 +42,6 @@ from api.routers import (
     search,
     settings,
     skills,
-    source_chat,
     sources,
     speaker_profiles,
 )
@@ -186,12 +185,10 @@ async def lifespan(app: FastAPI):
     try:
         from api.ag_ui_agents import refresh_agents
         from construction_os.graphs import chat as chat_module
-        from construction_os.graphs import source_chat as source_chat_module
         from construction_os.graphs.checkpointer import init_checkpointer
 
         checkpointer = await init_checkpointer()
         chat_module.bind_checkpointer(checkpointer)
-        source_chat_module.bind_checkpointer(checkpointer)
         refresh_agents()
         logger.success("LangGraph AsyncSqliteSaver checkpointer ready")
     except Exception as e:
@@ -386,7 +383,6 @@ app.include_router(episode_profiles.router, prefix="/api", tags=["episode-profil
 app.include_router(speaker_profiles.router, prefix="/api", tags=["speaker-profiles"])
 app.include_router(chat.router, prefix="/api", tags=["chat"])
 app.include_router(chat_queue.router, prefix="/api", tags=["chat-queue"])
-app.include_router(source_chat.router, prefix="/api", tags=["source-chat"])
 app.include_router(credentials.router, prefix="/api", tags=["credentials"])
 app.include_router(languages.router, prefix="/api", tags=["languages"])
 

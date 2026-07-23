@@ -36,23 +36,3 @@ def test_chat_system_prompt_includes_html_template_section():
 def test_chat_system_prompt_omits_html_template_when_absent():
     rendered = Prompter(prompt_template="chat/system").render(data={})
     assert "HTML BID TEMPLATE" not in rendered
-
-
-def test_source_chat_system_prompt_includes_html_template_section():
-    rendered = Prompter(prompt_template="source_chat/system").render(
-        data={
-            "html_template": {
-                "id": "html_template:t1",
-                "name": "KCDBC Bid",
-                "category": "estimate",
-                "html_body": SAMPLE_HTML,
-            }
-        }
-    )
-    assert "HTML BID TEMPLATE" in rendered
-    assert "PRIMARY MODE" in rendered
-    assert SAMPLE_HTML in rendered
-    assert "PDF multi-page" in rendered
-    assert "break-inside" in rendered
-    assert "Preserve every `<img>`" in rendered
-    assert "/api/media/" in rendered

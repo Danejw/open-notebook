@@ -1103,7 +1103,9 @@ export const plPL = {
       "howLong": "Jak długo trwa przebudowa?",
       "howLongAns": "Czas przetwarzania zależy od liczby elementów, szybkości modelu i limitów API. Modele lokalne są zwykle bardzo szybkie.",
       "isSafe": "Czy przebudowa podczas korzystania z aplikacji jest bezpieczna?",
-      "isSafeAns": "Tak, przebudowa jest bezpieczna! Nie usuwa treści, jedynie zastępuje osadzenia i sprawnie obsługuje błędy."
+      "isSafeAns": "Tak, przebudowa jest bezpieczna! Nie usuwa treści, jedynie zastępuje osadzenia i sprawnie obsługuje błędy.",
+      "chainKg": "Also rebuild knowledge graph",
+      "chainKgDesc": "Off by default (faster). Turn on when graph nodes must match re-chunked embeddings — costs more LLM/time per source."
     }
   },
   "artifacts": {

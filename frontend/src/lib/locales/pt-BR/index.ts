@@ -1103,7 +1103,9 @@ export const ptBR = {
       "howLong": "Quanto tempo leva a reconstrução?",
       "howLongAns": "O tempo de processamento depende da quantidade de itens, velocidade do modelo e limites de taxa da API. Modelos locais geralmente são muito rápidos.",
       "isSafe": "É seguro reconstruir enquanto usa o aplicativo?",
-      "isSafeAns": "Sim, reconstruir é seguro! Não exclui conteúdo, apenas substitui embeddings, e lida com erros graciosamente."
+      "isSafeAns": "Sim, reconstruir é seguro! Não exclui conteúdo, apenas substitui embeddings, e lida com erros graciosamente.",
+      "chainKg": "Also rebuild knowledge graph",
+      "chainKgDesc": "Off by default (faster). Turn on when graph nodes must match re-chunked embeddings — costs more LLM/time per source."
     }
   },
   "artifacts": {

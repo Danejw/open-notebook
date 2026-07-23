@@ -112,10 +112,6 @@ export async function readAgUiSseStream(
 export function agentStepI18nKey(stepName: string): string {
   const aliases: Record<string, string> = {
     agent: 'generating',
-    source_chat_agent: 'generating',
-    strategy: 'strategy',
-    provide_answer: 'provide_answer',
-    write_final_answer: 'write_final_answer',
     loading_skills: 'loading_skills',
     retrieving_context: 'retrieving_context',
     building_context: 'building_context',

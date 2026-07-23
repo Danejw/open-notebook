@@ -257,15 +257,17 @@ async def generate_embedding(
     if not chunks:
         raise ValueError("Text chunking produced no chunks")
 
-    if len(chunks) == 1:
+    chunk_texts = [c.content for c in chunks]
+
+    if len(chunk_texts) == 1:
         # Single chunk after splitting
-        embeddings = await generate_embeddings(chunks, command_id=command_id)
+        embeddings = await generate_embeddings(chunk_texts, command_id=command_id)
         return embeddings[0]
 
-    logger.debug(f"Embedding {len(chunks)} chunks and mean pooling")
+    logger.debug(f"Embedding {len(chunk_texts)} chunks and mean pooling")
 
     # Embed all chunks in batches
-    embeddings = await generate_embeddings(chunks, command_id=command_id)
+    embeddings = await generate_embeddings(chunk_texts, command_id=command_id)
 
     # Mean pool to get single embedding
     pooled = await mean_pool_embeddings(embeddings)

@@ -12,11 +12,9 @@ import {
   CommandList,
   CommandGroup,
   CommandItem,
-  CommandSeparator,
 } from '@/components/ui/command'
 import {
   Book,
-  Search,
   Mic,
   Bot,
   Shuffle,
@@ -25,7 +23,6 @@ import {
   FileCode2,
   Image,
   Wrench,
-  MessageCircleQuestion,
   Plus,
   Sun,
   Moon,
@@ -39,7 +36,6 @@ import type { TFunction } from 'i18next'
 const getNavigationItems = (t: TFunction) => [
   { name: t('navigation.projects'), href: '/projects', icon: Book, keywords: ['notes', 'research', 'projects'] },
   { name: t('navigation.sources'), href: '/sources', icon: FileText, keywords: ['files', 'documents', 'upload'] },
-  { name: t('navigation.askAndSearch'), href: '/search', icon: Search, keywords: ['find', 'query'] },
   { name: t('navigation.podcasts'), href: '/podcasts', icon: Mic, keywords: ['audio', 'episodes', 'generate'] },
   { name: t('navigation.artifacts'), href: '/artifact-templates', icon: Shuffle, keywords: ['prompts', 'templates', 'actions', 'manage'] },
   { name: t('navigation.images'), href: '/images', icon: Image, keywords: ['logo', 'media', 'picture', 'upload', 'library', 'brand'] },
@@ -136,16 +132,6 @@ export function CommandPalette() {
     handleSelect(() => router.push(href))
   }, [handleSelect, router])
 
-  const handleSearch = useCallback(() => {
-    if (!query.trim()) return
-    handleSelect(() => router.push(`/search?q=${encodeURIComponent(query)}&mode=search`))
-  }, [handleSelect, router, query])
-
-  const handleAsk = useCallback(() => {
-    if (!query.trim()) return
-    handleSelect(() => router.push(`/search?q=${encodeURIComponent(query)}&mode=ask`))
-  }, [handleSelect, router, query])
-
   const handleCreate = useCallback((action: string) => {
     handleSelect(() => {
       if (action === 'source') openSourceDialog()
@@ -157,36 +143,6 @@ export function CommandPalette() {
   const handleTheme = useCallback((theme: 'light' | 'dark' | 'system') => {
     handleSelect(() => setTheme(theme))
   }, [handleSelect, setTheme])
-
-  // Check if query matches any command (navigation, create, theme, or project)
-  const queryLower = query.toLowerCase().trim()
-  const hasCommandMatch = useMemo(() => {
-    if (!queryLower) return false
-    return (
-      navigationItems.some(item =>
-        item.name.toLowerCase().includes(queryLower) ||
-        item.keywords.some(k => k.includes(queryLower))
-      ) ||
-      createItems.some(item =>
-        item.name.toLowerCase().includes(queryLower)
-      ) ||
-      themeItems.some(item =>
-        item.name.toLowerCase().includes(queryLower) ||
-        item.keywords.some(k => k.includes(queryLower))
-      ) ||
-      (projects?.some(project =>
-        project.name.toLowerCase().includes(queryLower) ||
-        (project.description && project.description.toLowerCase().includes(queryLower))
-      ) ?? false) ||
-      artifactRunItems.some((item) =>
-        item.label.toLowerCase().includes(queryLower) ||
-        item.keywords.toLowerCase().includes(queryLower)
-      )
-    )
-  }, [queryLower, projects, navigationItems, createItems, themeItems, artifactRunItems])
-
-  // Determine if we should show the Search/Ask section at the top
-  const showSearchFirst = query.trim() && !hasCommandMatch
 
   return (
     <CommandDialog
@@ -206,28 +162,6 @@ export function CommandPalette() {
         autoComplete="off"
       />
       <CommandList>
-        {/* Search/Ask - show FIRST when there's a query with no command match */}
-        {showSearchFirst && (
-          <CommandGroup heading={t('searchPage.searchAndAsk')} forceMount>
-            <CommandItem
-              value={`__search__ ${query}`}
-              onSelect={handleSearch}
-              forceMount
-            >
-              <Search className="h-4 w-4" />
-              <span>{t('searchPage.searchResultsFor').replace('{query}', query)}</span>
-            </CommandItem>
-            <CommandItem
-              value={`__ask__ ${query}`}
-              onSelect={handleAsk}
-              forceMount
-            >
-              <MessageCircleQuestion className="h-4 w-4" />
-              <span>{t('searchPage.askAbout').replace('{query}', query)}</span>
-            </CommandItem>
-          </CommandGroup>
-        )}
-
         {/* Navigation */}
         <CommandGroup heading={t('navigation.nav')}>
           {navigationItems.map((item) => (
@@ -305,31 +239,6 @@ export function CommandPalette() {
             </CommandItem>
           ))}
         </CommandGroup>
-
-        {/* Search/Ask - show at bottom when there IS a command match */}
-        {query.trim() && hasCommandMatch && (
-          <>
-            <CommandSeparator />
-            <CommandGroup heading={t('searchPage.orSearchKb')} forceMount>
-              <CommandItem
-                value={`__search__ ${query}`}
-                onSelect={handleSearch}
-                forceMount
-              >
-                <Search className="h-4 w-4" />
-                <span>{t('searchPage.searchResultsFor').replace('{query}', query)}</span>
-              </CommandItem>
-              <CommandItem
-                value={`__ask__ ${query}`}
-                onSelect={handleAsk}
-                forceMount
-              >
-                <MessageCircleQuestion className="h-4 w-4" />
-                <span>{t('searchPage.askAbout').replace('{query}', query)}</span>
-              </CommandItem>
-            </CommandGroup>
-          </>
-        )}
       </CommandList>
     </CommandDialog>
   )

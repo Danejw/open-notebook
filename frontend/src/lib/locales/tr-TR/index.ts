@@ -1103,7 +1103,9 @@ export const trTR = {
       "howLong": "Yeniden oluşturma ne kadar sürer?",
       "howLongAns": "İşlem süresi öğe sayısına, model hızına ve API hız sınırlarına bağlıdır. Yerel modeller genellikle çok hızlıdır.",
       "isSafe": "Uygulamayı kullanırken yeniden oluşturmak güvenli mi?",
-      "isSafeAns": "Evet, yeniden oluşturmak güvenlidir! İçeriği silmez, yalnızca gömmeleri değiştirir ve hataları zarif şekilde işler."
+      "isSafeAns": "Evet, yeniden oluşturmak güvenlidir! İçeriği silmez, yalnızca gömmeleri değiştirir ve hataları zarif şekilde işler.",
+      "chainKg": "Also rebuild knowledge graph",
+      "chainKgDesc": "Off by default (faster). Turn on when graph nodes must match re-chunked embeddings — costs more LLM/time per source."
     }
   },
   "artifacts": {

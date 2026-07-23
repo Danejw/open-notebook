@@ -1,7 +1,14 @@
 // Search types
 export interface SearchRequest {
   query: string
-  type: 'text' | 'vector' | 'hybrid'
+  /**
+   * API default is auto (same retrieve() heuristics as project chat).
+   * text = keyword only;
+   * vector = dense similarity only (no RRF);
+   * hybrid = BM25 + vector RRF;
+   * auto = retrieve() heuristics (hybrid for identifiers, else vector).
+   */
+  type?: 'text' | 'vector' | 'hybrid' | 'auto'
   limit: number
   search_sources: boolean
   /** Canonical: include project artifacts in search */
@@ -31,27 +38,6 @@ export interface SearchResponse {
   results: SearchResult[]
   total_count: number
   search_type: string
-}
-
-// Ask types
-export interface AskRequest {
-  question: string
-  strategy_model: string
-  answer_model: string
-  final_answer_model: string
-  project_id?: string
-  retrieval_mode?: 'auto' | 'vector' | 'hybrid' | 'graph'
-}
-
-export interface AskResponse {
-  answer: string
-  question: string
-}
-
-export interface StrategyData {
-  reasoning: string
-  searches: Array<{
-    term: string
-    instructions: string
-  }>
+  /** Present when type is hybrid or auto */
+  retrieval_mode_used?: string | null
 }

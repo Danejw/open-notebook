@@ -10,6 +10,7 @@ from construction_os.domain.html_document import HtmlTemplate
 from construction_os.domain.project import ChatSession
 from construction_os.exceptions import NotFoundError
 from construction_os.utils.html_media import expand_image_tokens
+from construction_os.utils.text_utils import extract_text_content
 
 
 def normalize_chat_session_id(session_id: str) -> str:
@@ -44,10 +45,11 @@ def hydrate_langgraph_messages(
 
     for msg in thread_values.get("messages") or []:
         msg_id = getattr(msg, "id", f"msg_{len(messages)}")
+        raw_content = getattr(msg, "content", "") if hasattr(msg, "content") else str(msg)
         entry: Dict[str, Any] = {
             "id": msg_id,
             "type": msg.type if hasattr(msg, "type") else "unknown",
-            "content": msg.content if hasattr(msg, "content") else str(msg),
+            "content": extract_text_content(raw_content),
             "timestamp": None,
         }
         if include_a2ui:

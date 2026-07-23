@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -39,6 +39,97 @@ class TestSearchLimitValidation:
         )
         assert response.status_code == 200
         mock_text_search.assert_awaited_once()
+
+
+class TestSearchModeRouting:
+    """RAG-005: vector stays pure; hybrid/auto go through retrieve()."""
+
+    @patch("api.routers.search.model_manager.get_embedding_model", new_callable=AsyncMock)
+    @patch("api.routers.search.vector_search", new_callable=AsyncMock)
+    @patch("api.routers.search.retrieve", new_callable=AsyncMock)
+    def test_vector_uses_vector_search_not_retrieve(
+        self, mock_retrieve, mock_vector_search, mock_get_model, client
+    ):
+        mock_get_model.return_value = object()
+        mock_vector_search.return_value = [{"id": "source:1"}]
+        response = client.post(
+            "/api/search",
+            json={"query": "roof warranty", "type": "vector", "limit": 5},
+        )
+        assert response.status_code == 200
+        mock_vector_search.assert_awaited_once()
+        mock_retrieve.assert_not_awaited()
+        body = response.json()
+        assert body["search_type"] == "vector"
+        assert body.get("retrieval_mode_used") is None
+
+    @patch("api.routers.search.model_manager.get_embedding_model", new_callable=AsyncMock)
+    @patch("api.routers.search.vector_search", new_callable=AsyncMock)
+    @patch("api.routers.search.retrieve", new_callable=AsyncMock)
+    def test_hybrid_uses_retrieve(
+        self, mock_retrieve, mock_vector_search, mock_get_model, client
+    ):
+        mock_get_model.return_value = object()
+        bundle = MagicMock()
+        bundle.to_search_results.return_value = [{"id": "source:1"}]
+        bundle.retrieval_mode_used = "hybrid"
+        mock_retrieve.return_value = bundle
+        response = client.post(
+            "/api/search",
+            json={"query": "roof warranty", "type": "hybrid", "limit": 5},
+        )
+        assert response.status_code == 200
+        mock_retrieve.assert_awaited_once()
+        assert mock_retrieve.await_args.kwargs["mode"] == "hybrid"
+        mock_vector_search.assert_not_awaited()
+        assert response.json()["retrieval_mode_used"] == "hybrid"
+
+    @patch("api.routers.search.model_manager.get_embedding_model", new_callable=AsyncMock)
+    @patch("api.routers.search.vector_search", new_callable=AsyncMock)
+    @patch("api.routers.search.retrieve", new_callable=AsyncMock)
+    def test_auto_uses_retrieve_auto_mode(
+        self, mock_retrieve, mock_vector_search, mock_get_model, client
+    ):
+        mock_get_model.return_value = object()
+        bundle = MagicMock()
+        bundle.to_search_results.return_value = [{"id": "source:1"}]
+        bundle.retrieval_mode_used = "hybrid"
+        mock_retrieve.return_value = bundle
+        response = client.post(
+            "/api/search",
+            json={"query": "detail 3/A-501", "type": "auto", "limit": 5},
+        )
+        assert response.status_code == 200
+        mock_retrieve.assert_awaited_once()
+        assert mock_retrieve.await_args.kwargs["mode"] == "auto"
+        mock_vector_search.assert_not_awaited()
+        body = response.json()
+        assert body["search_type"] == "auto"
+        assert body["retrieval_mode_used"] == "hybrid"
+
+    @patch("api.routers.search.model_manager.get_embedding_model", new_callable=AsyncMock)
+    @patch("api.routers.search.vector_search", new_callable=AsyncMock)
+    @patch("api.routers.search.retrieve", new_callable=AsyncMock)
+    def test_omitted_type_defaults_to_auto_like_chat(
+        self, mock_retrieve, mock_vector_search, mock_get_model, client
+    ):
+        """RAG-014: default SearchRequest.type matches chat retrieve(mode='auto')."""
+        mock_get_model.return_value = object()
+        bundle = MagicMock()
+        bundle.to_search_results.return_value = [{"id": "source:1"}]
+        bundle.retrieval_mode_used = "vector"
+        mock_retrieve.return_value = bundle
+        response = client.post(
+            "/api/search",
+            json={"query": "roof warranty", "limit": 5},
+        )
+        assert response.status_code == 200
+        mock_retrieve.assert_awaited_once()
+        assert mock_retrieve.await_args.kwargs["mode"] == "auto"
+        mock_vector_search.assert_not_awaited()
+        body = response.json()
+        assert body["search_type"] == "auto"
+        assert body["retrieval_mode_used"] == "vector"
 
 
 class TestTextSearchHighlightOverflowFallback:

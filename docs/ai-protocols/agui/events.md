@@ -1,9 +1,9 @@
 # AG-UI events (Construction OS)
 
-What the chat / Ask clients consume from AG-UI SSE today.
+What the project chat clients consume from AG-UI SSE today.
 
 **Protocol:** [AG-UI](https://docs.ag-ui.com) (camelCase wire JSON over SSE `data:` lines)  
-**Bridge:** `ag-ui-langgraph` (`LangGraphAgent`) over project chat, source chat, and Ask graphs  
+**Bridge:** `ag-ui-langgraph` (`LangGraphAgent`) over the project chat graph  
 **Related:** [custom-events.md](./custom-events.md) · [extending.md](./extending.md) · [A2UI docs](../a2ui/extending.md)
 
 AG-UI is the **agent ↔ frontend stream**. A2UI is an optional UI payload carried inside AG-UI `CUSTOM` events named `a2ui`.
@@ -28,8 +28,8 @@ AG-UI is the **agent ↔ frontend stream**. A2UI is an optional UI payload carri
 | **STEP_FINISHED** | Step complete | No-op today (progress UI prefers `agent_progress`) |
 | **TEXT_MESSAGE_START** | New AI message | Creates empty AI bubble; binds pending A2UI surfaces |
 | **TEXT_MESSAGE_CONTENT** / **TEXT_MESSAGE_CHUNK** | Token stream | Appends delta (RAF-batched) |
-| **TEXT_MESSAGE_END** | Message complete | Project chat flushes buffers; source chat may skip |
-| **STATE_SNAPSHOT** | Graph state dump | Source chat: context indicators via `onStateSnapshot` |
+| **TEXT_MESSAGE_END** | Message complete | Project chat flushes buffers |
+| **STATE_SNAPSHOT** | Graph state dump | Optional handler via `onStateSnapshot` |
 | **RUN_FINISHED** | Run complete | Clears status; project chat also flushes/clears buffers |
 | **RUN_ERROR** | Fatal run error | Throws; UI shows classified message |
 | **CUSTOM** | Extensions | Progress, MCP tool calls, A2UI — see custom-events |
@@ -40,7 +40,7 @@ Also typed on the client but not specially handled in the shared chat switch: `R
 
 **File:** `frontend/src/lib/hooks/chat-sse-handlers.ts` → `createAgUiChatSseHandler`
 
-Used by project + source chat (`useChatSendTurn`). Ask (`use-ask.ts`) has a thinner inline switch (steps + progress + text + run lifecycle).
+Used by project chat (`useChatSendTurn`).
 
 ---
 
@@ -48,9 +48,7 @@ Used by project + source chat (`useChatSendTurn`). Ask (`use-ask.ts`) has a thin
 
 | Agent name | Graph | HTTP helper | Typical route |
 |------------|-------|-------------|----------------|
-| `project_chat` | `construction_os/graphs/chat.py` | `ag_ui_agents.project_chat_agent` | Project chat send (SSE) |
-| `source_chat` | `construction_os/graphs/source_chat.py` | `ag_ui_agents.source_chat_agent` | Source chat send (SSE) |
-| `ask` | `construction_os/graphs/ask.py` | `ag_ui_agents.ask_agent` | `POST /search/ask` (SSE) |
+| `project_chat` | `construction_os/graphs/chat.py` | `ag_ui_agents.project_chat_agent` | `POST /chat/execute` (SSE) |
 
 Agents are built in `construction_os/graphs/ag_ui_runtime.py` and rebound on API startup after the AsyncSqliteSaver checkpointer is attached (`refresh_agents()`).
 
@@ -73,7 +71,7 @@ Agents are built in `construction_os/graphs/ag_ui_runtime.py` and rebound on API
 Live turn (HTTP)
   → router builds RunAgentInput
   → ag_ui_streaming_response (EventEncoder → SSE)
-  → readAgUiSseStream → createAgUiChatSseHandler / useAsk
+  → readAgUiSseStream → createAgUiChatSseHandler
 
 Queued turn (worker)
   → chat queue runner

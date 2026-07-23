@@ -526,6 +526,34 @@ docker system prune -a
 
 ---
 
+## Rebuild Embeddings (Advanced)
+
+**Settings → Advanced → Rebuild Embeddings** re-embeds sources/artifacts after an embedding model change or index issues.
+
+| Option | Default | Effect |
+|---|---|---|
+| Mode `existing` / `all` | — | Re-embed indexed items only, or also embed items without vectors |
+| Include sources / artifacts | on | Which record types to submit |
+| **Also rebuild knowledge graph** (`chain_kg`) | **off** | When on, each source embed continues into KG extraction |
+
+**Cost note:** `chain_kg=true` is significantly more expensive (LLM calls per source). Leave it off for routine model switches; turn it on when graph retrieval must match newly chunked embeddings.
+
+API:
+
+```http
+POST /api/embeddings/rebuild
+Content-Type: application/json
+
+{
+  "mode": "existing",
+  "include_sources": true,
+  "include_artifacts": true,
+  "chain_kg": false
+}
+```
+
+---
+
 ## Summary
 
 **Most deployments need:**

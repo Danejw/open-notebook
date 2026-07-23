@@ -391,6 +391,29 @@ async def test_concurrent_project_creation():
     assert all(n.id for n in projects)
 ```
 
+## Retrieval eval (RAG quality gate)
+
+CI always runs a **dry-run** of the retrieval eval dataset (no live DB):
+
+```bash
+CONSTRUCTION_OS_EVAL_DRY_RUN=1 python scripts/eval_retrieval.py
+uv run pytest -q tests/test_eval_retrieval_dry_run.py
+```
+
+Dry-run requires fixture IDs (`project:retrieval_eval`, `source:eval_*`) and
+checks that every expected ID exists in `tests/eval/graph_rag/corpus.json`.
+
+For a full recall@k comparison (vector vs hybrid):
+
+```bash
+uv run python scripts/seed_retrieval_eval.py
+uv run python scripts/eval_retrieval.py
+```
+
+See `scripts/README.md` → `eval_retrieval.py`.
+
+---
+
 ## Common Testing Errors
 
 ### Error: "event loop is closed"

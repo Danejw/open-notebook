@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Literal, Optional
 
 from loguru import logger
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from surreal_commands import CommandInput, CommandOutput, command, submit_command
 
 from construction_os.ai.models import model_manager
@@ -49,6 +49,13 @@ class RebuildEmbeddingsInput(CommandInput):
     include_sources: bool = True
     include_notes: bool = True
     include_artifacts: Optional[bool] = None
+    chain_kg: bool = Field(
+        False,
+        description=(
+            "When True, each source embed continues into knowledge-graph extraction. "
+            "Default False keeps rebuilds cheap (embeddings only)."
+        ),
+    )
 
     def resolve_include_artifacts(self) -> bool:
         if self.include_artifacts is not None:
@@ -312,7 +319,7 @@ async def embed_source_command(input_data: EmbedSourceInput) -> EmbedSourceOutpu
         total_chunks = len(chunks)
 
         # Log chunk statistics for debugging
-        chunk_sizes = [len(c) for c in chunks]
+        chunk_sizes = [len(c.content) for c in chunks]
         logger.info(
             f"Created {total_chunks} chunks for source {input_data.source_id} "
             f"(sizes: min={min(chunk_sizes) if chunk_sizes else 0}, "
@@ -325,8 +332,9 @@ async def embed_source_command(input_data: EmbedSourceInput) -> EmbedSourceOutpu
 
         # 4. Generate embeddings for all chunks in batches (before deleting old rows)
         cmd_id = get_command_id(input_data)
+        chunk_texts = [c.content for c in chunks]
         logger.debug(f"Generating embeddings for {total_chunks} chunks")
-        embeddings = await generate_embeddings(chunks, command_id=cmd_id)
+        embeddings = await generate_embeddings(chunk_texts, command_id=cmd_id)
 
         # Verify we got embeddings for all chunks
         if len(embeddings) != len(chunks):
@@ -346,8 +354,11 @@ async def embed_source_command(input_data: EmbedSourceInput) -> EmbedSourceOutpu
             {
                 "source": ensure_record_id(input_data.source_id),
                 "order": idx,
-                "content": chunk,
+                "content": chunk.content,
                 "embedding": embedding,
+                "char_start": chunk.char_start,
+                "char_end": chunk.char_end,
+                "page": chunk.page,
             }
             for idx, (chunk, embedding) in enumerate(zip(chunks, embeddings))
         ]
@@ -743,7 +754,8 @@ async def rebuild_embeddings_command(
         logger.info("=" * 60)
         logger.info(f"Starting embedding rebuild with mode={input_data.mode}")
         logger.info(
-            f"Include: sources={input_data.include_sources}, artifacts={include_artifacts}"
+            f"Include: sources={input_data.include_sources}, artifacts={include_artifacts}, "
+            f"chain_kg={input_data.chain_kg}"
         )
         logger.info("=" * 60)
 
@@ -785,7 +797,7 @@ async def rebuild_embeddings_command(
         logger.info(f"\nSubmitting {len(items['sources'])} source embedding jobs...")
         for idx, source_id in enumerate(items["sources"], 1):
             try:
-                await begin_embed_stage(source_id, chain_kg=False)
+                await begin_embed_stage(source_id, chain_kg=input_data.chain_kg)
                 sources_submitted += 1
 
                 if idx % 50 == 0 or idx == len(items["sources"]):

@@ -35,7 +35,6 @@ import { useTranslation } from '@/lib/hooks/use-translation'
 import { useRoutePrefetch } from '@/lib/hooks/use-route-prefetch'
 import {
   Book,
-  Search,
   Mic,
   Bot,
   Shuffle,
@@ -75,7 +74,6 @@ const getMainNavigation = (t: TFunction): NavSection[] => [
   {
     title: t('navigation.learn'),
     items: [
-      { name: t('navigation.askAndSearch'), href: '/search', icon: Search },
       { name: t('navigation.podcasts'), href: '/podcasts', icon: Mic },
     ],
   },

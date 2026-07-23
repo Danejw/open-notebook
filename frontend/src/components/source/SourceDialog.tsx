@@ -1,7 +1,6 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogTitle, dialogLargeContentClassName } from '@/components/ui/dialog'
 import { SourceDetailSkeleton } from '@/components/common/LoadingSkeletons'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -28,22 +27,13 @@ interface SourceDialogProps {
  * Source Dialog Component
  *
  * Displays source details in a modal dialog.
- * Includes a "Chat with source" button that navigates to the full source page in-app.
  */
 export function SourceDialog({ open, onOpenChange, sourceId }: SourceDialogProps) {
   const { t } = useTranslation()
-  const router = useRouter()
   // Ensure source ID has 'source:' prefix for API calls and routing
   const sourceIdWithPrefix = sourceId
     ? (sourceId.includes(':') ? sourceId : `source:${sourceId}`)
     : null
-
-  const handleChatClick = () => {
-    if (sourceIdWithPrefix) {
-      onOpenChange(false)
-      router.push(`/sources/${sourceIdWithPrefix}`)
-    }
-  }
 
   const handleClose = () => {
     onOpenChange(false)
@@ -64,8 +54,6 @@ export function SourceDialog({ open, onOpenChange, sourceId }: SourceDialogProps
           {open ? (
             <SourceDetailContent
               sourceId={sourceIdWithPrefix}
-              showChatButton={true}
-              onChatClick={handleChatClick}
               onClose={handleClose}
             />
           ) : null}

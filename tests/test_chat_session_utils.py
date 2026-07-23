@@ -56,6 +56,20 @@ def test_hydrate_langgraph_messages_empty_state():
     assert hydrate_langgraph_messages({}) == []
 
 
+def test_hydrate_langgraph_messages_extracts_list_content():
+    values = {
+        "messages": [
+            SimpleNamespace(
+                id="m1",
+                type="ai",
+                content=[{"type": "text", "text": "Structured reply"}],
+            )
+        ]
+    }
+    hydrated = hydrate_langgraph_messages(values)
+    assert hydrated[0]["content"] == "Structured reply"
+
+
 def test_session_record_fields_defaults():
     session = SimpleNamespace(
         id="chat_session:1",

@@ -11,8 +11,30 @@ from api.models import (
     RebuildStatusResponse,
 )
 from construction_os.database.repository import repo_query
+from construction_os.utils.embedding_health import (
+    EmbeddingDimensionHealth,
+    get_embedding_dimension_health,
+)
 
 router = APIRouter()
+
+
+@router.get("/dimension-health", response_model=EmbeddingDimensionHealth)
+async def embedding_dimension_health() -> EmbeddingDimensionHealth:
+    """Report how many indexed embeddings match the active model dimension.
+
+    Vector search silently skips rows whose ``array::len(embedding)`` differs
+    from the query vector. Operators should rebuild when ``needs_rebuild`` is true.
+    """
+    try:
+        return await get_embedding_dimension_health()
+    except Exception as e:
+        logger.error(f"Failed to compute embedding dimension health: {e}")
+        logger.exception(e)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to compute embedding dimension health: {str(e)}",
+        )
 
 
 @router.post("/rebuild", response_model=RebuildResponse)
@@ -23,11 +45,15 @@ async def start_rebuild(request: RebuildRequest):
     - **mode**: "existing" (re-embed items with embeddings) or "all" (embed everything)
     - **include_sources**: Include sources in rebuild (default: true)
     - **include_artifacts** / **include_notes**: Include project artifacts (default: true)
+    - **chain_kg**: When true, also re-run knowledge graph after each source embed
+      (default: false — embeddings only; more expensive when enabled)
 
     Returns command ID to track progress and estimated item count.
     """
     try:
-        logger.info(f"Starting rebuild request: mode={request.mode}")
+        logger.info(
+            f"Starting rebuild request: mode={request.mode}, chain_kg={request.chain_kg}"
+        )
 
         # Import commands to ensure they're registered
         import commands.embedding_commands  # noqa: F401
@@ -88,6 +114,7 @@ async def start_rebuild(request: RebuildRequest):
                 "include_sources": request.include_sources,
                 "include_notes": include_artifacts,
                 "include_artifacts": include_artifacts,
+                "chain_kg": request.chain_kg,
             },
         )
 

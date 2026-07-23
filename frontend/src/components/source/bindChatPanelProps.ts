@@ -1,12 +1,9 @@
 import type { ChatPanelProps } from '@/components/source/ChatPanel'
 import type { useProjectChat } from '@/lib/hooks/useProjectChat'
-import type { useSourceChat } from '@/lib/hooks/useSourceChat'
 
 type ProjectChat = ReturnType<typeof useProjectChat>
-type SourceChat = ReturnType<typeof useSourceChat>
 
 type ProjectChatPanelOverrides = Partial<ChatPanelProps>
-type SourceChatPanelOverrides = Partial<ChatPanelProps>
 
 type CommonChatPanelFields = Pick<
   ChatPanelProps,
@@ -69,7 +66,7 @@ type CommonChatRuntime = {
   loadingSessions: ChatPanelProps['loadingSessions']
 }
 
-/** Shared queue / skill / MCP / session fields used by project and source binders. */
+/** Shared queue / skill / MCP / session fields used by project chat binders. */
 export function bindCommonChatPanelProps(chat: CommonChatRuntime): CommonChatPanelFields {
   return {
     messages: chat.messages,
@@ -148,29 +145,6 @@ export function bindSharedProjectChatPanelProps(
     },
     currentSessionId: chat.currentSessionId,
     loadingSessions: chat.loadingSessions,
-    ...overrides,
-  }
-}
-
-/** Maps source chat hook state to ChatPanel props (source detail page). */
-export function bindSourceChatPanelProps(
-  chat: SourceChat,
-  overrides: SourceChatPanelOverrides = {}
-): ChatPanelProps {
-  return {
-    ...bindCommonChatPanelProps(chat),
-    isStreaming: chat.isStreaming,
-    isDirectStreaming: chat.isDirectSending,
-    contextIndicators: chat.contextIndicators,
-    onSendMessage: (message, model) => chat.sendMessage(message, model),
-    modelOverride: chat.currentSession?.model_override,
-    onModelChange: (model) => {
-      if (chat.currentSessionId) {
-        chat.updateSession(chat.currentSessionId, { model_override: model })
-      }
-    },
-    onCreateSession: (title) => chat.createSession({ title }),
-    onUpdateSession: (sessionId, title) => chat.updateSession(sessionId, { title }),
     ...overrides,
   }
 }

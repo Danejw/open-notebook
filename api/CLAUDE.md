@@ -4,7 +4,7 @@ FastAPI-based REST backend exposing services for projects, sources, project arti
 
 ## Purpose
 
-FastAPI application serving three architectural layers: routes (HTTP endpoints), services (business logic), and models (request/response schemas). Integrates LangGraph workflows (chat, ask, source_chat), SurrealDB persistence, and AI providers via Esperanto.
+FastAPI application serving three architectural layers: routes (HTTP endpoints), services (business logic), and models (request/response schemas). Integrates LangGraph workflows (chat, source, artifact), SurrealDB persistence, and AI providers via Esperanto.
 
 ## Architecture Overview
 
@@ -64,8 +64,7 @@ Routers import domain models (`Project`, `Source`, `Note`, etc.) and LangGraph w
 - **routers/notes.py**: Deprecated aliases — POST/GET/PUT/DELETE `/notes` → project-artifacts handlers
 - **routers/artifact_templates.py**: CRUD `/artifact-templates` (canonical)
 - **routers/artifacts.py**: Deprecated aliases to artifact-templates handlers
-- **routers/chat.py**: POST /chat
-- **routers/source_chat.py**: POST /source/{source_id}/chat
+- **routers/chat.py**: POST /chat/execute, sessions, context, suggestions
 - **routers/podcasts.py**: POST /podcasts, GET /podcasts/{id}, POST /podcasts/episodes/{id}/retry, etc.
 - **routers/sources.py**: POST /sources, GET /sources/{id}, DELETE /sources/{id}
 - **routers/models.py**: GET /models, POST /models/config
@@ -74,7 +73,7 @@ Routers import domain models (`Project`, `Source`, `Note`, etc.) and LangGraph w
 - **routers/languages.py**: GET /languages (available podcast languages via pycountry+babel)
 - **routers/commands.py**: GET /commands/{command_id} (job status tracking)
 - **routers/context.py**: POST /projects/{id}/context (**deprecated** — sunset 2026-12-31; use POST /chat/context)
-- **routers/search.py**: POST /search/ask (SSE), POST /search/ask/simple (**deprecated** — sunset 2026-12-31)
+- **routers/search.py**: POST /search (text/vector/hybrid retrieval)
 
 ## Common Patterns
 
@@ -90,7 +89,7 @@ Routers import domain models (`Project`, `Source`, `Note`, etc.) and LangGraph w
 
 - `fastapi`: FastAPI app, routers, HTTPException
 - `pydantic`: Validation models with Field, field_validator
-- `construction_os.graphs`: chat, ask, source_chat, source, artifact graphs
+- `construction_os.graphs`: chat, source, artifact graphs
 - `construction_os.database`: SurrealDB repository functions (repo_query, repo_create, repo_upsert)
 - `construction_os.domain`: Project, ProjectArtifact, ArtifactTemplate, Source models (`Note` / `Artifact` are aliases)
 - `construction_os.ai.provision`: provision_langchain_model() factory

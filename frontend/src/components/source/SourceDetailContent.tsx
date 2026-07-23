@@ -33,7 +33,6 @@ import {
   Trash2,
   Database,
   AlertCircle,
-  MessageSquare,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { getDateLocale } from '@/lib/utils/date-locale'
@@ -42,9 +41,11 @@ import { useTranslation } from '@/lib/hooks/use-translation'
 import { cn } from '@/lib/utils'
 import { ProjectAssociations } from '@/components/source/ProjectAssociations'
 import { SourceKnowledgePanel } from '@/components/source/SourceKnowledgePanel'
+import { PdfCitationViewer } from '@/components/source/PdfCitationViewer'
 import { DrawingExtractionResultsDialog } from '@/components/sources/DrawingExtractionResultsDialog'
 import { selectInspectableDrawingRun } from '@/lib/drawing/select-inspectable-drawing-run'
 import { useSourceDrawingRuns } from '@/lib/hooks/use-drawing-extraction'
+import { useCitationFocusStore } from '@/lib/stores/citation-focus-store'
 
 /** OCR / drawing dumps are often one long line — mono + wrap is more scannable than Markdown. */
 function isDensePlainExtraction(text: string): boolean {
@@ -55,15 +56,11 @@ function isDensePlainExtraction(text: string): boolean {
 
 interface SourceDetailContentProps {
   sourceId: string
-  showChatButton?: boolean
-  onChatClick?: () => void
   onClose?: () => void
 }
 
 export function SourceDetailContent({
   sourceId,
-  showChatButton = false,
-  onChatClick,
   onClose
 }: SourceDetailContentProps) {
   const { t, language } = useTranslation()
@@ -81,6 +78,14 @@ export function SourceDetailContent({
   const [deletingSource, setDeletingSource] = useState(false)
   const [activeTab, setActiveTab] = useState('content')
   const [drawingResultsOpen, setDrawingResultsOpen] = useState(false)
+  const activeFocus = useCitationFocusStore((s) => s.activeFocus)
+  const clearActiveFocus = useCitationFocusStore((s) => s.clearActiveFocus)
+
+  useEffect(() => {
+    return () => {
+      clearActiveFocus()
+    }
+  }, [clearActiveFocus, sourceId])
 
   const { data: drawingRunsData, isSuccess: drawingRunsReady } =
     useSourceDrawingRuns(sourceId)
@@ -254,6 +259,41 @@ export function SourceDetailContent({
     () => Boolean(contentText && isDensePlainExtraction(contentText)),
     [contentText]
   )
+  const isPdfAsset = useMemo(() => {
+    const path = source?.asset?.file_path || source?.asset?.url || ''
+    return path.toLowerCase().endsWith('.pdf')
+  }, [source?.asset?.file_path, source?.asset?.url])
+  const showPdfViewer = Boolean(
+    isPdfAsset && fileAvailable !== false && source?.asset?.file_path
+  )
+  const focusForThisSource =
+    activeFocus &&
+    (activeFocus.sourceId === sourceId ||
+      activeFocus.sourceId === sourceId.replace(/^source:/, '') ||
+      `source:${activeFocus.sourceId.replace(/^source:/, '')}` === sourceId)
+      ? activeFocus
+      : null
+
+  const highlightedTextView = useMemo(() => {
+    if (
+      !contentText ||
+      !focusForThisSource ||
+      focusForThisSource.charStart == null ||
+      focusForThisSource.charEnd == null
+    ) {
+      return null
+    }
+    const start = Math.max(0, focusForThisSource.charStart)
+    const end = Math.min(contentText.length, focusForThisSource.charEnd)
+    if (end <= start) {
+      return null
+    }
+    return {
+      before: contentText.slice(0, start),
+      match: contentText.slice(start, end),
+      after: contentText.slice(end),
+    }
+  }, [contentText, focusForThisSource])
 
   const handleDeleteSource = async () => {
     if (!source) return
@@ -315,12 +355,6 @@ export function SourceDetailContent({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {showChatButton && onChatClick && (
-              <DropdownMenuItem onClick={onChatClick}>
-                <MessageSquare className="mr-2 h-4 w-4" />
-                {t('chat.chatWith').replace('{name}', t('navigation.sources'))}
-              </DropdownMenuItem>
-            )}
             {source.asset?.file_path && (
               <DropdownMenuItem
                 onClick={handleDownloadFile}
@@ -417,8 +451,27 @@ export function SourceDetailContent({
               </div>
             )}
 
-            {!contentText ? (
+            {!contentText && !showPdfViewer ? (
               <p className="px-0.5 py-2 text-sm text-muted-foreground">{t('sources.noContent')}</p>
+            ) : showPdfViewer ? (
+              <PdfCitationViewer
+                sourceId={sourceId}
+                focus={focusForThisSource}
+              />
+            ) : highlightedTextView ? (
+              <pre
+                className={cn(
+                  'max-h-[min(52vh,560px)] overflow-auto rounded-md border border-border/60',
+                  'bg-muted/20 px-1.5 py-1 font-mono text-[11px] leading-snug',
+                  'whitespace-pre-wrap break-words text-foreground'
+                )}
+              >
+                {highlightedTextView.before}
+                <mark className="rounded-sm bg-amber-200/80 px-0.5 text-foreground dark:bg-amber-500/40">
+                  {highlightedTextView.match}
+                </mark>
+                {highlightedTextView.after}
+              </pre>
             ) : usePlainExtractionView ? (
               <pre
                 className={cn(

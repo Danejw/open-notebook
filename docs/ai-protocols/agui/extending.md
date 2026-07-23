@@ -21,7 +21,7 @@ LangGraph graph node
   → EventEncoder (HTTP)  OR  queue_runner snapshots
   → SSE `data:` lines
   → readAgUiSseStream / consumeAgUiSseBuffer
-  → createAgUiChatSseHandler (or useAsk)
+  → createAgUiChatSseHandler
   → UI: messages, stream status, activity log, MCP chips, A2UI surfaces
 ```
 
@@ -39,13 +39,13 @@ LangGraph graph node
 | MCP progress | `mcp_tool_call` CUSTOM | Emit from execution; client upsert already generic |
 | A2UI on AG-UI | `a2ui` CUSTOM | Follow [docs/ai-protocols/a2ui/extending.md](../a2ui/extending.md) |
 | SSE parser | Buffer → `AgUiEvent` | Usually nothing |
-| Chat SSE handler | Shared switch for project/source chat | New CUSTOM name → parser branch |
+| Chat SSE handler | Shared switch for project chat | New CUSTOM name → parser branch |
 | Queue runner | Persist AG-UI deltas into queue items | Map new CUSTOM into snapshot fields if UI needs history |
 
 Anti-patterns to reject:
 
-- A second SSE dialect or NDJSON format beside AG-UI for chat/Ask
-- Duplicating project vs source stream parsers (use `createAgUiChatSseHandler` + options)
+- A second SSE dialect or NDJSON format beside AG-UI for chat
+- Duplicating stream parsers (use `createAgUiChatSseHandler` + options)
 - Emitting CUSTOM without a documented `name` / client parser
 - Treating AG-UI `state` as the system of record (SurrealDB + checkpointer remain authoritative)
 - Calling model APIs from the frontend “because streaming is hard” — extend the graph + CUSTOM events instead
@@ -96,11 +96,11 @@ Pass `config` from the LangGraph node so `ag-ui-langgraph` can forward the event
 
 ### 4. Wire the shared SSE handler
 
-**File:** `frontend/src/lib/hooks/chat-sse-handlers.ts` (chat) and/or `use-ask.ts` (Ask)
+**File:** `frontend/src/lib/hooks/chat-sse-handlers.ts`
 
 Inside `case 'CUSTOM':`, parse and update the right piece of UI state. Prefer shared helpers over copying the switch.
 
-If only one surface needs it, use `onCustomEvent` / Ask-local handling — but still document the name in [custom-events.md](./custom-events.md).
+If only one surface needs it, use `onCustomEvent` — but still document the name in [custom-events.md](./custom-events.md).
 
 ### 5. Queue persistence (if history matters)
 
@@ -136,7 +136,7 @@ Include it in `refresh_agents()`.
 
 ### 2. HTTP surface (if live SSE)
 
-**File:** `api/ag_ui_agents.py` — re-export / alias the agent like the existing three.
+**File:** `api/ag_ui_agents.py` — re-export / alias the agent like `project_chat_agent`.
 
 **Router:**
 
@@ -156,12 +156,12 @@ Prefer importing `build_run_input` from `ag_ui_runtime` (canonical) or a thin re
 
 ### 3. Frontend consumer
 
-- Reuse `readAgUiSseStream` + either `createAgUiChatSseHandler` or a small Ask-style switch
+- Reuse `readAgUiSseStream` + `createAgUiChatSseHandler`
 - Do not copy-paste a third SSE buffer parser
 
 ### 4. Checkpointer
 
-Chat-like threads need AsyncSqliteSaver (see API lifespan + `refresh_agents`). Ephemeral Ask uses an in-memory checkpointer inside the ask graph — match the existing pattern for your durability needs.
+Chat-like threads need AsyncSqliteSaver (see API lifespan + `refresh_agents`).
 
 ---
 
@@ -176,8 +176,7 @@ construction_os/chat/queue_runner.py      # non-HTTP consumer of iterate_agent_e
 
 api/ag_ui_agents.py                       # EventEncoder SSE + RUN_ERROR
 api/routers/chat.py                       # project chat → project_chat_agent
-api/routers/source_chat.py                # source chat → source_chat_agent
-api/routers/search.py                     # ask → ask_agent
+api/routers/search.py                     # POST /search retrieval (not AG-UI)
 
 frontend/src/lib/ag-ui/
   events.ts                               # AgUiEvent types, SSE buffer/stream reader, step i18n
@@ -188,7 +187,6 @@ frontend/src/lib/ag-ui/
 frontend/src/lib/hooks/
   chat-sse-handlers.ts                    # shared CUSTOM / text / run switch
   useChatSendTurn.ts                      # live turn ownership + readAgUiSseStream
-  use-ask.ts                              # Ask SSE consumer
 ```
 
 ---

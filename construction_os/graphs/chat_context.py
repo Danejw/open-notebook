@@ -93,9 +93,42 @@ def _format_evidence_block(item: EvidenceItem) -> str:
     if item.parent_id:
         lines.append(f"  parent: {item.parent_id}")
     lines.append(f"  title: {title}")
+    if item.chunk_id:
+        lines.append(f"  chunk_id: {item.chunk_id}")
+    if item.page is not None:
+        lines.append(f"  page: {item.page}")
+    if item.char_start is not None and item.char_end is not None:
+        lines.append(f"  char_offsets: {item.char_start}-{item.char_end}")
     if snippet:
         lines.append(f"  excerpt: {snippet}")
     return "\n".join(lines)
+
+
+def evidence_focus_from_items(items: Sequence[EvidenceItem]) -> List[Dict[str, Any]]:
+    """Build citation deep-link focus entries keyed later by sourceId (first wins)."""
+    focus: List[Dict[str, Any]] = []
+    seen: Set[str] = set()
+    for item in items:
+        rid = _normalize_id(item.id)
+        parent = _normalize_id(item.parent_id)
+        source_id = rid if rid.startswith("source:") else parent
+        if not source_id.startswith("source:") or source_id in seen:
+            continue
+        seen.add(source_id)
+        entry: Dict[str, Any] = {"sourceId": source_id}
+        if item.chunk_id:
+            entry["chunkId"] = str(item.chunk_id)
+        if item.page is not None:
+            entry["page"] = int(item.page)
+        if item.char_start is not None:
+            entry["charStart"] = int(item.char_start)
+        if item.char_end is not None:
+            entry["charEnd"] = int(item.char_end)
+        excerpt = _snippet_from_item(item)
+        if excerpt:
+            entry["excerpt"] = excerpt[:500]
+        focus.append(entry)
+    return focus
 
 
 def _trim_to_budget(blocks: List[str], max_tokens: int) -> Tuple[str, int]:
@@ -160,6 +193,9 @@ async def build_relevance_context(
         "sourceCount": 0,
         "noteCount": 0,
         "tokenCount": 0,
+        "retrievalModeUsed": None,
+        "fallbackReason": None,
+        "evidenceFocus": [],
     }
 
     if not source_pool and not note_pool:
@@ -167,6 +203,9 @@ async def build_relevance_context(
 
     search_sources = bool(source_pool)
     search_notes = bool(note_pool)
+
+    retrieval_mode_used: Optional[str] = None
+    fallback_reason: Optional[str] = None
 
     try:
         bundle = await retrieve(
@@ -178,9 +217,12 @@ async def build_relevance_context(
             search_notes=search_notes,
             minimum_score=0.15,
         )
+        retrieval_mode_used = bundle.retrieval_mode_used
+        fallback_reason = bundle.fallback_reason
     except Exception as e:
         logger.warning(f"Chat retrieve failed, continuing with notes only: {e}")
         bundle = None
+        fallback_reason = "retrieve_failed"
 
     filtered: List[EvidenceItem] = []
     if bundle:
@@ -235,6 +277,16 @@ async def build_relevance_context(
             max(1, len(id_lines) - note_count),
         )
 
+    logger.info(
+        "chat_relevance_context retrieval_mode_used={} fallback_reason={} "
+        "source_count={} note_count={} token_count={}",
+        retrieval_mode_used,
+        fallback_reason,
+        source_count,
+        note_count,
+        tokens,
+    )
+
     return {
         "sources": source_blocks,
         "notes": note_blocks,
@@ -243,6 +295,9 @@ async def build_relevance_context(
         "sourceCount": source_count,
         "noteCount": note_count,
         "tokenCount": tokens,
+        "retrievalModeUsed": retrieval_mode_used,
+        "fallbackReason": fallback_reason,
+        "evidenceFocus": evidence_focus_from_items(filtered),
     }
 
 

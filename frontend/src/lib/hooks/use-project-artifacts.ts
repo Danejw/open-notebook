@@ -3,7 +3,7 @@ import { projectArtifactsApi } from '@/lib/api/project-artifacts'
 import { QUERY_KEYS } from '@/lib/api/query-client'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { getApiErrorKey } from '@/lib/utils/error-handler'
+import { getApiErrorMessage } from '@/lib/utils/error-handler'
 import {
   buildOptimisticProjectArtifact,
   patchAllProjectArtifactListQueries,
@@ -71,7 +71,7 @@ export function useCreateProjectArtifact() {
       }
       toast({
         title: t('common.error'),
-        description: getApiErrorKey(error, t('projects.failedToCreateArtifact')),
+        description: getApiErrorMessage(error, t, 'projects.failedToCreateArtifact'),
         variant: 'destructive',
       })
     },
@@ -144,7 +144,7 @@ export function useUpdateProjectArtifact() {
       }
       toast({
         title: t('common.error'),
-        description: getApiErrorKey(error, t('projects.failedToUpdateArtifact')),
+        description: getApiErrorMessage(error, t, 'projects.failedToUpdateArtifact'),
         variant: 'destructive',
       })
     },
@@ -179,7 +179,7 @@ export function useDeleteProjectArtifact() {
       }
       toast({
         title: t('common.error'),
-        description: getApiErrorKey(error, t('projects.failedToDeleteArtifact')),
+        description: getApiErrorMessage(error, t, 'projects.failedToDeleteArtifact'),
         variant: 'destructive',
       })
     },
@@ -204,7 +204,7 @@ export function useExportProjectArtifactPdf() {
     onError: (error: unknown) => {
       toast({
         title: t('common.error'),
-        description: getApiErrorKey(error, t('projects.failedToExportPdf')),
+        description: getApiErrorMessage(error, t, 'projects.failedToExportPdf'),
         variant: 'destructive',
       })
     },

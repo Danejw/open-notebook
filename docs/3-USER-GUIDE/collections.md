@@ -1,6 +1,6 @@
 # Collections
 
-Collections are curated lists of **string items** you can attach to project or source chat — similar to Skills, but focused on reusable reference values (URLs, NAICS codes, keywords, notes) rather than instruction files.
+Collections are curated lists of **string items** you can attach to project chat — similar to Skills, but focused on reusable reference values (URLs, NAICS codes, keywords, notes) rather than instruction files.
 
 ## What Collections are for
 
@@ -33,7 +33,7 @@ Use **Upload ZIP** on the library page or **Export ZIP** on the detail page for 
 
 ## Attach collections in chat
 
-1. Open **project chat** or **source chat**.
+1. Open **project chat**.
 2. Click the **Collections** icon in the composer (after Tools).
 3. Select one or more active collections and save.
 4. Send your message.

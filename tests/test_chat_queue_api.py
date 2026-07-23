@@ -1245,28 +1245,9 @@ async def test_sse_router_maps_invalid_last_event_id_to_400(monkeypatch):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("router_name", "function_name", "kwargs"),
-    [
-        (
-            "api.routers.chat",
-            "delete_session",
-            {"session_id": "session-a", "x_guest_key": None},
-        ),
-        (
-            "api.routers.source_chat",
-            "delete_source_chat_session",
-            {"source_id": "source-a", "session_id": "session-a"},
-        ),
-    ],
-)
-async def test_project_and_source_session_deletion_guard_then_cleanup(
-    router_name,
-    function_name,
-    kwargs,
-):
+async def test_project_session_deletion_guard_then_cleanup():
     module = _service_module()
-    router = import_module(router_name)
+    router = import_module("api.routers.chat")
     session = _session()
     session.delete = AsyncMock()
     queue_service = SimpleNamespace(
@@ -1274,41 +1255,21 @@ async def test_project_and_source_session_deletion_guard_then_cleanup(
             side_effect=module.ChatQueueConflictError("Queue item is running")
         )
     )
+    kwargs = {"session_id": "session-a", "x_guest_key": None}
 
-    patches = [
-        patch.object(router.ChatSession, "get", AsyncMock(return_value=session)),
-        patch.object(router, "chat_queue_service", queue_service),
-    ]
-    if router_name.endswith("source_chat"):
-        patches.extend(
-            [
-                patch.object(router.Source, "get", AsyncMock(return_value=MagicMock())),
-                patch.object(
-                    router,
-                    "repo_query",
-                    AsyncMock(return_value=[{"id": "refers_to:one"}]),
-                ),
-            ]
-        )
-
-    with patches[0], patches[1]:
-        if len(patches) > 2:
-            with patches[2], patches[3]:
-                with pytest.raises(HTTPException) as caught:
-                    await getattr(router, function_name)(**kwargs)
-        else:
-            with pytest.raises(HTTPException) as caught:
-                await getattr(router, function_name)(**kwargs)
+    with patch.object(router.ChatSession, "get", AsyncMock(return_value=session)), patch.object(
+        router, "chat_queue_service", queue_service
+    ):
+        with pytest.raises(HTTPException) as caught:
+            await router.delete_session(**kwargs)
     assert caught.value.status_code == 409
     session.delete.assert_not_awaited()
 
     queue_service.delete_session.side_effect = None
-    with patches[0], patches[1]:
-        if len(patches) > 2:
-            with patches[2], patches[3]:
-                await getattr(router, function_name)(**kwargs)
-        else:
-            await getattr(router, function_name)(**kwargs)
+    with patch.object(router.ChatSession, "get", AsyncMock(return_value=session)), patch.object(
+        router, "chat_queue_service", queue_service
+    ):
+        await router.delete_session(**kwargs)
     queue_service.delete_session.assert_awaited()
     session.delete.assert_not_awaited()
 

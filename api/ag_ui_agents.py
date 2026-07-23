@@ -20,29 +20,23 @@ from construction_os.graphs.ag_ui_runtime import (
 from construction_os.utils.error_classifier import classify_error
 
 project_chat_agent = ag_ui_runtime.project_chat_agent
-source_chat_agent = ag_ui_runtime.source_chat_agent
-ask_agent = ag_ui_runtime.ask_agent
 
 __all__ = [
-    "ask_agent",
     "ag_ui_streaming_response",
     "build_run_input",
     "build_user_message",
     "iterate_agent_events",
     "project_chat_agent",
     "refresh_agents",
-    "source_chat_agent",
     "stream_agent_events",
 ]
 
 
 def refresh_agents() -> None:
     """Rebind AG-UI agents after chat graphs are compiled with AsyncSqliteSaver."""
-    global project_chat_agent, source_chat_agent, ask_agent
+    global project_chat_agent
     ag_ui_runtime.refresh_agents()
     project_chat_agent = ag_ui_runtime.project_chat_agent
-    source_chat_agent = ag_ui_runtime.source_chat_agent
-    ask_agent = ag_ui_runtime.ask_agent
 
 
 def _sse_headers() -> Dict[str, str]:

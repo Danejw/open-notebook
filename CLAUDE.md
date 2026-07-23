@@ -92,7 +92,6 @@ User documentation is at @docs/
 ### 2. LangGraph Workflows
 - **source.py**: Content ingestion (extract → embed → save)
 - **chat.py**: Conversational agent with message history
-- **ask.py**: Search + synthesis (retrieve relevant sources → LLM)
 - **artifact.py**: Custom artifacts on sources
 - All use `provision_langchain_model()` for smart model selection
 

@@ -331,7 +331,6 @@ def _runner(repository, script, graph=None, resolver=None, **kwargs):
     return worker.ChatQueueRunner(
         repository=repository,
         project_agent=FakeAgent(graph, "project"),
-        source_agent=FakeAgent(graph, "source"),
         resolver=resolver,
         event_iterator=script,
         lease_ttl_seconds=60,
@@ -391,7 +390,6 @@ def test_http_adapter_preserves_runtime_exports_and_has_no_inline_ag_ui_imports(
         "build_run_input",
         "iterate_agent_events",
         "project_chat_agent",
-        "source_chat_agent",
     ):
         assert hasattr(adapter, name)
     assert adapter.build_run_input is runtime.build_run_input
@@ -401,22 +399,17 @@ def test_http_adapter_preserves_runtime_exports_and_has_no_inline_ag_ui_imports(
 def test_graph_compile_factories_do_not_mutate_api_globals():
     """Worker-local graph compilation leaves API process globals untouched."""
     chat = import_module("construction_os.graphs.chat")
-    source_chat = import_module("construction_os.graphs.source_chat")
     checkpointer = MemorySaver()
     original_project = chat.graph
-    original_source = source_chat.source_chat_graph
 
     local_project = chat.compile_graph(checkpointer)
-    local_source = source_chat.compile_graph(checkpointer)
 
     assert local_project is not original_project
-    assert local_source is not original_source
     assert chat.graph is original_project
-    assert source_chat.source_chat_graph is original_source
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("scope", ["project", "source"])
+@pytest.mark.parametrize("scope", ["project"])
 async def test_default_resolver_builds_direct_sse_equivalent_forwarded_payloads(
     monkeypatch, scope
 ):
@@ -459,7 +452,6 @@ async def test_default_resolver_builds_direct_sse_equivalent_forwarded_payloads(
         AsyncMock(return_value=[{"out": target_id}]),
     )
     monkeypatch.setattr(worker.Project, "get", AsyncMock(return_value=target))
-    monkeypatch.setattr(worker.Source, "get", AsyncMock(return_value=target))
     monkeypatch.setattr(worker.Model, "get", AsyncMock(return_value=model))
     monkeypatch.setattr(worker.Skill, "get", AsyncMock(return_value=skill))
     monkeypatch.setattr(worker.McpTool, "get", AsyncMock(return_value=tool))
@@ -469,7 +461,7 @@ async def test_default_resolver_builds_direct_sse_equivalent_forwarded_payloads(
         AsyncMock(return_value=connection),
     )
     monkeypatch.setattr(worker.HtmlTemplate, "get", AsyncMock(return_value=template))
-    monkeypatch.setattr(worker.Artifact, "get", AsyncMock(return_value=artifact))
+    monkeypatch.setattr(worker.ArtifactTemplate, "get", AsyncMock(return_value=artifact))
     monkeypatch.setattr(
         worker,
         "get_project_scope_ids",
@@ -481,9 +473,6 @@ async def test_default_resolver_builds_direct_sse_equivalent_forwarded_payloads(
         AsyncMock(return_value="<html><img src='logo'></html>"),
     )
     item = _item()
-    if scope == "source":
-        item.execution_snapshot["artifact_id"] = None
-        item.execution_snapshot["context_config"] = {}
 
     resolved = await worker.QueueExecutionResolver().resolve(
         "chat_session:session-a", item
@@ -499,17 +488,13 @@ async def test_default_resolver_builds_direct_sse_equivalent_forwarded_payloads(
         "<html><img"
     )
     assert resolved.forwarded_props["client_marker"] == "immutable"
-    if scope == "project":
-        assert resolved.forwarded_props["project"] == {
-            "id": "project:target-a",
-            "name": "Project A",
-            "description": "Description",
-        }
-        assert resolved.forwarded_props["artifact"]["id"] == "artifact:summary"
-        assert resolved.forwarded_props["context_config"]["sources"]
-    else:
-        assert resolved.forwarded_props["source_id"] == "source:target-a"
-        assert "artifact" not in resolved.forwarded_props
+    assert resolved.forwarded_props["project"] == {
+        "id": "project:target-a",
+        "name": "Project A",
+        "description": "Description",
+    }
+    assert resolved.forwarded_props["artifact"]["id"] == "artifact:summary"
+    assert resolved.forwarded_props["context_config"]["sources"]
 
 
 @pytest.mark.asyncio
@@ -593,7 +578,7 @@ async def test_deleted_snapshot_references_are_rejected(
         ),
     )
     monkeypatch.setattr(
-        worker.Artifact,
+        worker.ArtifactTemplate,
         "get",
         AsyncMock(
             return_value=SimpleNamespace(
@@ -618,7 +603,7 @@ async def test_deleted_snapshot_references_are_rejected(
         "skill": worker.Skill,
         "tool": worker.McpTool,
         "template": worker.HtmlTemplate,
-        "artifact": worker.Artifact,
+        "artifact": worker.ArtifactTemplate,
     }
     if missing_kind in missing_map:
         monkeypatch.setattr(
@@ -980,7 +965,6 @@ async def test_lease_is_acquired_before_claim_and_renewed_during_events():
     runner = worker.ChatQueueRunner(
         repository=repository,
         project_agent=FakeAgent(graph, "project"),
-        source_agent=FakeAgent(graph, "source"),
         resolver=StaticResolver(),
         event_iterator=yielding_events,
         lease_ttl_seconds=60,
@@ -1020,7 +1004,6 @@ async def test_lease_loss_stops_without_failing_or_finalizing_foreign_work():
     runner = worker.ChatQueueRunner(
         repository=repository,
         project_agent=FakeAgent(graph, "project"),
-        source_agent=FakeAgent(graph, "source"),
         resolver=StaticResolver(),
         event_iterator=blocked_events,
         lease_ttl_seconds=60,
@@ -1089,9 +1072,7 @@ async def test_worker_checkpointer_is_command_scoped_and_always_closed(monkeypat
     )
     saver = SimpleNamespace(setup=AsyncMock())
     project_graph = SimpleNamespace(name="local-project")
-    source_graph = SimpleNamespace(name="local-source")
     project_agent = SimpleNamespace(name="project-agent")
-    source_agent = SimpleNamespace(name="source-agent")
     drain = AsyncMock()
     monkeypatch.setattr(worker.aiosqlite, "connect", AsyncMock(return_value=connection))
     monkeypatch.setattr(worker, "AsyncSqliteSaver", MagicMock(return_value=saver))
@@ -1101,18 +1082,12 @@ async def test_worker_checkpointer_is_command_scoped_and_always_closed(monkeypat
         MagicMock(return_value=project_graph),
     )
     monkeypatch.setattr(
-        worker.source_chat_module,
-        "compile_graph",
-        MagicMock(return_value=source_graph),
-    )
-    monkeypatch.setattr(
         worker,
         "build_agent",
-        MagicMock(side_effect=[project_agent, source_agent]),
+        MagicMock(return_value=project_agent),
     )
     monkeypatch.setattr(worker.ChatQueueRunner, "drain", drain)
     api_project_graph = worker.chat_graph_module.graph
-    api_source_graph = worker.source_chat_module.source_chat_graph
 
     await worker.run_chat_queue_worker(
         chat_session_id="chat_session:session-a",
@@ -1128,7 +1103,6 @@ async def test_worker_checkpointer_is_command_scoped_and_always_closed(monkeypat
     drain.assert_awaited_once()
     connection.close.assert_awaited_once()
     assert worker.chat_graph_module.graph is api_project_graph
-    assert worker.source_chat_module.source_chat_graph is api_source_graph
 
 
 @pytest.mark.asyncio
@@ -1148,11 +1122,6 @@ async def test_worker_crash_closes_checkpointer_and_propagates_for_command_retry
     monkeypatch.setattr(worker, "AsyncSqliteSaver", MagicMock(return_value=saver))
     monkeypatch.setattr(
         worker.chat_graph_module,
-        "compile_graph",
-        MagicMock(return_value=SimpleNamespace()),
-    )
-    monkeypatch.setattr(
-        worker.source_chat_module,
         "compile_graph",
         MagicMock(return_value=SimpleNamespace()),
     )
@@ -1297,7 +1266,6 @@ def test_heartbeat_interval_must_be_shorter_than_lease_ttl():
     with pytest.raises(ValueError, match="shorter than"):
         worker.ChatQueueRunner(
             project_agent=MagicMock(),
-            source_agent=MagicMock(),
             lease_ttl_seconds=10,
             lease_renew_interval_seconds=10,
         )
@@ -1326,7 +1294,6 @@ async def test_renewal_exception_interrupts_silent_event_stream_immediately():
     runner = worker.ChatQueueRunner(
         repository=FailingRenewalRepository(),
         project_agent=MagicMock(),
-        source_agent=MagicMock(),
         event_iterator=silent_events,
         lease_ttl_seconds=10,
         lease_renew_interval_seconds=1,

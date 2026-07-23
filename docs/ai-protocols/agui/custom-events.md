@@ -1,6 +1,6 @@
 # AG-UI CUSTOM event catalog (Construction OS)
 
-Pinned names and payloads for `type: "CUSTOM"` events on the chat / Ask streams.
+Pinned names and payloads for `type: "CUSTOM"` events on the project chat stream.
 
 **Wire shape:** `{ "type": "CUSTOM", "name": "<event>", "value": { … } }`  
 **Emitter pattern:** LangGraph `dispatch_custom_event` / `adispatch_custom_event` → `ag-ui-langgraph` → SSE / queue
@@ -13,9 +13,10 @@ Related: [events.md](./events.md) · [extending.md](./extending.md)
 
 | Name | When | Payload (`value`) | Client parser |
 |------|------|-------------------|---------------|
-| **agent_progress** | Skills, context retrieval, Ask strategy/search/write | `{ phase, step, detail?, message? }` | `parseAgentProgressEvent` |
+| **agent_progress** | Skills, context retrieval, generation | `{ phase, step, detail?, message? }` | `parseAgentProgressEvent` |
 | **mcp_tool_call** | MCP tool audit snapshot (start → result/error) | Public tool-call fields (`tool_name`, `status`, …) | `parseMcpToolCallEvent` |
 | **a2ui** | A2UI v0.9 surface messages (feature-flagged) | `{ messages, surfaceId, messageId? }` | `parseA2uiEvent` → surface store |
+| **evidence_focus** | After chat context retrieval (RAG-012) | `{ items: [{ sourceId, chunkId?, page?, charStart?, charEnd?, excerpt? }] }` | `parseEvidenceFocusEvent` → citation focus store |
 
 ### agent_progress
 
@@ -24,13 +25,21 @@ Related: [events.md](./events.md) · [extending.md](./extending.md)
 | Field | Values |
 |-------|--------|
 | `phase` | `started` \| `progress` \| `completed` |
-| `step` | `loading_skills`, `retrieving_context`, `generating`, `strategy`, `provide_answer`, `write_final_answer`, or free string |
-| `detail` | Step-specific counts/names (skills, tokens, search term, …) |
+| `step` | `loading_skills`, `retrieving_context`, `generating`, `verifying_citations`, or free string |
+| `detail` | Step-specific counts/names (skills, tokens, citationViolations, …) |
 | `message` | Optional fallback status string |
+
+**`verifying_citations` detail (RAG-015):** emitted after citation strip in `generate_with_tools`:
+
+| Field | Meaning |
+|-------|---------|
+| `citationViolations` | Count of citations removed (not in turn evidence) |
+| `removedCitationIds` | Removed IDs (capped server-side) |
+| `keptCitationCount` | Count of citations that matched allowed evidence |
 
 **UX:** `started`/`progress` → live status line; `completed` → activity log line (when formatter returns non-null).
 
-**Emitters:** `emit_agent_progress` / `aemit_agent_progress` from chat, source_chat, ask graph nodes.
+**Emitters:** `emit_agent_progress` / `aemit_agent_progress` from project chat graph nodes; `emit_citation_verify_progress` from `tool_runtime/chat_loop.py` after RAG-002 strip.
 
 ### mcp_tool_call
 
@@ -53,6 +62,16 @@ Full client stack (allowlist, risk, transport): [docs/ai-protocols/mcp/client/](
 **Value:** A2UI v0.9 message list + surface binding. Full catalog and extension checklist: [docs/ai-protocols/a2ui/](../a2ui/extending.md).
 
 Do not put A2UI protocol details here — keep this file to the AG-UI transport contract.
+
+### evidence_focus
+
+**Constants:** `EVIDENCE_FOCUS_EVENT` in `construction_os/graphs/progress.py` and `frontend/src/lib/ag-ui/evidence-focus.ts`
+
+**Value:** `{ items: EvidenceFocusItem[] }` where each item may include `sourceId` (required), `chunkId`, `page`, `charStart`, `charEnd`, `excerpt`.
+
+**UX:** Stored in `useCitationFocusStore`; citation click on a source opens `SourceDialog` with PDF/text deep-link focus.
+
+**Emitter:** `emit_evidence_focus(items, config)` from project chat `retrieving_context` after `build_relevance_context`.
 
 ---
 

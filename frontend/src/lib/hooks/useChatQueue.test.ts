@@ -158,14 +158,17 @@ describe('queue query keys and query lifecycle', () => {
     expect(queryClient.getQueryData(QUERY_KEYS.chatQueue('session-2'))).toEqual(
       second
     )
-    expect(QUERY_KEYS.sourceChatSessions('source-1')).toEqual([
-      'sourceChatSessions',
-      'source-1',
+    expect(QUERY_KEYS.projectChatSessions('project-1')).toEqual([
+      'project-chat',
+      'project-1',
+      'sessions',
+      'owner',
     ])
-    expect(QUERY_KEYS.sourceChatSession('source-1', 'session-1')).toEqual([
-      'sourceChatSession',
-      'source-1',
+    expect(QUERY_KEYS.projectChatSession('session-1')).toEqual([
+      'project-chat',
+      'sessions',
       'session-1',
+      'owner',
     ])
   })
 

@@ -1,11 +1,17 @@
 """Tests for query-scoped chat context helpers."""
 
+from unittest.mock import AsyncMock, patch
+
+import pytest
+
 from construction_os.graphs.chat_context import (
     CHAT_CONTEXT_MAX_TOKENS,
+    build_relevance_context,
     eligible_note_ids,
     eligible_source_ids,
     estimate_preview_tokens,
 )
+from construction_os.retrieval.types import EvidenceBundle, EvidenceItem
 
 
 def test_eligible_source_ids_from_config():
@@ -54,3 +60,34 @@ def test_estimate_preview_tokens_empty_pool():
 def test_estimate_preview_tokens_capped():
     tokens = estimate_preview_tokens(source_pool_size=100, note_pool_size=50)
     assert 0 < tokens <= CHAT_CONTEXT_MAX_TOKENS
+
+
+@pytest.mark.asyncio
+async def test_build_relevance_context_includes_retrieval_mode_telemetry():
+    bundle = EvidenceBundle(
+        items=[
+            EvidenceItem(
+                id="source:a",
+                parent_id="source:a",
+                title="A",
+                score=0.9,
+                matches=["roofing warranty 5 years"],
+                source="vector",
+            )
+        ],
+        retrieval_mode_used="hybrid",
+        fallback_reason=None,
+    )
+    with patch(
+        "construction_os.graphs.chat_context.retrieve",
+        new=AsyncMock(return_value=bundle),
+    ):
+        result = await build_relevance_context(
+            query="warranty period",
+            project_id="project:1",
+            context_config={"sources": {"source:a": "full content"}},
+        )
+
+    assert result["retrievalModeUsed"] == "hybrid"
+    assert result["fallbackReason"] is None
+    assert result["sourceCount"] >= 1

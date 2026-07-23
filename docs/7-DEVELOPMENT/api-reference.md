@@ -63,8 +63,7 @@ Instead of memorizing endpoints, use the interactive API docs:
 - `POST /chat/context/build` - Prepare context for chat
 
 **Search** - Find content by text or semantic similarity
-- `POST /search` - Full-text or vector search
-- `POST /ask` - Ask a question (search + synthesize)
+- `POST /search` - Modes: `auto` (default; same `retrieve()` heuristics as project chat), `hybrid` (RRF), `vector` (dense only), `text` (keyword).
 
 **Artifacts** - Custom prompt templates for structured analysis
 - `GET/POST /artifacts` - List and create artifact templates

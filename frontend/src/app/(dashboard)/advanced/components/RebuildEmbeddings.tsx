@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Progress } from '@/components/ui/progress'
 import { AlertCircle, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { InlineSkeleton } from '@/components/common/LoadingSkeletons'
@@ -24,12 +24,20 @@ import { useTranslation } from '@/lib/hooks/use-translation'
 
 export function RebuildEmbeddings() {
   const { t } = useTranslation()
+  const queryClient = useQueryClient()
   const [mode, setMode] = useState<'existing' | 'all'>('existing')
   const [includeSources, setIncludeSources] = useState(true)
   const [includeNotes, setIncludeNotes] = useState(true)
+  const [chainKg, setChainKg] = useState(false)
   const [commandId, setCommandId] = useState<string | null>(null)
   const [status, setStatus] = useState<RebuildStatusResponse | null>(null)
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
+
+  const dimensionHealthQuery = useQuery({
+    queryKey: ['embeddings', 'dimension-health'],
+    queryFn: () => embeddingApi.getDimensionHealth(),
+    refetchOnWindowFocus: true,
+  })
 
   // Rebuild mutation
   const rebuildMutation = useMutation({
@@ -57,6 +65,9 @@ export function RebuildEmbeddings() {
         // Stop polling if completed or failed
         if (statusData.status === 'completed' || statusData.status === 'failed') {
           stopPolling()
+          void queryClient.invalidateQueries({
+            queryKey: ['embeddings', 'dimension-health'],
+          })
         }
       } catch (error) {
         console.error('Failed to fetch rebuild status:', error)
@@ -87,6 +98,7 @@ export function RebuildEmbeddings() {
       include_sources: includeSources,
       include_artifacts: includeNotes,
       include_notes: includeNotes,
+      chain_kg: chainKg,
     }
 
     rebuildMutation.mutate(request)
@@ -130,6 +142,26 @@ export function RebuildEmbeddings() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
+        {dimensionHealthQuery.data?.needs_rebuild && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>{t('models.rebuildRequired')}</AlertTitle>
+            <AlertDescription>
+              {dimensionHealthQuery.data.message || t('models.rebuildReason')}
+            </AlertDescription>
+          </Alert>
+        )}
+        {dimensionHealthQuery.data
+          && !dimensionHealthQuery.data.needs_rebuild
+          && dimensionHealthQuery.data.expected_dimension != null
+          && dimensionHealthQuery.data.indexed_total > 0 && (
+          <Alert>
+            <CheckCircle2 className="h-4 w-4" />
+            <AlertDescription>
+              {dimensionHealthQuery.data.message}
+            </AlertDescription>
+          </Alert>
+        )}
         {/* Configuration Form */}
         {!isRebuildActive && (
           <div className="space-y-3">
@@ -173,6 +205,23 @@ export function RebuildEmbeddings() {
                   <Label htmlFor="notes" className="font-normal cursor-pointer">
                     {t('common.notes')}
                   </Label>
+                </div>
+                <div className="flex items-start space-x-2">
+                  <Checkbox
+                    id="chain-kg"
+                    checked={chainKg}
+                    onCheckedChange={(checked) => setChainKg(checked === true)}
+                    disabled={!includeSources}
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="chain-kg" className="font-normal cursor-pointer">
+                      {t('advanced.rebuild.chainKg')}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {t('advanced.rebuild.chainKgDesc')}
+                    </p>
+                  </div>
                 </div>
               </div>
               {!isAnyTypeSelected && (

@@ -18,6 +18,7 @@ from loguru import logger
 
 from construction_os.capabilities.langchain_bridge import build_native_langchain_tools
 from construction_os.capabilities.models import CapabilityRuntimeContext
+from construction_os.graphs.progress import emit_citation_verify_progress
 from construction_os.mcp.allowlist import build_allowlist
 from construction_os.mcp.langgraph_tools import build_langchain_tools
 from construction_os.mcp.limits import MAX_TOOL_CALLS, MAX_TOOL_ITERATIONS
@@ -34,6 +35,10 @@ from construction_os.services.project_memory import (
 from construction_os.tool_runtime.execution import (
     DuplicateCallGuard,
     reject_unauthorized,
+)
+from construction_os.utils.citation_verify import (
+    collect_evidence_ids_from_texts,
+    strip_unverified_citations,
 )
 from construction_os.utils.text_utils import extract_text_content
 
@@ -88,6 +93,19 @@ def _system_evidence_ids(messages: list[BaseMessage]) -> list[str]:
         or getattr(message, "type", None) == "system"
     )
     return extract_evidence_ids(system_text)
+
+
+def _turn_evidence_ids(messages: list[BaseMessage]) -> list[str]:
+    """Evidence IDs from system context and tool results for this turn."""
+    texts: list[str] = []
+    for message in messages:
+        msg_type = getattr(message, "type", None)
+        if (
+            isinstance(message, (SystemMessage, ToolMessage))
+            or msg_type in {"system", "tool"}
+        ):
+            texts.append(extract_text_content(message.content))
+    return collect_evidence_ids_from_texts(texts)
 
 
 async def generate_with_tools(
@@ -241,6 +259,28 @@ async def generate_with_tools(
 
     assert ai_message is not None
     canonical_assistant_text = extract_text_content(ai_message.content)
+
+    # RAG-002: drop citations that were never in this turn's retrieved evidence.
+    citation_check = strip_unverified_citations(
+        canonical_assistant_text,
+        allowed_ids=_turn_evidence_ids(working),
+    )
+    # RAG-015: structured operator telemetry (counts always; IDs when stripped).
+    emit_citation_verify_progress(
+        removed_ids=citation_check.removed_ids,
+        kept_ids=citation_check.kept_ids,
+        config=config,
+    )
+    if citation_check.removed_ids:
+        logger.info(
+            "Stripped {} unverified citation(s): {}",
+            len(citation_check.removed_ids),
+            citation_check.removed_ids,
+        )
+        canonical_assistant_text = citation_check.text
+        ai_message = ai_message.model_copy(
+            update={"content": canonical_assistant_text}
+        )
 
     html_template_id = (
         capability_context.explicit_html_template_id

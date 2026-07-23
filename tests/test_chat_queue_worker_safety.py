@@ -137,9 +137,7 @@ def test_two_sequential_event_loops_own_and_close_sqlite_checkpointers(tmp_path)
             saver = AsyncSqliteSaver(connection)
             await saver.setup()
             project_graph = queue_runner.chat_graph_module.compile_graph(saver)
-            source_graph = queue_runner.source_chat_module.compile_graph(saver)
             assert project_graph.checkpointer is saver
-            assert source_graph.checkpointer is saver
         finally:
             await connection.close()
 
@@ -170,7 +168,6 @@ async def test_only_matching_pending_orphan_start_is_retryable():
     runner = queue_runner.ChatQueueRunner(
         repository=OrphanRepository(),
         project_agent=MagicMock(),
-        source_agent=MagicMock(),
         lease_renew_interval_seconds=0,
     )
 

@@ -659,6 +659,11 @@ export const enUS = {
     "changeInSettings": "You can change this in Settings",
     "notFound": "Source not found",
     "noContent": "No content available",
+    "citationPdfPage": "Page {page} of {total}",
+    "citationFromPage": "Cited page {page}",
+    "citationHighlightFound": "Matching excerpt located on this page",
+    "citationHighlightMissing": "Excerpt not found in PDF text layer — showing best page",
+    "failedToLoadFile": "Failed to load file",
     "uploadedFile": "Uploaded file",
     "fileUnavailableDesc": "This file is currently unavailable due to storage system reasons.",
     "batchSuccess": "{count} source(s) created successfully",
@@ -938,7 +943,7 @@ export const enUS = {
     "pendingLabel": "Pending",
     "loadErrorTitle": "Failed to load episodes",
     "loadErrorDesc": "We could not fetch the latest podcast episodes. Try again shortly.",
-    "noEpisodesYet": "No podcast episodes yet. Generate your first one from the project or source chat interfaces.",
+    "noEpisodesYet": "No podcast episodes yet. Generate your first one from the project chat interface.",
     "statusRunningTitle": "Currently Processing",
     "statusRunningDesc": "Episodes that are actively generating assets.",
     "statusPendingTitle": "Queued / Pending",
@@ -1210,7 +1215,9 @@ export const enUS = {
       "howLong": "How long does rebuilding take?",
       "howLongAns": "Processing time depends on item count, model speed, and API rate limits. Local models are usually very fast.",
       "isSafe": "Is it safe to rebuild while using the app?",
-      "isSafeAns": "Yes, rebuilding is safe! It doesn't delete content, only replaces embeddings, and handles errors gracefully."
+      "isSafeAns": "Yes, rebuilding is safe! It doesn't delete content, only replaces embeddings, and handles errors gracefully.",
+      "chainKg": "Also rebuild knowledge graph",
+      "chainKgDesc": "Off by default (faster). Turn on when graph nodes must match re-chunked embeddings — costs more LLM/time per source."
     }
   },
   "artifacts": {

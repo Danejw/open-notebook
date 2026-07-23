@@ -6,7 +6,7 @@ import type { ChatToolCall } from '@/lib/types/mcp'
 
 /**
  * Shared streaming-buffer infrastructure used by both useProjectChat and
- * useSourceChat.  Manages:
+ * useProjectChat.  Manages:
  *   - A per-message accumulation map (streamContentRef)
  *   - A requestAnimationFrame coalescing mechanism (streamRafRef)
  *   - Helper callbacks to append deltas and flush them into React state

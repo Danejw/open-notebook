@@ -30,14 +30,12 @@ from construction_os.domain.html_document import HtmlTemplate
 from construction_os.domain.mcp import McpConnection, McpTool
 from construction_os.domain.project import (
     Project,
-    Source,
     get_project_scope_ids,
 )
 from construction_os.domain.collection import Collection
 from construction_os.domain.skill import Skill
 from construction_os.exceptions import NotFoundError
 from construction_os.graphs import chat as chat_graph_module
-from construction_os.graphs import source_chat as source_chat_module
 from construction_os.graphs.ag_ui_runtime import (
     build_agent,
     build_run_input,
@@ -47,7 +45,7 @@ from construction_os.graphs.chat_context import eligible_note_ids, eligible_sour
 from construction_os.utils.html_media import expand_image_tokens
 from construction_os.utils.text_utils import extract_text_content
 
-QueueScope = Literal["project", "source"]
+QueueScope = Literal["project"]
 CheckpointAction = Literal["execute", "resume", "completed"]
 Sleep = Callable[[float], Awaitable[None]]
 EventIterator = Callable[..., Any]
@@ -313,18 +311,9 @@ class QueueExecutionResolver:
                 }
             )
         else:
-            if artifact_id:
-                raise QueueItemValidationError(
-                    "artifact_id is not supported for source chat"
-                )
-            source_ids, note_ids = _context_reference_ids(context_config)
-            invalid_context = (source_ids - {str(target.id)}) | note_ids
-            if invalid_context:
-                missing = sorted(invalid_context)[0]
-                raise QueueItemValidationError(
-                    f"Context reference '{missing}' is invalid for source chat"
-                )
-            forwarded.update({"source_id": str(target.id), **common})
+            raise QueueItemValidationError(
+                "Chat queue only supports project-scoped sessions"
+            )
 
         return ResolvedQueueExecution(
             scope=scope,
@@ -344,17 +333,15 @@ class QueueExecutionResolver:
         }
         if len(target_ids) != 1:
             raise QueueItemValidationError(
-                "Chat session must refer to exactly one project or source"
+                "Chat session must refer to exactly one project"
             )
         target_id = next(iter(target_ids))
         if target_id.startswith("project:"):
             return "project", await _required_resource(
                 Project.get, target_id, "Project"
             )
-        if target_id.startswith("source:"):
-            return "source", await _required_resource(Source.get, target_id, "Source")
         raise QueueItemValidationError(
-            f"Chat session target '{target_id}' is not a project or source"
+            f"Chat session target '{target_id}' is not a project"
         )
 
     async def _validate_skills(self, skill_ids: list[str]) -> None:
@@ -485,7 +472,6 @@ class ChatQueueRunner:
         *,
         repository: QueueRepository = ChatQueueRepository,
         project_agent: Any,
-        source_agent: Any,
         resolver: Optional[QueueExecutionResolver] = None,
         event_iterator: EventIterator = iterate_agent_events,
         lease_ttl_seconds: int = 60,
@@ -506,7 +492,6 @@ class ChatQueueRunner:
             raise ValueError("snapshot_interval_seconds cannot be negative")
         self.repository = repository
         self.project_agent = project_agent
-        self.source_agent = source_agent
         self.resolver = resolver or QueueExecutionResolver()
         self.event_iterator = event_iterator
         self.lease_ttl_seconds = lease_ttl_seconds
@@ -704,9 +689,7 @@ class ChatQueueRunner:
     ) -> bool:
         try:
             resolved = await self.resolver.resolve(chat_session_id, item)
-            agent = (
-                self.project_agent if resolved.scope == "project" else self.source_agent
-            )
+            agent = self.project_agent
             message_id = stable_human_message_id(
                 str(item.id),
                 item.current_loop,
@@ -957,10 +940,8 @@ async def run_chat_queue_worker(
         checkpointer = AsyncSqliteSaver(connection)
         await checkpointer.setup()
         project_graph = chat_graph_module.compile_graph(checkpointer)
-        source_graph = source_chat_module.compile_graph(checkpointer)
         runner = ChatQueueRunner(
             project_agent=build_agent("project_chat_worker", project_graph),
-            source_agent=build_agent("source_chat_worker", source_graph),
         )
         await runner.drain(
             chat_session_id=chat_session_id,

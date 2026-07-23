@@ -85,7 +85,7 @@ export function ChatComposer({
   activeArtifact,
   artifactPrefillKey = 0,
   enableSuggestions = true,
-  contextType = 'source',
+  contextType = 'project',
   projectId,
   sourceId,
   guestKey = null,

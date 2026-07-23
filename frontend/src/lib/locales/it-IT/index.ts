@@ -1103,7 +1103,9 @@ export const itIT = {
       "howLong": "Quanto tempo richiede la ricostruzione?",
       "howLongAns": "Il tempo di elaborazione dipende dal numero di elementi, velocità del modello e limiti API. I modelli locali sono solitamente molto veloci.",
       "isSafe": "È sicuro ricostruire mentre uso l'app?",
-      "isSafeAns": "Sì, la ricostruzione è sicura! Non elimina contenuti, sostituisce solo le indicizzazioni e gestisce gli errori con grazia."
+      "isSafeAns": "Sì, la ricostruzione è sicura! Non elimina contenuti, sostituisce solo le indicizzazioni e gestisce gli errori con grazia.",
+      "chainKg": "Also rebuild knowledge graph",
+      "chainKgDesc": "Off by default (faster). Turn on when graph nodes must match re-chunked embeddings — costs more LLM/time per source."
     }
   },
   "artifacts": {

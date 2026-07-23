@@ -44,6 +44,7 @@ class _SpecializedExtractor:
             title=source_title,
             file_path=file_path,
             topics=topics,
+            chunks=chunks,
         )
         llm_payload = ExtractionPayload()
         if deterministic_sufficient(seed):
@@ -78,6 +79,7 @@ class _SpecializedExtractor:
                 title=source_title,
                 file_path=file_path,
                 topics=topics,
+                chunks=chunks,
             )
         return ExtractionResult(
             extractor=self.id,

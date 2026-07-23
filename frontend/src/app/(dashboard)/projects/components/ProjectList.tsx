@@ -1,8 +1,7 @@
 'use client'
 
 import { ProjectResponse } from '@/lib/types/api'
-import { ProjectCard } from './ProjectCard'
-import { ProjectRow } from './ProjectRow'
+import { ProjectListItem } from './ProjectListItem'
 import { useProjectViewStore } from '@/lib/stores/project-view-store'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
@@ -93,7 +92,7 @@ export function ProjectList({
           <div className="overflow-hidden rounded-md border">
             <div className="divide-y">
               {projects.map((project) => (
-                <ProjectRow key={project.id} project={project} />
+                <ProjectListItem key={project.id} project={project} showMeta />
               ))}
             </div>
           </div>
@@ -101,7 +100,7 @@ export function ProjectList({
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {projects.map((project) => (
               <div key={project.id} className="overflow-hidden rounded-md border">
-                <ProjectCard project={project} />
+                <ProjectListItem project={project} />
               </div>
             ))}
           </div>

@@ -1,5 +1,5 @@
 import apiClient from '@/lib/api/client'
-import { sanitizeExportFilename } from '@/lib/utils/export-note'
+import { sanitizeExportFilename } from '@/lib/utils/export-artifact'
 import type {
   BidDocument,
   CreateBidDocumentRequest,

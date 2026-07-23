@@ -4,10 +4,10 @@ import dynamic from 'next/dynamic'
 import { isArtifactModalType, useModalManager } from '@/lib/hooks/use-modal-manager'
 import { SourceDialog } from '@/components/source/SourceDialog'
 
-const ArtifactEditorDialog = dynamic(
+const ProjectNoteEditorDialog = dynamic(
   () =>
-    import('@/app/(dashboard)/projects/components/ArtifactEditorDialog').then((m) => ({
-      default: m.ArtifactEditorDialog,
+    import('@/app/(dashboard)/projects/components/ProjectNoteEditorDialog').then((m) => ({
+      default: m.ProjectNoteEditorDialog,
     })),
   {
     ssr: false,
@@ -39,7 +39,7 @@ export function ModalProvider() {
       />
 
       {isArtifactModalType(modalType) && modalId ? (
-        <ArtifactEditorDialog
+        <ProjectNoteEditorDialog
           open
           onOpenChange={(open) => {
             if (!open) closeModal()

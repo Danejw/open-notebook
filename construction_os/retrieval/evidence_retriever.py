@@ -400,6 +400,15 @@ async def retrieve(
             existing_items=fused,
             limit=limit,
         )
+        await _maybe_persist_query_run(
+            query=query,
+            project_id=project_id,
+            retrieval_mode="graph",
+            paths=[],
+            items=fused,
+            fallback_reason=drawing_note or fallback_reason,
+            graph_env=graph_env,
+        )
         return EvidenceBundle(
             items=fused,
             paths=[],

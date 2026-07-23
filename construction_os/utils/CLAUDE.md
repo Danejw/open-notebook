@@ -1,20 +1,22 @@
 # Utils Module
 
-Utility functions and helpers for context building, text processing, chunking, embedding, tokenization, and versioning.
+Utility functions and helpers for text processing, chunking, embedding, tokenization, encryption, and context-mode helpers.
 
 ## Purpose
 
-Provides cross-cutting concerns: building LLM context from sources and notes, content-type aware text chunking, unified embedding generation with mean pooling, token counting, and version management.
+Provides cross-cutting concerns: content-type aware text chunking, unified embedding generation with mean pooling, token counting, context-mode inclusion helpers, and version management. Chat relevance context is assembled in `graphs/chat_context.py`.
 
 ## Architecture Overview
 
-**Six core utilities**:
-1. **context_builder.py**: Flexible context assembly from sources and notes with token budgeting
+**Core utilities**:
+1. **context_mode.py**: Source/note inclusion helpers used by chat context assembly
 2. **chunking.py**: Content-type detection and smart text chunking for embedding operations
 3. **embedding.py**: Unified embedding generation with mean pooling for large content
 4. **text_utils.py**: Text cleaning and thinking content extraction
 5. **token_utils.py**: Token counting for LLM context windows (wrapper around encoding library)
 6. **version_utils.py**: Version parsing, comparison, and schema compatibility checks
+
+Chat relevance context is built in `construction_os.graphs.chat_context` (`build_relevance_context`), not in this package.
 
 Each utility is stateless and can be imported independently.
 
@@ -44,21 +46,11 @@ Note: Changes require restart of the application.
 
 ## Component Catalog
 
-### context_builder.py
-- **ContextItem**: Dataclass for individual context piece (id, type, content, priority, token_count)
-- **ContextConfig**: Configuration for context building (sources/notes selection, max tokens, priority weights)
-- **ContextBuilder**: Main class assembling context
-  - `add_source()`: Include source by ID with inclusion level
-  - `add_note()`: Include note by ID
-  - `build()`: Assemble context respecting token budget and priorities
-  - Uses vector_search to fetch source content from SurrealDB
-  - Returns list of ContextItem objects sorted by priority
+### context_mode.py
+- **is_source_included(mode)**: Whether a source context mode should be included
+- **is_note_included(mode)**: Whether a note/artifact context mode should be included
 
-**Key behavior**:
-- Token counting is automatic (calculated in ContextItem.__post_init__)
-- Max token enforcement via priority weighting (higher priority items included first)
-- Type-specific fetching: sources → Source.full_text, notes → Note.content
-- Raises DatabaseOperationError if source/note fetch fails
+Used by `construction_os.graphs.chat_context` when filtering selected context.
 
 ### chunking.py
 - **ContentType**: Enum (HTML, MARKDOWN, PLAIN)
@@ -113,20 +105,15 @@ Note: Changes require restart of the application.
 
 ## Common Patterns
 
-- **Dataclass-driven config**: ContextConfig used by ContextBuilder (immutable after init)
-- **Token budgeting**: ContextBuilder respects max_tokens constraint; prioritizes high-priority items
 - **Content-type aware processing**: Chunking uses appropriate splitter based on detected content type
 - **Mean pooling for large content**: Embedding handles arbitrarily large text via chunking + pooling
-- **Error handling resilience**: token_count() returns estimate; context_builder catches DB errors gracefully
+- **Error handling resilience**: token_count() returns estimate on failure
 - **Pure text functions**: text_utils functions are stateless utilities (no class needed)
-- **Lazy evaluation**: ContextBuilder doesn't fetch items until build() called
 - **Type hints throughout**: All functions use Optional, List, Dict for clarity
 
 ## Key Dependencies
 
-- `construction_os.domain.project`: Project, Source, Note models; vector_search function
 - `construction_os.ai.models`: model_manager for embedding model access
-- `construction_os.exceptions`: DatabaseOperationError, NotFoundError
 - `langchain_text_splitters`: HTMLHeaderTextSplitter, MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
 - `numpy`: Mean pooling calculations
 - `tiktoken`: Token encoding for GPT models
@@ -139,20 +126,15 @@ Note: Changes require restart of the application.
 - **Default chunk size**: The token-based default is 400 — leaves headroom below the 512-token ceiling of BERT-family embedders; WordPiece budget enforcement (RAG-007) is the hard gate when o200k under-counts
 - **Content type detection order**: Extension checked first, then heuristics; high-confidence heuristics (≥0.8) can override PLAIN extensions
 - **Mean pooling normalization**: Each embedding normalized before mean, result normalized after
-- **Priority weights default**: If not specified, ContextConfig uses default weights (source=1, note=0.8)
-- **Vector search required**: ContextBuilder uses vector_search from domain.project for text search fallback
-- **Circular import risk**: context_builder imports from domain.project; avoid domain importing utils
-- **Max tokens hard limit**: ContextBuilder stops adding items once max_tokens exceeded (not prorated)
-- **No caching**: Every build() call re-fetches from database (use cache layer if needed)
+- **No caching**: Embedding/chunk helpers are pure; callers own any cache layer
 
 ## How to Extend
 
-1. **Add new context source type**: Create fetch method in ContextBuilder; update ContextConfig.sources dict
-2. **Add content type**: Add to ContentType enum; create splitter getter; update chunk_text()
-3. **Change chunk size**: Set construction_os_CHUNK_SIZE and construction_os_CHUNK_OVERLAP environment variables
-4. **Add text preprocessing**: Add new function to text_utils (e.g., remove_urls, extract_keywords)
-5. **Change tokenization**: Replace tiktoken with alternative library in token_utils; update all calls
-6. **Add context filtering**: Extend ContextConfig with filter_by_date, filter_by_topic fields
+1. **Add content type**: Add to ContentType enum; create splitter getter; update chunk_text()
+2. **Change chunk size**: Set construction_os_CHUNK_SIZE and construction_os_CHUNK_OVERLAP environment variables
+3. **Add text preprocessing**: Add new function to text_utils (e.g., remove_urls, extract_keywords)
+4. **Change tokenization**: Replace tiktoken with alternative library in token_utils; update all calls
+5. **Chat context selection**: Extend `graphs/chat_context.py` / retrieval — not a utils ContextBuilder
 
 ## Usage Examples
 
@@ -178,19 +160,15 @@ embedding = await generate_embedding(long_text)
 embeddings = await generate_embeddings(["text1", "text2", "text3"])
 ```
 
-### Context Building
+### Chat context
 ```python
-from construction_os.utils.context_builder import ContextBuilder, ContextConfig
+from construction_os.graphs.chat_context import build_relevance_context
 
-config = ContextConfig(
-    sources={"source:123": "full", "source:456": "summary"},
-    max_tokens=2000,
+context = await build_relevance_context(
+    project_id="project:123",
+    question="What are the bid deadlines?",
+    # ... selections and limits as used by graphs/chat.py
 )
-builder = ContextBuilder(project_id="project:123", context_config=config)
-context_items = await builder.build()
-
-for item in context_items:
-    print(f"{item.type}:{item.id} ({item.token_count} tokens)")
 ```
 
 ### encryption.py

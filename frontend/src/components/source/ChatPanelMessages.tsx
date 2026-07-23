@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, useCallback, type MutableRefObject } from 'react'
-import { SourceChatMessage } from '@/lib/types/api'
+import { ChatMessage } from '@/lib/types/api'
 import { ChatToolCall } from '@/lib/types/mcp'
 import { ToolCallGroup } from '@/components/mcp/ToolCallGroup'
 import { ChatMessageList } from '@/components/source/ChatMessageList'
@@ -18,7 +18,7 @@ import { useCitationFocusStore } from '@/lib/stores/citation-focus-store'
 import { toast } from 'sonner'
 
 export interface ChatPanelMessagesProps {
-  messages: SourceChatMessage[]
+  messages: ChatMessage[]
   isStreaming: boolean
   streamStatus?: string | null
   activityLog?: string[]

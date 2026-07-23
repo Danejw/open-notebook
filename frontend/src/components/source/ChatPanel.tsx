@@ -3,9 +3,9 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import {
-  SourceChatMessage,
-  SourceChatContextIndicator,
-  BaseChatSession
+  ChatMessage,
+  ChatContextIndicator,
+  BaseChatSession,
 } from '@/lib/types/api'
 import { ChatToolCall } from '@/lib/types/mcp'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -25,8 +25,9 @@ import { ChatPanelMessages } from '@/components/source/ChatPanelMessages'
 import { ChatContextStrip } from '@/components/source/ChatContextStrip'
 import { ChatComposer } from '@/components/source/ChatComposer'
 
-export interface ChatPanelProps {
-  messages: SourceChatMessage[]
+/** Streaming transcript + send/edit controls. */
+export interface ChatPanelStreamingState {
+  messages: ChatMessage[]
   isStreaming: boolean
   /**
    * True only while a live AG-UI turn (not a queue drain) owns the session.
@@ -35,7 +36,6 @@ export interface ChatPanelProps {
   isDirectStreaming?: boolean
   streamStatus?: string | null
   activityLog?: string[]
-  contextIndicators: SourceChatContextIndicator | null
   onSendMessage: (message: string, modelOverride?: string) => void
   onEnqueueMessage?: (
     message: string,
@@ -45,11 +45,19 @@ export interface ChatPanelProps {
       scheduleRunner?: boolean
     }
   ) => void | Promise<unknown>
-  onEditMessage?: (messageId: string, content: string, modelOverride?: string) => void
+  onEditMessage?: (
+    messageId: string,
+    content: string,
+    modelOverride?: string
+  ) => void
   historyEditDisabled?: boolean
   composerDisabled?: boolean
   modelOverride?: string
   onModelChange?: (model?: string) => void
+}
+
+/** Session list / create / rename / delete controls. */
+export interface ChatPanelSessionControls {
   sessions?: BaseChatSession[]
   currentSessionId?: string | null
   onCreateSession?: (title: string) => void
@@ -57,13 +65,10 @@ export interface ChatPanelProps {
   onDeleteSession?: (sessionId: string) => void
   onUpdateSession?: (sessionId: string, title: string) => void
   loadingSessions?: boolean
-  title?: string
-  titleAdornment?: ReactNode
-  contextType?: 'source' | 'project'
-  projectId?: string
-  sourceId?: string
-  guestKey?: string | null
-  enableSuggestions?: boolean
+}
+
+/** Skills / collections / templates / MCP tool selection. */
+export interface ChatPanelContextSelection {
   selectedSkillIds?: string[]
   onSkillIdsChange?: (ids: string[]) => void
   selectedCollectionIds?: string[]
@@ -73,11 +78,10 @@ export interface ChatPanelProps {
   selectedMcpToolIds?: string[]
   onMcpToolIdsChange?: (ids: string[]) => void
   liveMcpToolCalls?: ChatToolCall[]
-  activeArtifact?: Artifact
-  noteSaveTitle?: string
-  artifactPrefillKey?: number
-  headerActions?: ReactNode
-  variant?: 'column' | 'immersive'
+}
+
+/** Chat queue panel controls. */
+export interface ChatPanelQueueControls {
   queue?: ChatQueueResponse
   onPauseQueue?: ChatQueuePanelProps['onPause']
   onResumeQueue?: ChatQueuePanelProps['onResume']
@@ -92,27 +96,36 @@ export interface ChatPanelProps {
   onRetryQueueStream?: () => void
 }
 
+/** Layout / identity / chrome props that stay top-level. */
+export interface ChatPanelLayoutProps {
+  title?: string
+  titleAdornment?: ReactNode
+  contextType?: 'source' | 'project'
+  projectId?: string
+  sourceId?: string
+  guestKey?: string | null
+  enableSuggestions?: boolean
+  activeArtifact?: Artifact
+  noteSaveTitle?: string
+  artifactPrefillKey?: number
+  headerActions?: ReactNode
+  variant?: 'column' | 'immersive'
+  contextIndicators: ChatContextIndicator | null
+}
+
+export interface ChatPanelProps extends ChatPanelLayoutProps {
+  streaming: ChatPanelStreamingState
+  sessionControls?: ChatPanelSessionControls
+  contextSelection?: ChatPanelContextSelection
+  queueControls?: ChatPanelQueueControls
+}
+
 export function ChatPanel({
-  messages,
-  isStreaming,
-  isDirectStreaming: _isDirectStreaming = false,
-  streamStatus,
-  activityLog = [],
+  streaming,
+  sessionControls,
+  contextSelection,
+  queueControls,
   contextIndicators,
-  onSendMessage,
-  onEnqueueMessage,
-  onEditMessage,
-  historyEditDisabled,
-  composerDisabled = false,
-  modelOverride,
-  onModelChange,
-  sessions = [],
-  currentSessionId,
-  onCreateSession,
-  onSelectSession,
-  onDeleteSession,
-  onUpdateSession,
-  loadingSessions = false,
   title,
   titleAdornment,
   contextType = 'project',
@@ -120,30 +133,61 @@ export function ChatPanel({
   sourceId,
   guestKey = null,
   enableSuggestions = true,
-  selectedSkillIds,
-  onSkillIdsChange,
-  selectedCollectionIds,
-  onCollectionIdsChange,
-  selectedHtmlTemplateId,
-  onHtmlTemplateIdChange,
-  selectedMcpToolIds,
-  onMcpToolIdsChange,
-  liveMcpToolCalls = [],
   activeArtifact,
   noteSaveTitle,
   artifactPrefillKey = 0,
   headerActions,
   variant = 'column',
-  queue,
-  onPauseQueue,
-  onResumeQueue,
-  onEditQueueItem,
-  onDeleteQueueItem,
-  onRetryQueueItem,
-  onReorderQueue,
-  queueStreamError = null,
-  onRetryQueueStream,
 }: ChatPanelProps) {
+  const {
+    messages,
+    isStreaming,
+    isDirectStreaming: _isDirectStreaming = false,
+    streamStatus,
+    activityLog = [],
+    onSendMessage,
+    onEnqueueMessage,
+    onEditMessage,
+    historyEditDisabled,
+    composerDisabled = false,
+    modelOverride,
+    onModelChange,
+  } = streaming
+
+  const {
+    sessions = [],
+    currentSessionId,
+    onCreateSession,
+    onSelectSession,
+    onDeleteSession,
+    onUpdateSession,
+    loadingSessions = false,
+  } = sessionControls ?? {}
+
+  const {
+    selectedSkillIds,
+    onSkillIdsChange,
+    selectedCollectionIds,
+    onCollectionIdsChange,
+    selectedHtmlTemplateId,
+    onHtmlTemplateIdChange,
+    selectedMcpToolIds,
+    onMcpToolIdsChange,
+    liveMcpToolCalls = [],
+  } = contextSelection ?? {}
+
+  const {
+    queue,
+    onPauseQueue,
+    onResumeQueue,
+    onEditQueueItem,
+    onDeleteQueueItem,
+    onRetryQueueItem,
+    onReorderQueue,
+    queueStreamError = null,
+    onRetryQueueStream,
+  } = queueControls ?? {}
+
   const { t } = useTranslation()
   const [nearBottom, setNearBottom] = useState(true)
   const scrollToBottomRef = useRef<(() => void) | null>(null)
@@ -154,16 +198,15 @@ export function ChatPanel({
       ? t('chat.chatWith').replace('{name}', t('navigation.sources'))
       : t('chat.chatWith').replace('{name}', t('common.project')))
 
-  const hasQueueControls =
-    Boolean(
-      queue &&
-        onPauseQueue &&
-        onResumeQueue &&
-        onEditQueueItem &&
-        onDeleteQueueItem &&
-        onRetryQueueItem &&
-        onReorderQueue
-    )
+  const hasQueueControls = Boolean(
+    queue &&
+      onPauseQueue &&
+      onResumeQueue &&
+      onEditQueueItem &&
+      onDeleteQueueItem &&
+      onRetryQueueItem &&
+      onReorderQueue
+  )
 
   return (
     <Card

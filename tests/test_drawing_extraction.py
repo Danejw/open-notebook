@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -28,7 +27,6 @@ from construction_os.drawing.pdf_inspect import (
 from construction_os.drawing.render import render_page_assets
 from construction_os.drawing.semantic import build_semantic_records
 from construction_os.drawing.types import BBox, DrawingItemDraft, pdf_to_norm
-from construction_os.drawing.validate import validate_page_extraction
 from construction_os.drawing.vision import (
     MockVisionClient,
     _parse_json_loose,
@@ -460,8 +458,6 @@ async def test_retrieval_on_merges(monkeypatch):
 async def test_live_a204_with_vision():
     """Opt-in: runs real vision when credentials available."""
     set_vision_client_override(None)
-    from construction_os.drawing.config import DrawingExtractionConfig
-    from construction_os.drawing.pipeline import run_drawing_extraction
 
     # This still needs DB; skip if not configured
     pytest.skip("Live DB+vision path exercised manually against local stack")

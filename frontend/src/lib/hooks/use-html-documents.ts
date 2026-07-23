@@ -5,7 +5,6 @@ import { useToast } from '@/lib/hooks/use-toast'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { getApiErrorMessage } from '@/lib/utils/error-handler'
 import type {
-  CreateBidDocumentRequest,
   CreateHtmlTemplateRequest,
   DuplicateBidDocumentRequest,
   UpdateBidDocumentRequest,
@@ -84,79 +83,12 @@ export function useUpdateHtmlTemplate() {
   })
 }
 
-export function useDeleteHtmlTemplate() {
-  const queryClient = useQueryClient()
-  const { toast } = useToast()
-  const { t } = useTranslation()
-
-  return useMutation({
-    mutationFn: (id: string) => htmlDocumentsApi.deleteTemplate(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.htmlTemplates })
-      toast({
-        title: t('common.success'),
-        description: t('templates.templateDeleteSuccess'),
-      })
-    },
-    onError: (error: unknown) => {
-      toast({
-        title: t('common.error'),
-        description: getApiErrorMessage(error, (key) => t(key)),
-        variant: 'destructive',
-      })
-    },
-  })
-}
-
-export function useProjectDocuments(projectId?: string) {
-  const id = projectId ?? ''
-  return useQuery({
-    queryKey: QUERY_KEYS.projectDocuments(id),
-    queryFn: () => htmlDocumentsApi.listDocuments(id),
-    enabled: !!id,
-    staleTime: 0,
-    refetchOnMount: true,
-  })
-}
-
 export function useBidDocument(id?: string) {
   const documentId = id ?? ''
   return useQuery({
     queryKey: QUERY_KEYS.bidDocument(documentId),
     queryFn: () => htmlDocumentsApi.getDocument(documentId),
     enabled: !!documentId,
-  })
-}
-
-export function useCreateBidDocument() {
-  const queryClient = useQueryClient()
-  const { toast } = useToast()
-  const { t } = useTranslation()
-
-  return useMutation({
-    mutationFn: ({
-      projectId,
-      data,
-    }: {
-      projectId: string
-      data: CreateBidDocumentRequest
-    }) => htmlDocumentsApi.createDocument(projectId, data),
-    onSuccess: (doc) => {
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.projectDocuments(doc.project_id),
-      })
-      toast({
-        title: t('common.success'),
-        description: t('documents.createSuccess'),
-      })
-    },
-    onError: (error: unknown) => {
-      toast({
-        title: t('common.error'),
-        description: getApiErrorMessage(error, (key) => t(key)),
-        variant: 'destructive',
-      })
-    },
   })
 }
 

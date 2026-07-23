@@ -5,9 +5,9 @@ Axios-based client and resource-specific API modules for backend communication w
 ## Key Components
 
 - **`client.ts`**: Central Axios instance with request/response interceptors, auth headers, base URL resolution
-- **Resource modules** (`sources.ts`, `projects.ts`, `artifacts.ts`, `chat.ts`, `search.ts`, `podcasts.ts`, etc.): Endpoint-specific functions returning typed responses
+- **Resource modules** (`sources.ts`, `projects.ts`, `project-artifacts.ts`, `artifact-templates.ts`, `chat.ts`, `search.ts`, `podcasts.ts`, etc.): Endpoint-specific functions returning typed responses
 - **`query-client.ts`**: TanStack Query client configuration with default options
-- **`models.ts`, `notes.ts`, `embeddings.ts`, `settings.ts`**: Additional resource APIs
+- **`models.ts`, `embeddings.ts`, `settings.ts`**: Additional resource APIs
 
 ## Important Patterns
 
@@ -61,8 +61,8 @@ const response = await sourcesApi.create({
   async_processing: true
 })
 
-// With auth token (auto-added by interceptor)
-const notes = await notesApi.list()
+// Project artifacts (stored as note records)
+const artifacts = await projectArtifactsApi.list(projectId)
 ```
 
 ## Credentials Module (`credentials.ts`)

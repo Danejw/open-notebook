@@ -6,11 +6,8 @@ import { useTranslation } from '@/lib/hooks/use-translation'
 import { getApiErrorMessage } from '@/lib/utils/error-handler'
 import {
   BulkImportConfirmRequest,
-  CreateSkillRequest,
-  ImportConfirmRequest,
   SkillFileMoveRequest,
   SkillFileUpsertRequest,
-  SkillReplaceFilesRequest,
   UpdateSkillRequest,
 } from '@/lib/types/skills'
 
@@ -35,31 +32,6 @@ export function useSkillsCatalog(options?: { enabled?: boolean }) {
     queryKey: QUERY_KEYS.skillsCatalog,
     queryFn: () => skillsApi.catalog(),
     enabled: options?.enabled ?? true,
-  })
-}
-
-export function useCreateSkill() {
-  const queryClient = useQueryClient()
-  const { toast } = useToast()
-  const { t } = useTranslation()
-
-  return useMutation({
-    mutationFn: (data: CreateSkillRequest) => skillsApi.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.skills })
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.skillsCatalog })
-      toast({
-        title: t('common.success'),
-        description: t('skills.createSuccess'),
-      })
-    },
-    onError: (error: unknown) => {
-      toast({
-        title: t('common.error'),
-        description: getApiErrorMessage(error, (key) => t(key)),
-        variant: 'destructive',
-      })
-    },
   })
 }
 
@@ -142,53 +114,12 @@ export function useArchiveSkill() {
   })
 }
 
-export function useImportSkillPreview() {
-  const { toast } = useToast()
-  const { t } = useTranslation()
-
-  return useMutation({
-    mutationFn: (file: File) => skillsApi.importPreview(file),
-    onError: (error: unknown) => {
-      toast({
-        title: t('common.error'),
-        description: getApiErrorMessage(error, (key) => t(key)),
-        variant: 'destructive',
-      })
-    },
-  })
-}
-
 export function useImportSkillPreviewBulk() {
   const { toast } = useToast()
   const { t } = useTranslation()
 
   return useMutation({
     mutationFn: (files: File[]) => skillsApi.importPreviewBulk(files),
-    onError: (error: unknown) => {
-      toast({
-        title: t('common.error'),
-        description: getApiErrorMessage(error, (key) => t(key)),
-        variant: 'destructive',
-      })
-    },
-  })
-}
-
-export function useImportSkillConfirm() {
-  const queryClient = useQueryClient()
-  const { toast } = useToast()
-  const { t } = useTranslation()
-
-  return useMutation({
-    mutationFn: (data: ImportConfirmRequest) => skillsApi.importConfirm(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.skills })
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.skillsCatalog })
-      toast({
-        title: t('common.success'),
-        description: t('skills.importSuccess'),
-      })
-    },
     onError: (error: unknown) => {
       toast({
         title: t('common.error'),
@@ -298,32 +229,6 @@ export function useDeleteSkillFile() {
       toast({
         title: t('common.success'),
         description: t('skills.fileDeleted'),
-      })
-    },
-    onError: (error: unknown) => {
-      toast({
-        title: t('common.error'),
-        description: getApiErrorMessage(error, (key) => t(key)),
-        variant: 'destructive',
-      })
-    },
-  })
-}
-
-export function useReplaceSkillFiles() {
-  const queryClient = useQueryClient()
-  const { toast } = useToast()
-  const { t } = useTranslation()
-
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: SkillReplaceFilesRequest }) =>
-      skillsApi.replaceFiles(id, data),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.skill(id) })
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.skills })
-      toast({
-        title: t('common.success'),
-        description: t('skills.filesReplaced'),
       })
     },
     onError: (error: unknown) => {

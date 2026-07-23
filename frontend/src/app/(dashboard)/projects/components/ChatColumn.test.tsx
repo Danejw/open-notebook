@@ -71,11 +71,15 @@ describe('ChatColumn', () => {
     expect(screen.getByTestId('chat-panel')).toBeInTheDocument()
     expect(chatPanelSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        queue: chat.queue,
-        onEnqueueMessage: chat.enqueueMessage,
-        historyEditDisabled: true,
-        onPauseQueue: chat.pauseQueue,
-        onReorderQueue: chat.reorderQueue,
+        streaming: expect.objectContaining({
+          onEnqueueMessage: chat.enqueueMessage,
+          historyEditDisabled: true,
+        }),
+        queueControls: expect.objectContaining({
+          queue: chat.queue,
+          onPauseQueue: chat.pauseQueue,
+          onReorderQueue: chat.reorderQueue,
+        }),
       })
     )
   })

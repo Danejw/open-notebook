@@ -1,7 +1,8 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Control, FieldErrors, UseFormRegister, UseFormSetValue, useWatch } from "react-hook-form"
+import { Control, FieldErrors, UseFormRegister, UseFormSetValue, useWatch, Controller } from "react-hook-form"
+import type { TFunction } from "i18next"
 import { FileIcon, LinkIcon, FileTextIcon } from "lucide-react"
 import { useTranslation } from "@/lib/hooks/use-translation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -9,20 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Controller } from "react-hook-form"
 import { FieldError } from "@/components/common/FieldError"
-
-interface CreateSourceFormData {
-  type: 'link' | 'upload' | 'text'
-  title?: string
-  url?: string
-  content?: string
-  file?: FileList | File
-  projects?: string[]
-  artifacts?: string[]
-  embed: boolean
-  async_processing: boolean
-}
+import { MAX_BATCH_SIZE, type CreateSourceFormData } from "@/components/sources/add-source/schema"
 
 // Helper functions for batch URL parsing
 function parseUrls(text: string): string[] {
@@ -63,8 +52,6 @@ export function parseAndValidateUrls(text: string): {
   return { valid, invalid }
 }
 
-import type { TFunction } from 'i18next'
-
 const getSourceTypes = (t: TFunction) => [
   {
     value: 'link' as const,
@@ -91,8 +78,6 @@ interface SourceTypeStepProps {
   urlValidationErrors?: { url: string; line: number }[]
   onClearUrlErrors?: () => void
 }
-
-const MAX_BATCH_SIZE = 50
 
 export function SourceTypeStep({ control, register, setValue, errors, urlValidationErrors, onClearUrlErrors }: SourceTypeStepProps) {
   const { t } = useTranslation()
@@ -261,7 +246,13 @@ export function SourceTypeStep({ control, register, setValue, errors, urlValidat
                           </ul>
                         </div>
                       )}
-                      <FieldError message={errors.file?.message} />
+                      <FieldError
+                        message={
+                          typeof errors.file?.message === 'string'
+                            ? errors.file.message
+                            : undefined
+                        }
+                      />
                       {isOverLimit && selectedType === 'upload' && (
                         <p className="text-sm text-destructive">
                           {t('sources.maxFilesAllowed').replace('{count}', MAX_BATCH_SIZE.toString())}
@@ -274,8 +265,8 @@ export function SourceTypeStep({ control, register, setValue, errors, urlValidat
                     <div className="space-y-[2px]">
                       <Label htmlFor="content" className="block">{t('sources.textContentLabel')}</Label>
                       {hasHtmlContent && (
-                        <div className="p-[2px] bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
-                          <p className="text-sm text-blue-700 dark:text-blue-300">
+                        <div className="p-[2px] bg-primary/10 border border-primary/30 rounded-md">
+                          <p className="text-sm text-primary">
                             {t('sources.htmlDetected')}
                           </p>
                         </div>

@@ -30,6 +30,8 @@ function createProjectChatMock(
     setModelOverride: vi.fn(),
     selectedSkillIds: [],
     setSelectedSkillIds: vi.fn(),
+    selectedCollectionIds: [],
+    setSelectedCollectionIds: vi.fn(),
     selectedHtmlTemplateId: null,
     setSelectedHtmlTemplateId: vi.fn(),
     selectedMcpToolIds: [],
@@ -60,11 +62,11 @@ describe('bindProjectChatPanelProps', () => {
 
     expect(props.contextType).toBe('project')
     expect(props.contextIndicators).toBeNull()
-    expect(props.historyEditDisabled).toBe(true)
-    expect(props.modelOverride).toBe('gpt-4')
+    expect(props.streaming.historyEditDisabled).toBe(true)
+    expect(props.streaming.modelOverride).toBe('gpt-4')
     expect(props.projectId).toBe('project-1')
     expect(props.title).toBe('Project chat')
-    expect(props.onEnqueueMessage).toBe(chat.enqueueMessage)
+    expect(props.streaming.onEnqueueMessage).toBe(chat.enqueueMessage)
   })
 
   it('prefers session model override over pending override', () => {
@@ -77,7 +79,7 @@ describe('bindProjectChatPanelProps', () => {
 
     const props = bindProjectChatPanelProps(chat)
 
-    expect(props.modelOverride).toBe('claude-3')
+    expect(props.streaming.modelOverride).toBe('claude-3')
   })
 })
 
@@ -94,12 +96,12 @@ describe('bindSharedProjectChatPanelProps', () => {
       variant: 'immersive',
     })
 
-    expect(props.isStreaming).toBe(true)
-    expect(props.currentSessionId).toBe('session-1')
+    expect(props.streaming.isStreaming).toBe(true)
+    expect(props.sessionControls?.currentSessionId).toBe('session-1')
     expect(props.projectId).toBe('project-1')
     expect(props.guestKey).toBe('guest-abc')
     expect(props.variant).toBe('immersive')
-    expect(props.queue).toBeUndefined()
-    expect(props.onModelChange).toBeUndefined()
+    expect(props.queueControls?.queue).toBeUndefined()
+    expect(props.streaming.onModelChange).toBeUndefined()
   })
 })

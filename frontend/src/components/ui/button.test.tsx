@@ -32,4 +32,29 @@ describe('Button', () => {
 
     expect(screen.getByRole('button', { name: 'Disabled' })).toBeDisabled()
   })
+
+  it('should render ghost icon size for toolbar controls', () => {
+    render(
+      <Button variant="ghost" size="icon" aria-label="More actions">
+        ···
+      </Button>
+    )
+
+    const button = screen.getByRole('button', { name: 'More actions' })
+    expect(button).toBeInTheDocument()
+    expect(button.className).toMatch(/size-7|h-7/)
+  })
+
+  it('should render asChild content', () => {
+    render(
+      <Button asChild>
+        <a href="/projects">Open projects</a>
+      </Button>
+    )
+
+    expect(screen.getByRole('link', { name: 'Open projects' })).toHaveAttribute(
+      'href',
+      '/projects'
+    )
+  })
 })

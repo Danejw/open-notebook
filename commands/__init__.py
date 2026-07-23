@@ -7,7 +7,6 @@ from .embedding_commands import (
     embed_source_command,
     rebuild_embeddings_command,
 )
-from .example_commands import analyze_data_command, process_text_command
 from .knowledge_graph_commands import build_knowledge_graph_command
 from .podcast_commands import generate_podcast_command
 from .project_memory_commands import consolidate_project_memory_command
@@ -33,6 +32,4 @@ __all__ = [
     "generate_podcast_command",
     "process_source_command",
     "ingest_text_source_command",
-    "process_text_command",
-    "analyze_data_command",
 ]

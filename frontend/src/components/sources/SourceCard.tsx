@@ -1,54 +1,31 @@
 'use client'
 
-import React, { useState, useEffect, useRef, memo } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
-import { SourceListResponse } from '@/lib/types/api'
-import { Button } from '@/components/ui/button'
-import { patchAllSourceListQueries } from '@/lib/utils/source-query-cache'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuLabel,
-} from '@/components/ui/dropdown-menu'
-import {
-  FileText,
-  ExternalLink,
-  Upload,
-  MoreVertical,
-  Trash2,
-  RefreshCw,
-  Clock,
-  CheckCircle,
-  AlertTriangle,
-  Unlink,
-  EyeOff,
-  Network,
-  DraftingCompass,
-  Eye,
-} from 'lucide-react'
-import { useSourceStatus, useEmbedSource } from '@/lib/hooks/use-sources'
-import { useExtractKnowledge, useSourceExtractors } from '@/lib/hooks/use-knowledge'
-import { useGraphLiveStore } from '@/lib/stores/graph-live-store'
-import { useKnowledgeExtractStore } from '@/lib/stores/knowledge-extract-store'
+import React, { useState, memo } from 'react'
+import type { SourceListResponse } from '@/lib/types/api'
 import { useSelectableRow } from '@/lib/hooks/useSelectableRow'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import type { TFunction } from 'i18next'
-import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
-import { listActionTriggerClassName } from '@/lib/utils/list-action-trigger'
-import { getArtifactDragData, getActiveArtifactDragPayload, isArtifactDragEvent, clearArtifactDragData } from '@/lib/utils/artifact-drag'
-import { ContextMode } from '@/app/(dashboard)/projects/[id]/page'
 import {
-  SourceStageActions,
-  type StageActionState,
-} from '@/components/sources/SourceStageActions'
+  getArtifactDragData,
+  getActiveArtifactDragPayload,
+  isArtifactDragEvent,
+  clearArtifactDragData,
+} from '@/lib/utils/artifact-drag'
+import type { ContextMode } from '@/app/(dashboard)/projects/[id]/page'
+import { SourceStageActions } from '@/components/sources/SourceStageActions'
+import { SourceCardActionMenu } from '@/components/sources/source-card/SourceCardActionMenu'
+import { SourceCardStatusBadge } from '@/components/sources/source-card/SourceCardStatusBadge'
+import { SourceCardChrome } from '@/components/sources/source-card/SourceCardChrome'
+import { useSourceCardPipeline } from '@/components/sources/source-card/useSourceCardPipeline'
+import {
+  SOURCE_TYPE_ICONS,
+  type SourceCardListFields,
+  getSourceType,
+  getSourceTypeLabel,
+  topicsEqual,
+} from '@/components/sources/source-card/sourceCardStatus'
 
-interface SourceCardProps {
+export interface SourceCardProps {
   source: SourceListResponse
   projectId?: string
   onDelete?: (sourceId: string) => void
@@ -74,150 +51,6 @@ interface SourceCardProps {
   drawingBusy?: boolean
 }
 
-const SOURCE_TYPE_ICONS = {
-  link: ExternalLink,
-  upload: Upload,
-  text: FileText,
-} as const
-
-/** Discrete pipeline milestones — the card fill width is the only progress UI. */
-const PIPELINE_FILL_PERCENT: Record<string, number> = {
-  new: 14,
-  queued: 10,
-  extracting: 32,
-  embedding: 58,
-  knowledge_graph: 84,
-  running: 32,
-}
-
-/** Drawing extraction milestones — same fill-bar treatment as embed / KG. */
-const DRAWING_FILL_PERCENT: Record<string, number> = {
-  queued: 8,
-  inspecting: 18,
-  extracting: 45,
-  validating: 78,
-  publishing: 90,
-}
-
-function resolvePipelineFillPercent(
-  pipelineStage: string | undefined,
-  currentStatus: string,
-  apiProgress: number | null
-): number {
-  const stageFloor =
-    (pipelineStage && PIPELINE_FILL_PERCENT[pipelineStage]) ||
-    PIPELINE_FILL_PERCENT[currentStatus] ||
-    16
-  if (apiProgress !== null) {
-    return Math.min(99, Math.max(apiProgress, stageFloor))
-  }
-  return stageFloor
-}
-
-function resolveDrawingFillPercent(status: string | null | undefined): number {
-  if (!status) return 16
-  return DRAWING_FILL_PERCENT[status] ?? 16
-}
-
-function drawingProgressLabelKey(status: string | null | undefined): string {
-  switch (status) {
-    case 'queued':
-      return 'sources.drawingStageQueued'
-    case 'inspecting':
-      return 'sources.drawingStageInspecting'
-    case 'extracting':
-      return 'sources.drawingStageExtracting'
-    case 'validating':
-      return 'sources.drawingStageValidating'
-    case 'publishing':
-      return 'sources.drawingStagePublishing'
-    default:
-      return 'sources.drawingRunning'
-  }
-}
-
-const getStatusConfig = (t: TFunction) => ({
-  new: {
-    icon: Clock,
-    color: 'text-blue-600',
-    label: t('sources.statusProcessing'),
-  },
-  queued: {
-    icon: Clock,
-    color: 'text-blue-600',
-    label: t('sources.statusQueued'),
-  },
-  running: {
-    icon: Clock,
-    color: 'text-blue-600',
-    label: t('sources.statusProcessing'),
-  },
-  extracting: {
-    icon: Clock,
-    color: 'text-blue-600',
-    label: t('sources.statusProcessing'),
-  },
-  embedding: {
-    icon: Clock,
-    color: 'text-blue-600',
-    label: t('sources.statusEmbedding'),
-  },
-  knowledge_graph: {
-    icon: Network,
-    color: 'text-blue-600',
-    label: t('sources.statusKnowledgeGraph'),
-  },
-  completed: {
-    icon: CheckCircle,
-    color: 'text-green-600',
-    label: t('sources.statusCompleted'),
-  },
-  failed: {
-    icon: AlertTriangle,
-    color: 'text-destructive',
-    label: t('sources.statusFailed'),
-  }
-} as const)
-
-type SourceStatus = 'new' | 'queued' | 'running' | 'completed' | 'failed'
-
-function isSourceStatus(status: unknown): status is SourceStatus {
-  return typeof status === 'string' && ['new', 'queued', 'running', 'completed', 'failed'].includes(status)
-}
-
-function getSourceType(source: SourceListResponse): 'link' | 'upload' | 'text' {
-  if (source.asset?.url) return 'link'
-  if (source.asset?.file_path) return 'upload'
-  return 'text'
-}
-
-function getSourceTypeLabel(sourceType: 'link' | 'upload' | 'text', t: TFunction): string {
-  if (sourceType === 'link') return t('sources.type.link')
-  if (sourceType === 'upload') return t('sources.type.file')
-  return t('sources.type.text')
-}
-
-function drawingStageState(status: string | null | undefined): StageActionState {
-  if (!status) return 'idle'
-  switch (status) {
-    case 'completed':
-    case 'partial':
-      return 'done'
-    case 'queued':
-    case 'inspecting':
-    case 'extracting':
-    case 'validating':
-    case 'publishing':
-      return 'running'
-    case 'failed':
-      return 'failed'
-    case 'skipped':
-      return 'idle'
-    default:
-      return 'idle'
-  }
-}
-
 function SourceCardImpl({
   source,
   projectId,
@@ -226,7 +59,6 @@ function SourceCardImpl({
   onRetry,
   onRefreshContent,
   onRemoveFromProject,
-  onRefresh,
   className,
   showRemoveFromProject = false,
   contextMode,
@@ -243,326 +75,26 @@ function SourceCardImpl({
   drawingBusy = false,
 }: SourceCardProps) {
   const { t } = useTranslation()
-
   const [isArtifactDragOver, setIsArtifactDragOver] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
-  const queryClient = useQueryClient()
 
-  const sourceWithStatus = source as SourceListResponse & {
-    command_id?: string
-    status?: string
-    stage?: string
-    pipeline_stage?: string
-  }
-
-  // Track processing state to continue polling until we detect completion
-  const [wasProcessing, setWasProcessing] = useState(false)
-  const wasKnowledgeGraphRef = useRef(false)
-
-  // Only poll status while the source is actually being processed (or just finished
-  // and we still need one more poll to catch completion). The list endpoint already
-  // populates `status` alongside `command_id`, so we no longer poll for every
-  // completed source — that scaled linearly with the number of cards and caused the
-  // list lag reported in #503.
-  //
-  // A source with a `command_id` but no resolved `status` yet is still ambiguous
-  // (it renders as a synthetic "new"), so keep polling those until a real status
-  // arrives — otherwise such a card would be stuck "processing" forever.
-  // Also keep polling while pipeline stages (embed / knowledge graph) are active.
-  const listStage = sourceWithStatus.stage || sourceWithStatus.pipeline_stage
-  const shouldFetchStatus =
-    sourceWithStatus.status === 'new' ||
-    sourceWithStatus.status === 'queued' ||
-    sourceWithStatus.status === 'running' ||
-    listStage === 'extracting' ||
-    listStage === 'embedding' ||
-    listStage === 'knowledge_graph' ||
-    (!!sourceWithStatus.command_id && !sourceWithStatus.status) ||
-    wasProcessing
-
-  const { data: statusData, isLoading: statusLoading } = useSourceStatus(
-    source.id,
-    shouldFetchStatus
-  )
-
-  const pipelineStage =
-    statusData?.stage ||
-    (typeof statusData?.processing_info?.stage === 'string'
-      ? statusData.processing_info.stage
-      : undefined) ||
-    listStage
-
-  const rawStatus = statusData?.status || sourceWithStatus.status
-  const currentStatus: SourceStatus = isSourceStatus(rawStatus)
-    ? rawStatus
-    : (sourceWithStatus.command_id ? 'new' : 'completed')
-
-  useEffect(() => {
-    const currentStatusFromData = statusData?.status || sourceWithStatus.status
-    const stage =
-      statusData?.stage ||
-      sourceWithStatus.stage ||
-      sourceWithStatus.pipeline_stage
-
-    if (stage === 'knowledge_graph' && projectId) {
-      wasKnowledgeGraphRef.current = true
-      useGraphLiveStore.getState().setSourceUpdating(projectId, source.id, true)
-    }
-
-    if (
-      currentStatusFromData === 'new' ||
-      currentStatusFromData === 'running' ||
-      currentStatusFromData === 'queued' ||
-      stage === 'extracting' ||
-      stage === 'embedding' ||
-      stage === 'knowledge_graph'
-    ) {
-      setWasProcessing(true)
-    }
-
-    if (
-      wasProcessing &&
-      (currentStatusFromData === 'completed' || currentStatusFromData === 'failed') &&
-      (stage === 'completed' || stage === 'failed' || !stage)
-    ) {
-      setWasProcessing(false)
-      useKnowledgeExtractStore.getState().clearPending(source.id)
-
-      if (projectId) {
-        if (wasKnowledgeGraphRef.current && currentStatusFromData === 'completed') {
-          useGraphLiveStore
-            .getState()
-            .notifySourceKnowledgeReady(projectId, source.id)
-        } else {
-          useGraphLiveStore
-            .getState()
-            .setSourceUpdating(projectId, source.id, false)
-        }
-        wasKnowledgeGraphRef.current = false
-      }
-
-      // Patch this card in the list cache — full list refetch freezes large projects.
-      patchAllSourceListQueries(queryClient, (sources) =>
-        sources.map((item) =>
-          item.id === source.id
-            ? {
-                ...item,
-                status: currentStatusFromData,
-                stage: stage || currentStatusFromData,
-                pipeline_stage: stage || item.pipeline_stage,
-                embedded:
-                  typeof statusData?.embedded === 'boolean'
-                    ? statusData.embedded
-                    : item.embedded,
-                kg_status: statusData?.kg_status ?? item.kg_status,
-                processing_failures:
-                  statusData?.processing_failures ?? item.processing_failures,
-                failure_details_unavailable:
-                  statusData?.failure_details_unavailable ??
-                  item.failure_details_unavailable,
-              }
-            : item
-        )
-      )
-    }
-  }, [
-    statusData,
-    sourceWithStatus.status,
-    sourceWithStatus.stage,
-    sourceWithStatus.pipeline_stage,
-    wasProcessing,
-    source.id,
+  const pipeline = useSourceCardPipeline({
+    source,
     projectId,
-    queryClient,
-  ])
+    menuOpen,
+    drawingStatus,
+    drawingBusy,
+  })
 
-  const statusConfigMap = getStatusConfig(t)
-  const stageStatusKey =
-    pipelineStage === 'extracting' ||
-    pipelineStage === 'embedding' ||
-    pipelineStage === 'knowledge_graph'
-      ? pipelineStage
-      : currentStatus
-  const statusConfig = statusConfigMap[stageStatusKey as keyof typeof statusConfigMap] || statusConfigMap.completed
-  const StatusIcon = statusConfig.icon
   const sourceType = getSourceType(source)
   const SourceTypeIcon = SOURCE_TYPE_ICONS[sourceType]
   const sourceTypeLabel = getSourceTypeLabel(sourceType, t)
-
   const title = source.title || t('sources.untitledSource')
-
-  const handleRetry = () => {
-    if (onRetry) {
-      onRetry(source.id)
-    }
-  }
-
-  const handleRefreshContent = () => {
-    if (onRefreshContent) {
-      onRefreshContent(source.id)
-    }
-  }
-
-  const handleDelete = () => {
-    if (onDelete) {
-      onDelete(source.id)
-    }
-  }
-
-  const handleRemoveFromProject = () => {
-    if (onRemoveFromProject) {
-      onRemoveFromProject(source.id)
-    }
-  }
-
-  const isProcessing: boolean =
-    currentStatus === 'new' ||
-    currentStatus === 'running' ||
-    currentStatus === 'queued' ||
-    pipelineStage === 'extracting' ||
-    pipelineStage === 'embedding' ||
-    pipelineStage === 'knowledge_graph'
-  const isFailed: boolean = currentStatus === 'failed' || pipelineStage === 'failed'
-  const isCompleted: boolean = currentStatus === 'completed' && !isFailed
-  const apiProgress =
-    typeof statusData?.processing_info?.progress === 'number'
-      ? Math.round(statusData.processing_info.progress as number)
-      : null
-  // Prefer live pipeline message (“Extracting content…”) over generic “Processing”
-  const statusLabel =
-    isProcessing &&
-    typeof statusData?.message === 'string' &&
-    statusData.message.trim()
-      ? statusData.message.replace(/\u2026$/, '').replace(/\.\.\.$/, '').trim() ||
-        statusConfig.label
-      : statusConfig.label
-
-  const isKgPending = useKnowledgeExtractStore(
-    (state) => Boolean(state.pendingSourceIds[source.id])
-  )
-  // Lazy-load KG status when the actions menu opens; also poll while a build is pending.
-  const { data: extractorData, isFetching: kgStatusLoading } = useSourceExtractors(
-    source.id,
-    isCompleted && (menuOpen || isKgPending)
-  )
-  const extractKnowledge = useExtractKnowledge(source.id)
-  const embedSource = useEmbedSource()
-  const genericRun = extractorData?.extractors?.find((e) => e.id === 'generic')
-  const extractorKgStatus = genericRun?.last_run?.status
-  const processingFailures =
-    statusData?.processing_failures ?? sourceWithStatus.processing_failures
-  const embedFailure = processingFailures?.embedding
-  const kgFailure =
-    processingFailures?.knowledge_graph ??
-    (genericRun?.last_run?.status === 'failed' &&
-    genericRun.last_run.error_message
-      ? {
-          stage: 'knowledge_graph' as const,
-          message: genericRun.last_run.error_message,
-          occurred_at:
-            genericRun.last_run.finished_at ?? genericRun.last_run.started_at,
-          command_id: genericRun.last_run.command_id,
-        }
-      : undefined)
-  const failureDetailsUnavailable =
-    statusData?.failure_details_unavailable ??
-    sourceWithStatus.failure_details_unavailable ??
-    false
-  const liveEmbedded =
-    typeof statusData?.embedded === 'boolean'
-      ? statusData.embedded
-      : Boolean(sourceWithStatus.embedded)
-  const liveKgStatus =
-    statusData?.kg_status ??
-    sourceWithStatus.kg_status ??
-    extractorKgStatus ??
-    null
-  const hasKnowledgeGraph =
-    liveKgStatus === 'completed' || extractorKgStatus === 'completed'
-  const kgFailed =
-    liveKgStatus === 'failed' || extractorKgStatus === 'failed'
-  const kgBuilding =
-    extractKnowledge.isBuilding ||
-    liveKgStatus === 'running' ||
-    liveKgStatus === 'queued' ||
-    liveKgStatus === 'new'
-  const showBuildKnowledgeGraph =
-    isCompleted &&
-    menuOpen &&
-    !kgStatusLoading &&
-    !hasKnowledgeGraph &&
-    !kgBuilding
-
-  const extractReady =
-    liveEmbedded ||
-    pipelineStage === 'embedding' ||
-    pipelineStage === 'knowledge_graph' ||
-    pipelineStage === 'completed' ||
-    pipelineStage === 'failed' ||
-    isCompleted ||
-    isFailed
-
-  const embedState: StageActionState =
-    pipelineStage === 'embedding' || embedSource.isPending
-      ? 'running'
-      : embedFailure || (isFailed && !liveEmbedded)
-        ? 'failed'
-        : liveEmbedded
-          ? 'done'
-          : 'idle'
-
-  const kgState: StageActionState = kgBuilding
-    ? 'running'
-    : kgFailure ||
-        kgFailed ||
-        (isFailed && liveEmbedded && pipelineStage !== 'embedding')
-        ? 'failed'
-      : hasKnowledgeGraph
-        ? 'done'
-        : 'idle'
-
-  const resolvedDrawingStatus =
-    drawingStatus ?? sourceWithStatus.drawing_status ?? null
-  const drawingState = drawingStageState(resolvedDrawingStatus)
-  const isDrawingProcessing =
-    drawingState === 'running' || Boolean(drawingBusy)
-  const showProgressFill = isProcessing || isDrawingProcessing
-  const fillPercent = isProcessing
-    ? resolvePipelineFillPercent(pipelineStage, currentStatus, apiProgress)
-    : isDrawingProcessing
-      ? resolveDrawingFillPercent(resolvedDrawingStatus)
-      : 0
-  const progressLabel = isProcessing
-    ? statusData?.message || statusLabel
-    : isDrawingProcessing
-      ? t(drawingProgressLabelKey(resolvedDrawingStatus))
-      : statusLabel
+  const StatusIcon = pipeline.statusConfig.icon
   const drawingEligible = (source.asset?.file_path || '')
     .toLowerCase()
     .endsWith('.pdf')
   const showDrawingActions = Boolean(projectId && onRunDrawingExtraction)
-
-  const handleBuildKnowledgeGraph = () => {
-    extractKnowledge.mutate({
-      extractor: 'generic',
-      project_id: projectId,
-      force: true,
-    })
-  }
-
-  const handleRunEmbeddings = () => {
-    embedSource.mutate({ sourceId: source.id, chainKg: false })
-  }
-
-  const handleRunDrawingExtraction = () => {
-    onRunDrawingExtraction?.(source.id)
-  }
-
-  const handleInspectDrawing = () => {
-    if (drawingRunId) {
-      onInspectDrawing?.(drawingRunId)
-    }
-  }
 
   const { rowProps, selectedClassName } = useSelectableRow({
     selectionMode,
@@ -573,7 +105,7 @@ function SourceCardImpl({
       : undefined,
     onActivate: onClick ? () => onClick(source.id) : undefined,
     longPressDisabled: !onEnterSelection && !selectionMode,
-    selectedRingOnly: showProgressFill,
+    selectedRingOnly: pipeline.showProgressFill,
   })
 
   const handleArtifactDragOver = (event: React.DragEvent<HTMLDivElement>) => {
@@ -612,350 +144,152 @@ function SourceCardImpl({
     }
   }
 
+  const badgeTitle =
+    pipeline.statusLoading && pipeline.shouldFetchStatus
+      ? t('sources.checking')
+      : pipeline.statusData?.message || pipeline.statusLabel
+  const badgeLabel =
+    pipeline.statusLoading && pipeline.shouldFetchStatus
+      ? t('sources.checking')
+      : pipeline.statusLabel
+
+  const tooltipTitle = isArtifactDragOver
+    ? t('sources.dropArtifactOnSource')
+    : pipeline.showProgressFill
+      ? `${title} — ${pipeline.progressLabel}`
+      : title
+
   return (
-    <div
-      {...rowProps}
-      aria-busy={showProgressFill || undefined}
-      className={cn(
-        'group relative flex flex-col gap-0.5 overflow-hidden rounded-md px-1 py-0.5',
-        'cursor-pointer transition-colors select-none',
-        'hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-        isFailed && 'bg-destructive/5 hover:bg-destructive/10',
-        showProgressFill && 'bg-muted/40',
-        isArtifactDragOver && 'ring-2 ring-primary bg-primary/10',
-        selectedClassName,
-        className
-      )}
+    <SourceCardChrome
+      rowProps={rowProps}
+      selectedClassName={selectedClassName}
+      className={className}
+      showProgressFill={pipeline.showProgressFill}
+      fillPercent={pipeline.fillPercent}
+      isFailed={pipeline.isFailed}
+      isArtifactDragOver={isArtifactDragOver}
+      tooltipTitle={tooltipTitle}
       onDragEnter={handleArtifactDragEnter}
       onDragOver={handleArtifactDragOver}
       onDragLeave={handleArtifactDragLeave}
       onDrop={handleArtifactDrop}
-      title={
-        isArtifactDragOver
-          ? t('sources.dropArtifactOnSource')
-          : showProgressFill
-            ? `${title} — ${progressLabel}`
-            : title
-      }
     >
-      {showProgressFill && (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-y-0 left-0 bg-primary/20 transition-[width] duration-700 ease-out"
-          style={{ width: `${fillPercent}%` }}
+      {selectionMode ? (
+        <Checkbox
+          checked={selected}
+          onCheckedChange={() => onToggleSelect?.(source.id)}
+          onClick={(e) => e.stopPropagation()}
+          className="shrink-0"
+          aria-label={title}
+        />
+      ) : (
+        <SourceTypeIcon
+          className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+          aria-label={sourceTypeLabel}
         />
       )}
 
-      <div className="relative z-[1] flex items-center gap-2 min-w-0">
-        {selectionMode ? (
-          <Checkbox
-            checked={selected}
-            onCheckedChange={() => onToggleSelect?.(source.id)}
-            onClick={(e) => e.stopPropagation()}
-            className="shrink-0"
-            aria-label={title}
+      <h4
+        className="min-w-0 flex-1 truncate text-sm font-medium leading-snug"
+        title={title}
+      >
+        {title}
+      </h4>
+
+      <div className="flex shrink-0 items-center gap-0.5">
+        {!selectionMode ? (
+          <SourceStageActions
+            embedState={pipeline.embedState}
+            kgState={pipeline.kgState}
+            drawingState={showDrawingActions ? pipeline.drawingState : undefined}
+            extractReady={pipeline.extractReady}
+            embedBusy={pipeline.embedSource.isPending}
+            kgBusy={
+              pipeline.extractKnowledge.isPending ||
+              pipeline.extractKnowledge.isBuilding
+            }
+            drawingBusy={drawingBusy || pipeline.drawingState === 'running'}
+            drawingEligible={drawingEligible}
+            embedFailure={pipeline.embedFailure}
+            kgFailure={pipeline.kgFailure}
+            failureDetailsUnavailable={pipeline.failureDetailsUnavailable}
+            onRunEmbeddings={pipeline.handleRunEmbeddings}
+            onRunKnowledgeGraph={pipeline.handleBuildKnowledgeGraph}
+            onRunDrawingExtraction={
+              showDrawingActions
+                ? () => onRunDrawingExtraction?.(source.id)
+                : undefined
+            }
+            onInspectDrawing={
+              drawingRunId && onInspectDrawing
+                ? () => onInspectDrawing(drawingRunId)
+                : undefined
+            }
           />
-        ) : (
-          <SourceTypeIcon
-            className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-            aria-label={sourceTypeLabel}
+        ) : null}
+        <SourceCardStatusBadge
+          visible={
+            !pipeline.isCompleted && pipeline.pipelineStage === 'extracting'
+          }
+          colorClassName={pipeline.statusConfig.color}
+          icon={StatusIcon}
+          isProcessing={pipeline.isProcessing}
+          label={badgeLabel}
+          title={badgeTitle}
+        />
+        {!pipeline.isCompleted &&
+        pipeline.pipelineStage !== 'extracting' &&
+        !selectionMode &&
+        pipeline.isProcessing ? (
+          <span className="sr-only">{pipeline.statusLabel}</span>
+        ) : null}
+
+        {!selectionMode ? (
+          <SourceCardActionMenu
+            menuOpen={menuOpen}
+            onMenuOpenChange={setMenuOpen}
+            sourceType={sourceType}
+            isCompleted={pipeline.isCompleted}
+            isFailed={pipeline.isFailed}
+            contextMode={contextMode}
+            onContextModeChange={onContextModeChange}
+            showRemoveFromProject={showRemoveFromProject}
+            onRemoveFromProject={
+              onRemoveFromProject
+                ? () => onRemoveFromProject(source.id)
+                : undefined
+            }
+            onRetry={onRetry ? () => onRetry(source.id) : undefined}
+            onRefreshContent={
+              onRefreshContent ? () => onRefreshContent(source.id) : undefined
+            }
+            kgStatusLoading={pipeline.kgStatusLoading}
+            kgBuilding={pipeline.kgBuilding}
+            kgFailed={pipeline.kgFailed}
+            showBuildKnowledgeGraph={pipeline.showBuildKnowledgeGraph}
+            hasKnowledgeGraph={pipeline.hasKnowledgeGraph}
+            extractKnowledgeBuilding={pipeline.extractKnowledge.isBuilding}
+            onBuildKnowledgeGraph={pipeline.handleBuildKnowledgeGraph}
+            showDrawingActions={showDrawingActions}
+            drawingEligible={drawingEligible}
+            drawingState={pipeline.drawingState}
+            drawingBusy={drawingBusy}
+            drawingRunId={drawingRunId}
+            onRunDrawingExtraction={
+              onRunDrawingExtraction
+                ? () => onRunDrawingExtraction(source.id)
+                : undefined
+            }
+            onInspectDrawing={
+              drawingRunId && onInspectDrawing
+                ? () => onInspectDrawing(drawingRunId)
+                : undefined
+            }
+            onDelete={onDelete ? () => onDelete(source.id) : undefined}
           />
-        )}
-
-        <h4
-          className="min-w-0 flex-1 truncate text-sm font-medium leading-snug"
-          title={title}
-        >
-          {title}
-        </h4>
-
-        <div className="flex shrink-0 items-center gap-0.5">
-          {!selectionMode && (
-            <SourceStageActions
-              embedState={embedState}
-              kgState={kgState}
-              drawingState={showDrawingActions ? drawingState : undefined}
-              extractReady={extractReady}
-              embedBusy={embedSource.isPending}
-              kgBusy={extractKnowledge.isPending || extractKnowledge.isBuilding}
-              drawingBusy={drawingBusy || drawingState === 'running'}
-              drawingEligible={drawingEligible}
-              embedFailure={embedFailure}
-              kgFailure={kgFailure}
-              failureDetailsUnavailable={failureDetailsUnavailable}
-              onRunEmbeddings={handleRunEmbeddings}
-              onRunKnowledgeGraph={handleBuildKnowledgeGraph}
-              onRunDrawingExtraction={
-                showDrawingActions ? handleRunDrawingExtraction : undefined
-              }
-              onInspectDrawing={
-                drawingRunId && onInspectDrawing
-                  ? handleInspectDrawing
-                  : undefined
-              }
-            />
-          )}
-          {!isCompleted && pipelineStage === 'extracting' && (
-            <span
-              className={cn(
-                'mr-1 inline-flex max-w-[9.5rem] items-center gap-1 truncate text-[11px] font-medium',
-                statusConfig.color
-              )}
-              title={
-                statusLoading && shouldFetchStatus
-                  ? t('sources.checking')
-                  : statusData?.message || statusLabel
-              }
-            >
-              <StatusIcon className={cn('h-3 w-3 shrink-0', isProcessing && 'animate-pulse')} />
-              <span className="hidden truncate sm:inline">
-                {statusLoading && shouldFetchStatus ? t('sources.checking') : statusLabel}
-              </span>
-            </span>
-          )}
-          {!isCompleted && pipelineStage !== 'extracting' && !selectionMode && isProcessing && (
-            <span className="sr-only">{statusLabel}</span>
-          )}
-
-          {!selectionMode && (
-          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn('h-7 w-7 p-0', listActionTriggerClassName)}
-                onClick={(e) => e.stopPropagation()}
-                aria-label={t('common.actions')}
-              >
-                <MoreVertical className="h-3.5 w-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              {onContextModeChange && contextMode && (
-                <>
-                  <DropdownMenuLabel>{t('sources.bulkContext')}</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={contextMode}
-                    onValueChange={(value) => onContextModeChange(value as ContextMode)}
-                  >
-                    <DropdownMenuRadioItem
-                      value="off"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <EyeOff className="h-4 w-4" />
-                      {t('common.contextModes.off')}
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem
-                      value="full"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <FileText className="h-4 w-4" />
-                      {t('common.contextModes.full')}
-                    </DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-                  <DropdownMenuSeparator />
-                </>
-              )}
-
-              {showRemoveFromProject && (
-                <>
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleRemoveFromProject()
-                    }}
-                    disabled={!onRemoveFromProject}
-                  >
-                    <Unlink className="h-4 w-4 mr-2" />
-                    {t('sources.removeFromProject')}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                </>
-              )}
-
-              {isFailed && (
-                <>
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleRetry()
-                    }}
-                    disabled={!onRetry}
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    {t('sources.retryProcessing')}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                </>
-              )}
-
-              {sourceType === 'link' && isCompleted && onRefreshContent && (
-                <>
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleRefreshContent()
-                    }}
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    {t('sources.refreshContent')}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                </>
-              )}
-
-              {isCompleted && (
-                <>
-                  {kgStatusLoading ? (
-                    <DropdownMenuItem disabled onClick={(e) => e.stopPropagation()}>
-                      <Network className="h-4 w-4 mr-2" />
-                      {t('sources.checkingKnowledgeGraph')}
-                    </DropdownMenuItem>
-                  ) : kgBuilding ? (
-                    <DropdownMenuItem disabled onClick={(e) => e.stopPropagation()}>
-                      <Network className="h-4 w-4 mr-2 animate-pulse" />
-                      {t('sources.buildingKnowledgeGraph')}
-                    </DropdownMenuItem>
-                  ) : kgFailed ? (
-                    <>
-                      <DropdownMenuItem disabled onClick={(e) => e.stopPropagation()}>
-                        <AlertTriangle className="h-4 w-4 mr-2 text-destructive" />
-                        <span className="text-destructive">
-                          {t('sources.knowledgeGraphFailed')}
-                        </span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleBuildKnowledgeGraph()
-                        }}
-                        disabled={extractKnowledge.isBuilding}
-                      >
-                        <Network className="h-4 w-4 mr-2" />
-                        {t('sources.retryKnowledgeGraph')}
-                      </DropdownMenuItem>
-                    </>
-                  ) : showBuildKnowledgeGraph ? (
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleBuildKnowledgeGraph()
-                      }}
-                      disabled={extractKnowledge.isBuilding}
-                    >
-                      <Network className="h-4 w-4 mr-2" />
-                      {t('sources.buildKnowledgeGraph')}
-                    </DropdownMenuItem>
-                  ) : hasKnowledgeGraph ? (
-                    <DropdownMenuItem disabled onClick={(e) => e.stopPropagation()}>
-                      <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
-                      {t('sources.knowledgeGraphReady')}
-                    </DropdownMenuItem>
-                  ) : null}
-                  {(kgStatusLoading ||
-                    showBuildKnowledgeGraph ||
-                    kgBuilding ||
-                    kgFailed ||
-                    hasKnowledgeGraph) && <DropdownMenuSeparator />}
-                </>
-              )}
-
-              {showDrawingActions && (
-                <>
-                  {!drawingEligible ? (
-                    <DropdownMenuItem disabled onClick={(e) => e.stopPropagation()}>
-                      <DraftingCompass className="h-4 w-4 mr-2" />
-                      {t('sources.drawingPdfOnly')}
-                    </DropdownMenuItem>
-                  ) : drawingState === 'running' || drawingBusy ? (
-                    <DropdownMenuItem disabled onClick={(e) => e.stopPropagation()}>
-                      <DraftingCompass className="h-4 w-4 mr-2 animate-pulse" />
-                      {t('sources.drawingRunning')}
-                    </DropdownMenuItem>
-                  ) : drawingState === 'failed' ? (
-                    <>
-                      <DropdownMenuItem disabled onClick={(e) => e.stopPropagation()}>
-                        <AlertTriangle className="h-4 w-4 mr-2 text-destructive" />
-                        <span className="text-destructive">
-                          {t('sources.drawingFailed')}
-                        </span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setMenuOpen(false)
-                          handleRunDrawingExtraction()
-                        }}
-                        disabled={drawingBusy}
-                      >
-                        <DraftingCompass className="h-4 w-4 mr-2" />
-                        {t('sources.drawingRerun')}
-                      </DropdownMenuItem>
-                    </>
-                  ) : drawingState === 'done' ? (
-                    <>
-                      <DropdownMenuItem disabled onClick={(e) => e.stopPropagation()}>
-                        <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
-                        {t('sources.drawingDone')}
-                      </DropdownMenuItem>
-                      {drawingRunId && onInspectDrawing ? (
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setMenuOpen(false)
-                            handleInspectDrawing()
-                          }}
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          {t('sources.drawingInspectResults')}
-                        </DropdownMenuItem>
-                      ) : null}
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setMenuOpen(false)
-                          handleRunDrawingExtraction()
-                        }}
-                        disabled={drawingBusy}
-                      >
-                        <DraftingCompass className="h-4 w-4 mr-2" />
-                        {t('sources.drawingRerun')}
-                      </DropdownMenuItem>
-                    </>
-                  ) : (
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setMenuOpen(false)
-                        handleRunDrawingExtraction()
-                      }}
-                      disabled={drawingBusy}
-                    >
-                      <DraftingCompass className="h-4 w-4 mr-2" />
-                      {t('sources.extractArchitecturalDrawings')}
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuSeparator />
-                </>
-              )}
-
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleDelete()
-                }}
-                disabled={!onDelete}
-                variant="destructive"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                {t('sources.deleteSource')}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          )}
-        </div>
+        ) : null}
       </div>
-    </div>
+    </SourceCardChrome>
   )
 }
 
@@ -969,28 +303,11 @@ function SourceCardImpl({
  * capture the source id, so a stale closure stays correct as long as the source data
  * below is unchanged.
  */
-function topicsEqual(a?: string[], b?: string[]): boolean {
-  if (a === b) return true
-  if ((a?.length ?? 0) !== (b?.length ?? 0)) return false
-  if (!a || !b) return true
-  return a.every((topic, i) => topic === b[i])
-}
-
 function areEqual(prev: SourceCardProps, next: SourceCardProps): boolean {
   if (prev === next) return true
 
-  const p = prev.source as SourceListResponse & {
-    command_id?: string
-    status?: string
-    stage?: string
-    pipeline_stage?: string
-  }
-  const n = next.source as SourceListResponse & {
-    command_id?: string
-    status?: string
-    stage?: string
-    pipeline_stage?: string
-  }
+  const p = prev.source as SourceCardListFields
+  const n = next.source as SourceCardListFields
 
   return (
     p.id === n.id &&

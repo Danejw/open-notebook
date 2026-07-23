@@ -133,8 +133,8 @@ Minimum:
 
 ### 9. Ship flags + restart
 
-- API: `A2UI_CHAT_ENABLED=true` (restart API if `API_RELOAD=false`)
-- UI: `NEXT_PUBLIC_A2UI_CHAT=1`
+- A2UI is **on by default** (API + UI). To disable: `A2UI_CHAT_ENABLED=0` and `NEXT_PUBLIC_A2UI_CHAT=0`
+- Restart API if `API_RELOAD=false` after changing the API flag; restart Next after changing the public flag
 - Hard-refresh; use a **new** chat session so old payloads do not hydrate removed components
 
 Dev preview: `?a2ui_fixture=1` loads `frontend/src/lib/a2ui/fixtures/load-ask-user.ts` — add or swap fixtures for new components the same way.

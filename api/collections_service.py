@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from loguru import logger
 
 from api.collection_models import (
     CollectionCreateRequest,

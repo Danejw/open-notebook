@@ -1,12 +1,12 @@
 import type { ChatQueueResponse } from '@/lib/types/chat-queue'
-import type { SourceChatMessage } from '@/lib/types/api'
+import type { ChatMessage } from '@/lib/types/api'
 
 /**
  * Adds reconnectable optimistic rows for the active persisted queue iteration.
  * Only surfaces turns after the worker claims them (`running`) so pending items
  * do not look like they already entered chat before the API runs.
  */
-export function mergeActiveQueueMessages<T extends SourceChatMessage>(
+export function mergeActiveQueueMessages<T extends ChatMessage>(
   messages: T[],
   queue: ChatQueueResponse | undefined
 ): T[] {
@@ -26,7 +26,7 @@ export function mergeActiveQueueMessages<T extends SourceChatMessage>(
     return messages
   }
 
-  const additions: SourceChatMessage[] = []
+  const additions: ChatMessage[] = []
   if (!hasHuman) {
     additions.push({
       id: humanId,

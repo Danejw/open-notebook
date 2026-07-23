@@ -8,7 +8,7 @@ import { Plus, Trash2, FileText, EyeOff } from 'lucide-react'
 import { CompactListRowSkeleton } from '@/components/common/LoadingSkeletons'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ListSelectionBar } from '@/components/common/ListSelectionBar'
-import { ArtifactEditorDialog } from './ArtifactEditorDialog'
+import { ProjectNoteEditorDialog } from './ProjectNoteEditorDialog'
 import { ArtifactTemplatePhases } from './ArtifactTemplatePhases'
 import { ArtifactListRow } from './ArtifactListRow'
 import { ArtifactViewerDialog } from './ArtifactViewerDialog'
@@ -384,7 +384,7 @@ export function ArtifactsColumn({
         </Card>
       </CollapsibleColumn>
 
-      <ArtifactEditorDialog
+      <ProjectNoteEditorDialog
         open={showAddDialog || Boolean(editingNote)}
         onOpenChange={(open) => {
           if (!open) {

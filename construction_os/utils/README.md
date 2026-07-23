@@ -1,153 +1,25 @@
-# ContextBuilder
+# Utils
 
-A flexible ContextBuilder for Construction OS that assembles LLM context from sources, projects, and notes.
+Shared helpers for Construction OS: chunking, embeddings, text/token utilities, encryption, and context-mode helpers.
 
-## Features
+## Chat / LLM context (canonical path)
 
-- **Flexible Parameters**: Accepts any parameters via `**kwargs` for future extensibility
-- **Priority-based Management**: Automatic prioritization and sorting of context items
-- **Token Counting**: Built-in token counting and truncation to fit limits
-- **Deduplication**: Automatic removal of duplicate items based on ID
-- **Type-based Grouping**: Separates sources and notes in output
-- **Async Support**: Fully async for database operations
-
-## Basic Usage
+Project chat and retrieval assemble relevance context via:
 
 ```python
-from construction_os.utils.context_builder import ContextBuilder, ContextConfig
-
-# Simple project context
-builder = ContextBuilder(project_id="project:123")
-context = await builder.build()
-
-# Single source
-builder = ContextBuilder(
-    source_id="source:456",
-    max_tokens=2000
-)
-context = await builder.build()
+from construction_os.graphs.chat_context import build_relevance_context
+from construction_os.utils.context_mode import is_note_included, is_source_included
 ```
 
-## Convenience Functions
+Do not reintroduce a parallel context builder under `utils/`. Token budgeting and ranking live in `graphs/chat_context.py` and the retrieval stack.
+
+## Common imports
 
 ```python
-from construction_os.utils.context_builder import (
-    build_project_context,
-    build_source_context,
-    build_mixed_context
-)
-
-# Build project context
-context = await build_project_context(
-    project_id="project:123",
-    max_tokens=5000
-)
-
-# Build single source context
-context = await build_source_context(
-    source_id="source:456",
-)
-
-# Build mixed context
-context = await build_mixed_context(
-    source_ids=["source:1", "source:2"],
-    note_ids=["note:1", "note:2"],
-    max_tokens=3000
-)
+from construction_os.utils import token_count, compare_versions
+from construction_os.utils.chunking import chunk_text, detect_content_type, ContentType
+from construction_os.utils.embedding import generate_embedding, generate_embeddings
+from construction_os.utils.encryption import encrypt_value, decrypt_value
 ```
 
-## Advanced Configuration
-
-```python
-from construction_os.utils.context_builder import ContextConfig
-
-# Custom configuration
-config = ContextConfig(
-    sources={
-        "source:doc1": "full content",
-        "source:doc2": "not in"  # Exclude
-    },
-    notes={
-        "note:summary": "full content",
-        "note:draft": "not in"  # Exclude
-    },
-    max_tokens=3000,
-    priority_weights={
-        "source": 120,  # Higher priority
-        "note": 80,     # Medium priority
-    }
-)
-
-builder = ContextBuilder(
-    project_id="project:abc",
-    context_config=config
-)
-context = await builder.build()
-```
-
-Legacy stored context modes such as `"insights"` are normalized to full source content.
-
-## Programmatic Item Management
-
-```python
-from construction_os.utils.context_builder import ContextItem
-
-builder = ContextBuilder()
-
-# Add custom items
-item = ContextItem(
-    id="source:important",
-    type="source",
-    content={"title": "Key Document", "summary": "..."},
-    priority=150  # Very high priority
-)
-builder.add_item(item)
-
-# Apply management operations
-builder.remove_duplicates()
-builder.prioritize()
-builder.truncate_to_fit(1000)
-
-context = builder._format_response()
-```
-
-## Output Format
-
-The ContextBuilder returns a structured response:
-
-```python
-{
-    "sources": [...],           # List of source contexts
-    "notes": [...],             # List of note contexts
-    "total_tokens": 1234,       # Total token count
-    "total_items": 10,          # Total number of items
-    "project_id": "project:123",  # If provided
-    "metadata": {
-        "source_count": 5,
-        "note_count": 3,
-        "config": {
-            "include_notes": true,
-            "max_tokens": 2000
-        }
-    }
-}
-```
-
-## Architecture
-
-The ContextBuilder follows these design principles:
-
-1. **Separation of Concerns**: Context building, item management, and formatting are separate
-2. **Extensibility**: Uses `**kwargs` and flexible configuration for future features
-3. **Performance**: Token-aware truncation and efficient deduplication
-4. **Type Safety**: Proper type hints and data classes for structure
-5. **Error Handling**: Graceful handling of missing items and database errors
-
-## Integration
-
-The ContextBuilder integrates seamlessly with the existing Construction OS architecture:
-
-- Uses existing domain models (`Source`, `Project`, `Note`)
-- Leverages the repository pattern for database access
-- Follows the same async patterns as other services
-- Integrates with the token counting utilities
+See `CLAUDE.md` in this directory for module details.

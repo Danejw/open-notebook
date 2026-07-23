@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { InlineSkeleton, ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
 
 import { useProjects } from '@/lib/hooks/use-projects'
@@ -9,8 +8,7 @@ import { useEpisodeProfiles, useGeneratePodcast } from '@/lib/hooks/use-podcasts
 import { chatApi } from '@/lib/api/chat'
 import { sourcesApi } from '@/lib/api/sources'
 import { projectArtifactsApi } from '@/lib/api/project-artifacts'
-import { BuildContextRequest, ProjectArtifactResponse, ProjectResponse, SourceListResponse } from '@/lib/types/api'
-import type { QueryClient } from '@tanstack/react-query'
+import { BuildContextRequest, ProjectArtifactResponse, SourceListResponse } from '@/lib/types/api'
 import { PodcastGenerationRequest } from '@/lib/types/podcasts'
 import { QUERY_KEYS } from '@/lib/api/query-client'
 import { useToast } from '@/lib/hooks/use-toast'
@@ -24,369 +22,19 @@ import {
   dialogBodyClassName,
   dialogLargeContentClassName,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
-
-type SourceMode = 'off' | 'full'
-
-interface ProjectSelection {
-  sources: Record<string, SourceMode>
-  notes: Record<string, SourceMode>
-}
-
-// Helper function to format large numbers with K/M suffixes
-function formatNumber(num: number): string {
-  if (num >= 1000000) {
-    return `${(num / 1000000).toFixed(1)}M`
-  }
-  if (num >= 1000) {
-    return `${(num / 1000).toFixed(1)}K`
-  }
-  return num.toString()
-}
-
-function hasSelections(selection?: ProjectSelection): boolean {
-  if (!selection) {
-    return false
-  }
-  return (
-    Object.values(selection.sources).some((mode) => mode !== 'off') ||
-    Object.values(selection.notes).some((mode) => mode !== 'off')
-  )
-}
-
-function getSourceDefaultMode(_source: SourceListResponse): SourceMode {
-  return 'full'
-}
+import {
+  ContentSelectionPanel,
+  getSourceDefaultMode,
+  hasSelections,
+  type ProjectSelection,
+  type SourceMode,
+} from '@/components/podcasts/generate-podcast/ContentSelectionPanel'
+import { EpisodeSettingsPanel } from '@/components/podcasts/generate-podcast/EpisodeSettingsPanel'
+import { GeneratePodcastFooter } from '@/components/podcasts/generate-podcast/GeneratePodcastFooter'
 
 interface GeneratePodcastDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-}
-
-interface ProjectSummary {
-  projectId: string
-  sources: number
-  notes: number
-}
-
-interface ContentSelectionPanelProps {
-  projects: ProjectResponse[]
-  isLoading: boolean
-  selectedProjectSummaries: ProjectSummary[]
-  tokenCount: number
-  charCount: number
-  expandedProjects: string[]
-  setexpandedProjects: (projects: string[]) => void
-  selections: Record<string, ProjectSelection>
-  sourcesByProject: Record<string, SourceListResponse[]>
-  notesByProject: Record<string, ProjectArtifactResponse[]>
-  fetchingprojectIds: Set<string>
-  handleProjectToggle: (projectId: string, checked: boolean | 'indeterminate') => void
-  handleSourceModeChange: (projectId: string, sourceId: string, mode: SourceMode) => void
-  handleNoteToggle: (projectId: string, noteId: string, checked: boolean | 'indeterminate') => void
-  queryClient: QueryClient
-}
-
-// Extracted component for content selection panel
-function ContentSelectionPanel({
-  projects,
-  isLoading,
-  selectedProjectSummaries,
-  tokenCount,
-  charCount,
-  expandedProjects,
-  setexpandedProjects,
-  selections,
-  sourcesByProject,
-  notesByProject,
-  fetchingprojectIds,
-  handleProjectToggle,
-  handleSourceModeChange,
-  handleNoteToggle,
-  queryClient,
-}: ContentSelectionPanelProps) {
-  const { t, language } = useTranslation()
-
-  // Cache all translation strings at render time to avoid repeated Proxy accesses in loops
-  // This prevents the infinite loop detection from triggering
-  const tr = {
-    content: t('podcasts.content'),
-    contentDesc: t('podcasts.contentDesc'),
-    itemsSelected: t('podcasts.itemsSelected'),
-    tokens: t('podcasts.tokens'),
-    chars: t('podcasts.chars'),
-    loadingProjects: t('podcasts.loadingProjects'),
-    noProjectsFoundInPodcasts: t('podcasts.noProjectsFoundInPodcasts'),
-    sources: t('podcasts.sources'),
-    notes: t('podcasts.notes'),
-    noContentSelected: t('podcasts.noContentSelected'),
-    noSources: t('podcasts.noSources'),
-    untitledSource: t('podcasts.untitledSource'),
-    link: t('podcasts.link'),
-    file: t('podcasts.file'),
-    embedded: t('podcasts.embedded'),
-    notEmbedded: t('podcasts.notEmbedded'),
-    selectMode: t('podcasts.selectMode'),
-    noNotes: t('podcasts.noNotes'),
-    untitledNote: t('podcasts.untitledNote'),
-    commonUpdated: t('common.updated'),
-    summary: t('podcasts.summary'),
-    fullContent: t('podcasts.fullContent'),
-  }
-
-  // Pre-compute source modes once to avoid repeated t.podcasts access in loops
-  const sourceModes = [
-    { value: 'full', label: tr.fullContent },
-  ] as const
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            {tr.content}
-          </h3>
-          <p className="text-xs text-muted-foreground">
-            {tr.contentDesc}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline">
-            {tr.itemsSelected.replace(
-              '{count}',
-              selectedProjectSummaries.reduce(
-                (acc: number, summary: ProjectSummary) => acc + summary.sources + summary.notes,
-                0
-              ).toString()
-            )}
-          </Badge>
-          {(tokenCount > 0 || charCount > 0) && (
-            <span className="text-xs text-muted-foreground">
-              {tokenCount > 0 && tr.tokens.replace('{count}', formatNumber(tokenCount))}
-              {tokenCount > 0 && charCount > 0 && ' / '}
-              {charCount > 0 && tr.chars.replace('{count}', formatNumber(charCount))}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-lg border bg-muted/30">
-        {isLoading ? (
-          <ListRowsSkeleton rows={5} withHeader={false} />
-        ) : projects.length === 0 ? (
-          <div className="p-6 text-sm text-muted-foreground">
-            {tr.noProjectsFoundInPodcasts}
-          </div>
-        ) : (
-          <ScrollArea className="h-[60vh]">
-            <Accordion
-              type="multiple"
-              value={expandedProjects}
-              onValueChange={(value) => setexpandedProjects(value as string[])}
-              className="w-full"
-            >
-              {projects.map((project: ProjectResponse, index: number) => {
-                const sources = sourcesByProject[project.id] ?? []
-                const notes = notesByProject[project.id] ?? []
-                const selection = selections[project.id]
-                const summary = selectedProjectSummaries[index]
-                const projectChecked = summary.sources + summary.notes > 0
-                const totalItems = sources.length + notes.length
-                const isIndeterminate =
-                  projectChecked &&
-                  summary.sources + summary.notes > 0 &&
-                  summary.sources + summary.notes < totalItems
-
-                return (
-                  <AccordionItem key={project.id} value={project.id}>
-                    <div className="flex items-start gap-3 px-4 pt-3">
-                      <Checkbox
-                        id={`project-toggle-${project.id}`}
-                        checked={isIndeterminate ? 'indeterminate' : projectChecked}
-                        onCheckedChange={(checked) => {
-                          handleProjectToggle(project.id, checked)
-                          queryClient.prefetchQuery({
-                            queryKey: QUERY_KEYS.sources(project.id),
-                            queryFn: () => sourcesApi.list({ project_id: project.id }),
-                          })
-                          queryClient.prefetchQuery({
-                            queryKey: QUERY_KEYS.projectArtifacts(project.id),
-                            queryFn: () => projectArtifactsApi.list({ project_id: project.id }),
-                          })
-                        }}
-                        onClick={(event) => event.stopPropagation()}
-                      />
-                      <AccordionTrigger className="flex-1 px-0 py-0 hover:no-underline">
-                        <Label
-                          htmlFor={`project-toggle-${project.id}`}
-                          className="flex w-full items-center justify-between gap-3 pointer-events-none"
-                        >
-                          <div className="text-left">
-                            <p className="font-medium text-sm text-foreground">
-                              {project.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {summary.sources + summary.notes > 0
-                                ? `${summary.sources} ${tr.sources}, ${summary.notes} ${tr.notes}`
-                                : tr.noContentSelected}
-                            </p>
-                          </div>
-                          <Badge variant="outline" className="text-xs">
-                            {sources.length} {tr.sources} · {notes.length} {tr.notes}
-                          </Badge>
-                        </Label>
-                      </AccordionTrigger>
-                    </div>
-                    <AccordionContent>
-                      <div className="space-y-4 px-4 pb-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                              {tr.sources}
-                            </h4>
-                            {fetchingprojectIds.has(project.id) && (
-                              <InlineSkeleton className="h-3 w-3" />
-                            )}
-                          </div>
-                          {sources.length === 0 ? (
-                            <p className="text-xs text-muted-foreground">
-                              {tr.noSources}
-                            </p>
-                          ) : (
-                            <div className="space-y-2">
-                              {sources.map((source: SourceListResponse) => {
-                                const mode = selection?.sources?.[source.id] ?? 'off'
-                                return (
-                                  <div
-                                    key={source.id}
-                                    className="flex items-center gap-3 rounded border bg-background px-3 py-2"
-                                  >
-                                    <Checkbox
-                                      id={`source-selection-${source.id}`}
-                                      checked={mode !== 'off'}
-                                      onCheckedChange={(checked) =>
-                                        handleSourceModeChange(
-                                          project.id,
-                                          source.id,
-                                          checked ? getSourceDefaultMode(source) : 'off'
-                                        )
-                                      }
-                                    />
-                                    <Label
-                                      htmlFor={`source-selection-${source.id}`}
-                                      className="flex flex-1 flex-col gap-1 cursor-pointer"
-                                    >
-                                      <span className="text-sm font-medium text-foreground">
-                                        {source.title || tr.untitledSource}
-                                      </span>
-                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <span>{source.asset?.url ? tr.link : tr.file}</span>
-                                        <span>•</span>
-                                        <span>{source.embedded ? tr.embedded : tr.notEmbedded}</span>
-                                      </div>
-                                    </Label>
-                                    <Select
-                                      value={mode === 'off' ? 'off' : mode}
-                                      onValueChange={(value) =>
-                                        handleSourceModeChange(
-                                          project.id,
-                                          source.id,
-                                          value as SourceMode
-                                        )
-                                      }
-                                      disabled={mode === 'off'}
-                                    >
-                                      <SelectTrigger className="w-[140px]">
-                                        <SelectValue placeholder={tr.selectMode} />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {sourceModes.map((option) => (
-                                          <SelectItem
-                                            key={option.value}
-                                            value={option.value}
-                                          >
-                                            {option.label}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          )}
-                        </div>
-
-                        <Separator />
-
-                        <div className="space-y-2">
-                          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            {tr.notes}
-                          </h4>
-                          {notes.length === 0 ? (
-                            <p className="text-xs text-muted-foreground">
-                              {tr.noNotes}
-                            </p>
-                          ) : (
-                            <div className="space-y-2">
-                              {notes.map((note: ProjectArtifactResponse) => {
-                                const mode = selection?.notes?.[note.id] ?? 'off'
-                                return (
-                                  <div
-                                    key={note.id}
-                                    className="flex items-center gap-3 rounded border bg-background px-3 py-2"
-                                  >
-                                    <Checkbox
-                                      id={`note-selection-${note.id}`}
-                                      checked={mode !== 'off'}
-                                      onCheckedChange={(checked) =>
-                                        handleNoteToggle(
-                                          project.id,
-                                          note.id,
-                                          Boolean(checked)
-                                        )
-                                      }
-                                    />
-                                    <Label
-                                      htmlFor={`note-selection-${note.id}`}
-                                      className="flex flex-1 flex-col cursor-pointer"
-                                    >
-                                      <span className="text-sm font-medium text-foreground">
-                                        {note.title || tr.untitledNote}
-                                      </span>
-                                      <span className="text-xs text-muted-foreground">
-                                        {tr.commonUpdated}{' '}
-                                        {new Date(note.updated).toLocaleString(
-                                          language.startsWith('zh') ? language : 'en-US'
-                                        )}
-                                      </span>
-                                    </Label>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                )
-              })}
-            </Accordion>
-          </ScrollArea>
-        )}
-      </div>
-    </div>
-  )
 }
 
 export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDialogProps) {
@@ -881,90 +529,22 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
           />
 
           <div className="space-y-6">
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                {t('podcasts.episodeSettings')}
-              </h3>
-              {episodeProfilesQuery.isLoading ? (
-                <ListRowsSkeleton rows={3} withHeader={false} />
-              ) : episodeProfiles.length === 0 ? (
-                <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
-                  {t('podcasts.noProfilesFound')}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="episode_profile">{t('podcasts.episodeProfile')}</Label>
-                    <Select
-                      value={episodeProfileId}
-                      onValueChange={setEpisodeProfileId}
-                      disabled={episodeProfiles.length === 0}
-                    >
-                      <SelectTrigger id="episode_profile">
-                        <SelectValue placeholder={t('podcasts.episodeProfilePlaceholder')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {episodeProfiles.map((profile) => (
-                          <SelectItem key={profile.id} value={profile.id}>
-                            {profile.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {selectedEpisodeProfile && (
-                      <p className="text-xs text-muted-foreground">
-                        {t('podcasts.usesSpeakerProfile')}{' '}
-                        <strong>{selectedEpisodeProfile.speaker_config}</strong>
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="episode_name">{t('podcasts.episodeName')}</Label>
-                    <Input
-                      id="episode_name"
-                      name="episode_name"
-                      value={episodeName}
-                      onChange={(event) => setEpisodeName(event.target.value)}
-                      placeholder={t('podcasts.episodeNamePlaceholder')}
-                      autoComplete="off"
-                    />
-                  </div>
-
-                   <div className="space-y-2">
-                    <Label htmlFor="instructions">{t('podcasts.additionalInstructions')}</Label>
-                    <Textarea
-                      id="instructions"
-                      name="instructions"
-                      placeholder={t('podcasts.instructionsPlaceholder')}
-                      value={instructions}
-                      onChange={(event) => setInstructions(event.target.value)}
-                      className="min-h-[100px] text-xs"
-                      autoComplete="off"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <Button
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                className="w-full"
-              >
-                {isSubmitting && <InlineSkeleton className="mr-2" />}
-                {isSubmitting ? t('podcasts.generating') : t('podcasts.generate')}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={isSubmitting}
-                className="w-full"
-              >
-                {t('common.cancel')}
-              </Button>
-            </div>
+            <EpisodeSettingsPanel
+              isLoading={episodeProfilesQuery.isLoading}
+              episodeProfiles={episodeProfiles}
+              episodeProfileId={episodeProfileId}
+              onEpisodeProfileIdChange={setEpisodeProfileId}
+              selectedEpisodeProfile={selectedEpisodeProfile}
+              episodeName={episodeName}
+              onEpisodeNameChange={setEpisodeName}
+              instructions={instructions}
+              onInstructionsChange={setInstructions}
+            />
+            <GeneratePodcastFooter
+              isSubmitting={isSubmitting}
+              onSubmit={() => void handleSubmit()}
+              onCancel={() => onOpenChange(false)}
+            />
           </div>
         </div>
       </DialogContent>

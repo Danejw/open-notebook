@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useId, type RefObject } from 'react'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
@@ -84,10 +85,11 @@ export function InlineEdit({
 
   if (!isEditing) {
     return (
-      <button
+      <Button
         type="button"
+        variant="ghost"
         className={cn(
-          "cursor-pointer hover:bg-muted/50 rounded px-2 py-1 mx-1 my-0.5 transition-colors text-left w-full break-words",
+          'h-auto cursor-pointer justify-start whitespace-normal rounded px-2 py-1 mx-1 my-0.5 text-left w-full break-words font-normal hover:bg-muted/50',
           className
         )}
         onClick={(e) => {
@@ -97,7 +99,7 @@ export function InlineEdit({
         }}
       >
         {value || <span className="text-muted-foreground">{defaultEmptyText}</span>}
-      </button>
+      </Button>
     )
   }
 

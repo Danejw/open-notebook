@@ -22,8 +22,6 @@ graphs/chat.py (project chat, non-guest)
 
 The model never invents project IDs or bypasses authz. It only sees tools the server bound for that turn.
 
-`construction_os/mcp/chat_loop.generate_with_mcp_tools` is a compatibility wrapper around `tool_runtime.chat_loop.generate_with_tools`.
-
 ---
 
 ## Layers
@@ -98,7 +96,7 @@ Failed / rejected calls return a short error string to the model (do not retry u
 | Suite | Covers |
 |-------|--------|
 | `tests/test_native_capabilities.py` | Registry count/names, schemas, write gate, guest, path traversal, idempotency, mixed loop, duplicate guard |
-| `tests/test_mcp_chat_loop.py` | MCP-only wrapper path |
+| `tests/test_mcp_chat_loop.py` | MCP tool loop via `generate_with_tools` |
 
 ---
 

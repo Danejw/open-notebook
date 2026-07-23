@@ -61,8 +61,8 @@ Comprehensive list of all environment variables available in Construction OS.
 
 | Variable | Required? | Default | Description |
 |----------|-----------|---------|-------------|
-| `A2UI_CHAT_ENABLED` | No | false | When `true`/`1`/`yes`, project chat enables A2UI v0.9 (AskUser + Basic catalog) over AG-UI `CUSTOM` events (`a2ui`). |
-| `NEXT_PUBLIC_A2UI_CHAT` | No | unset | Frontend gate for rendering A2UI surfaces. Set to `1` or `true` in the Next.js env. Both flags should be enabled together. |
+| `A2UI_CHAT_ENABLED` | No | true (on when unset) | Project chat A2UI v0.9 (AskUser + Basic catalog) over AG-UI `CUSTOM` events (`a2ui`). Disable with `0`/`false`/`no`/`off`. |
+| `NEXT_PUBLIC_A2UI_CHAT` | No | true (on when unset) | Frontend gate for rendering A2UI surfaces. On by default; disable with `0`/`false`/`no`/`off`. Keep in sync with `A2UI_CHAT_ENABLED`. |
 
 Queued chat execution also requires the `surreal-commands` worker. The queue
 itself is stored in SurrealDB; the checkpoint file records LangGraph turns so

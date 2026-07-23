@@ -299,7 +299,7 @@ function StageIconButton({
     state === 'done'
       ? 'text-emerald-600'
       : state === 'running'
-        ? 'text-blue-600'
+        ? 'text-primary'
         : state === 'failed'
           ? 'text-destructive'
           : 'text-muted-foreground'

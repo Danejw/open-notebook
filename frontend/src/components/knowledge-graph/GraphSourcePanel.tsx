@@ -55,10 +55,11 @@ export function GraphSourcePanel({
       <ScrollArea className="min-h-0 flex-1">
         <ul className="divide-y px-0.5">
           <li>
-            <button
+            <Button
               type="button"
+              variant="ghost"
               className={cn(
-                'flex min-h-7 w-full items-center px-0.5 py-0.5 text-left text-[11px]',
+                'h-auto min-h-7 w-full justify-start rounded-none px-0.5 py-0.5 text-left text-[11px] font-normal',
                 !selectedSourceId
                   ? 'bg-primary/10 text-primary'
                   : 'hover:bg-muted'
@@ -66,14 +67,15 @@ export function GraphSourcePanel({
               onClick={() => onSelect(null)}
             >
               {t('knowledge.graphAllSources')}
-            </button>
+            </Button>
           </li>
           {sources.map((source) => (
             <li key={source.id}>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 className={cn(
-                  'flex min-h-7 w-full items-center px-0.5 py-0.5 text-left text-[11px]',
+                  'h-auto min-h-7 w-full justify-start rounded-none px-0.5 py-0.5 text-left text-[11px] font-normal',
                   selectedSourceId === source.id
                     ? 'bg-primary/10 text-primary'
                     : 'hover:bg-muted'
@@ -83,7 +85,7 @@ export function GraphSourcePanel({
                 }
               >
                 <span className="line-clamp-2">{source.label}</span>
-              </button>
+              </Button>
             </li>
           ))}
           {sources.length === 0 && (

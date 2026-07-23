@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from datetime import datetime
 from typing import Any, ClassVar, Dict, List, Optional, Tuple
@@ -9,6 +10,7 @@ from typing import Any, ClassVar, Dict, List, Optional, Tuple
 from construction_os.database.repository import (
     ensure_record_id,
     repo_query,
+    repo_upsert,
 )
 from construction_os.domain.base import ObjectModel
 from construction_os.retrieval.types import EvidenceItem, EvidencePath
@@ -57,6 +59,33 @@ def normalize_entity_key(label: str) -> str:
 def merges_project_wide(entity_type: str) -> bool:
     """True when entities of this type share one canonical node per project key."""
     return (entity_type or "") in PROJECT_WIDE_MERGE_TYPES
+
+
+def entity_identity_key(
+    *,
+    project_id: str,
+    entity_type: str,
+    normalized_key: str,
+    source_id: Optional[str] = None,
+) -> str:
+    """
+    Stable identity string for upsert / deterministic record ids (KG-011).
+
+    Project-wide types ignore source_id; source-scoped types include it.
+    """
+    pid = str(project_id)
+    etype = entity_type or ""
+    key = normalized_key or ""
+    if merges_project_wide(etype):
+        return f"{pid}|{etype}|{key}"
+    sid = str(source_id) if source_id else "none"
+    return f"{pid}|{etype}|{key}|{sid}"
+
+
+def entity_record_id_for_identity(identity_key: str) -> str:
+    """Deterministic ``kg_entity:<sha256[:32]>`` id from an identity key."""
+    digest = hashlib.sha256(identity_key.encode("utf-8")).hexdigest()[:32]
+    return f"kg_entity:{digest}"
 
 
 def supporting_source_ids_from_entity(entity: Dict[str, Any]) -> List[str]:
@@ -303,6 +332,61 @@ class KnowledgeGraphRepository:
         )
 
     @staticmethod
+    async def _find_entities_by_identity(
+        *,
+        project_id: str,
+        entity_type: str,
+        normalized_key: str,
+        source_id: Optional[str],
+        project_wide: bool,
+    ) -> List[Dict[str, Any]]:
+        """Return matching entities oldest-first (handles pre-dedupe twins)."""
+        query = """
+            SELECT * FROM kg_entity
+            WHERE project_id = $project_id
+              AND type = $type
+              AND normalized_key = $normalized_key
+        """
+        vars: Dict[str, Any] = {
+            "project_id": ensure_record_id(project_id),
+            "type": entity_type,
+            "normalized_key": normalized_key,
+        }
+        if not project_wide:
+            # Source-scoped identity for Person/Topic/etc. (KG-003)
+            if source_id:
+                query += " AND source_id = $source_id"
+                vars["source_id"] = ensure_record_id(source_id)
+            else:
+                query += " AND source_id = NONE"
+        query += " ORDER BY created ASC"
+        return await repo_query(query, vars) or []
+
+    @staticmethod
+    def _merge_entity_metadata(
+        existing_meta: Optional[Dict[str, Any]],
+        *,
+        source_id: Optional[str],
+        entity_source_id: Optional[str],
+        metadata: Optional[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        meta = _ensure_supporting_sources(dict(existing_meta or {}), source_id)
+        merged_from = list(meta.get("MERGED_FROM") or [])
+        if (
+            source_id
+            and str(source_id) not in merged_from
+            and str(entity_source_id or "") != str(source_id)
+        ):
+            merged_from.append(str(source_id))
+            meta["MERGED_FROM"] = merged_from
+        if metadata:
+            for k, v in metadata.items():
+                if k in (SUPPORTING_SOURCES_KEY, "MERGED_FROM"):
+                    continue
+                meta[k] = v
+        return meta
+
+    @staticmethod
     async def upsert_entity(
         *,
         project_id: str,
@@ -313,66 +397,96 @@ class KnowledgeGraphRepository:
         extractor: Optional[str] = None,
         extractor_version: Optional[str] = None,
     ) -> KgEntity:
+        """
+        Idempotent entity upsert.
+
+        Project-wide types use a deterministic record id so concurrent inserts
+        converge on one row (KG-011). Legacy twins are updated in place until
+        ``dedupe_project_wide_entities`` consolidates them.
+        """
         key = normalize_entity_key(label)
         project_wide = merges_project_wide(entity_type)
-        query = """
-            SELECT * FROM kg_entity
-            WHERE project_id = $project_id
-              AND type = $type
-              AND normalized_key = $normalized_key
-        """
-        vars: Dict[str, Any] = {
-            "project_id": ensure_record_id(project_id),
-            "type": entity_type,
-            "normalized_key": key,
-        }
-        if not project_wide:
-            # Source-scoped identity for Person/Topic/etc. (KG-003)
-            if source_id:
-                query += " AND source_id = $source_id"
-                vars["source_id"] = ensure_record_id(source_id)
-            else:
-                query += " AND source_id = NONE"
-        query += " LIMIT 1"
+        identity = entity_identity_key(
+            project_id=project_id,
+            entity_type=entity_type,
+            normalized_key=key,
+            source_id=source_id,
+        )
+        record_id = entity_record_id_for_identity(identity)
 
-        existing = await repo_query(query, vars)
-        if existing:
-            entity = KgEntity(**existing[0])
-            meta = _ensure_supporting_sources(
-                dict(entity.metadata or {}), source_id
+        existing_rows = await KnowledgeGraphRepository._find_entities_by_identity(
+            project_id=project_id,
+            entity_type=entity_type,
+            normalized_key=key,
+            source_id=source_id,
+            project_wide=project_wide,
+        )
+        if existing_rows:
+            entity = KgEntity(**existing_rows[0])
+            entity.metadata = KnowledgeGraphRepository._merge_entity_metadata(
+                entity.metadata,
+                source_id=source_id,
+                entity_source_id=entity.source_id,
+                metadata=metadata,
             )
-            # Keep legacy MERGED_FROM in sync for older readers
-            merged_from = list(meta.get("MERGED_FROM") or [])
-            if (
-                source_id
-                and str(source_id) not in merged_from
-                and str(entity.source_id) != str(source_id)
-            ):
-                merged_from.append(str(source_id))
-                meta["MERGED_FROM"] = merged_from
-            entity.metadata = meta
-            if metadata:
-                # Preserve caller metadata keys without dropping supporters
-                for k, v in metadata.items():
-                    if k in (SUPPORTING_SOURCES_KEY, "MERGED_FROM"):
-                        continue
-                    entity.metadata[k] = v
             await entity.save()
             return entity
 
         base_meta = _ensure_supporting_sources(dict(metadata or {}), source_id)
-        entity = KgEntity(
-            type=entity_type,
-            label=label,
-            normalized_key=key,
-            project_id=project_id,
-            source_id=source_id,
-            metadata=base_meta,
-            extractor=extractor,
-            extractor_version=extractor_version,
+        payload: Dict[str, Any] = {
+            "type": entity_type,
+            "label": label,
+            "normalized_key": key,
+            "project_id": ensure_record_id(project_id),
+            "metadata": base_meta,
+            "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        if source_id is not None:
+            payload["source_id"] = ensure_record_id(source_id)
+        if extractor is not None:
+            payload["extractor"] = extractor
+        if extractor_version is not None:
+            payload["extractor_version"] = extractor_version
+
+        # Concurrent-safe create: UPSERT same deterministic id (KG-011)
+        await repo_upsert("kg_entity", record_id, payload, add_timestamp=True)
+        rows = await repo_query(
+            "SELECT * FROM $id", {"id": ensure_record_id(record_id)}
         )
-        await entity.save()
-        return entity
+        if rows:
+            # Re-merge supporting_sources in case a racing UPSERT won the write
+            entity = KgEntity(**rows[0])
+            entity.metadata = KnowledgeGraphRepository._merge_entity_metadata(
+                entity.metadata,
+                source_id=source_id,
+                entity_source_id=entity.source_id,
+                metadata=metadata,
+            )
+            await entity.save()
+            return entity
+
+        # Fallback: identity SELECT may have landed after a racing insert
+        retry = await KnowledgeGraphRepository._find_entities_by_identity(
+            project_id=project_id,
+            entity_type=entity_type,
+            normalized_key=key,
+            source_id=source_id,
+            project_wide=project_wide,
+        )
+        if retry:
+            entity = KgEntity(**retry[0])
+            entity.metadata = KnowledgeGraphRepository._merge_entity_metadata(
+                entity.metadata,
+                source_id=source_id,
+                entity_source_id=entity.source_id,
+                metadata=metadata,
+            )
+            await entity.save()
+            return entity
+
+        raise RuntimeError(
+            f"Failed to upsert kg_entity for identity {identity!r}"
+        )
 
     @staticmethod
     async def release_source_evidence(source_id: str) -> Dict[str, Any]:

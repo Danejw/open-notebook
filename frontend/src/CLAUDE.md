@@ -47,7 +47,7 @@ User interactions trigger mutations/queries via hooks, which communicate with th
 
 #### `lib/hooks/` — React Query + Custom Logic
 - **Query hooks**: `useProjectSources`, `useSources`, `useSource` — TanStack Query wrappers with cache keys
-- **Mutation hooks**: `useCreateSource`, `useUpdateSource`, `useDeleteSource` — mutations with toast feedback + cache invalidation
+- **Mutation hooks**: `useCreateSource`, `useDeleteSource` — mutations with toast feedback + cache invalidation
 - **Complex hooks**: `useProjectChat` — session management, message streaming, context building
 - **SSE streaming**: project chat uses AG-UI SSE via `readAgUiSseStream` / `createAgUiChatSseHandler`
 - **Pattern**: Hooks return `{ data, isLoading, error, refetch }` + action functions; cache invalidation on mutations
@@ -86,7 +86,7 @@ User interactions trigger mutations/queries via hooks, which communicate with th
 
 ### Example: File Upload with Source Creation
 1. **Component** (`SourceDialog`) renders form with file picker
-2. **Hook** (`useFileUpload`):
+2. **Hook** (`useCreateSource`):
    - Converts file to FormData (JSON fields stringified)
    - Calls `sourcesApi.create()` with FormData
    - API client interceptor deletes Content-Type header (lets browser set multipart boundary)

@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
-from construction_os.mcp.chat_loop import generate_with_mcp_tools
+from construction_os.tool_runtime.chat_loop import generate_with_tools
 
 
 @pytest.mark.asyncio
@@ -16,14 +16,17 @@ async def test_generate_without_tools_returns_model_response():
     mock_model.invoke.return_value = AIMessage(content="Hello there")
     provision = AsyncMock(return_value=mock_model)
 
-    result = await generate_with_mcp_tools(
-        provision_model=provision,
-        payload=[HumanMessage(content="Hi")],
-        model_id=None,
-        mcp_tool_ids=[],
-        session_id="chat_session:test",
-        message_id="msg-1",
-    )
+    with patch(
+        "construction_os.tool_runtime.chat_loop.emit_citation_verify_progress"
+    ):
+        result = await generate_with_tools(
+            provision_model=provision,
+            payload=[HumanMessage(content="Hi")],
+            model_id=None,
+            mcp_tool_ids=[],
+            session_id="chat_session:test",
+            message_id="msg-1",
+        )
 
     assert result.content == "Hello there"
     assert result.id == "msg-1"
@@ -58,11 +61,13 @@ async def test_generate_rejects_unauthorized_tool_name():
     ), patch(
         "construction_os.tool_runtime.chat_loop.reject_unauthorized",
         new_callable=AsyncMock,
-    ) as mock_reject:
+    ) as mock_reject, patch(
+        "construction_os.tool_runtime.chat_loop.emit_citation_verify_progress"
+    ):
         mock_allowlist.return_value = MagicMock()
         mock_reject.return_value = MagicMock(id="audit-1", status="rejected")
 
-        result = await generate_with_mcp_tools(
+        result = await generate_with_tools(
             provision_model=provision,
             payload=[HumanMessage(content="Use echo")],
             model_id=None,

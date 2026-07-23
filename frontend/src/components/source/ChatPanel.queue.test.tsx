@@ -53,19 +53,42 @@ const emptyQueue: ChatQueueResponse = makeChatQueue({
 })
 
 type EnqueueHandler = NonNullable<
-  ComponentProps<typeof ChatPanel>['onEnqueueMessage']
+  ComponentProps<typeof ChatPanel>['streaming']['onEnqueueMessage']
 >
 
-function queueProps(onEnqueueMessage: EnqueueHandler) {
+function queueBags(
+  onEnqueueMessage: EnqueueHandler,
+  extras: {
+    isStreaming?: boolean
+    isDirectStreaming?: boolean
+    composerDisabled?: boolean
+    onSendMessage?: ComponentProps<typeof ChatPanel>['streaming']['onSendMessage']
+    queue?: ChatQueueResponse | undefined
+  } = {}
+): Pick<
+  ComponentProps<typeof ChatPanel>,
+  'streaming' | 'queueControls' | 'contextIndicators'
+> {
+  const queue = 'queue' in extras ? extras.queue : emptyQueue
   return {
-    queue: emptyQueue,
-    onEnqueueMessage,
-    onPauseQueue: vi.fn(),
-    onResumeQueue: vi.fn(),
-    onEditQueueItem: vi.fn(),
-    onDeleteQueueItem: vi.fn(),
-    onRetryQueueItem: vi.fn(),
-    onReorderQueue: vi.fn(),
+    contextIndicators: null,
+    streaming: {
+      messages: [],
+      isStreaming: extras.isStreaming ?? false,
+      isDirectStreaming: extras.isDirectStreaming,
+      composerDisabled: extras.composerDisabled,
+      onSendMessage: extras.onSendMessage ?? vi.fn(),
+      onEnqueueMessage,
+    },
+    queueControls: {
+      queue,
+      onPauseQueue: vi.fn(),
+      onResumeQueue: vi.fn(),
+      onEditQueueItem: vi.fn(),
+      onDeleteQueueItem: vi.fn(),
+      onRetryQueueItem: vi.fn(),
+      onReorderQueue: vi.fn(),
+    },
   }
 }
 
@@ -75,13 +98,12 @@ describe('ChatPanel queue composer', () => {
     const onSendMessage = vi.fn()
     render(
       <ChatPanel
-        messages={[]}
-        isStreaming
-        isDirectStreaming
-        contextIndicators={null}
-        onSendMessage={onSendMessage}
-        composerDisabled
-        {...queueProps(onEnqueueMessage)}
+        {...queueBags(onEnqueueMessage, {
+          isStreaming: true,
+          isDirectStreaming: true,
+          composerDisabled: true,
+          onSendMessage,
+        })}
       />
     )
 
@@ -104,12 +126,10 @@ describe('ChatPanel queue composer', () => {
     const onEnqueueMessage = vi.fn<EnqueueHandler>().mockResolvedValue(undefined)
     render(
       <ChatPanel
-        messages={[]}
-        isStreaming
-        isDirectStreaming={false}
-        contextIndicators={null}
-        onSendMessage={vi.fn()}
-        {...queueProps(onEnqueueMessage)}
+        {...queueBags(onEnqueueMessage, {
+          isStreaming: true,
+          isDirectStreaming: false,
+        })}
       />
     )
 
@@ -132,11 +152,10 @@ describe('ChatPanel queue composer', () => {
     const onSendMessage = vi.fn()
     render(
       <ChatPanel
-        messages={[]}
-        isStreaming={false}
-        contextIndicators={null}
-        onSendMessage={onSendMessage}
-        {...queueProps(onEnqueueMessage)}
+        {...queueBags(onEnqueueMessage, {
+          isStreaming: false,
+          onSendMessage,
+        })}
       />
     )
 
@@ -155,15 +174,13 @@ describe('ChatPanel queue composer', () => {
   it('sends directly before a queue snapshot exists when idle', async () => {
     const onEnqueueMessage = vi.fn<EnqueueHandler>().mockResolvedValue(undefined)
     const onSendMessage = vi.fn()
-    const props = queueProps(onEnqueueMessage)
     render(
       <ChatPanel
-        messages={[]}
-        isStreaming={false}
-        contextIndicators={null}
-        onSendMessage={onSendMessage}
-        {...props}
-        queue={undefined}
+        {...queueBags(onEnqueueMessage, {
+          isStreaming: false,
+          onSendMessage,
+          queue: undefined,
+        })}
       />
     )
 
@@ -183,22 +200,21 @@ describe('ChatPanel queue composer', () => {
     const onSendMessage = vi.fn()
     render(
       <ChatPanel
-        messages={[]}
-        isStreaming={false}
-        contextIndicators={null}
-        onSendMessage={onSendMessage}
-        {...queueProps(onEnqueueMessage)}
-        queue={{
-          ...emptyQueue,
-          items: [
-            makeQueueItem({
-              id: 'chat_queue_item:pending',
-              client_request_id: 'req-1',
-              prompt: 'Waiting',
-              stream_revision: 0,
-            }),
-          ],
-        }}
+        {...queueBags(onEnqueueMessage, {
+          isStreaming: false,
+          onSendMessage,
+          queue: {
+            ...emptyQueue,
+            items: [
+              makeQueueItem({
+                id: 'chat_queue_item:pending',
+                client_request_id: 'req-1',
+                prompt: 'Waiting',
+                stream_revision: 0,
+              }),
+            ],
+          },
+        })}
       />
     )
 
@@ -217,10 +233,12 @@ describe('ChatPanel queue composer', () => {
     const onSendMessage = vi.fn()
     render(
       <ChatPanel
-        messages={[]}
-        isStreaming={false}
         contextIndicators={null}
-        onSendMessage={onSendMessage}
+        streaming={{
+          messages: [],
+          isStreaming: false,
+          onSendMessage,
+        }}
       />
     )
 
@@ -240,11 +258,9 @@ describe('ChatPanel queue composer', () => {
       .mockRejectedValue(new Error('Queue unavailable'))
     render(
       <ChatPanel
-        messages={[]}
-        isStreaming
-        contextIndicators={null}
-        onSendMessage={vi.fn()}
-        {...queueProps(onEnqueueMessage)}
+        {...queueBags(onEnqueueMessage, {
+          isStreaming: true,
+        })}
       />
     )
 

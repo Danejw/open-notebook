@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import type { ChatQueueResponse } from '@/lib/types/chat-queue'
-import type { SourceChatMessage } from '@/lib/types/api'
+import type { ChatMessage } from '@/lib/types/api'
 import {
   deriveQueueActivityLog,
   deriveQueueHasWork,
@@ -12,7 +12,7 @@ import {
 import { mergeActiveQueueMessages } from '@/lib/utils/chat-queue-messages'
 
 export interface UseChatQueuePresentationOptions<
-  TMessage extends SourceChatMessage,
+  TMessage extends ChatMessage,
 > {
   messages: TMessage[]
   queue: ChatQueueResponse | undefined
@@ -28,7 +28,7 @@ export interface UseChatQueuePresentationOptions<
 /**
  * Shared queue presentation wiring: merged messages, stream status, activity log.
  */
-export function useChatQueuePresentation<TMessage extends SourceChatMessage>({
+export function useChatQueuePresentation<TMessage extends ChatMessage>({
   messages,
   queue,
   streamStatus,

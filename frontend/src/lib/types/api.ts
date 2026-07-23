@@ -191,15 +191,15 @@ export interface BaseChatSession {
   guest_key?: string | null
 }
 
-/** Shared chat message shape used by project Chat UI (historical name). */
-export interface SourceChatMessage {
+/** Shared chat message shape used by project Chat UI. */
+export interface ChatMessage {
   id: string
   type: 'human' | 'ai'
   content: string
   timestamp?: string
 }
 
-export interface SourceChatContextIndicator {
+export interface ChatContextIndicator {
   sources: string[]
   notes: string[]
 }

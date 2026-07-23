@@ -8,7 +8,7 @@ import { ChatPanelSkeleton } from '@/components/common/LoadingSkeletons'
 import { PageError } from '@/components/common/PageError'
 import { useProject } from '@/lib/hooks/use-projects'
 import { useProjectChat } from '@/lib/hooks/useProjectChat'
-import { useNotes } from '@/lib/hooks/use-notes'
+import { useProjectArtifacts } from '@/lib/hooks/use-project-artifacts'
 import { useProjectSources } from '@/lib/hooks/use-sources'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import type { ContextSelections } from '@/lib/types/project-context'
@@ -40,7 +40,8 @@ export default function SharedProjectChatPage() {
     fetchNextPage,
     error: sourcesError,
   } = useProjectSources(projectId)
-  const { data: notes = [], isLoading: notesLoading } = useNotes(projectId)
+  const { data: notes = [], isLoading: notesLoading } =
+    useProjectArtifacts(projectId)
 
   // Drain all source pages so the context pool is the full project brain.
   // Stop paging if the query errors so we never hang on skeletons.

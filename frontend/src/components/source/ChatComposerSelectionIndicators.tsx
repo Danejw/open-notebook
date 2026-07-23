@@ -57,16 +57,17 @@ function SelectionChip({
     >
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
+          <Button
             type="button"
+            variant="ghost"
             disabled={disabled}
             onClick={onOpen}
-            className="inline-flex min-w-0 items-center gap-0.5 px-1.5 py-0 hover:text-foreground disabled:opacity-50"
+            className="h-6 min-w-0 flex-1 justify-start gap-0.5 rounded-none px-1.5 py-0 text-[11px] text-muted-foreground hover:bg-transparent hover:text-foreground disabled:opacity-50"
             aria-label={tooltip}
           >
             <span className="shrink-0 text-primary">{icon}</span>
             <span className="truncate">{label}</span>
-          </button>
+          </Button>
         </TooltipTrigger>
         <TooltipContent side="top">{tooltip}</TooltipContent>
       </Tooltip>

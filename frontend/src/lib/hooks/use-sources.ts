@@ -21,7 +21,6 @@ import {
 } from '@/lib/utils/source-query-cache'
 import {
   CreateSourceRequest,
-  UpdateSourceRequest,
   SourceResponse,
   SourceStatusResponse,
   SourceListResponse,
@@ -228,33 +227,6 @@ export function useCreateSource() {
   })
 }
 
-export function useUpdateSource() {
-  const queryClient = useQueryClient()
-  const { toast } = useToast()
-  const { t } = useTranslation()
-
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateSourceRequest }) =>
-      sourcesApi.update(id, data),
-    onSuccess: (_, { id }) => {
-      // Invalidate ALL sources queries (both general and project-specific)
-      queryClient.invalidateQueries({ queryKey: ['sources'] })
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.source(id) })
-      toast({
-        title: t('common.success'),
-        description: t('sources.sourceUpdatedSuccess'),
-      })
-    },
-    onError: (error: unknown) => {
-      toast({
-        title: t('common.error'),
-        description: getApiErrorMessage(error, (key) => t(key), t('sources.failedToUpdateSource')),
-        variant: 'destructive',
-      })
-    },
-  })
-}
-
 export function useDeleteSource() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
@@ -287,37 +259,6 @@ export function useDeleteSource() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['sources'] })
-    },
-  })
-}
-
-export function useFileUpload() {
-  const queryClient = useQueryClient()
-  const { toast } = useToast()
-  const { t } = useTranslation()
-
-  return useMutation({
-    mutationFn: ({ file, projectId }: { file: File; projectId: string }) =>
-      sourcesApi.upload(file, projectId),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.sources(variables.projectId)
-      })
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.sourcesInfinite(variables.projectId),
-        refetchType: 'active'
-      })
-      toast({
-        title: t('common.success'),
-        description: t('sources.fileUploadedSuccess'),
-      })
-    },
-    onError: (error: unknown) => {
-      toast({
-        title: t('common.error'),
-        description: getApiErrorMessage(error, (key) => t(key), t('sources.failedToUploadFile')),
-        variant: 'destructive',
-      })
     },
   })
 }

@@ -20,6 +20,11 @@ import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
 import { cn } from '@/lib/utils'
 import { listActionTriggerClassName } from '@/lib/utils/list-action-trigger'
 
+/**
+ * Intentional CompactListRow exception (UI-012): ArtifactCard needs an in-row
+ * Collapsible that expands prompt/description inline. CompactListRow’s link/row
+ * chrome fights that interaction model, so this stays a bespoke collapsible row.
+ */
 interface ArtifactCardProps {
   artifact: Artifact
   onPlayground?: () => void

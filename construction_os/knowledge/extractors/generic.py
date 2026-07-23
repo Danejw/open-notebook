@@ -47,6 +47,7 @@ class GenericKnowledgeExtractor:
             title=source_title,
             file_path=file_path,
             topics=topics,
+            chunks=chunks,
         )
         if deterministic_sufficient(seed):
             logger.info(
@@ -78,6 +79,7 @@ class GenericKnowledgeExtractor:
                 title=source_title,
                 file_path=file_path,
                 topics=topics,
+                chunks=chunks,
             )
         return ExtractionResult(
             extractor=self.id,

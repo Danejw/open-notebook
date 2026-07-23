@@ -13,7 +13,7 @@ from construction_os.domain.project_artifact import (
     ProjectArtifact,
     resolve_kind_from_payload,
 )
-from construction_os.exceptions import InvalidInputError, NotFoundError
+from construction_os.exceptions import InvalidInputError
 
 _FALLBACK_TITLE_WORD_LIMIT = 12
 

@@ -26,7 +26,7 @@ Remote MCP server (Streamable HTTP)
 
 - Calling MCP from the frontend or from a one-off router bypassing allowlist
 - Binding `action` tools “just for this experiment” without an approval path
-- A second chat tool loop beside `generate_with_mcp_tools`
+- A second chat tool loop beside `tool_runtime.chat_loop.generate_with_tools`
 - Logging bearer tokens or putting them in public API responses
 - Per-tool special-case parsers in the UI (use shared `mcp_tool_call` + `ChatToolCall`)
 
@@ -117,7 +117,6 @@ construction_os/mcp/
   risk.py                              # classify_tool_risk
   allowlist.py                         # build_allowlist, runtime names
   execution.py                         # execute_allowlisted_tool, DuplicateCallGuard
-  chat_loop.py                         # generate_with_mcp_tools
   langgraph_tools.py                   # StructuredTool binding
   schema_validate.py                   # argument JSON Schema subset
   result_text.py                       # bounded model-facing text
@@ -125,6 +124,9 @@ construction_os/mcp/
   public.py                            # safe API/SSE dicts
   url_safety.py                        # SSRF / URL normalize
   limits.py                            # caps + protocol version
+
+construction_os/tool_runtime/
+  chat_loop.py                         # generate_with_tools (native + MCP)
 
 api/mcp_service.py
 api/mcp_models.py
@@ -137,7 +139,7 @@ frontend/src/components/mcp/           # ToolPicker, ToolCallCard, auth, risk ba
 frontend/src/app/(dashboard)/tools/    # connection admin pages
 ```
 
-Chat graphs call `generate_with_mcp_tools` from project/source chat nodes; queue runner forwards `mcp_tool_ids` with strict selection.
+Chat graphs call `generate_with_tools` from project chat nodes; queue runner forwards `mcp_tool_ids` with strict selection.
 
 ---
 

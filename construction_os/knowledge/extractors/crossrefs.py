@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from construction_os.knowledge.extractors.base import (
     ExtractedEntity,
@@ -98,7 +98,35 @@ def _resolve_current_sheet(text: str) -> str:
     return _DEFAULT_FROM
 
 
-def extract_crossrefs(text: str) -> ExtractionPayload:
+def _chunk_index_at_offset(
+    chunks: Optional[List[Dict[str, Any]]], char_offset: int
+) -> Optional[int]:
+    """Map a full-text character offset onto a chunk index when spans are known."""
+    if not chunks or char_offset < 0:
+        return None
+    # Prefer explicit start/end on chunk metadata when present
+    for i, chunk in enumerate(chunks):
+        start = chunk.get("start")
+        end = chunk.get("end")
+        if isinstance(start, int) and isinstance(end, int):
+            if start <= char_offset < end:
+                return i
+    # Fallback: cumulative content lengths (approximate for sequential chunks)
+    cursor = 0
+    for i, chunk in enumerate(chunks):
+        content = str(chunk.get("content") or "")
+        next_cursor = cursor + len(content)
+        if cursor <= char_offset < next_cursor or (
+            i == len(chunks) - 1 and char_offset >= cursor
+        ):
+            return i
+        cursor = next_cursor + 1  # account for a separator newline
+    return None
+
+
+def extract_crossrefs(
+    text: str, *, chunks: Optional[List[Dict[str, Any]]] = None
+) -> ExtractionPayload:
     """Parse explicit cross-refs into Reference entities and REFERENCES relations."""
     if not text:
         return ExtractionPayload()
@@ -118,7 +146,9 @@ def extract_crossrefs(text: str) -> ExtractionPayload:
             entities.append(ExtractedEntity(label=canon, type="Reference"))
         return canon
 
-    def add_relation(from_label: str, to_label: str) -> bool:
+    def add_relation(
+        from_label: str, to_label: str, *, char_offset: Optional[int] = None
+    ) -> bool:
         frm = add_entity(from_label)
         to = add_entity(to_label)
         if not frm or not to or frm.lower() == to.lower():
@@ -127,6 +157,11 @@ def extract_crossrefs(text: str) -> ExtractionPayload:
         if key in relation_keys:
             return False
         relation_keys.add(key)
+        chunk_index = (
+            _chunk_index_at_offset(chunks, char_offset)
+            if char_offset is not None
+            else None
+        )
         relations.append(
             ExtractedRelation(
                 type="REFERENCES",
@@ -135,6 +170,7 @@ def extract_crossrefs(text: str) -> ExtractionPayload:
                 to_label=to,
                 to_type="Reference",
                 confidence=_PARSER_CONFIDENCE,
+                chunk_index=chunk_index,
             )
         )
         return True
@@ -149,33 +185,37 @@ def extract_crossrefs(text: str) -> ExtractionPayload:
         source = _preceding_sheet(text, m.start())
         if current_sheet and source == _DEFAULT_FROM:
             source = current_sheet
-        add_relation(source, target)
+        add_relation(source, target, char_offset=m.start())
 
     for m in _SEE_SECTION_RE.finditer(text):
         section = _canon_label(m.group("section"))
         source = _preceding_sheet(text, m.start())
         if current_sheet and source == _DEFAULT_FROM:
             source = current_sheet
-        add_relation(source, section)
+        add_relation(source, section, char_offset=m.start())
 
     # Sheet index → REFERENCES from current sheet to listed sheets
     for m in _INDEX_ROW_RE.finditer(text):
         listed = _canon_label(m.group("sheet"))
         add_entity(listed)
         if current_sheet:
-            add_relation(current_sheet, listed)
+            add_relation(current_sheet, listed, char_offset=m.start())
 
     # Register remaining sheet / CSI identifiers as entities
     sheet_labels: List[str] = []
+    sheet_offsets: Dict[str, int] = {}
     for m in _SHEET_RE.finditer(text.upper()):
         label = add_entity(m.group("sheet"))
         if label and label not in sheet_labels:
             sheet_labels.append(label)
+            sheet_offsets[label] = m.start()
     csi_labels: List[str] = []
+    csi_offsets: Dict[str, int] = {}
     for m in _CSI_RE.finditer(text):
         label = add_entity(m.group("csi"))
         if label and label not in csi_labels:
             csi_labels.append(label)
+            csi_offsets[label] = m.start()
 
     # Co-document edges: current sheet → other sheets / CSI codes (capped)
     anchor = current_sheet or _resolve_current_sheet(text)
@@ -185,18 +225,22 @@ def extract_crossrefs(text: str) -> ExtractionPayload:
     for label in sheet_labels + csi_labels:
         if co_doc_added >= _MAX_CO_DOC_RELATIONS:
             break
-        if add_relation(anchor, label):
+        offset = sheet_offsets.get(label, csi_offsets.get(label))
+        if add_relation(anchor, label, char_offset=offset):
             co_doc_added += 1
 
     return ExtractionPayload(entities=entities, relations=relations)
 
 
 def merge_with_deterministic_crossrefs(
-    llm_payload: ExtractionPayload, text: str
+    llm_payload: ExtractionPayload,
+    text: str,
+    *,
+    chunks: Optional[List[Dict[str, Any]]] = None,
 ) -> ExtractionPayload:
     """Merge LLM extraction with deterministic cross-ref payload."""
     from construction_os.knowledge.extractors.parse import merge_extraction_payloads
 
-    deterministic = extract_crossrefs(text or "")
+    deterministic = extract_crossrefs(text or "", chunks=chunks)
     # Prefer deterministic relations first so they win dedupe keys
     return merge_extraction_payloads([deterministic, llm_payload])

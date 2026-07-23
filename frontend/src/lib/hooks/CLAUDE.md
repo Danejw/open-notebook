@@ -5,7 +5,7 @@ React hooks for API data fetching, state management, and complex workflows (chat
 ## Key Components
 
 - **Query hooks** (`useProjectSources`, `useSource`, `useSources`): TanStack Query wrappers for source data with infinite scroll and refetch strategies
-- **Mutation hooks** (`useCreateSource`, `useUpdateSource`, `useDeleteSource`, `useFileUpload`, `useRetrySource`): Server mutations with toast notifications and cache invalidation
+- **Mutation hooks** (`useCreateSource`, `useDeleteSource`, `useRetrySource`): Server mutations with toast notifications and cache invalidation
 - **Chat hooks** (`useProjectChat`): Complex session management, context building, and message streaming
 - **Model/config hooks** (`useModels`, `useSettings`, `useArtifacts`): Application-level settings and model management
 - **Utility hooks** (`useMediaQuery`, `useToast`, `useNavigation`, `useAuth`): UI state and auth checking
@@ -47,7 +47,7 @@ React hooks for API data fetching, state management, and complex workflows (chat
 - **Pagination cursor**: `useProjectSources` uses offset-based pagination; `nextOffset` calculated from page size
 - **Status polling race**: `useSourceStatus` may refetch stale data before server catches up; retry logic has 3-attempt limit
 - **Keyboard trap in dialogs**: Some hooks manage modal state; ensure Dialog/Modal components handle escape key properly
-- **Form data handling**: `useFileUpload` and source creation convert JSON fields to strings in FormData
+- **Form data handling**: Source creation converts JSON fields to strings in FormData
 - **useTranslation**: Thin wrapper preserving `setLanguage` with language change events for `LanguageLoadingOverlay`
 
 ## Testing Patterns
@@ -102,7 +102,6 @@ export const CREDENTIAL_QUERY_KEYS = {
 | `useDiscoverModels()` | Discover models for credential | None |
 | `useRegisterModels()` | Register discovered models | `models`, `all` |
 | `useMigrateFromEnv()` | Migrate from env vars | `status`, `envStatus`, `models`, `providers` |
-| `useMigrateFromProviderConfig()` | Migrate from legacy ProviderConfig | `status`, `envStatus`, `models`, `providers` |
 
 ### useTestCredential Details
 

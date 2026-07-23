@@ -5,17 +5,7 @@ import { useTranslation } from "@/lib/hooks/use-translation"
 import { FormSection } from "@/components/ui/form-section"
 import { Checkbox } from "@/components/ui/checkbox"
 import { SettingsResponse } from "@/lib/types/api"
-
-interface CreateSourceFormData {
-  type: 'link' | 'upload' | 'text'
-  title?: string
-  url?: string
-  content?: string
-  file?: FileList | File
-  projects?: string[]
-  embed: boolean
-  async_processing: boolean
-}
+import type { CreateSourceFormData } from "@/components/sources/add-source/schema"
 
 interface ProcessingStepProps {
   control: Control<CreateSourceFormData>

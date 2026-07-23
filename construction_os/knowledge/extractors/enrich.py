@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 from loguru import logger
 
@@ -22,6 +22,7 @@ def enrich_with_deterministic(
     title: Optional[str] = None,
     file_path: Optional[str] = None,
     topics: Optional[Sequence[str]] = None,
+    chunks: Optional[List[Dict[str, Any]]] = None,
 ) -> ExtractionPayload:
     """
     Always layer deterministic structure on LLM output.
@@ -30,7 +31,7 @@ def enrich_with_deterministic(
     Crossrefs win relation keys; bootstrap fills entities when LLM is empty.
     """
     content = text or ""
-    cross = extract_crossrefs(content)
+    cross = extract_crossrefs(content, chunks=chunks)
     boot = bootstrap_entities(
         content,
         title=title,

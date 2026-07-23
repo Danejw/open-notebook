@@ -68,22 +68,22 @@ export function ChatSuggestionPills({
           </>
         ) : (
           suggestions.map((suggestion) => (
-            <button
+            <Button
               key={suggestion}
               type="button"
+              variant="outline"
+              size="sm"
               disabled={disabled}
               onClick={() => onSelect(suggestion)}
               className={cn(
-                'max-w-full rounded-full border bg-background px-2 py-0.5',
+                'h-auto max-w-full rounded-full border bg-background px-2 py-0.5',
                 'text-left text-[11px] leading-snug text-foreground shadow-sm',
-                'transition-colors hover:bg-muted focus-visible:outline-none',
-                'focus-visible:ring-2 focus-visible:ring-ring',
-                'disabled:pointer-events-none disabled:opacity-50',
-                'min-h-7 touch-manipulation'
+                'hover:bg-muted',
+                'min-h-7 touch-manipulation font-normal'
               )}
             >
               <span className="line-clamp-2 break-words">{suggestion}</span>
-            </button>
+            </Button>
           ))
         )}
       </div>

@@ -24,10 +24,12 @@ def test_format_a2ui_agent_catalog_lists_current_components():
 
 def test_is_a2ui_chat_enabled_reads_env(monkeypatch):
     monkeypatch.delenv("A2UI_CHAT_ENABLED", raising=False)
-    assert is_a2ui_chat_enabled() is False
+    assert is_a2ui_chat_enabled() is True
     monkeypatch.setenv("A2UI_CHAT_ENABLED", "true")
     assert is_a2ui_chat_enabled() is True
     monkeypatch.setenv("A2UI_CHAT_ENABLED", "0")
+    assert is_a2ui_chat_enabled() is False
+    monkeypatch.setenv("A2UI_CHAT_ENABLED", "false")
     assert is_a2ui_chat_enabled() is False
 
 
@@ -76,7 +78,7 @@ def test_emit_a2ui_dispatches_custom_event(monkeypatch):
 
 
 def test_emit_a2ui_skips_when_disabled(monkeypatch):
-    monkeypatch.delenv("A2UI_CHAT_ENABLED", raising=False)
+    monkeypatch.setenv("A2UI_CHAT_ENABLED", "0")
     messages = build_ask_user_messages(
         question="Q?",
         options=[{"id": "a", "label": "A"}],

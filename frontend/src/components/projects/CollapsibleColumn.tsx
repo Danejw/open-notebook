@@ -36,13 +36,13 @@ export function CollapsibleColumn({
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
+            <Button
+              type="button"
+              variant="ghost"
               onClick={onToggle}
               className={cn(
-                'relative flex flex-col items-center justify-center gap-3',
-                'w-12 h-full min-h-0',
-                'border rounded-lg',
-                'bg-card hover:bg-accent/50',
+                'relative flex h-full min-h-0 w-12 flex-col items-center justify-center gap-3',
+                'rounded-lg border bg-card hover:bg-accent/50',
                 'transition-all duration-150',
                 'cursor-pointer group',
                 'py-6'
@@ -61,7 +61,7 @@ export function CollapsibleColumn({
               >
                 {collapsedLabel}
               </div>
-            </button>
+            </Button>
           </TooltipTrigger>
           <TooltipContent side="right">
             <p>{expandLabel}</p>

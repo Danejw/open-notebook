@@ -575,19 +575,30 @@ Graph query traces are stored in `kg_query_run` when graph or shadow mode contri
 ### Entity identity
 
 - **Reference / Specification / Date**: project-wide merge on normalized label (canonical entities; sources contribute evidence via `metadata.supporting_sources`).
+- Upsert uses a **deterministic record id** (hash of project|type|key) so concurrent extracts converge instead of creating twins.
 - **Person / Organization / Topic / etc.**: source-scoped identity to reduce false merges across documents.
 - Ontology relation types remain **open** (LLM may invent types); prompts suggest common construction types.
 
-### Legacy provenance backfill
-
-After ownership/provenance code upgrades, existing rows can be updated **in place** (no `kg_*` wipe):
+### Ops scripts (dry-run by default; `--apply` to write)
 
 ```bash
-python scripts/backfill_kg_legacy_provenance.py          # dry-run
+# KG-011: merge duplicate project-wide References / Specs / Dates
+python scripts/dedupe_kg_entities.py
+python scripts/dedupe_kg_entities.py --apply
+
+# KG-010 / KG-013 / KG-014: provenance backfill (supporting_sources, offsets, relation chunks)
+python scripts/backfill_kg_legacy_provenance.py
 python scripts/backfill_kg_legacy_provenance.py --apply
+
+# KG-012: list / re-queue sources whose latest kg_extraction_run failed (after quota is fixed)
+python scripts/requeue_failed_kg_extracts.py
+python scripts/requeue_failed_kg_extracts.py --apply --limit 20
+
+# KG-015: smoke Graph RAG → kg_query_run for one project
+python scripts/smoke_kg_query_run.py --project-id project:xyz
 ```
 
-Or `POST /projects/{project_id}/knowledge/backfill-provenance` with `{"dry_run": false}`. This materializes `metadata.supporting_sources`, mention char offsets when text is findable in the chunk, and `metadata.derived` on project_linker relations. Prefer `POST .../knowledge/rebuild` only when a full re-extract is required.
+Or `POST /projects/{project_id}/knowledge/backfill-provenance` with `{"dry_run": false}`. Uses `source_embedding.source` to attach mention offsets and relation `chunk_id` from endpoint labels. Prefer `POST .../knowledge/rebuild` only when a full re-extract is required.
 
 ---
 

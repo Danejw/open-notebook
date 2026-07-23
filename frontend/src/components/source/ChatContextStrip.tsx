@@ -1,12 +1,12 @@
 'use client'
 
 import { FileText, StickyNote } from 'lucide-react'
-import { SourceChatContextIndicator } from '@/lib/types/api'
+import { ChatContextIndicator } from '@/lib/types/api'
 import { columnFooterClassName } from '@/components/projects/ColumnHeader'
 import { cn } from '@/lib/utils'
 
 export interface ChatContextStripProps {
-  contextIndicators?: SourceChatContextIndicator | null
+  contextIndicators?: ChatContextIndicator | null
 }
 
 export function ChatContextStrip({

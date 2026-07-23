@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { SourceChatMessage } from '@/lib/types/api'
+import { ChatMessage } from '@/lib/types/api'
 import { ChatToolCall } from '@/lib/types/mcp'
 import { ChatMessageRow, ChatMessageRowProps } from '@/components/source/ChatMessageRow'
 import { cn } from '@/lib/utils'
@@ -20,7 +20,7 @@ const ESTIMATED_ROW_HEIGHT = 72
 const NEAR_BOTTOM_PX = 96
 
 export interface ChatMessageListProps {
-  messages: SourceChatMessage[]
+  messages: ChatMessage[]
   isStreaming: boolean
   streamingMessageId?: string
   editingMessageId: string | null
@@ -230,7 +230,7 @@ export function ChatMessageList({
     scrollToBottom(behavior)
   }, [messages, isStreaming, publishNearBottom, scrollToBottom])
 
-  const rowProps = (message: SourceChatMessage): ChatMessageRowProps => ({
+  const rowProps = (message: ChatMessage): ChatMessageRowProps => ({
     message,
     isStreamingThisMessage: message.id === streamingMessageId,
     isEditing: editingMessageId === message.id,

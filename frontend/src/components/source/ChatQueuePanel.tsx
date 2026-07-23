@@ -249,16 +249,18 @@ function QueueItemRow({
       ) : (
         <div className="flex items-center gap-1">
           {sortable ? (
-            <button
+            <Button
               type="button"
+              size="icon"
+              variant="ghost"
               aria-label={`${t('chat.queueDrag')} ${itemLabel}`}
-              className="cursor-grab touch-none rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover/item:opacity-100 group-focus-within/item:opacity-100"
+              className="h-auto w-auto cursor-grab touch-none rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-transparent hover:text-foreground focus-visible:opacity-100 group-hover/item:opacity-100 group-focus-within/item:opacity-100"
               disabled={disabled}
               {...sortableState.attributes}
               {...sortableState.listeners}
             >
               <GripVertical className="h-3.5 w-3.5" />
-            </button>
+            </Button>
           ) : (
             <span className="w-[18px] shrink-0" aria-hidden />
           )}

@@ -1,18 +1,16 @@
 """
 Unit tests for the construction_os.graphs module.
 
-This test suite focuses on testing graph structures, tools, and validation
+This test suite focuses on testing graph structures and validation
 without heavy mocking of the actual processing logic.
 """
 
-from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from construction_os.domain.project import Source
 from construction_os.graphs.prompt import PatternChainState, graph
-from construction_os.graphs.tools import get_current_timestamp
 from construction_os.graphs.artifact import (
     ArtifactState,
     run_artifact,
@@ -22,54 +20,7 @@ from construction_os.graphs.artifact import (
 )
 
 # ============================================================================
-# TEST SUITE 1: Graph Tools
-# ============================================================================
-
-
-class TestGraphTools:
-    """Test suite for graph tool definitions."""
-
-    def test_get_current_timestamp_format(self):
-        """Test timestamp tool returns correct format."""
-        timestamp = get_current_timestamp.func()
-
-        assert isinstance(timestamp, str)
-        assert len(timestamp) == 14  # YYYYMMDDHHmmss format
-        assert timestamp.isdigit()
-
-    def test_get_current_timestamp_validity(self):
-        """Test timestamp represents valid datetime."""
-        timestamp = get_current_timestamp.func()
-
-        # Parse it back to datetime to verify validity
-        year = int(timestamp[0:4])
-        month = int(timestamp[4:6])
-        day = int(timestamp[6:8])
-        hour = int(timestamp[8:10])
-        minute = int(timestamp[10:12])
-        second = int(timestamp[12:14])
-
-        # Should be valid date components
-        assert 2020 <= year <= 2100
-        assert 1 <= month <= 12
-        assert 1 <= day <= 31
-        assert 0 <= hour <= 23
-        assert 0 <= minute <= 59
-        assert 0 <= second <= 59
-
-        # Should parse as datetime
-        dt = datetime.strptime(timestamp, "%Y%m%d%H%M%S")
-        assert isinstance(dt, datetime)
-
-    def test_get_current_timestamp_is_tool(self):
-        """Test that function is properly decorated as a tool."""
-        # Check it has tool attributes
-        assert hasattr(get_current_timestamp, "name")
-        assert hasattr(get_current_timestamp, "description")
-
-
-# ============================================================================
-# TEST SUITE 2: Prompt Graph State
+# TEST SUITE 1: Prompt Graph State
 # ============================================================================
 
 
@@ -97,7 +48,7 @@ class TestPromptGraph:
 
 
 # ============================================================================
-# TEST SUITE 3: Artifact Graph
+# TEST SUITE 2: Artifact Graph
 # ============================================================================
 
 
@@ -154,7 +105,7 @@ class TestArtifactGraph:
 
 
 # ============================================================================
-# TEST SUITE 4: Source Graph - Title Preservation
+# TEST SUITE 3: Source Graph - Title Preservation
 # ============================================================================
 
 

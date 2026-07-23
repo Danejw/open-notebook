@@ -140,9 +140,10 @@ export function GraphDetailsPanel({
                 <ul className="divide-y">
                   {detail.neighbors.map((n) => (
                     <li key={`${n.id}-${n.relation}`}>
-                      <button
+                      <Button
                         type="button"
-                        className="flex min-h-7 w-full items-center gap-0.5 px-0.5 py-0.5 text-left text-[11px] hover:bg-muted"
+                        variant="ghost"
+                        className="h-auto min-h-7 w-full justify-start gap-0.5 rounded-none px-0.5 py-0.5 text-left text-[11px] font-normal hover:bg-muted"
                         onClick={() => onSelectNeighbor?.(n.id)}
                       >
                         <span className="min-w-0 flex-1 truncate font-medium">
@@ -153,7 +154,7 @@ export function GraphDetailsPanel({
                             {n.relation}
                           </span>
                         ) : null}
-                      </button>
+                      </Button>
                     </li>
                   ))}
                 </ul>

@@ -9,10 +9,6 @@ import { getApiErrorMessage } from '@/lib/utils/error-handler'
 export const KNOWLEDGE_QUERY_KEYS = {
   extractors: (sourceId: string) => ['knowledge', 'extractors', sourceId] as const,
   source: (sourceId: string) => ['knowledge', 'source', sourceId] as const,
-  projectEntities: (projectId: string, q?: string, type?: string) =>
-    ['knowledge', 'project', projectId, q ?? '', type ?? ''] as const,
-  entity: (projectId: string, entityId: string) =>
-    ['knowledge', 'entity', projectId, entityId] as const,
 }
 
 function invalidateSourceKnowledge(
@@ -184,34 +180,6 @@ export function useSourceKnowledge(sourceId: string, enabled = true) {
   })
 }
 
-export function useProjectEntities(
-  projectId: string,
-  params?: { entity_type?: string; q?: string },
-  enabled = true
-) {
-  return useQuery({
-    queryKey: KNOWLEDGE_QUERY_KEYS.projectEntities(
-      projectId,
-      params?.q,
-      params?.entity_type
-    ),
-    queryFn: () => knowledgeApi.listProjectEntities(projectId, params),
-    enabled: !!projectId && enabled,
-  })
-}
-
-export function useEntityDetail(
-  projectId: string,
-  entityId: string | null,
-  enabled = true
-) {
-  return useQuery({
-    queryKey: KNOWLEDGE_QUERY_KEYS.entity(projectId, entityId ?? ''),
-    queryFn: () => knowledgeApi.getEntityDetail(projectId, entityId!),
-    enabled: !!projectId && !!entityId && enabled,
-  })
-}
-
 export function useExtractKnowledge(sourceId: string) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -319,31 +287,6 @@ export function useBulkExtractKnowledge() {
     },
     onError: (error: Error) => {
       toast.error(t('knowledge.extractFailed'), {
-        description: getApiErrorMessage(error, t),
-      })
-    },
-  })
-}
-
-export function useRebuildProjectKnowledge(projectId: string) {
-  const { t } = useTranslation()
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: () => knowledgeApi.rebuildProject(projectId),
-    onSuccess: (data: { jobs_submitted?: number }) => {
-      toast.success(
-        t('knowledge.rebuildQueued').replace(
-          '{count}',
-          String(data?.jobs_submitted ?? 0)
-        ),
-        { description: t('knowledge.extractQueuedHint') }
-      )
-      queryClient.invalidateQueries({
-        queryKey: ['knowledge', 'project', projectId],
-      })
-    },
-    onError: (error: Error) => {
-      toast.error(t('knowledge.rebuildFailed'), {
         description: getApiErrorMessage(error, t),
       })
     },

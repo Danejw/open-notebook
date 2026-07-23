@@ -3,8 +3,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { CheckCircleIcon, XCircleIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -12,57 +10,35 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { WizardContainer, WizardStep } from '@/components/ui/wizard-container'
-import { SourceTypeStep, parseAndValidateUrls } from './steps/SourceTypeStep'
-import { ProjectsStep } from './steps/ProjectsStep'
-import { ProcessingStep } from './steps/ProcessingStep'
+import { SourceTypeStep, parseAndValidateUrls } from '@/components/sources/steps/SourceTypeStep'
+import { ProjectsStep } from '@/components/sources/steps/ProjectsStep'
+import { ProcessingStep } from '@/components/sources/steps/ProcessingStep'
+import {
+  AddSourceProcessingView,
+} from '@/components/sources/add-source/AddSourceProcessingView'
+import {
+  AddSourceWizardFooter,
+} from '@/components/sources/add-source/AddSourceWizardFooter'
+import {
+  isAddSourceStepValid,
+  resolveBatchMode,
+} from '@/components/sources/add-source/batch'
+import {
+  createSourceSchema,
+  MAX_BATCH_SIZE,
+  type BatchProgress,
+  type CreateSourceFormData,
+  type ProcessingState,
+} from '@/components/sources/add-source/schema'
+import {
+  submitBatchSources,
+  submitSingleSource,
+} from '@/components/sources/add-source/submit'
 import { useProjects } from '@/lib/hooks/use-projects'
 import { useCreateSource } from '@/lib/hooks/use-sources'
 import { useSettings } from '@/lib/hooks/use-settings'
-import { CreateSourceRequest } from '@/lib/types/api'
 import { useTranslation } from '@/lib/hooks/use-translation'
-
-const MAX_BATCH_SIZE = 50
-
-const createSourceSchema = z.object({
-  type: z.enum(['link', 'upload', 'text']),
-  title: z.string().optional(),
-  url: z.string().optional(),
-  content: z.string().optional(),
-  file: z.any().optional(),
-  projects: z.array(z.string()).optional(),
-  embed: z.boolean(),
-  async_processing: z.boolean(),
-}).refine((data) => {
-  if (data.type === 'link') {
-    return !!data.url && data.url.trim() !== ''
-  }
-  if (data.type === 'text') {
-    return !!data.content && data.content.trim() !== ''
-  }
-  if (data.type === 'upload') {
-    if (data.file instanceof FileList) {
-      return data.file.length > 0
-    }
-    return !!data.file
-  }
-  return true
-}, {
-  message: 'Please provide the required content for the selected source type',
-  path: ['type'],
-}).refine((data) => {
-  // Make title mandatory for text sources
-  if (data.type === 'text') {
-    return !!data.title && data.title.trim() !== ''
-  }
-  return true
-}, {
-  message: 'Title is required for text sources',
-  path: ['title'],
-})
-
-type CreateSourceFormData = z.infer<typeof createSourceSchema>
 
 interface AddSourceDialogProps {
   open: boolean
@@ -70,21 +46,9 @@ interface AddSourceDialogProps {
   defaultprojectId?: string
 }
 
-interface ProcessingState {
-  message: string
-  progress?: number
-}
-
-interface BatchProgress {
-  total: number
-  completed: number
-  failed: number
-  currentItem?: string
-}
-
-export function AddSourceDialog({ 
-  open, 
-  onOpenChange, 
+export function AddSourceDialog({
+  open,
+  onOpenChange,
   defaultprojectId,
 }: AddSourceDialogProps) {
   const { t } = useTranslation()
@@ -95,27 +59,22 @@ export function AddSourceDialog({
     { number: 3, title: t('navigation.process') },
   ]
 
-  // Simplified state management
   const [currentStep, setCurrentStep] = useState(1)
   const [processing, setProcessing] = useState(false)
   const [processingStatus, setProcessingStatus] = useState<ProcessingState | null>(null)
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>(
     defaultprojectId ? [defaultprojectId] : []
   )
-
-  // Batch-specific state
-  const [urlValidationErrors, setUrlValidationErrors] = useState<{ url: string; line: number }[]>([])
+  const [urlValidationErrors, setUrlValidationErrors] = useState<
+    { url: string; line: number }[]
+  >([])
   const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null)
-
-  // Cleanup timeouts to prevent memory leaks
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // API hooks
   const createSource = useCreateSource()
   const { data: projects = [], isLoading: projectsLoading } = useProjects()
   const { data: settings } = useSettings()
 
-  // Form setup
   const {
     register,
     handleSubmit,
@@ -143,7 +102,6 @@ export function AddSourceDialog({
     }
   }, [settings, defaultprojectId, reset])
 
-  // Cleanup effect
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
@@ -158,78 +116,31 @@ export function AddSourceDialog({
   const watchedFile = watch('file')
   const watchedTitle = watch('title')
 
-  // Batch mode detection
-  const { isBatchMode, itemCount, parsedUrls, parsedFiles } = useMemo(() => {
-    let urlCount = 0
-    let fileCount = 0
-    let parsedUrls: string[] = []
-    let parsedFiles: File[] = []
+  const { isBatchMode, itemCount, parsedUrls, parsedFiles } = useMemo(
+    () => resolveBatchMode(selectedType, watchedUrl, watchedFile),
+    [selectedType, watchedUrl, watchedFile]
+  )
 
-    if (selectedType === 'link' && watchedUrl) {
-      const { valid } = parseAndValidateUrls(watchedUrl)
-      parsedUrls = valid
-      urlCount = valid.length
-    }
-
-    if (selectedType === 'upload' && watchedFile) {
-      const fileList = watchedFile as FileList
-      if (fileList?.length) {
-        parsedFiles = Array.from(fileList)
-        fileCount = parsedFiles.length
-      }
-    }
-
-    const isBatchMode = urlCount > 1 || fileCount > 1
-    const itemCount = selectedType === 'link' ? urlCount : fileCount
-
-    return { isBatchMode, itemCount, parsedUrls, parsedFiles }
-  }, [selectedType, watchedUrl, watchedFile])
-
-  // Check for batch size limit
   const isOverLimit = itemCount > MAX_BATCH_SIZE
 
-  // Step validation - now reactive with watched values
-  const isStepValid = (step: number): boolean => {
-    switch (step) {
-      case 1:
-        if (!selectedType) return false
-        // Check batch size limit
-        if (isOverLimit) return false
-        // Check for URL validation errors
-        if (urlValidationErrors.length > 0) return false
+  const isStepValid = (step: number): boolean =>
+    isAddSourceStepValid({
+      step,
+      selectedType,
+      watchedUrl,
+      watchedContent,
+      watchedFile,
+      watchedTitle,
+      isBatchMode,
+      isOverLimit,
+      urlValidationErrors,
+      parsedUrls,
+    })
 
-        if (selectedType === 'link') {
-          // In batch mode, check that we have at least one valid URL
-          if (isBatchMode) {
-            return parsedUrls.length > 0
-          }
-          return !!watchedUrl && watchedUrl.trim() !== ''
-        }
-        if (selectedType === 'text') {
-          return !!watchedContent && watchedContent.trim() !== '' &&
-                 !!watchedTitle && watchedTitle.trim() !== ''
-        }
-        if (selectedType === 'upload') {
-          if (watchedFile instanceof FileList) {
-            return watchedFile.length > 0 && watchedFile.length <= MAX_BATCH_SIZE
-          }
-          return !!watchedFile
-        }
-        return true
-      case 2:
-      case 3:
-        return true
-      default:
-        return false
-    }
-  }
-
-  // Navigation
   const handleNextStep = (e?: React.MouseEvent) => {
     e?.preventDefault()
     e?.stopPropagation()
 
-    // Validate URLs when leaving step 1 in link mode
     if (currentStep === 1 && selectedType === 'link' && watchedUrl) {
       const { invalid } = parseAndValidateUrls(watchedUrl)
       if (invalid.length > 0) {
@@ -244,7 +155,6 @@ export function AddSourceDialog({
     }
   }
 
-  // Clear URL validation errors when user edits
   const handleClearUrlErrors = () => {
     setUrlValidationErrors([])
   }
@@ -263,140 +173,14 @@ export function AddSourceDialog({
     }
   }
 
-  // Selection handlers
   const handleProjectToggle = (projectId: string) => {
     const updated = selectedProjectIds.includes(projectId)
-      ? selectedProjectIds.filter(id => id !== projectId)
+      ? selectedProjectIds.filter((id) => id !== projectId)
       : [...selectedProjectIds, projectId]
     setSelectedProjectIds(updated)
   }
 
-  // Single source submission
-  const submitSingleSource = async (data: CreateSourceFormData): Promise<void> => {
-    const createRequest: CreateSourceRequest = {
-      type: data.type,
-      projects: selectedProjectIds,
-      url: data.type === 'link' ? data.url : undefined,
-      content: data.type === 'text' ? data.content : undefined,
-      title: data.title,
-      embed: true,
-      delete_source: false,
-      async_processing: true,
-    }
-
-    if (data.type === 'upload' && data.file) {
-      const file = data.file instanceof FileList ? data.file[0] : data.file
-      const requestWithFile = createRequest as CreateSourceRequest & { file?: File }
-      requestWithFile.file = file
-    }
-
-    await createSource.mutateAsync(createRequest)
-  }
-
-  // Batch submission
-  const submitBatch = async (data: CreateSourceFormData): Promise<{ success: number; failed: number }> => {
-    const results = { success: 0, failed: 0 }
-    const items: { type: 'url' | 'file'; value: string | File }[] = []
-
-    // Collect items to process
-    if (data.type === 'link' && parsedUrls.length > 0) {
-      parsedUrls.forEach(url => items.push({ type: 'url', value: url }))
-    } else if (data.type === 'upload' && parsedFiles.length > 0) {
-      parsedFiles.forEach(file => items.push({ type: 'file', value: file }))
-    }
-
-    setBatchProgress({
-      total: items.length,
-      completed: 0,
-      failed: 0,
-    })
-
-    // Process each item sequentially
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i]
-      const itemLabel = item.type === 'url'
-        ? (item.value as string).substring(0, 50) + '...'
-        : (item.value as File).name
-
-      setBatchProgress(prev => prev ? {
-        ...prev,
-        currentItem: itemLabel,
-      } : null)
-
-      try {
-        const createRequest: CreateSourceRequest = {
-          type: item.type === 'url' ? 'link' : 'upload',
-          projects: selectedProjectIds,
-          url: item.type === 'url' ? item.value as string : undefined,
-          embed: true,
-          delete_source: false,
-          async_processing: true,
-        }
-
-        if (item.type === 'file') {
-          const requestWithFile = createRequest as CreateSourceRequest & { file?: File }
-          requestWithFile.file = item.value as File
-        }
-
-        await createSource.mutateAsync(createRequest)
-        results.success++
-      } catch (error) {
-        console.error(`Error creating source for ${itemLabel}:`, error)
-        results.failed++
-      }
-
-      setBatchProgress(prev => prev ? {
-        ...prev,
-        completed: results.success,
-        failed: results.failed,
-      } : null)
-    }
-
-    return results
-  }
-
-  // Form submission
-  const onSubmit = async (data: CreateSourceFormData) => {
-    try {
-      setProcessing(true)
-
-      if (isBatchMode) {
-        // Batch submission
-        setProcessingStatus({ message: t('sources.processingFiles') })
-        const results = await submitBatch(data)
-
-        // Show summary toast
-        if (results.failed === 0) {
-          toast.success(t('sources.batchSuccess').replace('{count}', results.success.toString()))
-        } else if (results.success === 0) {
-          toast.error(t('sources.batchFailed').replace('{count}', results.failed.toString()))
-        } else {
-          toast.warning(t('sources.batchPartial').replace('{success}', results.success.toString()).replace('{failed}', results.failed.toString()))
-        }
-
-        handleClose()
-      } else {
-        // Single source submission
-        setProcessingStatus({ message: t('sources.submittingSource') })
-        await submitSingleSource(data)
-        handleClose()
-      }
-    } catch (error) {
-      console.error('Error creating source:', error)
-      setProcessingStatus({
-        message: t('common.error'),
-      })
-      timeoutRef.current = setTimeout(() => {
-        setProcessing(false)
-        setProcessingStatus(null)
-        setBatchProgress(null)
-      }, 3000)
-    }
-  }
-
-  // Dialog management
   const handleClose = () => {
-    // Clear any pending timeouts
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current)
       timeoutRef.current = null
@@ -413,72 +197,68 @@ export function AddSourceDialog({
     onOpenChange(false)
   }
 
-  // Processing view
+  const onSubmit = async (data: CreateSourceFormData) => {
+    try {
+      setProcessing(true)
+
+      if (isBatchMode) {
+        setProcessingStatus({ message: t('sources.processingFiles') })
+        const results = await submitBatchSources({
+          data,
+          selectedProjectIds,
+          parsedUrls,
+          parsedFiles,
+          createSource,
+          setBatchProgress,
+        })
+
+        if (results.failed === 0) {
+          toast.success(
+            t('sources.batchSuccess').replace('{count}', results.success.toString())
+          )
+        } else if (results.success === 0) {
+          toast.error(
+            t('sources.batchFailed').replace('{count}', results.failed.toString())
+          )
+        } else {
+          toast.warning(
+            t('sources.batchPartial')
+              .replace('{success}', results.success.toString())
+              .replace('{failed}', results.failed.toString())
+          )
+        }
+
+        handleClose()
+      } else {
+        setProcessingStatus({ message: t('sources.submittingSource') })
+        await submitSingleSource({
+          data,
+          selectedProjectIds,
+          createSource,
+        })
+        handleClose()
+      }
+    } catch (error) {
+      console.error('Error creating source:', error)
+      setProcessingStatus({
+        message: t('common.error'),
+      })
+      timeoutRef.current = setTimeout(() => {
+        setProcessing(false)
+        setProcessingStatus(null)
+        setBatchProgress(null)
+      }, 3000)
+    }
+  }
+
   if (processing) {
-    const progressPercent = batchProgress
-      ? Math.round(((batchProgress.completed + batchProgress.failed) / batchProgress.total) * 100)
-      : undefined
-
     return (
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-h-[70vh]">
-          <DialogHeader>
-            <DialogTitle>
-              {batchProgress ? t('sources.processingFiles') : t('sources.statusProcessing')}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-3 px-1 py-1">
-            <p className="text-xs text-muted-foreground">
-              {processingStatus?.message || t('common.processing')}
-            </p>
-
-            {batchProgress && (
-              <>
-                <div className="h-2 w-full rounded-full bg-muted">
-                  <div
-                    className="h-2 rounded-full bg-primary transition-all duration-300"
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between text-sm gap-[2px]">
-                  <div className="flex items-center gap-[2px]">
-                    <span className="flex items-center gap-[2px] text-green-600">
-                      <CheckCircleIcon className="h-4 w-4" />
-                      {batchProgress.completed} {t('common.completed')}
-                    </span>
-                    {batchProgress.failed > 0 && (
-                      <span className="flex items-center gap-[2px] text-destructive">
-                        <XCircleIcon className="h-4 w-4" />
-                        {batchProgress.failed} {t('common.failed')}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-muted-foreground">
-                    {batchProgress.completed + batchProgress.failed} / {batchProgress.total}
-                  </span>
-                </div>
-
-                {batchProgress.currentItem && (
-                  <p className="truncate text-xs text-muted-foreground">
-                    {t('common.current')}: {batchProgress.currentItem}
-                  </p>
-                )}
-              </>
-            )}
-
-            {!batchProgress && processingStatus?.progress ? (
-              <div className="h-2 w-full rounded-full bg-muted">
-                <div
-                  className="h-2 rounded-full bg-primary transition-all duration-300"
-                  style={{ width: `${processingStatus.progress}%` }}
-                />
-              </div>
-            ) : null}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AddSourceProcessingView
+        open={open}
+        onClose={handleClose}
+        processingStatus={processingStatus}
+        batchProgress={batchProgress}
+      />
     )
   }
 
@@ -501,17 +281,15 @@ export function AddSourceDialog({
           >
             {currentStep === 1 && (
               <SourceTypeStep
-                // @ts-expect-error - Type inference issue with zod schema
                 control={control}
                 register={register}
                 setValue={setValue}
-                // @ts-expect-error - Type inference issue with zod schema
                 errors={errors}
                 urlValidationErrors={urlValidationErrors}
                 onClearUrlErrors={handleClearUrlErrors}
               />
             )}
-            
+
             {currentStep === 2 && (
               <ProjectsStep
                 projects={projects}
@@ -520,59 +298,23 @@ export function AddSourceDialog({
                 loading={projectsLoading}
               />
             )}
-            
+
             {currentStep === 3 && (
               <ProcessingStep
-                // @ts-expect-error - Type inference issue with zod schema
                 control={control}
                 settings={settings}
               />
             )}
           </WizardContainer>
 
-          {/* Navigation */}
-          <div className="flex justify-between items-center gap-[2px] p-[2px] border-t border-border bg-muted">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={handleClose}
-            >
-              {t('common.cancel')}
-            </Button>
-
-            <div className="flex gap-[2px]">
-              {currentStep > 1 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handlePrevStep}
-                >
-                  {t('common.back')}
-                </Button>
-              )}
-
-              {/* Show Next button on steps 1 and 2, styled as outline/secondary */}
-              {currentStep < 3 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={(e) => handleNextStep(e)}
-                  disabled={!currentStepValid}
-                >
-                  {t('common.next')}
-                </Button>
-              )}
-
-              {/* Show Done button on all steps, styled as primary */}
-              <Button
-                type="submit"
-                disabled={!currentStepValid || createSource.isPending}
-                className="min-w-[120px]"
-              >
-                {createSource.isPending ? t('common.adding') : t('common.done')}
-              </Button>
-            </div>
-          </div>
+          <AddSourceWizardFooter
+            currentStep={currentStep}
+            currentStepValid={currentStepValid}
+            isPending={createSource.isPending}
+            onClose={handleClose}
+            onPrevStep={handlePrevStep}
+            onNextStep={handleNextStep}
+          />
         </form>
       </DialogContent>
     </Dialog>

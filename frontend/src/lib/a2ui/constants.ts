@@ -25,13 +25,22 @@ export const A2UI_MAX_MESSAGES = 50
 export const A2UI_MAX_PAYLOAD_CHARS = 100_000
 
 /**
- * Frontend feature flag. Enable with NEXT_PUBLIC_A2UI_CHAT=1 (or true).
+ * Frontend feature flag. On by default.
+ * Disable with NEXT_PUBLIC_A2UI_CHAT=0|false|no|off.
  */
 export function isA2uiChatEnabled(): boolean {
   const value = process.env.NEXT_PUBLIC_A2UI_CHAT
   if (!value) {
-    return false
+    return true
   }
   const normalized = value.trim().toLowerCase()
-  return normalized === '1' || normalized === 'true' || normalized === 'yes'
+  if (
+    normalized === '0' ||
+    normalized === 'false' ||
+    normalized === 'no' ||
+    normalized === 'off'
+  ) {
+    return false
+  }
+  return true
 }

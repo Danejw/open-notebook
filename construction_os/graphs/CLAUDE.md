@@ -9,7 +9,6 @@ LangGraph-based workflow orchestration for content processing, chat interactions
 - **`artifact.py`**: Single-node artifact executor with prompt templating via ai_prompter
 - **`prompt.py`**: Generic pattern chain for arbitrary prompt-based LLM calls
 - **`checkpointer.py`**: Shared AsyncSqliteSaver lifecycle for chat graphs
-- **`tools.py`**: Minimal tool library (currently just `get_current_timestamp()`)
 
 ## Important Patterns
 

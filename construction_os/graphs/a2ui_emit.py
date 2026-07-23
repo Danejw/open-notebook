@@ -79,9 +79,13 @@ def format_a2ui_agent_catalog() -> str:
 
 
 def is_a2ui_chat_enabled() -> bool:
-    """Backend flag: A2UI_CHAT_ENABLED=true|1|yes."""
+    """Backend flag: A2UI on by default. Disable with A2UI_CHAT_ENABLED=0|false|no|off."""
     value = (os.environ.get("A2UI_CHAT_ENABLED") or "").strip().lower()
-    return value in {"1", "true", "yes"}
+    if not value:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    return True
 
 
 def validate_a2ui_messages(messages: List[Dict[str, Any]]) -> None:

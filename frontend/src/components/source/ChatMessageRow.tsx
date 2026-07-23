@@ -4,7 +4,7 @@ import { memo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Pencil } from 'lucide-react'
-import { SourceChatMessage } from '@/lib/types/api'
+import { ChatMessage } from '@/lib/types/api'
 import { ChatToolCall } from '@/lib/types/mcp'
 import { ToolCallGroup } from '@/components/mcp/ToolCallGroup'
 import { MessageActions } from '@/components/source/MessageActions'
@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils'
 const EMPTY_TOOL_CALLS: ChatToolCall[] = []
 
 export interface ChatMessageRowProps {
-  message: SourceChatMessage
+  message: ChatMessage
   isStreamingThisMessage: boolean
   isEditing: boolean
   editDraft: string

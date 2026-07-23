@@ -4,7 +4,7 @@ import type {
   ChatQueueItemResponse,
   ChatQueueResponse,
 } from '@/lib/types/chat-queue'
-import type { SourceChatMessage } from '@/lib/types/api'
+import type { ChatMessage } from '@/lib/types/api'
 
 function item(): ChatQueueItemResponse {
   return {
@@ -66,7 +66,7 @@ function queue(current: ChatQueueItemResponse | null): ChatQueueResponse {
 
 describe('mergeActiveQueueMessages', () => {
   it('adds reconnectable human and partial assistant rows for the active item', () => {
-    const messages: SourceChatMessage[] = []
+    const messages: ChatMessage[] = []
 
     expect(mergeActiveQueueMessages(messages, queue(item()))).toEqual([
       expect.objectContaining({
@@ -85,7 +85,7 @@ describe('mergeActiveQueueMessages', () => {
   it('does not add an empty assistant row or duplicate persisted stable rows', () => {
     const running = item()
     running.stream_content = ''
-    const persisted: SourceChatMessage[] = [
+    const persisted: ChatMessage[] = [
       {
         id: 'queue-human:chat_queue_item:item-1:1',
         type: 'human',
@@ -111,7 +111,7 @@ describe('mergeActiveQueueMessages', () => {
   })
 
   it('returns persisted history unchanged after the queue becomes idle', () => {
-    const persisted: SourceChatMessage[] = [
+    const persisted: ChatMessage[] = [
       { id: 'human-1', type: 'human', content: 'Done' },
     ]
     expect(mergeActiveQueueMessages(persisted, queue(null))).toBe(persisted)

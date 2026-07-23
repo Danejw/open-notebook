@@ -54,7 +54,8 @@ def main() -> None:
         if not is_a2ui_chat_enabled():
             fail(
                 "A2UI_CHAT_ENABLED",
-                f"env={os.getenv('A2UI_CHAT_ENABLED')!r} — restart API with flag true",
+                f"env={os.getenv('A2UI_CHAT_ENABLED')!r} — unset defaults on; "
+                "disable only with 0/false/no/off",
             )
         ok("A2UI_CHAT_ENABLED", repr(os.getenv("A2UI_CHAT_ENABLED")))
 
@@ -65,9 +66,10 @@ def main() -> None:
             for line in open(fe_local, encoding="utf-8"):
                 if line.startswith("NEXT_PUBLIC_A2UI_CHAT="):
                     fe = line.split("=", 1)[1].strip().strip('"').strip("'")
-        if str(fe).strip().lower() not in {"1", "true", "yes"}:
-            fail("NEXT_PUBLIC_A2UI_CHAT", f"value={fe!r}")
-        ok("NEXT_PUBLIC_A2UI_CHAT", repr(fe))
+        fe_norm = str(fe or "").strip().lower()
+        if fe_norm in {"0", "false", "no", "off"}:
+            fail("NEXT_PUBLIC_A2UI_CHAT", f"value={fe!r} (disabled)")
+        ok("NEXT_PUBLIC_A2UI_CHAT", repr(fe) if fe is not None else "unset (default on)")
 
         catalog = format_a2ui_agent_catalog()
         if "AskUser" not in catalog or "A2UI v0.9" not in catalog:

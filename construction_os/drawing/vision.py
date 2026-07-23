@@ -6,7 +6,7 @@ import base64
 import json
 import os
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Protocol
+from typing import Any, Dict, Optional, Protocol
 
 from loguru import logger
 

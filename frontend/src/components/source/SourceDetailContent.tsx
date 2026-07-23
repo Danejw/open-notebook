@@ -2,57 +2,34 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { isAxiosError } from 'axios'
-import { MarkdownRenderer } from '@/components/common/MarkdownRenderer'
 import { sourcesApi } from '@/lib/api/sources'
 import { embeddingApi } from '@/lib/api/embedding'
 import { useSource } from '@/lib/hooks/use-sources'
-import {
-  SourceDetailSkeleton,
-} from '@/components/common/LoadingSkeletons'
-import { InlineEdit } from '@/components/common/InlineEdit'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { SourceDetailSkeleton } from '@/components/common/LoadingSkeletons'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { PageError } from '@/components/common/PageError'
-import {
-  Link as LinkIcon,
-  ExternalLink,
-  Download,
-  Copy,
-  CheckCircle,
-  MoreVertical,
-  Trash2,
-  Database,
-  AlertCircle,
-} from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
-import { getDateLocale } from '@/lib/utils/date-locale'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { cn } from '@/lib/utils'
-import { ProjectAssociations } from '@/components/source/ProjectAssociations'
 import { SourceKnowledgePanel } from '@/components/source/SourceKnowledgePanel'
-import { PdfCitationViewer } from '@/components/source/PdfCitationViewer'
 import { DrawingExtractionResultsDialog } from '@/components/sources/DrawingExtractionResultsDialog'
 import { selectInspectableDrawingRun } from '@/lib/drawing/select-inspectable-drawing-run'
 import { useSourceDrawingRuns } from '@/lib/hooks/use-drawing-extraction'
 import { useCitationFocusStore } from '@/lib/stores/citation-focus-store'
-
-/** OCR / drawing dumps are often one long line — mono + wrap is more scannable than Markdown. */
-function isDensePlainExtraction(text: string): boolean {
-  if (text.length < 400) return false
-  const newlines = (text.match(/\n/g) ?? []).length
-  return newlines / text.length < 0.008
-}
+import { SourceDetailHeader } from '@/components/source/source-detail/SourceDetailHeader'
+import { SourceDetailContentTab } from '@/components/source/source-detail/SourceDetailContentTab'
+import { SourceDetailDrawingTab } from '@/components/source/source-detail/SourceDetailDrawingTab'
+import { SourceDetailDetailsTab } from '@/components/source/source-detail/SourceDetailDetailsTab'
+import {
+  buildHighlightedTextView,
+  extractFilename,
+  focusForSource,
+  getYouTubeVideoId,
+  isDensePlainExtraction,
+  isPdfAssetPath,
+  parseContentDisposition,
+} from '@/components/source/source-detail/sourceDetailUtils'
 
 interface SourceDetailContentProps {
   sourceId: string
@@ -61,7 +38,7 @@ interface SourceDetailContentProps {
 
 export function SourceDetailContent({
   sourceId,
-  onClose
+  onClose,
 }: SourceDetailContentProps) {
   const { t, language } = useTranslation()
   const {
@@ -148,29 +125,6 @@ export function SourceDetailContent({
     }
   }
 
-  const extractFilename = (pathOrUrl: string | undefined, fallback: string) => {
-    if (!pathOrUrl) {
-      return fallback
-    }
-    const segments = pathOrUrl.split(/[/\\]/)
-    return segments.pop() || fallback
-  }
-
-  const parseContentDisposition = (header?: string | null) => {
-    if (!header) {
-      return null
-    }
-    const match = header.match(/filename\*?=([^;]+)/i)
-    if (!match) {
-      return null
-    }
-    const value = match[1].trim()
-    if (value.toLowerCase().startsWith("utf-8''")) {
-      return decodeURIComponent(value.slice(7))
-    }
-    return value.replace(/^["']|["']$/g, '')
-  }
-
   const handleDownloadFile = async () => {
     if (!source?.asset?.file_path || isDownloadingFile || fileAvailable === false) {
       return
@@ -182,7 +136,10 @@ export function SourceDetailContent({
       const filenameFromHeader = parseContentDisposition(
         response.headers?.['content-disposition'] as string | undefined
       )
-      const fallbackName = extractFilename(source.asset.file_path, `source-${source.id}`)
+      const fallbackName = extractFilename(
+        source.asset.file_path,
+        `source-${source.id}`
+      )
       const filename = filenameFromHeader || fallbackName
 
       const blobUrl = window.URL.createObjectURL(response.data)
@@ -231,22 +188,9 @@ export function SourceDetailContent({
     }
   }, [source])
 
-  const getYouTubeVideoId = (url: string): string | null => {
-    const patterns = [
-      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-      /youtube\.com\/watch\?.*v=([^&\n?#]+)/
-    ]
-
-    for (const pattern of patterns) {
-      const match = url.match(pattern)
-      if (match) return match[1]
-    }
-    return null
-  }
-
   const isYouTubeUrl = useMemo(() => {
     if (!source?.asset?.url) return false
-    return !!(getYouTubeVideoId(source.asset.url))
+    return !!getYouTubeVideoId(source.asset.url)
   }, [source?.asset?.url])
 
   const youTubeVideoId = useMemo(() => {
@@ -261,39 +205,16 @@ export function SourceDetailContent({
   )
   const isPdfAsset = useMemo(() => {
     const path = source?.asset?.file_path || source?.asset?.url || ''
-    return path.toLowerCase().endsWith('.pdf')
+    return isPdfAssetPath(path)
   }, [source?.asset?.file_path, source?.asset?.url])
   const showPdfViewer = Boolean(
     isPdfAsset && fileAvailable !== false && source?.asset?.file_path
   )
-  const focusForThisSource =
-    activeFocus &&
-    (activeFocus.sourceId === sourceId ||
-      activeFocus.sourceId === sourceId.replace(/^source:/, '') ||
-      `source:${activeFocus.sourceId.replace(/^source:/, '')}` === sourceId)
-      ? activeFocus
-      : null
-
-  const highlightedTextView = useMemo(() => {
-    if (
-      !contentText ||
-      !focusForThisSource ||
-      focusForThisSource.charStart == null ||
-      focusForThisSource.charEnd == null
-    ) {
-      return null
-    }
-    const start = Math.max(0, focusForThisSource.charStart)
-    const end = Math.min(contentText.length, focusForThisSource.charEnd)
-    if (end <= start) {
-      return null
-    }
-    return {
-      before: contentText.slice(0, start),
-      match: contentText.slice(start, end),
-      after: contentText.slice(end),
-    }
-  }, [contentText, focusForThisSource])
+  const focusForThisSource = focusForSource(activeFocus, sourceId)
+  const highlightedTextView = useMemo(
+    () => buildHighlightedTextView(contentText, focusForThisSource),
+    [contentText, focusForThisSource]
+  )
 
   const handleDeleteSource = async () => {
     if (!source) return
@@ -326,77 +247,23 @@ export function SourceDetailContent({
     )
   }
 
-  const relativeCreated = formatDistanceToNow(new Date(source.created), {
-    addSuffix: true,
-    locale: getDateLocale(language),
-  })
-
   return (
     <div className="flex h-full flex-col">
-      {/* Header — pr-8 clears DialogContent absolute close (same as DialogHeader) */}
-      <div className="flex shrink-0 items-center justify-center gap-1 border-b border-border py-0.5 pl-1 pr-8">
-        <div className="flex min-w-0 flex-1 items-start gap-1">
-          <div className="min-w-0 flex-1">
-            <InlineEdit
-              value={source.title || ''}
-              onSave={handleUpdateTitle}
-              className="text-base font-semibold leading-snug"
-              inputClassName="text-base font-semibold"
-              placeholder={t('sources.titlePlaceholder')}
-              emptyText={t('sources.untitledSource')}
-            />
-          </div>
-        </div>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label={t('common.actions')}>
-              <MoreVertical className="h-3.5 w-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {source.asset?.file_path && (
-              <DropdownMenuItem
-                onClick={handleDownloadFile}
-                disabled={isDownloadingFile || fileAvailable === false}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                {fileAvailable === false
-                  ? t('sources.fileUnavailable')
-                  : isDownloadingFile
-                    ? t('sources.preparing')
-                    : t('sources.downloadFile')}
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem
-              onClick={handleEmbedContent}
-              disabled={isEmbedding || source.embedded}
-            >
-              <Database className="mr-2 h-4 w-4" />
-              {isEmbedding
-                ? t('sources.embedding')
-                : source.embedded
-                  ? t('sources.alreadyEmbedded')
-                  : t('sources.embedContent')}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive"
-              onClick={() => setSourceDeleteOpen(true)}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              {t('sources.deleteSource')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      <SourceDetailHeader
+        title={source.title}
+        hasFilePath={Boolean(source.asset?.file_path)}
+        embedded={source.embedded}
+        isEmbedding={isEmbedding}
+        isDownloadingFile={isDownloadingFile}
+        fileAvailable={fileAvailable}
+        onUpdateTitle={handleUpdateTitle}
+        onDownloadFile={handleDownloadFile}
+        onEmbedContent={handleEmbedContent}
+        onRequestDelete={() => setSourceDeleteOpen(true)}
+      />
 
       <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-1">
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="w-full"
-        >
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList
             className={cn(
               'sticky top-0 z-10 mt-0.5 grid w-full',
@@ -412,81 +279,17 @@ export function SourceDetailContent({
           </TabsList>
 
           <TabsContent value="content" className="mt-1 space-y-1">
-            {source.asset?.url && !isYouTubeUrl && (
-              <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                <LinkIcon className="h-3 w-3 shrink-0" />
-                <a
-                  href={source.asset.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="min-w-0 truncate hover:underline"
-                >
-                  {source.asset.url}
-                </a>
-              </div>
-            )}
-
-            {isYouTubeUrl && youTubeVideoId && (
-              <div className="space-y-1">
-                <div className="aspect-video overflow-hidden rounded-md bg-black">
-                  <iframe
-                    src={`https://www.youtube.com/embed/${youTubeVideoId}`}
-                    title={t('common.accessibility.ytVideo')}
-                    className="h-full w-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
-                {source.asset?.url && (
-                  <a
-                    href={source.asset.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:underline"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    {t('sources.openOnYoutube')}
-                  </a>
-                )}
-              </div>
-            )}
-
-            {!contentText && !showPdfViewer ? (
-              <p className="px-0.5 py-2 text-sm text-muted-foreground">{t('sources.noContent')}</p>
-            ) : showPdfViewer ? (
-              <PdfCitationViewer
-                sourceId={sourceId}
-                focus={focusForThisSource}
-              />
-            ) : highlightedTextView ? (
-              <pre
-                className={cn(
-                  'max-h-[min(52vh,560px)] overflow-auto rounded-md border border-border/60',
-                  'bg-muted/20 px-1.5 py-1 font-mono text-[11px] leading-snug',
-                  'whitespace-pre-wrap break-words text-foreground'
-                )}
-              >
-                {highlightedTextView.before}
-                <mark className="rounded-sm bg-amber-200/80 px-0.5 text-foreground dark:bg-amber-500/40">
-                  {highlightedTextView.match}
-                </mark>
-                {highlightedTextView.after}
-              </pre>
-            ) : usePlainExtractionView ? (
-              <pre
-                className={cn(
-                  'max-h-[min(52vh,560px)] overflow-auto rounded-md border border-border/60',
-                  'bg-muted/20 px-1.5 py-1 font-mono text-[11px] leading-snug',
-                  'whitespace-pre-wrap break-words text-foreground'
-                )}
-              >
-                {contentText}
-              </pre>
-            ) : (
-              <div className="rounded-md border border-border/60 bg-muted/20 px-1.5 py-1">
-                <MarkdownRenderer size="sm">{contentText}</MarkdownRenderer>
-              </div>
-            )}
+            <SourceDetailContentTab
+              sourceId={sourceId}
+              assetUrl={source.asset?.url}
+              contentText={contentText}
+              isYouTubeUrl={isYouTubeUrl}
+              youTubeVideoId={youTubeVideoId}
+              showPdfViewer={showPdfViewer}
+              usePlainExtractionView={usePlainExtractionView}
+              highlightedTextView={highlightedTextView}
+              focusForThisSource={focusForThisSource}
+            />
           </TabsContent>
 
           <TabsContent value="knowledge" className="mt-1">
@@ -498,178 +301,28 @@ export function SourceDetailContent({
 
           {showDrawingTab && inspectableDrawingRun ? (
             <TabsContent value="drawing" className="mt-1 space-y-2">
-              <div className="space-y-2 rounded-md border border-border/60 px-1.5 py-2">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-normal">
-                    {inspectableDrawingRun.status === 'partial'
-                      ? t('sources.drawingStagePartial')
-                      : t('sources.drawingStageCompleted')}
-                  </Badge>
-                  {inspectableDrawingRun.active ? (
-                    <Badge className="h-5 px-1.5 text-[11px] font-normal">
-                      {t('sources.drawingActiveForRetrieval')}
-                    </Badge>
-                  ) : null}
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  {t('sources.drawingPagesProcessed')
-                    .replace(
-                      '{pages}',
-                      String(inspectableDrawingRun.drawing_page_count ?? 0)
-                    )
-                    .replace(
-                      '{total}',
-                      String(inspectableDrawingRun.page_count ?? 0)
-                    )}
-                </p>
-                {typeof inspectableDrawingRun.stats?.items_extracted === 'number' ? (
-                  <p className="text-[11px] text-muted-foreground">
-                    {t('sources.drawingProgressItems').replace(
-                      '{count}',
-                      String(inspectableDrawingRun.stats.items_extracted)
-                    )}
-                  </p>
-                ) : null}
-                <p className="text-sm text-muted-foreground">
-                  {t('sources.drawingResultsReady')}
-                </p>
-                <Button
-                  size="sm"
-                  className="h-7"
-                  onClick={() => setDrawingResultsOpen(true)}
-                >
-                  {t('sources.drawingInspectResults')}
-                </Button>
-              </div>
+              <SourceDetailDrawingTab
+                run={inspectableDrawingRun}
+                onInspectResults={() => setDrawingResultsOpen(true)}
+              />
             </TabsContent>
           ) : null}
 
           <TabsContent value="details" className="mt-1 space-y-2">
-            {!source.embedded && (
-              <Alert className="py-1">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle className="text-sm">{t('sources.notEmbeddedAlert')}</AlertTitle>
-                <AlertDescription className="text-[11px]">
-                  {t('sources.notEmbeddedDesc')}
-                  <div className="mt-1">
-                    <Button
-                      onClick={handleEmbedContent}
-                      disabled={isEmbedding}
-                      size="sm"
-                      className="h-7"
-                    >
-                      <Database className="mr-1.5 h-3.5 w-3.5" />
-                      {isEmbedding ? t('sources.embedding') : t('sources.embedContent')}
-                    </Button>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <div className="divide-y divide-border rounded-md border border-border/60 text-sm">
-              <div className="flex items-center gap-1 px-1 py-1.5">
-                <span className="w-20 shrink-0 text-[11px] text-muted-foreground">
-                  {t('sources.id')}
-                </span>
-                <code className="min-w-0 flex-1 truncate text-[11px]">{source.id}</code>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-7 w-7 shrink-0"
-                  onClick={handleCopyId}
-                  aria-label={t('common.copyToClipboard')}
-                >
-                  {copied ? <CheckCircle className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                </Button>
-              </div>
-
-              {source.asset?.url && (
-                <div className="flex items-center gap-1 px-1 py-1.5">
-                  <span className="w-20 shrink-0 text-[11px] text-muted-foreground">
-                    {t('common.url')}
-                  </span>
-                  <code className="min-w-0 flex-1 truncate text-[11px]">{source.asset.url}</code>
-                  <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={handleCopyUrl}>
-                    <Copy className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={handleOpenExternal}>
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              )}
-
-              {source.asset?.file_path && (
-                <div className="space-y-0.5 px-1 py-1.5">
-                  <div className="flex items-center gap-1">
-                    <span className="w-20 shrink-0 text-[11px] text-muted-foreground">
-                      {t('sources.uploadedFile')}
-                    </span>
-                    <code className="min-w-0 flex-1 truncate text-[11px]">
-                      {source.asset.file_path}
-                    </code>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 shrink-0 px-2 text-xs"
-                      onClick={handleDownloadFile}
-                      disabled={isDownloadingFile || fileAvailable === false}
-                    >
-                      <Download className="mr-1 h-3.5 w-3.5" />
-                      {fileAvailable === false
-                        ? t('sources.fileUnavailable')
-                        : isDownloadingFile
-                          ? t('sources.preparing')
-                          : t('common.download')}
-                    </Button>
-                  </div>
-                  {fileAvailable === false ? (
-                    <p className="pl-20 text-[11px] text-muted-foreground">
-                      {t('sources.fileUnavailableDesc')}
-                    </p>
-                  ) : null}
-                </div>
-              )}
-
-              <div className="grid gap-1 px-1 py-1.5 sm:grid-cols-2">
-                <div>
-                  <p className="text-[11px] text-muted-foreground">{t('common.created_label')}</p>
-                  <p className="text-sm leading-snug">{relativeCreated}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {new Date(source.created).toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-muted-foreground">{t('common.updated_label')}</p>
-                  <p className="text-sm leading-snug">
-                    {formatDistanceToNow(new Date(source.updated), {
-                      addSuffix: true,
-                      locale: getDateLocale(language),
-                    })}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {new Date(source.updated).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-
-              {source.topics && source.topics.length > 0 && (
-                <div className="px-1 py-1.5">
-                  <p className="mb-0.5 text-[11px] text-muted-foreground">{t('sources.topics')}</p>
-                  <div className="flex flex-wrap gap-0.5">
-                    {source.topics.map((topic, idx) => (
-                      <Badge key={idx} variant="outline" className="h-5 px-1.5 text-[10px]">
-                        {topic}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <ProjectAssociations
+            <SourceDetailDetailsTab
               sourceId={sourceId}
-              currentProjectIds={source.projects || []}
-              onSave={() => {
+              source={source}
+              language={language}
+              copied={copied}
+              isEmbedding={isEmbedding}
+              isDownloadingFile={isDownloadingFile}
+              fileAvailable={fileAvailable}
+              onEmbedContent={handleEmbedContent}
+              onCopyId={handleCopyId}
+              onCopyUrl={handleCopyUrl}
+              onOpenExternal={handleOpenExternal}
+              onDownloadFile={handleDownloadFile}
+              onAssociationsSaved={() => {
                 void refetch()
               }}
             />

@@ -20,7 +20,7 @@ Admin UI / API
 Chat turn (selected mcp_tool_ids)
   → build_allowlist (server-side authorization)
   → bind LangChain StructuredTools (read-only only)
-  → generate_with_mcp_tools (bounded tool loop)
+  → generate_with_tools (bounded tool loop)
   → execute_allowlisted_tool → McpClient → remote tools/call
   → ChatToolCall audit + AG-UI CUSTOM "mcp_tool_call"
   → ToolMessage text back to the model
@@ -41,7 +41,7 @@ The model never talks to MCP directly. It only sees **runtime tool names** from 
 | Risk | Classify `read` / `action` / `unknown` | `construction_os/mcp/risk.py` |
 | Allowlist | Selected IDs → executable runtime entries | `construction_os/mcp/allowlist.py` |
 | Execution | Validate, audit, call, bound result text | `construction_os/mcp/execution.py` |
-| Chat loop | Model ↔ tools iterations | `construction_os/mcp/chat_loop.py` |
+| Chat loop | Model ↔ tools iterations | `tool_runtime/chat_loop.py` |
 | LangChain bridge | `StructuredTool` wrappers | `construction_os/mcp/langgraph_tools.py` |
 | Progress | AG-UI `mcp_tool_call` CUSTOM | `construction_os/mcp/progress.py` |
 | Public DTOs | No secrets in API/SSE | `construction_os/mcp/public.py` |
@@ -89,8 +89,8 @@ Admin routes (prefix `/mcp`):
 
 | Surface | How tools attach |
 |---------|------------------|
-| Project chat | `forwarded_props.mcp_tool_ids` → graph → `generate_with_mcp_tools` |
-| Source chat | Same pattern |
+| Project chat | `forwarded_props.mcp_tool_ids` → graph → `generate_with_tools` |
+| Source chat | Same pattern (when present) |
 | Chat queue | Same props; `strict_mcp_tools=True` so missing/non-read selections fail loudly |
 | Artifact templates | Optional default `mcp_tool_ids` on template |
 

@@ -114,12 +114,14 @@ export function ChatColumn({
         {...bindProjectChatPanelProps(chat, {
           title: chatTitle,
           titleAdornment,
-          loadingSessions: chat.loadingSessions || notesLoading,
           projectId,
           activeArtifact,
           noteSaveTitle: activeArtifact?.title,
           artifactPrefillKey: artifactRunKey,
           headerActions: collapseButton,
+          sessionControls: {
+            loadingSessions: chat.loadingSessions || notesLoading,
+          },
         })}
       />
     )

@@ -8,7 +8,7 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { ListRowsSkeleton } from '@/components/common/LoadingSkeletons'
 import { Wand2 } from 'lucide-react'
 import { Artifact } from '@/lib/types/artifacts'
-import { ArtifactEditorDialog } from './ArtifactEditorDialog'
+import { ArtifactTemplateEditorDialog } from './ArtifactTemplateEditorDialog'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
 interface ArtifactsListProps {
@@ -70,7 +70,7 @@ export function ArtifactsList({ artifacts, isLoading, onPlayground }: ArtifactsL
         </div>
       </div>
 
-      <ArtifactEditorDialog
+      <ArtifactTemplateEditorDialog
         open={editorOpen}
         onOpenChange={(open) => {
           setEditorOpen(open)

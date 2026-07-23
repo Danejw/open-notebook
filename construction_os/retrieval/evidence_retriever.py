@@ -40,6 +40,53 @@ _GRAPH_MAX_NODES = 50
 _GRAPH_MIN_CONFIDENCE = 0.5
 
 
+async def _maybe_persist_query_run(
+    *,
+    query: str,
+    project_id: Optional[str],
+    retrieval_mode: str,
+    paths: List[EvidencePath],
+    items: List[EvidenceItem],
+    fallback_reason: Optional[str],
+    graph_env: str,
+) -> None:
+    """Persist kg_query_run when graph retrieval contributed (KG-004)."""
+    if not project_id:
+        return
+    if retrieval_mode != "graph" and not (
+        graph_env == "shadow" and paths
+    ):
+        return
+    try:
+        from construction_os.knowledge.graph_projection import persist_query_run
+
+        await persist_query_run(
+            project_id=project_id,
+            query=query,
+            retrieval_mode=retrieval_mode
+            if retrieval_mode == "graph"
+            else f"shadow:{retrieval_mode}",
+            seeds={
+                "item_ids": [item.id for item in items[:20]],
+            },
+            paths=[p.model_dump() for p in paths[:50]],
+            cited_ids={
+                "parent_ids": [
+                    item.parent_id for item in items if item.parent_id
+                ][:50],
+                "item_ids": [item.id for item in items][:50],
+            },
+            metadata={
+                "fallback_reason": fallback_reason,
+                "source": "evidence_retriever",
+                "graph_env": graph_env,
+                "path_count": len(paths),
+            },
+        )
+    except Exception as e:
+        logger.debug("persist_query_run skipped: {}", e)
+
+
 async def _merge_drawing_evidence(
     *,
     query: str,
@@ -59,8 +106,8 @@ async def _merge_drawing_evidence(
 
 
 def get_graph_rag_mode() -> str:
-    """Return CONSTRUCTION_OS_GRAPH_RAG_MODE: off | shadow | on."""
-    return os.getenv("CONSTRUCTION_OS_GRAPH_RAG_MODE", "off").strip().lower()
+    """Return CONSTRUCTION_OS_GRAPH_RAG_MODE: off | shadow | on (default on)."""
+    return os.getenv("CONSTRUCTION_OS_GRAPH_RAG_MODE", "on").strip().lower()
 
 
 def should_use_hybrid(query: str) -> bool:
@@ -245,7 +292,7 @@ async def retrieve(
     - vector: dense similarity only
     - hybrid: BM25 + vector with RRF
     - graph: hybrid seeds + bounded KG expansion
-    - auto: hybrid for identifier queries; graph when GRAPH_RAG_MODE=on
+    - auto: hybrid for identifier queries; graph when GRAPH_RAG_MODE=on (default)
     """
     if not query or not query.strip():
         return EvidenceBundle(retrieval_mode_used="vector", fallback_reason="empty_query")
@@ -327,11 +374,21 @@ async def retrieve(
             existing_items=fused,
             limit=limit,
         )
+        shadow_reason = drawing_note or "shadow_mode"
+        await _maybe_persist_query_run(
+            query=query,
+            project_id=project_id,
+            retrieval_mode="hybrid",
+            paths=paths,
+            items=fused,
+            fallback_reason=shadow_reason,
+            graph_env=graph_env,
+        )
         return EvidenceBundle(
             items=fused,
             paths=paths,
             retrieval_mode_used="hybrid",
-            fallback_reason=drawing_note or "shadow_mode",
+            fallback_reason=shadow_reason,
             embedding_dim_warning=dim_warning,
         )
 
@@ -358,10 +415,20 @@ async def retrieve(
         existing_items=final,
         limit=limit,
     )
+    graph_reason = drawing_note or fallback_reason
+    await _maybe_persist_query_run(
+        query=query,
+        project_id=project_id,
+        retrieval_mode="graph",
+        paths=paths,
+        items=final,
+        fallback_reason=graph_reason,
+        graph_env=graph_env,
+    )
     return EvidenceBundle(
         items=final,
         paths=paths,
         retrieval_mode_used="graph",
-        fallback_reason=drawing_note or fallback_reason,
+        fallback_reason=graph_reason,
         embedding_dim_warning=dim_warning,
     )

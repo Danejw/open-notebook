@@ -234,10 +234,13 @@ async def run_eval() -> None:
 
     from construction_os.retrieval import retrieve
 
-    modes = ("vector", "hybrid")
+    modes = ("vector", "hybrid", "graph")
     scores: dict[str, dict[str, list[float]]] = {
         mode: defaultdict(list) for mode in modes
     }
+
+    # Graph mode uses CONSTRUCTION_OS_GRAPH_RAG_MODE; force on for this eval pass.
+    os.environ.setdefault("CONSTRUCTION_OS_GRAPH_RAG_MODE", "on")
 
     for item in dataset:
         for mode in modes:

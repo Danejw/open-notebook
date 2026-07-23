@@ -572,6 +572,19 @@ class Source(ObjectModel):
                 "Continuing with source deletion."
             )
 
+        # Detach KG evidence before source row delete (canonical entities survive).
+        # Inline import avoids circular: project → knowledge_graph → pipeline → project.
+        try:
+            from construction_os.domain.knowledge_graph import KnowledgeGraphRepository
+
+            await KnowledgeGraphRepository.release_source_evidence(str(self.id))
+            logger.debug(f"Released knowledge-graph evidence for source {self.id}")
+        except Exception as e:
+            logger.warning(
+                f"Failed to release KG evidence for source {self.id}: {e}. "
+                "Continuing with source deletion."
+            )
+
         # Call parent delete to remove database record
         return await super().delete()
 

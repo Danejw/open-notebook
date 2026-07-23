@@ -12,6 +12,8 @@ class ExtractedMention(BaseModel):
     entity_type_hint: str = "Topic"
     confidence: float = 0.7
     chunk_index: Optional[int] = None
+    char_start: Optional[int] = None
+    char_end: Optional[int] = None
 
 
 class ExtractedEntity(BaseModel):

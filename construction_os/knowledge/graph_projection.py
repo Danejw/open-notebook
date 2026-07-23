@@ -376,17 +376,10 @@ def _appears_in_edge(entity_id: str, source_id: str) -> GraphEdgeDTO:
 
 
 def entity_source_ids(entity: Dict[str, Any]) -> List[str]:
-    """Collect source IDs from entity.source_id and metadata.MERGED_FROM."""
-    ids: List[str] = []
-    primary = _rid(entity.get("source_id"))
-    if primary:
-        ids.append(primary)
-    meta = entity.get("metadata") if isinstance(entity.get("metadata"), dict) else {}
-    for raw in meta.get("MERGED_FROM") or []:
-        sid = _rid(raw)
-        if sid and sid not in ids:
-            ids.append(sid)
-    return ids
+    """Collect source IDs from entity.source_id, supporting_sources, and MERGED_FROM."""
+    from construction_os.domain.knowledge_graph import supporting_source_ids_from_entity
+
+    return supporting_source_ids_from_entity(entity)
 
 
 async def recompute_communities(

@@ -404,7 +404,8 @@ uv run pytest -q tests/test_eval_retrieval_dry_run.py tests/test_embedding_healt
 Dry-run requires fixture IDs (`project:retrieval_eval`, `source:eval_*`) and
 checks that every expected ID exists in `tests/eval/graph_rag/corpus.json`.
 
-For a full recall@k comparison (vector vs hybrid), seed then run live. Live
+For a full recall@k comparison (vector vs hybrid vs graph), seed then run live. Live
+eval includes `mode=graph` and sets `CONSTRUCTION_OS_GRAPH_RAG_MODE=on` when unset.
 eval **exits non-zero** if any mode's ALL recall falls below
 `CONSTRUCTION_OS_EVAL_MIN_RECALL` (default **0.9**):
 

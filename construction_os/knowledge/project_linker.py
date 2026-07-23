@@ -146,6 +146,7 @@ async def link_project_references(project_id: str) -> Dict[str, Any]:
                 status="active",
                 extractor=LINKER_EXTRACTOR,
                 extractor_version=LINKER_VERSION,
+                metadata={"derived": True, "provenance": "project_linker"},
             )
             existing.add(key)
             created += 1

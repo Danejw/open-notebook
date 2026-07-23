@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from loguru import logger
 
 from construction_os.domain.knowledge_graph import KnowledgeGraphRepository
 from construction_os.knowledge.extractors.base import ExtractionResult
 from construction_os.knowledge.graph_projection import after_kg_write
+from construction_os.knowledge.integrity import prune_orphan_entities
 
 
 def _chunk_id_for_index(
@@ -17,6 +18,31 @@ def _chunk_id_for_index(
     if chunk_index is None or chunk_index < 0 or chunk_index >= len(chunks):
         return None
     return str(chunks[chunk_index].get("id") or "") or None
+
+
+def find_text_offsets(
+    content: str, text: str
+) -> Tuple[Optional[int], Optional[int]]:
+    """Best-effort char offsets of ``text`` within ``content`` (KG-006 / KG-010)."""
+    haystack = content or ""
+    needle = (text or "").strip()
+    if not haystack or not needle:
+        return None, None
+    pos = haystack.find(needle)
+    if pos < 0:
+        return None, None
+    return pos, pos + len(needle)
+
+
+def _offsets_in_chunk(
+    chunks: List[Dict[str, Any]],
+    chunk_index: Optional[int],
+    text: str,
+) -> Tuple[Optional[int], Optional[int]]:
+    """Best-effort char offsets of ``text`` within the chunk content (KG-006)."""
+    if chunk_index is None or chunk_index < 0 or chunk_index >= len(chunks):
+        return None, None
+    return find_text_offsets(str(chunks[chunk_index].get("content") or ""), text)
 
 
 async def write_extraction_result(
@@ -57,6 +83,12 @@ async def write_extraction_result(
 
     for mention in result.payload.mentions:
         entity_id = await resolve(mention.text, mention.entity_type_hint or "Topic")
+        char_start = mention.char_start
+        char_end = mention.char_end
+        if char_start is None or char_end is None:
+            char_start, char_end = _offsets_in_chunk(
+                chunks, mention.chunk_index, mention.text
+            )
         await repo.create_mention(
             text=mention.text,
             entity_type_hint=mention.entity_type_hint,
@@ -64,6 +96,8 @@ async def write_extraction_result(
             project_id=project_id,
             source_id=source_id,
             chunk_id=_chunk_id_for_index(chunks, mention.chunk_index),
+            char_start=char_start,
+            char_end=char_end,
             confidence=mention.confidence,
             extractor=result.extractor,
             extractor_version=result.extractor_version,
@@ -104,6 +138,7 @@ async def write_extraction_result(
             status="active",
             extractor=result.extractor,
             extractor_version=result.extractor_version,
+            metadata={"derived": False},
         )
 
     stats = {
@@ -125,4 +160,8 @@ async def write_extraction_result(
         await after_kg_write(project_id)
     except Exception as e:
         logger.warning("Failed to bump graph version/communities for {}: {}", project_id, e)
+    try:
+        await prune_orphan_entities(project_id, dry_run=False)
+    except Exception as e:
+        logger.warning("Failed to prune orphan KG entities for {}: {}", project_id, e)
     return stats

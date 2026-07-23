@@ -330,7 +330,17 @@ async def build_knowledge_graph_command(input_data: BuildKGInput) -> BuildKGOutp
                 missing_rels = extraction_missing_expected_relations(
                     result.payload, full_text, extractor_id
                 )
-                if missing_rels:
+                # KG-007: partial success — write entities/claims even when relations
+                # were expected but missing; record warning instead of hard-failing.
+                partial_warning: Optional[str] = None
+                if missing_rels and not extraction_is_empty(result.payload):
+                    partial_warning = missing_rels
+                    logger.warning(
+                        "KG partial extraction for {}: {}; writing available graph rows",
+                        source.id,
+                        missing_rels,
+                    )
+                elif missing_rels:
                     run.status = "failed"
                     run.error_message = sanitize_processing_error(missing_rels)
                     run.error_type = "ValueError"
@@ -356,6 +366,13 @@ async def build_knowledge_graph_command(input_data: BuildKGInput) -> BuildKGOutp
                 warning = relations_warning_stats(result.payload)
                 if warning:
                     stats = {**stats, "relations_warning": warning}
+                if partial_warning:
+                    stats = {
+                        **stats,
+                        "partial_extraction_warning": sanitize_processing_error(
+                            partial_warning
+                        ),
+                    }
                 stats = _diagnostic_stats(
                     full_text=full_text,
                     extractor_id=extractor_id,

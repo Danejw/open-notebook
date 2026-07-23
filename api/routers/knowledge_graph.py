@@ -10,6 +10,10 @@ from pydantic import BaseModel, Field
 
 from construction_os.domain.knowledge_graph import KnowledgeGraphRepository
 from construction_os.domain.project import Project, Source
+from construction_os.knowledge.backfill import (
+    backfill_legacy_provenance,
+    provenance_metrics,
+)
 from construction_os.knowledge.extractors.registry import list_extractors
 from construction_os.knowledge.pipeline import begin_kg_stage
 from construction_os.knowledge.project_linker import link_project_references
@@ -34,6 +38,18 @@ class KnowledgeExtractResponse(BaseModel):
 class KnowledgeRebuildRequest(BaseModel):
     force: bool = True
     extractor: str = "generic"
+
+
+class KnowledgeBackfillRequest(BaseModel):
+    dry_run: bool = Field(
+        True,
+        description="When true, report would-be updates without writing (KG-010)",
+    )
+    limit: Optional[int] = Field(
+        None,
+        ge=1,
+        description="Optional max rows per backfill step",
+    )
 
 
 @router.get("/sources/{source_id}/knowledge/extractors")
@@ -193,3 +209,37 @@ async def link_project_knowledge(project_id: str):
     except Exception as e:
         logger.error(f"Project knowledge link failed for {project_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/projects/{project_id}/knowledge/backfill-provenance")
+async def backfill_project_provenance(
+    project_id: str,
+    request: KnowledgeBackfillRequest = KnowledgeBackfillRequest(),
+):
+    """
+    Materialize supporting_sources, mention offsets, and derived flags (KG-010).
+
+    Updates existing rows in place — does not wipe kg_* tables. Prefer this for
+    legacy provenance; use /knowledge/rebuild when full re-extract is needed.
+    """
+    project = await Project.get(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    before = await provenance_metrics(project_id=project_id)
+    try:
+        result = await backfill_legacy_provenance(
+            project_id=project_id,
+            dry_run=request.dry_run,
+            limit=request.limit,
+        )
+    except Exception as e:
+        logger.error(f"KG provenance backfill failed for {project_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    after = await provenance_metrics(project_id=project_id)
+    return {
+        "project_id": project_id,
+        "before": before,
+        "result": result,
+        "after": after,
+    }

@@ -1,0 +1,13 @@
+-- Rollback migration 49: restore prior source_delete_cleanup_kg (deletes entities by source_id)
+
+REMOVE EVENT IF EXISTS source_delete_cleanup_kg ON TABLE source;
+
+DEFINE EVENT IF NOT EXISTS source_delete_cleanup_kg ON TABLE source WHEN ($after == NONE) THEN {
+    DELETE kg_mention WHERE source_id = $before.id;
+    DELETE kg_claim WHERE source_id = $before.id;
+    DELETE kg_relation WHERE source_id = $before.id;
+    DELETE kg_entity WHERE source_id = $before.id;
+    DELETE kg_extraction_run WHERE source_id = $before.id;
+};
+
+RETURN true;

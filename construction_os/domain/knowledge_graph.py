@@ -27,6 +27,13 @@ GENERIC_ENTITY_TYPES = (
     "Specification",
 )
 
+# Sheet/CSI-style identifiers merge across sources within a project.
+# Person/Topic/etc. stay source-scoped to reduce false merges (KG-003).
+PROJECT_WIDE_MERGE_TYPES = frozenset({"Reference", "Specification", "Date"})
+
+# metadata key: all source IDs that evidence this canonical entity (KG-001)
+SUPPORTING_SOURCES_KEY = "supporting_sources"
+
 _NORMALIZE_RE = re.compile(r"[^a-z0-9]+")
 _RECORD_FIELDS = (
     "project_id",
@@ -45,6 +52,40 @@ _RECORD_FIELDS = (
 def normalize_entity_key(label: str) -> str:
     """Normalize an entity label into a stable merge key."""
     return _NORMALIZE_RE.sub(" ", (label or "").lower()).strip()
+
+
+def merges_project_wide(entity_type: str) -> bool:
+    """True when entities of this type share one canonical node per project key."""
+    return (entity_type or "") in PROJECT_WIDE_MERGE_TYPES
+
+
+def supporting_source_ids_from_entity(entity: Dict[str, Any]) -> List[str]:
+    """Collect supporting source IDs (primary, supporting_sources, MERGED_FROM)."""
+    ids: List[str] = []
+    primary = entity.get("source_id")
+    if primary is not None and str(primary):
+        ids.append(str(primary))
+    meta = entity.get("metadata") if isinstance(entity.get("metadata"), dict) else {}
+    for key in (SUPPORTING_SOURCES_KEY, "MERGED_FROM"):
+        for raw in meta.get(key) or []:
+            sid = str(raw) if raw is not None else ""
+            if sid and sid not in ids:
+                ids.append(sid)
+    return ids
+
+
+def _ensure_supporting_sources(
+    meta: Dict[str, Any], source_id: Optional[str]
+) -> Dict[str, Any]:
+    """Return metadata with source_id recorded in supporting_sources."""
+    updated = dict(meta or {})
+    supporters = [
+        str(s) for s in (updated.get(SUPPORTING_SOURCES_KEY) or []) if s is not None
+    ]
+    if source_id and str(source_id) not in supporters:
+        supporters.append(str(source_id))
+    updated[SUPPORTING_SOURCES_KEY] = supporters
+    return updated
 
 
 class _KgModel(ObjectModel):
@@ -104,6 +145,13 @@ class KgMention(_KgModel):
 
 
 class KgClaim(_KgModel):
+    """
+    Extracted document claim (atemporal snapshot).
+
+    Temporal / evolving project facts live in ``project_memory``, not here.
+    ``valid_from`` / ``valid_to`` are reserved unused fields (KG-005).
+    """
+
     table_name: ClassVar[str] = "kg_claim"
     subject_id: Optional[str] = None
     predicate: str
@@ -230,7 +278,12 @@ class KnowledgeGraphRepository:
         project_id: str,
         extractor: str,
     ) -> None:
-        """Remove prior rows for this source/project/extractor before rewrite."""
+        """
+        Remove prior evidence rows for this source/project/extractor before rewrite.
+
+        Does **not** delete canonical ``kg_entity`` rows (KG-001). Entities are
+        project-owned; re-extract upserts them again and may prune orphans after.
+        """
         vars = {
             "source_id": ensure_record_id(source_id),
             "project_id": ensure_record_id(project_id),
@@ -248,10 +301,6 @@ class KnowledgeGraphRepository:
             "DELETE kg_relation WHERE source_id = $source_id AND project_id = $project_id AND extractor = $extractor",
             vars,
         )
-        await repo_query(
-            "DELETE kg_entity WHERE source_id = $source_id AND project_id = $project_id AND extractor = $extractor",
-            vars,
-        )
 
     @staticmethod
     async def upsert_entity(
@@ -265,47 +314,162 @@ class KnowledgeGraphRepository:
         extractor_version: Optional[str] = None,
     ) -> KgEntity:
         key = normalize_entity_key(label)
-        existing = await repo_query(
-            """
+        project_wide = merges_project_wide(entity_type)
+        query = """
             SELECT * FROM kg_entity
             WHERE project_id = $project_id
               AND type = $type
               AND normalized_key = $normalized_key
-            LIMIT 1
-            """,
-            {
-                "project_id": ensure_record_id(project_id),
-                "type": entity_type,
-                "normalized_key": key,
-            },
-        )
+        """
+        vars: Dict[str, Any] = {
+            "project_id": ensure_record_id(project_id),
+            "type": entity_type,
+            "normalized_key": key,
+        }
+        if not project_wide:
+            # Source-scoped identity for Person/Topic/etc. (KG-003)
+            if source_id:
+                query += " AND source_id = $source_id"
+                vars["source_id"] = ensure_record_id(source_id)
+            else:
+                query += " AND source_id = NONE"
+        query += " LIMIT 1"
+
+        existing = await repo_query(query, vars)
         if existing:
             entity = KgEntity(**existing[0])
-            meta = dict(entity.metadata or {})
+            meta = _ensure_supporting_sources(
+                dict(entity.metadata or {}), source_id
+            )
+            # Keep legacy MERGED_FROM in sync for older readers
             merged_from = list(meta.get("MERGED_FROM") or [])
             if (
                 source_id
-                and source_id not in merged_from
-                and str(entity.source_id) != source_id
+                and str(source_id) not in merged_from
+                and str(entity.source_id) != str(source_id)
             ):
-                merged_from.append(source_id)
+                merged_from.append(str(source_id))
                 meta["MERGED_FROM"] = merged_from
-                entity.metadata = meta
-                await entity.save()
+            entity.metadata = meta
+            if metadata:
+                # Preserve caller metadata keys without dropping supporters
+                for k, v in metadata.items():
+                    if k in (SUPPORTING_SOURCES_KEY, "MERGED_FROM"):
+                        continue
+                    entity.metadata[k] = v
+            await entity.save()
             return entity
 
+        base_meta = _ensure_supporting_sources(dict(metadata or {}), source_id)
         entity = KgEntity(
             type=entity_type,
             label=label,
             normalized_key=key,
             project_id=project_id,
             source_id=source_id,
-            metadata=metadata or {},
+            metadata=base_meta,
             extractor=extractor,
             extractor_version=extractor_version,
         )
         await entity.save()
         return entity
+
+    @staticmethod
+    async def release_source_evidence(source_id: str) -> Dict[str, Any]:
+        """
+        Drop a source's mentions/claims/relations/runs and detach canonical entities.
+
+        Entities are deleted only when no supporting sources remain and no edges
+        still reference them (KG-001). Call before or after source row deletion;
+        migration 49 event also deletes evidence rows (idempotent).
+        """
+        from construction_os.knowledge.integrity import (
+            deactivate_dangling_relations,
+            entity_has_remaining_edges,
+            prune_orphan_entities,
+        )
+        from construction_os.knowledge.pipeline import resolve_project_ids_for_source
+
+        sid = ensure_record_id(source_id)
+        sid_str = str(source_id)
+        vars = {"source_id": sid}
+
+        await repo_query("DELETE kg_mention WHERE source_id = $source_id", vars)
+        await repo_query("DELETE kg_claim WHERE source_id = $source_id", vars)
+        await repo_query("DELETE kg_relation WHERE source_id = $source_id", vars)
+        await repo_query(
+            "DELETE kg_extraction_run WHERE source_id = $source_id", vars
+        )
+
+        project_ids = await resolve_project_ids_for_source(str(source_id))
+        # Always include entities whose primary source_id matches
+        candidates = await repo_query(
+            "SELECT * FROM kg_entity WHERE source_id = $source_id",
+            vars,
+        )
+        seen: set[str] = {str(r.get("id")) for r in (candidates or []) if r.get("id")}
+        for project_id in project_ids:
+            rows = await repo_query(
+                "SELECT * FROM kg_entity WHERE project_id = $project_id",
+                {"project_id": ensure_record_id(project_id)},
+            )
+            for row in rows or []:
+                eid = str(row.get("id") or "")
+                if not eid or eid in seen:
+                    continue
+                if sid_str in supporting_source_ids_from_entity(row):
+                    candidates = list(candidates or []) + [row]
+                    seen.add(eid)
+
+        detached = 0
+        deleted = 0
+        for row in candidates or []:
+            entity = KgEntity(**row)
+            supporters = [
+                s
+                for s in supporting_source_ids_from_entity(row)
+                if s != sid_str
+            ]
+            meta = dict(entity.metadata or {})
+            meta[SUPPORTING_SOURCES_KEY] = supporters
+            merged = [s for s in (meta.get("MERGED_FROM") or []) if str(s) != sid_str]
+            if merged:
+                meta["MERGED_FROM"] = merged
+            elif "MERGED_FROM" in meta:
+                meta.pop("MERGED_FROM", None)
+
+            if not supporters:
+                entity.metadata = meta
+                entity.source_id = None
+                await entity.save()
+                if not await entity_has_remaining_edges(str(entity.id)):
+                    await repo_query(
+                        "DELETE kg_entity WHERE id = $id",
+                        {"id": ensure_record_id(str(entity.id))},
+                    )
+                    deleted += 1
+                else:
+                    detached += 1
+            else:
+                # Reassign primary to a remaining supporter
+                if str(entity.source_id) == sid_str:
+                    entity.source_id = supporters[0]
+                entity.metadata = meta
+                await entity.save()
+                detached += 1
+
+        dangling = await deactivate_dangling_relations(dry_run=False)
+        pruned_total = 0
+        for project_id in project_ids:
+            pruned = await prune_orphan_entities(project_id, dry_run=False)
+            pruned_total += int(pruned.get("deleted") or 0)
+
+        return {
+            "detached": detached,
+            "deleted_entities": deleted,
+            "dangling_deactivated": dangling.get("deactivated", 0),
+            "orphans_pruned": pruned_total,
+        }
 
     @staticmethod
     async def create_mention(**kwargs: Any) -> KgMention:

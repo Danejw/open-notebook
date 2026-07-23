@@ -554,6 +554,43 @@ Content-Type: application/json
 
 ---
 
+## Knowledge Graph & Graph RAG
+
+### Graph RAG mode
+
+| Env var | Default | Values |
+|---|---|---|
+| `CONSTRUCTION_OS_GRAPH_RAG_MODE` | **`on`** | `off` · `shadow` · `on` |
+
+When `auto` retrieval is used (project chat and Search), `on` expands hybrid seeds through the project knowledge graph (bounded hops) and fuses evidence. `shadow` runs expansion for telemetry but returns hybrid-only items. `off` disables graph expansion.
+
+Graph query traces are stored in `kg_query_run` when graph or shadow mode contributes paths.
+
+### Temporal model (KG vs project memory)
+
+- **Knowledge graph claims** are **atemporal document snapshots**: they reflect what uploaded sources currently assert. Re-extract replaces that source’s projection; claims do not keep valid-time history.
+- **`project_memory`** is the temporal store for evolving project facts (valid windows / supersession).
+- `kg_claim.valid_from` / `valid_to` exist in the schema but are **reserved / unused** until a product need for as-of revision queries appears.
+
+### Entity identity
+
+- **Reference / Specification / Date**: project-wide merge on normalized label (canonical entities; sources contribute evidence via `metadata.supporting_sources`).
+- **Person / Organization / Topic / etc.**: source-scoped identity to reduce false merges across documents.
+- Ontology relation types remain **open** (LLM may invent types); prompts suggest common construction types.
+
+### Legacy provenance backfill
+
+After ownership/provenance code upgrades, existing rows can be updated **in place** (no `kg_*` wipe):
+
+```bash
+python scripts/backfill_kg_legacy_provenance.py          # dry-run
+python scripts/backfill_kg_legacy_provenance.py --apply
+```
+
+Or `POST /projects/{project_id}/knowledge/backfill-provenance` with `{"dry_run": false}`. This materializes `metadata.supporting_sources`, mention char offsets when text is findable in the chunk, and `metadata.derived` on project_linker relations. Prefer `POST .../knowledge/rebuild` only when a full re-extract is required.
+
+---
+
 ## Summary
 
 **Most deployments need:**

@@ -13,6 +13,7 @@ from api.models import (
 from construction_os.database.repository import repo_query
 from construction_os.utils.embedding_health import (
     EmbeddingDimensionHealth,
+    clear_embedding_dimension_warning_cache,
     get_embedding_dimension_health,
 )
 
@@ -54,6 +55,7 @@ async def start_rebuild(request: RebuildRequest):
         logger.info(
             f"Starting rebuild request: mode={request.mode}, chain_kg={request.chain_kg}"
         )
+        clear_embedding_dimension_warning_cache()
 
         # Import commands to ensure they're registered
         import commands.embedding_commands  # noqa: F401

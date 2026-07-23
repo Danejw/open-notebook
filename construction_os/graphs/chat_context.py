@@ -195,6 +195,7 @@ async def build_relevance_context(
         "tokenCount": 0,
         "retrievalModeUsed": None,
         "fallbackReason": None,
+        "embeddingDimWarning": None,
         "evidenceFocus": [],
     }
 
@@ -206,6 +207,7 @@ async def build_relevance_context(
 
     retrieval_mode_used: Optional[str] = None
     fallback_reason: Optional[str] = None
+    embedding_dim_warning: Optional[str] = None
 
     try:
         bundle = await retrieve(
@@ -219,6 +221,7 @@ async def build_relevance_context(
         )
         retrieval_mode_used = bundle.retrieval_mode_used
         fallback_reason = bundle.fallback_reason
+        embedding_dim_warning = bundle.embedding_dim_warning
     except Exception as e:
         logger.warning(f"Chat retrieve failed, continuing with notes only: {e}")
         bundle = None
@@ -297,6 +300,7 @@ async def build_relevance_context(
         "tokenCount": tokens,
         "retrievalModeUsed": retrieval_mode_used,
         "fallbackReason": fallback_reason,
+        "embeddingDimWarning": embedding_dim_warning,
         "evidenceFocus": evidence_focus_from_items(filtered),
     }
 

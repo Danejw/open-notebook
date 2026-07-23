@@ -73,6 +73,7 @@ class TestSearchModeRouting:
         bundle = MagicMock()
         bundle.to_search_results.return_value = [{"id": "source:1"}]
         bundle.retrieval_mode_used = "hybrid"
+        bundle.embedding_dim_warning = None
         mock_retrieve.return_value = bundle
         response = client.post(
             "/api/search",
@@ -94,6 +95,7 @@ class TestSearchModeRouting:
         bundle = MagicMock()
         bundle.to_search_results.return_value = [{"id": "source:1"}]
         bundle.retrieval_mode_used = "hybrid"
+        bundle.embedding_dim_warning = None
         mock_retrieve.return_value = bundle
         response = client.post(
             "/api/search",
@@ -118,6 +120,7 @@ class TestSearchModeRouting:
         bundle = MagicMock()
         bundle.to_search_results.return_value = [{"id": "source:1"}]
         bundle.retrieval_mode_used = "vector"
+        bundle.embedding_dim_warning = None
         mock_retrieve.return_value = bundle
         response = client.post(
             "/api/search",

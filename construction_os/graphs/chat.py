@@ -308,6 +308,7 @@ def retrieving_context(state: ThreadState, config: RunnableConfig) -> dict:
                 "tokenCount": int(result.get("tokenCount") or 0),
                 "retrievalModeUsed": result.get("retrievalModeUsed"),
                 "fallbackReason": result.get("fallbackReason"),
+                "embeddingDimWarning": result.get("embeddingDimWarning"),
             }
             evidence_focus = result.get("evidenceFocus") or []
             emit_evidence_focus(evidence_focus, config)

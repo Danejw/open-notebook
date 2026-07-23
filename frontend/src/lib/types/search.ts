@@ -40,4 +40,6 @@ export interface SearchResponse {
   search_type: string
   /** Present when type is hybrid or auto */
   retrieval_mode_used?: string | null
+  /** Present when indexed embedding dims drift from the active model */
+  embedding_dim_warning?: string | null
 }

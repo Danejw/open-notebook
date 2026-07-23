@@ -14,8 +14,10 @@ Dry-run (no DB / no retrieve — validates dataset + corpus; used in CI):
     CONSTRUCTION_OS_EVAL_DRY_RUN=1 uv run python scripts/eval_retrieval.py
 
 Environment:
-    CONSTRUCTION_OS_EVAL_LIMIT   override result limit (default 10)
-    CONSTRUCTION_OS_EVAL_DRY_RUN if 1, validate + summarize dataset only
+    CONSTRUCTION_OS_EVAL_LIMIT       override result limit (default 10)
+    CONSTRUCTION_OS_EVAL_DRY_RUN     if 1, validate + summarize dataset only
+    CONSTRUCTION_OS_EVAL_MIN_RECALL  live-eval ALL recall floor (default 0.9);
+                                     exit 1 when any mode falls below
 """
 
 from __future__ import annotations
@@ -40,10 +42,15 @@ EVAL_PROJECT_ID = "project:retrieval_eval"
 EVAL_SOURCE_ID_PREFIX = "source:eval_"
 
 REQUIRED_FIELDS = ("id", "question", "query_class", "expected_source_ids", "project_id")
+DEFAULT_MIN_RECALL = 0.9
 
 
 class EvalDatasetError(ValueError):
     """Raised when the retrieval eval dataset is missing or malformed."""
+
+
+class EvalRecallThresholdError(ValueError):
+    """Raised when live recall@k ALL averages fall below the configured floor."""
 
 
 def load_eval_dataset(path: Path) -> list[dict[str, Any]]:
@@ -155,6 +162,38 @@ def summarize_dataset(dataset: list[dict[str, Any]]) -> dict[str, Any]:
     return {"total": len(dataset), "by_class": dict(sorted(by_class.items()))}
 
 
+def parse_min_recall(raw: str | None = None) -> float:
+    """Parse CONSTRUCTION_OS_EVAL_MIN_RECALL (default 0.9)."""
+    value = (raw if raw is not None else os.getenv("CONSTRUCTION_OS_EVAL_MIN_RECALL"))
+    if value is None or str(value).strip() == "":
+        return DEFAULT_MIN_RECALL
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError) as e:
+        raise EvalDatasetError(
+            f"CONSTRUCTION_OS_EVAL_MIN_RECALL must be a float, got {value!r}"
+        ) from e
+    if parsed < 0.0 or parsed > 1.0:
+        raise EvalDatasetError(
+            f"CONSTRUCTION_OS_EVAL_MIN_RECALL must be in [0, 1], got {parsed}"
+        )
+    return parsed
+
+
+def assert_recall_meets_threshold(
+    mode_all_averages: dict[str, float],
+    *,
+    min_recall: float,
+) -> None:
+    """Fail when any mode's ALL average is below ``min_recall``."""
+    failures: list[str] = []
+    for mode, avg in sorted(mode_all_averages.items()):
+        if avg < min_recall:
+            failures.append(f"{mode} ALL={avg:.3f} < {min_recall:.3f}")
+    if failures:
+        raise EvalRecallThresholdError("; ".join(failures))
+
+
 def _parent_ids(results: list[dict]) -> set[str]:
     ids: set[str] = set()
     for row in results:
@@ -181,6 +220,7 @@ async def run_eval() -> None:
     summary = summarize_dataset(dataset)
     limit = int(os.getenv("CONSTRUCTION_OS_EVAL_LIMIT", "10"))
     dry_run = os.getenv("CONSTRUCTION_OS_EVAL_DRY_RUN", "0") == "1"
+    min_recall = parse_min_recall()
 
     print(f"Loaded {summary['total']} queries from {EVAL_PATH}")
     print(f"Corpus sources: {len(corpus)} ({CORPUS_PATH.name})")
@@ -189,6 +229,7 @@ async def run_eval() -> None:
 
     if dry_run:
         print("Dry run complete (dataset + corpus validated; no retrieval).")
+        print(f"Live gate would require ALL recall >= {min_recall:.3f} per mode.")
         return
 
     from construction_os.retrieval import retrieve
@@ -216,6 +257,7 @@ async def run_eval() -> None:
             scores[mode]["_all"].append(score)
 
     print("\nRecall@{} by mode / query class:".format(limit))
+    mode_all_averages: dict[str, float] = {}
     for mode in modes:
         print(f"\n[{mode}]")
         for cls in sorted(k for k in scores[mode] if k != "_all"):
@@ -223,7 +265,16 @@ async def run_eval() -> None:
             avg = sum(vals) / len(vals) if vals else 0.0
             print(f"  {cls:12s}  {avg:.3f}  (n={len(vals)})")
         all_vals = scores[mode]["_all"]
-        print(f"  {'ALL':12s}  {sum(all_vals)/len(all_vals):.3f}")
+        all_avg = sum(all_vals) / len(all_vals) if all_vals else 0.0
+        mode_all_averages[mode] = all_avg
+        print(f"  {'ALL':12s}  {all_avg:.3f}")
+
+    try:
+        assert_recall_meets_threshold(mode_all_averages, min_recall=min_recall)
+    except EvalRecallThresholdError as error:
+        print(f"\nFAIL recall threshold (>= {min_recall:.3f}): {error}")
+        raise SystemExit(1) from error
+    print(f"\nRecall threshold OK (ALL >= {min_recall:.3f} for {', '.join(modes)}).")
 
 
 if __name__ == "__main__":

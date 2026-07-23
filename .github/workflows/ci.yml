@@ -46,12 +46,12 @@ jobs:
       - name: Compile backend modules
         run: python -m compileall -q api construction_os
 
-      - name: Retrieval eval dry-run (RAG quality gate)
+      - name: Retrieval eval gate (RAG quality)
         env:
           CONSTRUCTION_OS_EVAL_DRY_RUN: '1'
           CONSTRUCTION_OS_PASSWORD: ''
         run: |
-          python -m pytest -q tests/test_eval_retrieval_dry_run.py
+          python -m pytest -q tests/test_eval_retrieval_dry_run.py tests/test_embedding_health.py
           python scripts/eval_retrieval.py
 
       - name: Run HTML template binding tests

@@ -393,21 +393,25 @@ async def test_concurrent_project_creation():
 
 ## Retrieval eval (RAG quality gate)
 
-CI always runs a **dry-run** of the retrieval eval dataset (no live DB):
+CI always runs a **dry-run** of the retrieval eval dataset (no live DB) plus
+threshold-gate unit tests:
 
 ```bash
 CONSTRUCTION_OS_EVAL_DRY_RUN=1 python scripts/eval_retrieval.py
-uv run pytest -q tests/test_eval_retrieval_dry_run.py
+uv run pytest -q tests/test_eval_retrieval_dry_run.py tests/test_embedding_health.py
 ```
 
 Dry-run requires fixture IDs (`project:retrieval_eval`, `source:eval_*`) and
 checks that every expected ID exists in `tests/eval/graph_rag/corpus.json`.
 
-For a full recall@k comparison (vector vs hybrid):
+For a full recall@k comparison (vector vs hybrid), seed then run live. Live
+eval **exits non-zero** if any mode's ALL recall falls below
+`CONSTRUCTION_OS_EVAL_MIN_RECALL` (default **0.9**):
 
 ```bash
 uv run python scripts/seed_retrieval_eval.py
 uv run python scripts/eval_retrieval.py
+# optional: CONSTRUCTION_OS_EVAL_MIN_RECALL=0.95
 ```
 
 See `scripts/README.md` → `eval_retrieval.py`.

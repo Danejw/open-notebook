@@ -34,11 +34,15 @@ uv run python scripts/seed_retrieval_eval.py
 Requires SurrealDB + embeddings configured, and a prior seed.
 
 ```bash
-# Optional: override top-k (default 10)
-CONSTRUCTION_OS_EVAL_LIMIT=10 uv run python scripts/eval_retrieval.py
+# Optional: override top-k (default 10) and recall floor (default 0.9)
+CONSTRUCTION_OS_EVAL_LIMIT=10 CONSTRUCTION_OS_EVAL_MIN_RECALL=0.9 \
+  uv run python scripts/eval_retrieval.py
 ```
 
-Prints recall@k by mode (`vector`, `hybrid`) and query class.
+Prints recall@k by mode (`vector`, `hybrid`) and query class. Exits with code 1
+if any mode's ALL average is below `CONSTRUCTION_OS_EVAL_MIN_RECALL`.
+
+Unit coverage: `tests/test_eval_retrieval_dry_run.py` (includes threshold gate).
 
 ---
 

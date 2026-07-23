@@ -77,6 +77,7 @@ class EvidenceBundle(BaseModel):
     paths: List[EvidencePath] = Field(default_factory=list)
     retrieval_mode_used: RetrievalMode = "vector"
     fallback_reason: Optional[str] = None
+    embedding_dim_warning: Optional[str] = None
 
     def to_search_results(self) -> List[Dict[str, Any]]:
         return [item.to_search_result() for item in self.items]

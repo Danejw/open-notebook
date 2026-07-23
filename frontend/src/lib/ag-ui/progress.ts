@@ -29,6 +29,8 @@ export interface AgentProgressDetail {
   retrievalModeUsed?: string | null
   /** Why retrieve fell back (e.g. graph_empty_or_unavailable), if any */
   fallbackReason?: string | null
+  /** Indexed embedding dim drift vs active model (rebuild recommended) */
+  embeddingDimWarning?: string | null
   /** Count of citations stripped as not in retrieved evidence (RAG-015) */
   citationViolations?: number
   /** Removed citation IDs (capped server-side) */

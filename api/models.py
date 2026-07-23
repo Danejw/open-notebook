@@ -71,7 +71,11 @@ class SearchRequest(BaseModel):
     )
     project_id: Optional[str] = Field(
         None,
-        description="Optional project scope; when set, only project members are searched",
+        description=(
+            "Optional project scope; when set, only project members are searched. "
+            "When omitted, search is corpus-wide — intentional for single-tenant "
+            "deployments (RAG-009 accepted)."
+        ),
     )
 
     def resolve_search_artifacts(self) -> bool:
@@ -89,6 +93,13 @@ class SearchResponse(BaseModel):
         description=(
             "Actual retrieve() mode used when type is hybrid or auto "
             "(e.g. vector, hybrid, graph); null for text/vector"
+        ),
+    )
+    embedding_dim_warning: Optional[str] = Field(
+        None,
+        description=(
+            "Present when indexed embedding dimensions drift from the active model; "
+            "rebuild embeddings to restore vector recall"
         ),
     )
 

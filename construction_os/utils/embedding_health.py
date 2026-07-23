@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any, Optional
 
 from loguru import logger
 from pydantic import BaseModel, Field, computed_field
 
 from construction_os.database.repository import repo_query
+
+# Avoid probing embeddings + scanning tables on every search/chat turn.
+_DIM_WARNING_CACHE_TTL_SECONDS = 60.0
+_dim_warning_cache_monotonic: float = 0.0
+_dim_warning_cache_value: Optional[str] = None
 
 
 class EmbeddingDimensionHealth(BaseModel):
@@ -140,3 +146,33 @@ async def get_embedding_dimension_health() -> EmbeddingDimensionHealth:
             f"All {health.indexed_total} indexed embeddings match dimension {expected}."
         )
     return health
+
+
+def clear_embedding_dimension_warning_cache() -> None:
+    """Reset the query-path dim-warning cache (tests / after rebuild)."""
+    global _dim_warning_cache_monotonic, _dim_warning_cache_value
+    _dim_warning_cache_monotonic = 0.0
+    _dim_warning_cache_value = None
+
+
+async def get_cached_embedding_dimension_warning() -> Optional[str]:
+    """Return a rebuild warning for query paths when indexed dims drift (A+ pack).
+
+    Cached briefly so chat/search do not re-probe the embedder on every request.
+    Returns None when healthy or when health cannot be assessed.
+    """
+    global _dim_warning_cache_monotonic, _dim_warning_cache_value
+    now = time.monotonic()
+    if now - _dim_warning_cache_monotonic < _DIM_WARNING_CACHE_TTL_SECONDS:
+        return _dim_warning_cache_value
+    try:
+        health = await get_embedding_dimension_health()
+        warning = health.message if health.needs_rebuild else None
+    except Exception as error:
+        logger.debug("Embedding dimension health check skipped: {}", error)
+        warning = None
+    _dim_warning_cache_value = warning
+    _dim_warning_cache_monotonic = now
+    if warning:
+        logger.warning("Embedding dimension drift on query path: {}", warning)
+    return warning

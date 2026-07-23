@@ -9,13 +9,17 @@ import pytest
 
 from scripts.eval_retrieval import (
     CORPUS_PATH,
+    DEFAULT_MIN_RECALL,
     EVAL_PATH,
     EVAL_PROJECT_ID,
     EVAL_SOURCE_ID_PREFIX,
     EvalDatasetError,
+    EvalRecallThresholdError,
     assert_dataset_ids_in_corpus,
+    assert_recall_meets_threshold,
     load_eval_corpus,
     load_eval_dataset,
+    parse_min_recall,
     summarize_dataset,
     validate_eval_corpus,
     validate_eval_dataset,
@@ -118,3 +122,29 @@ def test_load_eval_dataset_rejects_non_list(tmp_path: Path) -> None:
     path.write_text(json.dumps({"not": "a list"}), encoding="utf-8")
     with pytest.raises(EvalDatasetError, match="JSON array"):
         load_eval_dataset(path)
+
+
+def test_parse_min_recall_defaults_to_point_nine() -> None:
+    assert parse_min_recall("") == DEFAULT_MIN_RECALL
+    assert parse_min_recall(None) == DEFAULT_MIN_RECALL
+    assert parse_min_recall("0.85") == 0.85
+
+
+def test_parse_min_recall_rejects_out_of_range() -> None:
+    with pytest.raises(EvalDatasetError, match=r"\[0, 1\]"):
+        parse_min_recall("1.5")
+
+
+def test_assert_recall_meets_threshold_passes_at_floor() -> None:
+    assert_recall_meets_threshold(
+        {"vector": 0.9, "hybrid": 1.0},
+        min_recall=0.9,
+    )
+
+
+def test_assert_recall_meets_threshold_fails_below_floor() -> None:
+    with pytest.raises(EvalRecallThresholdError, match="vector ALL=0.800"):
+        assert_recall_meets_threshold(
+            {"vector": 0.8, "hybrid": 1.0},
+            min_recall=0.9,
+        )

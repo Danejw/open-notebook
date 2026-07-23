@@ -8,6 +8,7 @@ from construction_os.ai.models import model_manager
 from construction_os.domain.project import text_search, vector_search
 from construction_os.exceptions import DatabaseOperationError, InvalidInputError
 from construction_os.retrieval import retrieve
+from construction_os.utils.embedding_health import get_cached_embedding_dimension_warning
 
 router = APIRouter()
 
@@ -24,6 +25,7 @@ async def search_knowledge_base(search_request: SearchRequest):
     """
     try:
         retrieval_mode_used: Optional[str] = None
+        embedding_dim_warning: Optional[str] = None
 
         if search_request.type in ("hybrid", "auto"):
             if not await model_manager.get_embedding_model():
@@ -46,6 +48,7 @@ async def search_knowledge_base(search_request: SearchRequest):
             )
             results = bundle.to_search_results()
             retrieval_mode_used = bundle.retrieval_mode_used
+            embedding_dim_warning = bundle.embedding_dim_warning
         elif search_request.type == "vector":
             # Pure vector — intentionally skips hybrid RRF (use hybrid/auto instead).
             if not await model_manager.get_embedding_model():
@@ -54,6 +57,7 @@ async def search_knowledge_base(search_request: SearchRequest):
                     detail="Vector search requires an embedding model. Please configure one in the Models section.",
                 )
 
+            embedding_dim_warning = await get_cached_embedding_dimension_warning()
             results = await vector_search(
                 keyword=search_request.query,
                 results=search_request.limit,
@@ -77,6 +81,7 @@ async def search_knowledge_base(search_request: SearchRequest):
             total_count=len(results) if results else 0,
             search_type=search_request.type,
             retrieval_mode_used=retrieval_mode_used,
+            embedding_dim_warning=embedding_dim_warning,
         )
     except DatabaseOperationError as e:
         logger.error(f"Database error during search: {str(e)}")

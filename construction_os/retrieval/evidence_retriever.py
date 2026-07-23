@@ -17,6 +17,7 @@ from construction_os.retrieval.types import (
     EvidencePath,
     RetrievalMode,
 )
+from construction_os.utils.embedding_health import get_cached_embedding_dimension_warning
 
 # Identifier-ish patterns that benefit from lexical (BM25) recall.
 _IDENTIFIER_RE = re.compile(
@@ -249,6 +250,9 @@ async def retrieve(
     if not query or not query.strip():
         return EvidenceBundle(retrieval_mode_used="vector", fallback_reason="empty_query")
 
+    # Query-path dim drift warn (cached); surfaces beyond Advanced rebuild UI.
+    dim_warning = await get_cached_embedding_dimension_warning()
+
     resolved = _resolve_mode(query, mode)
     graph_env = get_graph_rag_mode()
     fallback_reason: Optional[str] = None
@@ -276,6 +280,7 @@ async def retrieve(
             paths=[],
             retrieval_mode_used="vector",
             fallback_reason=drawing_note,
+            embedding_dim_warning=dim_warning,
         )
 
     # hybrid and graph both start with lexical + vector
@@ -301,6 +306,7 @@ async def retrieve(
             paths=[],
             retrieval_mode_used="hybrid",
             fallback_reason=drawing_note,
+            embedding_dim_warning=dim_warning,
         )
 
     # graph mode (or shadow comparison)
@@ -326,6 +332,7 @@ async def retrieve(
             paths=paths,
             retrieval_mode_used="hybrid",
             fallback_reason=drawing_note or "shadow_mode",
+            embedding_dim_warning=dim_warning,
         )
 
     if not graph_items:
@@ -341,6 +348,7 @@ async def retrieve(
             paths=[],
             retrieval_mode_used="hybrid",
             fallback_reason=drawing_note or fallback_reason,
+            embedding_dim_warning=dim_warning,
         )
 
     final = reciprocal_rank_fusion([fused, graph_items])[:limit]
@@ -355,4 +363,5 @@ async def retrieve(
         paths=paths,
         retrieval_mode_used="graph",
         fallback_reason=drawing_note or fallback_reason,
+        embedding_dim_warning=dim_warning,
     )

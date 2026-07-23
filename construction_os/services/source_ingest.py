@@ -8,11 +8,11 @@ from typing import Optional
 
 from loguru import logger
 
-from api.command_service import CommandService
 from commands.source_commands import SourceProcessingInput
 from construction_os.config import UPLOADS_FOLDER
 from construction_os.database.repository import ensure_record_id
 from construction_os.domain.project import Asset, Source
+from construction_os.jobs import submit_command_job
 from construction_os.knowledge.pipeline import PIPELINE_EXTRACTING
 
 
@@ -55,7 +55,7 @@ async def create_upload_source_and_process(
         artifacts=[],
         embed=embed,
     )
-    command_id = await CommandService.submit_command_job(
+    command_id = submit_command_job(
         "construction_os",
         "process_source",
         command_input.model_dump(),

@@ -75,6 +75,14 @@ Routers import domain models (`Project`, `Source`, `Note`, etc.) and LangGraph w
 - **routers/context.py**: POST /projects/{id}/context (**deprecated** — sunset 2026-12-31; use POST /chat/context)
 - **routers/search.py**: POST /search (text/vector/hybrid retrieval)
 
+### Context API map (canonical path)
+
+| Surface | Path / module | Role |
+|---------|---------------|------|
+| **Canonical (use this)** | `POST /chat/context` (`api/routers/chat.py`) | Token estimate / context sizing for project chat |
+| Runtime retrieval | `construction_os/graphs/chat_context.py` + `construction_os/capabilities/context.py` | Assembles evidence for live chat turns |
+| Deprecated dump | `POST /projects/{id}/context` (`api/routers/context.py`) | Legacy full-context dump — **do not use for new work**; remove only after 2026-12-31 with product approval |
+
 ## Common Patterns
 
 - **Service injection via FastAPI**: Routers import services directly; no DI framework

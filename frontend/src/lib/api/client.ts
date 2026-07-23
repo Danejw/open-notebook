@@ -71,7 +71,8 @@ apiClient.interceptors.request.use(async (config) => {
   }
 
   const token = getAuthToken()
-  if (token) {
+  // Preserve explicit Authorization (e.g. login probe with candidate password).
+  if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`
   }
 

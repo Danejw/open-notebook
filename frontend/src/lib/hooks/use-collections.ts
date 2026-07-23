@@ -3,6 +3,7 @@ import { collectionsApi } from '@/lib/api/collections'
 import { QUERY_KEYS } from '@/lib/api/query-client'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { createMutationToastHandlers } from '@/lib/hooks/create-mutation-toast-handlers'
 import { getApiErrorMessage } from '@/lib/utils/error-handler'
 import {
   CollectionImportConfirmRequest,
@@ -39,24 +40,17 @@ export function useCreateCollection() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { t } = useTranslation()
+  const handlers = createMutationToastHandlers({
+    queryClient,
+    toast,
+    t,
+    invalidateKeys: [QUERY_KEYS.collections, QUERY_KEYS.collectionsCatalog],
+    successDescription: t('collections.createSuccess'),
+  })
 
   return useMutation({
     mutationFn: (data: CreateCollectionRequest) => collectionsApi.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.collections })
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.collectionsCatalog })
-      toast({
-        title: t('common.success'),
-        description: t('collections.createSuccess'),
-      })
-    },
-    onError: (error: unknown) => {
-      toast({
-        title: t('common.error'),
-        description: getApiErrorMessage(error, (key) => t(key)),
-        variant: 'destructive',
-      })
-    },
+    ...handlers,
   })
 }
 
@@ -118,24 +112,17 @@ export function useDeleteCollection() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { t } = useTranslation()
+  const handlers = createMutationToastHandlers({
+    queryClient,
+    toast,
+    t,
+    invalidateKeys: [QUERY_KEYS.collections, QUERY_KEYS.collectionsCatalog],
+    successDescription: t('collections.deleteSuccess'),
+  })
 
   return useMutation({
     mutationFn: (id: string) => collectionsApi.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.collections })
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.collectionsCatalog })
-      toast({
-        title: t('common.success'),
-        description: t('collections.deleteSuccess'),
-      })
-    },
-    onError: (error: unknown) => {
-      toast({
-        title: t('common.error'),
-        description: getApiErrorMessage(error, (key) => t(key)),
-        variant: 'destructive',
-      })
-    },
+    ...handlers,
   })
 }
 

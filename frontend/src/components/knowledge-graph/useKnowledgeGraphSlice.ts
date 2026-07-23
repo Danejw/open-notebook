@@ -24,6 +24,7 @@ import {
   useSaveGraphLayout,
   useSourceSubgraph,
 } from '@/lib/hooks/useKnowledgeGraph'
+import { useSources } from '@/lib/hooks/use-sources'
 import { useGraphLiveStore } from '@/lib/stores/graph-live-store'
 import { useKnowledgeGraphStore } from '@/lib/stores/knowledge-graph-store'
 
@@ -49,8 +50,15 @@ export function useKnowledgeGraphSlice(projectId: string) {
   const processedLiveTokenRef = useRef(0)
 
   const lastCompleted = useGraphLiveStore((s) => s.lastCompleted)
-  const projectUpdating = useGraphLiveStore((s) =>
-    s.isProjectUpdating(projectId)
+  // Server pipeline stage from React Query is the source of truth for "updating".
+  const { data: projectSources } = useSources(projectId)
+  const projectUpdating = useMemo(
+    () =>
+      (projectSources ?? []).some((source) => {
+        const stage = source.stage || source.pipeline_stage
+        return stage === 'knowledge_graph'
+      }),
+    [projectSources]
   )
 
   const overviewQuery = useGraphOverview(projectId, viewMode === 'explore')

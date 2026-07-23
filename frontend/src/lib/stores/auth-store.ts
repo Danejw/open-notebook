@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { getApiUrl, getConfig } from '@/lib/config'
+import { isAxiosError } from 'axios'
+import { apiClient } from '@/lib/api/client'
+import { getConfig } from '@/lib/config'
 
 interface AuthState {
   isAuthenticated: boolean
@@ -16,6 +18,25 @@ interface AuthState {
   login: (password: string) => Promise<boolean>
   logout: () => void
   checkAuth: () => Promise<boolean>
+}
+
+/**
+ * Probe /projects with an explicit Bearer token.
+ * validateStatus avoids the axios 401 interceptor redirect during auth checks.
+ */
+async function probeAuth(token: string): Promise<{ ok: boolean; status?: number }> {
+  try {
+    const response = await apiClient.get('/projects', {
+      headers: { Authorization: `Bearer ${token}` },
+      validateStatus: () => true,
+    })
+    return { ok: response.status >= 200 && response.status < 300, status: response.status }
+  } catch (error) {
+    if (isAxiosError(error) && error.response) {
+      return { ok: false, status: error.response.status }
+    }
+    throw error
+  }
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -65,76 +86,69 @@ export const useAuthStore = create<AuthState>()(
       login: async (password: string) => {
         set({ isLoading: true, error: null })
         try {
-          const apiUrl = await getApiUrl()
+          const { ok, status } = await probeAuth(password)
 
-          // Test auth with the projects endpoint.
-          const response = await fetch(`${apiUrl}/api/projects`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${password}`,
-              'Content-Type': 'application/json'
-            }
-          })
-          
-          if (response.ok) {
-            set({ 
-              isAuthenticated: true, 
-              token: password, 
+          if (ok) {
+            set({
+              isAuthenticated: true,
+              token: password,
               isLoading: false,
               lastAuthCheck: Date.now(),
-              error: null
+              error: null,
             })
             return true
-          } else {
-            let errorMessage = 'Authentication failed'
-            if (response.status === 401) {
-              errorMessage = 'Invalid password. Please try again.'
-            } else if (response.status === 403) {
-              errorMessage = 'Access denied. Please check your credentials.'
-            } else if (response.status >= 500) {
-              errorMessage = 'Server error. Please try again later.'
-            } else {
-              errorMessage = `Authentication failed (${response.status})`
-            }
-            
-            set({ 
-              error: errorMessage,
-              isLoading: false,
-              isAuthenticated: false,
-              token: null
-            })
-            return false
           }
+
+          let errorMessage = 'Authentication failed'
+          if (status === 401) {
+            errorMessage = 'Invalid password. Please try again.'
+          } else if (status === 403) {
+            errorMessage = 'Access denied. Please check your credentials.'
+          } else if (status !== undefined && status >= 500) {
+            errorMessage = 'Server error. Please try again later.'
+          } else if (status !== undefined) {
+            errorMessage = `Authentication failed (${status})`
+          }
+
+          set({
+            error: errorMessage,
+            isLoading: false,
+            isAuthenticated: false,
+            token: null,
+          })
+          return false
         } catch (error) {
           console.error('Network error during auth:', error)
           let errorMessage = 'Authentication failed'
-          
+
           if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+            errorMessage = 'Unable to connect to server. Please check if the API is running.'
+          } else if (isAxiosError(error) && !error.response) {
             errorMessage = 'Unable to connect to server. Please check if the API is running.'
           } else if (error instanceof Error) {
             errorMessage = `Network error: ${error.message}`
           } else {
             errorMessage = 'An unexpected error occurred during authentication'
           }
-          
-          set({ 
+
+          set({
             error: errorMessage,
             isLoading: false,
             isAuthenticated: false,
-            token: null
+            token: null,
           })
           return false
         }
       },
-      
+
       logout: () => {
-        set({ 
-          isAuthenticated: false, 
-          token: null, 
-          error: null 
+        set({
+          isAuthenticated: false,
+          token: null,
+          error: null,
         })
       },
-      
+
       checkAuth: async () => {
         const state = get()
         const { token, lastAuthCheck, isCheckingAuth, isAuthenticated } = state
@@ -158,39 +172,31 @@ export const useAuthStore = create<AuthState>()(
         set({ isCheckingAuth: true })
 
         try {
-          const apiUrl = await getApiUrl()
+          const { ok } = await probeAuth(token)
 
-          const response = await fetch(`${apiUrl}/api/projects`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          })
-          
-          if (response.ok) {
-            set({ 
-              isAuthenticated: true, 
+          if (ok) {
+            set({
+              isAuthenticated: true,
               lastAuthCheck: now,
-              isCheckingAuth: false 
+              isCheckingAuth: false,
             })
             return true
-          } else {
-            set({
-              isAuthenticated: false,
-              token: null,
-              lastAuthCheck: null,
-              isCheckingAuth: false
-            })
-            return false
           }
-        } catch (error) {
-          console.error('checkAuth error:', error)
-          set({ 
-            isAuthenticated: false, 
+
+          set({
+            isAuthenticated: false,
             token: null,
             lastAuthCheck: null,
-            isCheckingAuth: false 
+            isCheckingAuth: false,
+          })
+          return false
+        } catch (error) {
+          console.error('checkAuth error:', error)
+          set({
+            isAuthenticated: false,
+            token: null,
+            lastAuthCheck: null,
+            isCheckingAuth: false,
           })
           return false
         }

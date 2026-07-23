@@ -3,8 +3,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { isAxiosError } from 'axios'
 import { sourcesApi } from '@/lib/api/sources'
-import { embeddingApi } from '@/lib/api/embedding'
-import { useSource } from '@/lib/hooks/use-sources'
+import {
+  useSource,
+  useUpdateSource,
+  useDeleteSource,
+  useEmbedSource,
+} from '@/lib/hooks/use-sources'
 import { SourceDetailSkeleton } from '@/components/common/LoadingSkeletons'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { PageError } from '@/components/common/PageError'
@@ -12,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { cn } from '@/lib/utils'
+import { triggerBlobDownload } from '@/lib/utils/blob-download'
 import { SourceKnowledgePanel } from '@/components/source/SourceKnowledgePanel'
 import { DrawingExtractionResultsDialog } from '@/components/sources/DrawingExtractionResultsDialog'
 import { selectInspectableDrawingRun } from '@/lib/drawing/select-inspectable-drawing-run'
@@ -47,12 +52,13 @@ export function SourceDetailContent({
     isError,
     refetch,
   } = useSource(sourceId)
+  const updateSource = useUpdateSource()
+  const deleteSource = useDeleteSource()
+  const embedSource = useEmbedSource()
   const [copied, setCopied] = useState(false)
-  const [isEmbedding, setIsEmbedding] = useState(false)
   const [isDownloadingFile, setIsDownloadingFile] = useState(false)
   const [fileAvailable, setFileAvailable] = useState<boolean | null>(null)
   const [sourceDeleteOpen, setSourceDeleteOpen] = useState(false)
-  const [deletingSource, setDeletingSource] = useState(false)
   const [activeTab, setActiveTab] = useState('content')
   const [drawingResultsOpen, setDrawingResultsOpen] = useState(false)
   const activeFocus = useCitationFocusStore((s) => s.activeFocus)
@@ -99,13 +105,9 @@ export function SourceDetailContent({
     if (!source || title === source.title) return
 
     try {
-      await sourcesApi.update(sourceId, { title })
-      toast.success(t('common.success'))
-      await refetch()
+      await updateSource.mutateAsync({ id: sourceId, data: { title } })
     } catch (err) {
       console.error('Failed to update source title:', err)
-      toast.error(t('common.error'))
-      await refetch()
     }
   }
 
@@ -113,15 +115,9 @@ export function SourceDetailContent({
     if (!source) return
 
     try {
-      setIsEmbedding(true)
-      const response = await embeddingApi.embedContent(sourceId, 'source')
-      toast.success(response.message || t('common.success'))
-      await refetch()
+      await embedSource.mutateAsync({ sourceId })
     } catch (err) {
       console.error('Failed to embed content:', err)
-      toast.error(t('common.error'))
-    } finally {
-      setIsEmbedding(false)
     }
   }
 
@@ -141,15 +137,7 @@ export function SourceDetailContent({
         `source-${source.id}`
       )
       const filename = filenameFromHeader || fallbackName
-
-      const blobUrl = window.URL.createObjectURL(response.data)
-      const link = document.createElement('a')
-      link.href = blobUrl
-      link.download = filename
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(blobUrl)
+      triggerBlobDownload(response.data, filename)
       setFileAvailable(true)
       toast.success(t('common.success'))
     } catch (err) {
@@ -220,16 +208,11 @@ export function SourceDetailContent({
     if (!source) return
 
     try {
-      setDeletingSource(true)
-      await sourcesApi.delete(source.id)
-      toast.success(t('common.success'))
+      await deleteSource.mutateAsync(source.id)
       setSourceDeleteOpen(false)
       onClose?.()
     } catch (error) {
       console.error('Failed to delete source:', error)
-      toast.error(t('common.error'))
-    } finally {
-      setDeletingSource(false)
     }
   }
 
@@ -253,7 +236,7 @@ export function SourceDetailContent({
         title={source.title}
         hasFilePath={Boolean(source.asset?.file_path)}
         embedded={source.embedded}
-        isEmbedding={isEmbedding}
+        isEmbedding={embedSource.isPending}
         isDownloadingFile={isDownloadingFile}
         fileAvailable={fileAvailable}
         onUpdateTitle={handleUpdateTitle}
@@ -314,7 +297,7 @@ export function SourceDetailContent({
               source={source}
               language={language}
               copied={copied}
-              isEmbedding={isEmbedding}
+              isEmbedding={embedSource.isPending}
               isDownloadingFile={isDownloadingFile}
               fileAvailable={fileAvailable}
               onEmbedContent={handleEmbedContent}
@@ -337,7 +320,7 @@ export function SourceDetailContent({
         description={t('sources.deleteSourceConfirm') || t('common.confirm')}
         confirmText={t('common.delete')}
         confirmVariant="destructive"
-        isLoading={deletingSource}
+        isLoading={deleteSource.isPending}
         onConfirm={handleDeleteSource}
       />
 

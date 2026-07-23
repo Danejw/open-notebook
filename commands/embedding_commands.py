@@ -26,17 +26,6 @@ from construction_os.utils.chunking import ContentType, chunk_text, detect_conte
 from construction_os.utils.embedding import generate_embedding, generate_embeddings
 
 
-def full_model_dump(model):
-    if isinstance(model, BaseModel):
-        return model.model_dump()
-    elif isinstance(model, dict):
-        return {k: full_model_dump(v) for k, v in model.items()}
-    elif isinstance(model, list):
-        return [full_model_dump(item) for item in model]
-    else:
-        return model
-
-
 def get_command_id(input_data: CommandInput) -> str:
     """Extract command_id from input_data's execution context, or return 'unknown'."""
     if input_data.execution_context:

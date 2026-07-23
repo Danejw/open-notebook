@@ -294,9 +294,13 @@ class TestKnowledgeGraphReprocessing:
 
 
 class TestSourceFailureDetails:
-    @patch("api.routers.sources.repo_query", new_callable=AsyncMock)
+    @patch("construction_os.services.source_list.repo_query", new_callable=AsyncMock)
+    @patch(
+        "construction_os.services.source_list.heal_pipeline_stage_if_needed",
+        new_callable=AsyncMock,
+    )
     def test_source_list_returns_processing_failure_snapshots(
-        self, mock_repo_query, client
+        self, _mock_heal, mock_repo_query, client
     ):
         mock_repo_query.return_value = [
             {

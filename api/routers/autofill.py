@@ -9,7 +9,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from api.routers.sources import save_uploaded_file
+from api.upload_utils import save_uploaded_file
 from construction_os.exceptions import (
     ConfigurationError,
     ExternalServiceError,

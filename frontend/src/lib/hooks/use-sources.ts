@@ -21,6 +21,7 @@ import {
 } from '@/lib/utils/source-query-cache'
 import {
   CreateSourceRequest,
+  UpdateSourceRequest,
   SourceResponse,
   SourceStatusResponse,
   SourceListResponse,
@@ -145,6 +146,47 @@ export function useSource(id: string) {
     enabled: !!id,
     staleTime: 30 * 1000, // 30 seconds - shorter stale time for more responsive updates
     refetchOnWindowFocus: true, // Refetch when user comes back to the tab
+  })
+}
+
+export function useUpdateSource() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string
+      data: UpdateSourceRequest
+    }) => sourcesApi.update(id, data),
+    onSuccess: (result, { id }) => {
+      queryClient.setQueryData(QUERY_KEYS.source(id), result)
+      patchAllSourceListQueries(queryClient, (sources) =>
+        sources.map((source) =>
+          source.id === id ? { ...source, ...result } : source
+        )
+      )
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.source(id) })
+      void queryClient.invalidateQueries({ queryKey: ['sources'] })
+      toast({
+        title: t('common.success'),
+        description: t('sources.sourceUpdatedSuccess'),
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('common.error'),
+        description: getApiErrorMessage(
+          error,
+          (key) => t(key),
+          t('sources.failedToUpdateSource')
+        ),
+        variant: 'destructive',
+      })
+    },
   })
 }
 

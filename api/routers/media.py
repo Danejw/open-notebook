@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse
 from loguru import logger
 
 from api.models import MediaAssetResponse, MediaAssetUpdate
-from api.routers.sources import generate_unique_filename
+from api.upload_utils import generate_unique_filename
 from construction_os.config import MEDIA_FOLDER
 from construction_os.domain.media_asset import MediaAsset
 from construction_os.exceptions import InvalidInputError, NotFoundError

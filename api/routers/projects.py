@@ -25,6 +25,19 @@ from construction_os.services.project_memory import (
 router = APIRouter()
 
 
+def _project_response(row: dict) -> ProjectResponse:
+    return ProjectResponse(
+        id=str(row.get("id", "")),
+        name=row.get("name", ""),
+        description=row.get("description", ""),
+        archived=row.get("archived", False),
+        created=str(row.get("created", "")),
+        updated=str(row.get("updated", "")),
+        source_count=row.get("source_count", 0) or 0,
+        note_count=row.get("note_count", 0) or 0,
+    )
+
+
 @router.get("/projects", response_model=List[ProjectResponse])
 async def get_projects(
     archived: Optional[bool] = Query(None, description="Filter by archived status"),
@@ -57,34 +70,11 @@ async def get_projects(
                 detail=f"Invalid order_by format: '{order_by}'. Expected 'field' or 'field direction'",
             )
 
-        # Build the query with counts
-        query = f"""
-            SELECT *,
-            count(<-reference.in) as source_count,
-            count(<-project_note.in) as note_count
-            FROM project
-            ORDER BY {validated_order_by}
-        """
-
-        result = await repo_query(query)
-
-        # Filter by archived status if specified
-        if archived is not None:
-            result = [row for row in result if row.get("archived") == archived]
-
-        return [
-            ProjectResponse(
-                id=str(row.get("id", "")),
-                name=row.get("name", ""),
-                description=row.get("description", ""),
-                archived=row.get("archived", False),
-                created=str(row.get("created", "")),
-                updated=str(row.get("updated", "")),
-                source_count=row.get("source_count", 0),
-                note_count=row.get("note_count", 0),
-            )
-            for row in result
-        ]
+        rows = await Project.list_with_counts(
+            order_by=validated_order_by,
+            archived=archived,
+        )
+        return [_project_response(row) for row in rows]
     except HTTPException:
         raise
     except Exception as e:
@@ -156,31 +146,10 @@ async def get_project_delete_preview(project_id: str):
 async def get_project(project_id: str):
     """Get a specific Project by ID."""
     try:
-        # Query with counts for single Project
-        query = """
-            SELECT *,
-            count(<-reference.in) as source_count,
-            count(<-project_note.in) as note_count
-            FROM $project_id
-        """
-        result = await repo_query(query, {"project_id": ensure_record_id(project_id)})
-
-        if not result:
-            raise HTTPException(status_code=404, detail="Project not found")
-
-        row = result[0]
-        return ProjectResponse(
-            id=str(row.get("id", "")),
-            name=row.get("name", ""),
-            description=row.get("description", ""),
-            archived=row.get("archived", False),
-            created=str(row.get("created", "")),
-            updated=str(row.get("updated", "")),
-            source_count=row.get("source_count", 0),
-            note_count=row.get("note_count", 0),
-        )
-    except HTTPException:
-        raise
+        row = await Project.fetch_with_counts(project_id)
+        return _project_response(row)
+    except NotFoundError:
+        raise HTTPException(status_code=404, detail="Project not found")
     except Exception as e:
         logger.error(f"Error fetching Project {project_id}: {str(e)}")
         raise HTTPException(
@@ -284,39 +253,8 @@ async def update_project(project_id: str, project_update: ProjectUpdate):
 
         await project.save()
 
-        # Query with counts after update
-        query = """
-            SELECT *,
-            count(<-reference.in) as source_count,
-            count(<-project_note.in) as note_count
-            FROM $project_id
-        """
-        result = await repo_query(query, {"project_id": ensure_record_id(project_id)})
-
-        if result:
-            row = result[0]
-            return ProjectResponse(
-                id=str(row.get("id", "")),
-                name=row.get("name", ""),
-                description=row.get("description", ""),
-                archived=row.get("archived", False),
-                created=str(row.get("created", "")),
-                updated=str(row.get("updated", "")),
-                source_count=row.get("source_count", 0),
-                note_count=row.get("note_count", 0),
-            )
-
-        # Fallback if query fails
-        return ProjectResponse(
-            id=project.id or "",
-            name=project.name,
-            description=project.description,
-            archived=project.archived or False,
-            created=str(project.created),
-            updated=str(project.updated),
-            source_count=0,
-            note_count=0,
-        )
+        row = await Project.fetch_with_counts(project_id)
+        return _project_response(row)
     except HTTPException:
         raise
     except NotFoundError:

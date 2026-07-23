@@ -1,11 +1,13 @@
 from typing import Any, Dict, List, Optional
 
 from loguru import logger
-from surreal_commands import get_command_status, submit_command
+from surreal_commands import get_command_status
+
+from construction_os.jobs import submit_command_job
 
 
 class CommandService:
-    """Generic service layer for command operations"""
+    """HTTP-facing wrapper around core job submission / status helpers."""
 
     @staticmethod
     async def submit_command_job(
@@ -15,33 +17,9 @@ class CommandService:
         context: Optional[Dict[str, Any]] = None,
     ) -> str:
         """Submit a generic command job for background processing"""
-        try:
-            # Ensure command modules are imported before submitting
-            # This is needed because submit_command validates against local registry
-            try:
-                import commands  # noqa: F401
-            except ImportError as import_err:
-                logger.error(f"Failed to import command modules: {import_err}")
-                raise ValueError("Command modules not available")
-
-            # surreal-commands expects: submit_command(app_name, command_name, args)
-            cmd_id = submit_command(
-                module_name,  # This is actually the app name (e.g., "construction_os")
-                command_name,  # Command name (e.g., "process_text")
-                command_args,  # Input data
-            )
-            # Convert RecordID to string if needed
-            if not cmd_id:
-                raise ValueError("Failed to get cmd_id from submit_command")
-            cmd_id_str = str(cmd_id)
-            logger.info(
-                f"Submitted command job: {cmd_id_str} for {module_name}.{command_name}"
-            )
-            return cmd_id_str
-
-        except Exception as e:
-            logger.error(f"Failed to submit command job: {e}")
-            raise
+        return submit_command_job(
+            module_name, command_name, command_args, context=context
+        )
 
     @staticmethod
     async def get_command_status(job_id: str) -> Dict[str, Any]:

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -18,8 +18,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion'
-import { embeddingApi } from '@/lib/api/embedding'
-import type { RebuildEmbeddingsRequest, RebuildStatusResponse } from '@/lib/api/embedding'
+import {
+  useEmbeddingDimensionHealth,
+  useRebuildEmbeddings,
+  useRebuildEmbeddingsStatus,
+} from '@/lib/hooks/use-embedding-admin'
 import { useTranslation } from '@/lib/hooks/use-translation'
 
 export function RebuildEmbeddings() {
@@ -30,89 +33,47 @@ export function RebuildEmbeddings() {
   const [includeNotes, setIncludeNotes] = useState(true)
   const [chainKg, setChainKg] = useState(false)
   const [commandId, setCommandId] = useState<string | null>(null)
-  const [status, setStatus] = useState<RebuildStatusResponse | null>(null)
-  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
 
-  const dimensionHealthQuery = useQuery({
-    queryKey: ['embeddings', 'dimension-health'],
-    queryFn: () => embeddingApi.getDimensionHealth(),
-    refetchOnWindowFocus: true,
-  })
+  const dimensionHealthQuery = useEmbeddingDimensionHealth()
+  const rebuildMutation = useRebuildEmbeddings()
+  const statusQuery = useRebuildEmbeddingsStatus(commandId)
+  const status = statusQuery.data ?? null
 
-  // Rebuild mutation
-  const rebuildMutation = useMutation({
-    mutationFn: async (request: RebuildEmbeddingsRequest) => {
-      return embeddingApi.rebuildEmbeddings(request)
-    },
-    onSuccess: (data) => {
-      setCommandId(data.command_id)
-      // Start polling for status
-      startPolling(data.command_id)
-    }
-  })
-
-  // Start polling for rebuild status
-  const startPolling = (cmdId: string) => {
-    if (pollingInterval) {
-      clearInterval(pollingInterval)
-    }
-
-    const interval = setInterval(async () => {
-      try {
-        const statusData = await embeddingApi.getRebuildStatus(cmdId)
-        setStatus(statusData)
-
-        // Stop polling if completed or failed
-        if (statusData.status === 'completed' || statusData.status === 'failed') {
-          stopPolling()
-          void queryClient.invalidateQueries({
-            queryKey: ['embeddings', 'dimension-health'],
-          })
-        }
-      } catch (error) {
-        console.error('Failed to fetch rebuild status:', error)
-      }
-    }, 5000) // Poll every 5 seconds
-
-    setPollingInterval(interval)
-  }
-
-  // Stop polling
-  const stopPolling = useCallback(() => {
-    if (pollingInterval) {
-      clearInterval(pollingInterval)
-      setPollingInterval(null)
-    }
-  }, [pollingInterval])
-
-  // Cleanup on unmount
   useEffect(() => {
-    return () => {
-      stopPolling()
+    if (status?.status === 'completed' || status?.status === 'failed') {
+      void queryClient.invalidateQueries({
+        queryKey: ['embeddings', 'dimension-health'],
+      })
     }
-  }, [stopPolling])
+  }, [status?.status, queryClient])
 
   const handleStartRebuild = () => {
-    const request: RebuildEmbeddingsRequest = {
-      mode,
-      include_sources: includeSources,
-      include_artifacts: includeNotes,
-      include_notes: includeNotes,
-      chain_kg: chainKg,
-    }
-
-    rebuildMutation.mutate(request)
+    rebuildMutation.mutate(
+      {
+        mode,
+        include_sources: includeSources,
+        include_artifacts: includeNotes,
+        include_notes: includeNotes,
+        chain_kg: chainKg,
+      },
+      {
+        onSuccess: (data) => {
+          setCommandId(data.command_id)
+        },
+      }
+    )
   }
 
   const handleReset = () => {
-    stopPolling()
     setCommandId(null)
-    setStatus(null)
     rebuildMutation.reset()
   }
 
   const isAnyTypeSelected = includeSources || includeNotes
-  const isRebuildActive = commandId && status && (status.status === 'queued' || status.status === 'running')
+  const isRebuildActive =
+    !!commandId &&
+    !!status &&
+    (status.status === 'queued' || status.status === 'running')
 
   const progressData = status?.progress
   const stats = status?.stats

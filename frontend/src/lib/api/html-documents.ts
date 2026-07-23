@@ -1,5 +1,6 @@
 import apiClient from '@/lib/api/client'
 import { sanitizeExportFilename } from '@/lib/utils/export-artifact'
+import { triggerBlobDownload } from '@/lib/utils/blob-download'
 import type {
   BidDocument,
   CreateBidDocumentRequest,
@@ -22,17 +23,6 @@ function parseFilenameFromDisposition(header?: string): string | null {
   }
   const plainMatch = /filename="?([^";]+)"?/i.exec(header)
   return plainMatch?.[1] ?? null
-}
-
-function triggerBlobDownload(blob: Blob, filename: string) {
-  const blobUrl = window.URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = blobUrl
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  window.URL.revokeObjectURL(blobUrl)
 }
 
 export const htmlDocumentsApi = {

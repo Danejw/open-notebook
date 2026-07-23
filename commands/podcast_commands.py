@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import Optional
 
 from loguru import logger
-from pydantic import BaseModel
 from surreal_commands import CommandInput, CommandOutput, command
 
+from commands._common import full_model_dump
 from construction_os.config import DATA_FOLDER
 from construction_os.database.repository import ensure_record_id, repo_query
 from construction_os.podcasts.models import (
@@ -35,17 +35,6 @@ def build_episode_output_dir(data_folder: str) -> tuple[str, Path]:
     episode_dir_name = str(uuid.uuid4())
     output_dir = Path(f"{data_folder}/podcasts/episodes/{episode_dir_name}")
     return episode_dir_name, output_dir
-
-
-def full_model_dump(model):
-    if isinstance(model, BaseModel):
-        return model.model_dump()
-    elif isinstance(model, dict):
-        return {k: full_model_dump(v) for k, v in model.items()}
-    elif isinstance(model, list):
-        return [full_model_dump(item) for item in model]
-    else:
-        return model
 
 
 class PodcastGenerationInput(CommandInput):

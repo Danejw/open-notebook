@@ -133,6 +133,7 @@ export default function OpportunitiesPage() {
   const { data: sources, isLoading: sourcesLoading } = useOpportunitySources()
   const { data: collectionsCatalog } = useCollectionsCatalog()
   const seedSources = useSeedOpportunitySources()
+  const seedAttemptedRef = useRef(false)
   const syncSamGov = useSyncSamGovOpportunities()
   const importSamGovUrl = useImportSamGovOpportunityUrl()
   const setSamSyncCollection = useSetSamSyncCollection()
@@ -200,7 +201,15 @@ export default function OpportunitiesPage() {
   }
 
   useEffect(() => {
-    if (!sourcesLoading && sources && sources.length === 0 && !seedSources.isPending) {
+    if (
+      !sourcesLoading &&
+      sources &&
+      sources.length === 0 &&
+      !seedSources.isPending &&
+      !seedSources.isError &&
+      !seedAttemptedRef.current
+    ) {
+      seedAttemptedRef.current = true
       seedSources.mutate()
     }
   }, [seedSources, sources, sourcesLoading])

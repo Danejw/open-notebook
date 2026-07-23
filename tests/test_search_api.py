@@ -140,23 +140,23 @@ class TestTextSearchHighlightOverflowFallback:
 
     @pytest.mark.asyncio
     async def test_position_overflow_falls_back_to_vector_search(self):
-        import construction_os.domain.project as project_module
+        import construction_os.domain.search as search_module
 
         overflow = RuntimeError(
             "A value can't be highlighted: position overflow: 2545 - len: 1965"
         )
         with (
             patch.object(
-                project_module, "repo_query", new_callable=AsyncMock, side_effect=overflow
+                search_module, "repo_query", new_callable=AsyncMock, side_effect=overflow
             ),
             patch.object(
-                project_module,
+                search_module,
                 "vector_search",
                 new_callable=AsyncMock,
                 return_value=[{"id": "source:1"}],
             ) as mock_vector,
         ):
-            result = await project_module.text_search("hello", 10)
+            result = await search_module.text_search("hello", 10)
 
         assert result == [{"id": "source:1"}]
         mock_vector.assert_awaited_once_with(
@@ -165,16 +165,16 @@ class TestTextSearchHighlightOverflowFallback:
 
     @pytest.mark.asyncio
     async def test_position_overflow_raises_when_vector_also_fails(self):
-        import construction_os.domain.project as project_module
+        import construction_os.domain.search as search_module
         from construction_os.exceptions import DatabaseOperationError
 
         overflow = RuntimeError("position overflow: 1 - len: 0")
         with (
             patch.object(
-                project_module, "repo_query", new_callable=AsyncMock, side_effect=overflow
+                search_module, "repo_query", new_callable=AsyncMock, side_effect=overflow
             ),
             patch.object(
-                project_module,
+                search_module,
                 "vector_search",
                 new_callable=AsyncMock,
                 side_effect=Exception("no embedding model"),
@@ -183,18 +183,18 @@ class TestTextSearchHighlightOverflowFallback:
             # When both search paths fail, surface the error rather than masking it
             # as an empty result set.
             with pytest.raises(DatabaseOperationError):
-                await project_module.text_search("hello", 10)
+                await search_module.text_search("hello", 10)
 
     @pytest.mark.asyncio
     async def test_other_runtime_errors_still_raise(self):
-        import construction_os.domain.project as project_module
+        import construction_os.domain.search as search_module
         from construction_os.exceptions import DatabaseOperationError
 
         with patch.object(
-            project_module,
+            search_module,
             "repo_query",
             new_callable=AsyncMock,
             side_effect=RuntimeError("some other db failure"),
         ):
             with pytest.raises(DatabaseOperationError):
-                await project_module.text_search("hello", 10)
+                await search_module.text_search("hello", 10)

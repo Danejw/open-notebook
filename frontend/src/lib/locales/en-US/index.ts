@@ -1,3 +1,5 @@
+import { opportunitiesEn } from '../sections/opportunities'
+
 export const enUS = {
   "agentSteps": {
     "loading_skills": "Loading skills…",
@@ -1564,6 +1566,7 @@ export const enUS = {
     "decryptionError": "Decryption Error",
     "decryptionErrorDescription": "This credential's API key could not be decrypted. The encryption key may have changed. Delete this credential and re-create it with the correct key."
   },
+  "opportunities": opportunitiesEn,
   "setupBanner": {
     "encryptionRequired": "Encryption key not configured",
     "encryptionRequiredDescription": "Set the CONSTRUCTION_OS_ENCRYPTION_KEY environment variable to enable secure credential storage.",

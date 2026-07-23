@@ -1,3 +1,5 @@
+import { opportunitiesEn } from '../sections/opportunities'
+
 export const esES = {
   "agentSteps": {
     "loading_skills": "Loading skills…",
@@ -1394,6 +1396,7 @@ export const esES = {
     "decryptionError": "Error de desencriptación",
     "decryptionErrorDescription": "La clave API de esta credencial no pudo ser desencriptada. La clave de encriptación puede haber cambiado. Elimina esta credencial y créala de nuevo con la clave correcta."
   },
+  "opportunities": opportunitiesEn,
   "setupBanner": {
     "encryptionRequired": "Clave de encriptación no configurada",
     "encryptionRequiredDescription": "Establece la variable de entorno CONSTRUCTION_OS_ENCRYPTION_KEY para habilitar el almacenamiento seguro de credenciales.",

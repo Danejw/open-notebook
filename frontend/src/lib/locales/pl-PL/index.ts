@@ -1,3 +1,5 @@
+import { opportunitiesEn } from '../sections/opportunities'
+
 export const plPL = {
   "agentSteps": {
     "loading_skills": "Loading skills…",
@@ -1394,6 +1396,7 @@ export const plPL = {
     "decryptionError": "Błąd odszyfrowywania",
     "decryptionErrorDescription": "Nie udało się odszyfrować klucza API tego poświadczenia. Klucz szyfrowania mógł ulec zmianie. Usuń to poświadczenie i utwórz je ponownie z prawidłowym kluczem."
   },
+  "opportunities": opportunitiesEn,
   "setupBanner": {
     "encryptionRequired": "Klucz szyfrowania nie został skonfigurowany",
     "encryptionRequiredDescription": "Ustaw zmienną środowiskową CONSTRUCTION_OS_ENCRYPTION_KEY, aby umożliwić bezpieczne przechowywanie poświadczeń.",

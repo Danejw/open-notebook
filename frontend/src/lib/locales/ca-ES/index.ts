@@ -1,3 +1,5 @@
+import { opportunitiesEn } from '../sections/opportunities'
+
 export const caES = {
   "agentSteps": {
     "loading_skills": "Loading skills…",
@@ -1394,6 +1396,7 @@ export const caES = {
     "decryptionError": "Error de desencriptació",
     "decryptionErrorDescription": "No s'ha pogut desencriptar la clau de l'API d'aquesta credencial. La clau d'encriptació pot haver canviat. Suprimeix aquesta credencial i torna-la a crear amb la clau correcta."
   },
+  "opportunities": opportunitiesEn,
   "setupBanner": {
     "encryptionRequired": "Clau de xifratge no configurada",
     "encryptionRequiredDescription": "Estableix la variable d'entorn CONSTRUCTION_OS_ENCRYPTION_KEY per habilitar l'emmagatzematge segur de credencials.",

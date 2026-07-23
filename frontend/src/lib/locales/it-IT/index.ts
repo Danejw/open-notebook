@@ -1,3 +1,5 @@
+import { opportunitiesEn } from '../sections/opportunities'
+
 export const itIT = {
   "agentSteps": {
     "loading_skills": "Loading skills…",
@@ -1394,6 +1396,7 @@ export const itIT = {
     "decryptionError": "Errore di decrittazione",
     "decryptionErrorDescription": "La chiave API di questa credenziale non può essere decrittata. La chiave di crittografia potrebbe essere cambiata. Elimina questa credenziale e ricreala con la chiave corretta."
   },
+  "opportunities": opportunitiesEn,
   "setupBanner": {
     "encryptionRequired": "Chiave di crittografia non configurata",
     "encryptionRequiredDescription": "Imposta la variabile d'ambiente CONSTRUCTION_OS_ENCRYPTION_KEY per abilitare l'archiviazione sicura delle credenziali.",

@@ -134,6 +134,7 @@ export function useOpportunitySources() {
 export function useSeedOpportunitySources() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   return useMutation({
     mutationFn: opportunitiesApi.seedSources,
@@ -142,8 +143,8 @@ export function useSeedOpportunitySources() {
     },
     onError: () => {
       toast({
-        title: 'Source registry could not be initialized',
-        description: 'The Opportunity Hub is available, but its Hawaii source list was not saved.',
+        title: t('opportunities.toastSeedSourcesFailedTitle'),
+        description: t('opportunities.toastSeedSourcesFailedDescription'),
         variant: 'destructive',
       })
     },
@@ -167,16 +168,23 @@ export function useSyncSamGovOpportunities() {
       queryClient.invalidateQueries({ queryKey: OPPORTUNITY_SOURCES_KEY })
       const filterNote =
         result.filter_strings && result.filter_strings.length > 0
-          ? ` · filtered by ${result.filter_strings.length} collection strings`
+          ? t('opportunities.toastSyncFilteredNote').replace(
+              '{count}',
+              String(result.filter_strings.length)
+            )
           : ''
       toast({
-        title: 'Federal opportunities synchronized',
-        description: `${result.created} new · ${result.updated} refreshed · ${result.failed} failed${filterNote}`,
+        title: t('opportunities.toastSyncSuccessTitle'),
+        description: t('opportunities.toastSyncSuccessDescription')
+          .replace('{created}', String(result.created))
+          .replace('{updated}', String(result.updated))
+          .replace('{failed}', String(result.failed))
+          .replace('{filterNote}', filterNote),
       })
     },
     onError: (error: unknown) => {
       toast({
-        title: 'SAM.gov synchronization failed',
+        title: t('opportunities.toastSyncFailedTitle'),
         description: getApiErrorMessage(error, t),
         variant: 'destructive',
       })
@@ -196,14 +204,14 @@ export function useImportSamGovOpportunityUrl() {
       queryClient.invalidateQueries({ queryKey: [...OPPORTUNITIES_KEY, 'dashboard'] })
       toast({
         title: result.created
-          ? 'SAM.gov opportunity added'
-          : 'SAM.gov opportunity refreshed',
+          ? t('opportunities.toastImportAddedTitle')
+          : t('opportunities.toastImportRefreshedTitle'),
         description: result.opportunity.title,
       })
     },
     onError: (error: unknown) => {
       toast({
-        title: 'Could not import SAM.gov link',
+        title: t('opportunities.toastImportFailedTitle'),
         description: getApiErrorMessage(error, t),
         variant: 'destructive',
       })
@@ -224,7 +232,7 @@ export function useSetSamSyncCollection() {
     },
     onError: (error: unknown) => {
       toast({
-        title: 'Could not save sync collection',
+        title: t('opportunities.toastSyncCollectionSaveFailedTitle'),
         description: getApiErrorMessage(error, t),
         variant: 'destructive',
       })
@@ -247,17 +255,20 @@ export function useSetOpportunityStatus() {
       })
       if (variables.status === 'watching') {
         toast({
-          title: 'Opportunity is being watched',
+          title: t('opportunities.toastWatchingTitle'),
           description: opportunity.monitoring_last_error
-            ? `Monitoring is active, but the first check needs attention: ${opportunity.monitoring_last_error}`
-            : 'The current notice was checked and future updates will be detected automatically.',
+            ? t('opportunities.toastWatchingDescriptionError').replace(
+                '{error}',
+                opportunity.monitoring_last_error
+              )
+            : t('opportunities.toastWatchingDescriptionOk'),
           variant: opportunity.monitoring_last_error ? 'destructive' : 'default',
         })
       }
     },
     onError: (error: unknown) => {
       toast({
-        title: 'Status was not changed',
+        title: t('opportunities.toastStatusChangeFailedTitle'),
         description: getApiErrorMessage(error, t),
         variant: 'destructive',
       })
@@ -278,13 +289,16 @@ export function useCheckOpportunityNow() {
         queryKey: [...OPPORTUNITY_CHANGES_KEY, result.opportunity.id],
       })
       toast({
-        title: result.changed ? 'Opportunity updated' : 'Opportunity is current',
-        description: result.change?.summary ?? 'No meaningful source changes were detected.',
+        title: result.changed
+          ? t('opportunities.toastCheckUpdatedTitle')
+          : t('opportunities.toastCheckCurrentTitle'),
+        description:
+          result.change?.summary ?? t('opportunities.toastCheckNoChangesDescription'),
       })
     },
     onError: (error: unknown) => {
       toast({
-        title: 'Opportunity check failed',
+        title: t('opportunities.toastCheckFailedTitle'),
         description: getApiErrorMessage(error, t),
         variant: 'destructive',
       })
@@ -309,6 +323,7 @@ export function useAcknowledgeOpportunityChanges() {
 export function usePursueOpportunity() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   return useMutation({
     mutationFn: (id: string) => opportunitiesApi.pursue(id),
@@ -316,16 +331,24 @@ export function usePursueOpportunity() {
       queryClient.invalidateQueries({ queryKey: OPPORTUNITIES_KEY })
       queryClient.invalidateQueries({ queryKey: ['projects'] })
       toast({
-        title: result.project_created ? 'Bid workspace created' : 'Bid workspace opened',
+        title: result.project_created
+          ? t('opportunities.toastPursueCreatedTitle')
+          : t('opportunities.toastPursueOpenedTitle'),
         description: result.opportunity.monitoring_enabled
-          ? `${result.project_name} · monitoring enabled`
-          : `${result.project_name} · automated monitoring is unavailable for this source`,
+          ? t('opportunities.toastPursueMonitoringEnabled').replace(
+              '{projectName}',
+              result.project_name
+            )
+          : t('opportunities.toastPursueMonitoringUnavailable').replace(
+              '{projectName}',
+              result.project_name
+            ),
       })
     },
     onError: () => {
       toast({
-        title: 'Bid workspace was not created',
-        description: 'The opportunity is unchanged. Try again after checking the API connection.',
+        title: t('opportunities.toastPursueFailedTitle'),
+        description: t('opportunities.toastPursueFailedDescription'),
         variant: 'destructive',
       })
     },
@@ -335,6 +358,7 @@ export function usePursueOpportunity() {
 export function useArchiveOpportunity() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   return useMutation({
     mutationFn: opportunitiesApi.archive,
@@ -343,7 +367,7 @@ export function useArchiveOpportunity() {
     },
     onError: () => {
       toast({
-        title: 'Opportunity was not archived',
+        title: t('opportunities.toastArchiveFailedTitle'),
         variant: 'destructive',
       })
     },

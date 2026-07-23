@@ -2,6 +2,7 @@
 
 import { Link2, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useTranslation } from '@/lib/hooks/use-translation'
 import { cn } from '@/lib/utils'
 
 export interface SamGovActionButtonsProps {
@@ -23,6 +24,8 @@ export function SamGovActionButtons({
   compactLabels = false,
   className,
 }: SamGovActionButtonsProps) {
+  const { t } = useTranslation()
+
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
       <Button
@@ -30,11 +33,11 @@ export function SamGovActionButtons({
         variant="outline"
         className={cn(compactLabels && 'h-7 px-2 text-xs')}
         onClick={onOpenImportUrl}
-        aria-label="Add SAM.gov opportunity by URL"
+        aria-label={t('opportunities.addSamLinkAriaLabel')}
       >
         <Link2 className={cn('size-3.5', compactLabels ? 'sm:mr-1.5' : 'mr-1.5')} />
         <span className={cn(compactLabels && 'hidden sm:inline')}>
-          Add SAM.gov link
+          {t('opportunities.addSamLink')}
         </span>
       </Button>
       <Button
@@ -43,7 +46,7 @@ export function SamGovActionButtons({
         className={cn(compactLabels && 'h-7 px-2 text-xs')}
         disabled={syncPending}
         onClick={onSyncSamGov}
-        aria-label="Sync SAM.gov opportunities"
+        aria-label={t('opportunities.syncSamGovAriaLabel')}
       >
         <RefreshCw
           className={cn(
@@ -53,7 +56,9 @@ export function SamGovActionButtons({
           )}
         />
         <span className={cn(compactLabels && 'hidden sm:inline')}>
-          {syncPending ? 'Syncing SAM.gov…' : 'Sync SAM.gov'}
+          {syncPending
+            ? t('opportunities.syncSamGovPending')
+            : t('opportunities.syncSamGov')}
         </span>
       </Button>
     </div>

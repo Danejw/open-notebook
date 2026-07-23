@@ -1,9 +1,13 @@
 'use client'
 
 import type { FormEvent } from 'react'
-import { FormDialogShell, formDialogFormClassName } from '@/components/common/FormDialogShell'
+import {
+  FormDialogShell,
+  formDialogFormClassName,
+} from '@/components/common/FormDialogShell'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useTranslation } from '@/lib/hooks/use-translation'
 
 export interface ImportSamUrlDialogProps {
   open: boolean
@@ -22,6 +26,8 @@ export function ImportSamUrlDialog({
   onSubmit,
   isSubmitting,
 }: ImportSamUrlDialogProps) {
+  const { t } = useTranslation()
+
   return (
     <FormDialogShell
       open={open}
@@ -31,24 +37,26 @@ export function ImportSamUrlDialog({
           onImportUrlChange('')
         }
       }}
-      title="Add SAM.gov link"
-      description="Paste a sam.gov opportunity URL. We fetch the notice and add it to this inbox like a sync result."
+      title={t('opportunities.importDialogTitle')}
+      description={t('opportunities.importDialogDescription')}
       onSubmit={onSubmit}
       isSubmitting={isSubmitting}
       disableSubmit={!importUrl.trim()}
-      submitLabel="Add opportunity"
-      submittingLabel="Importing…"
+      submitLabel={t('opportunities.importSubmitLabel')}
+      submittingLabel={t('opportunities.importSubmittingLabel')}
       compactFooter
     >
       <div className={formDialogFormClassName}>
         <div className="space-y-1.5">
-          <Label htmlFor="sam-opportunity-url">Opportunity URL</Label>
+          <Label htmlFor="sam-opportunity-url">
+            {t('opportunities.importUrlLabel')}
+          </Label>
           <Input
             id="sam-opportunity-url"
             type="url"
             value={importUrl}
             onChange={(event) => onImportUrlChange(event.target.value)}
-            placeholder="https://sam.gov/workspace/contract/opp/…/view"
+            placeholder={t('opportunities.importUrlPlaceholder')}
             autoFocus
             disabled={isSubmitting}
           />

@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/select'
 import { useIsMobile, useIsTablet } from '@/lib/hooks/use-media-query'
 import { useCollectionsCatalog } from '@/lib/hooks/use-collections'
+import { useTranslation } from '@/lib/hooks/use-translation'
 import {
   useImportSamGovOpportunityUrl,
   useOpportunities,
@@ -52,6 +53,7 @@ const OPPORTUNITY_LAYOUT_STORAGE =
     : localStorage
 
 export default function OpportunitiesPage() {
+  const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const [inboxFilter, setInboxFilter] = useState<InboxFilter>('all')
   const [island, setIsland] = useState<HawaiiIsland | 'all'>('all')
@@ -278,7 +280,7 @@ export default function OpportunitiesPage() {
     >
       <PageHeader
         className="shrink-0"
-        title="Opportunity Hub"
+        title={t('opportunities.hubTitle')}
         icon={Inbox}
         actions={
           <div className="flex items-center gap-1.5">
@@ -290,12 +292,12 @@ export default function OpportunitiesPage() {
               <SelectTrigger
                 size="sm"
                 className="h-7 max-w-[11rem] text-xs"
-                aria-label="Collection filter for SAM.gov sync"
+                aria-label={t('opportunities.syncCollectionAriaLabel')}
               >
-                <SelectValue placeholder="No collection" />
+                <SelectValue placeholder={t('opportunities.noCollection')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">No collection</SelectItem>
+                <SelectItem value="none">{t('opportunities.noCollection')}</SelectItem>
                 {syncCollections.map((collection) => (
                   <SelectItem key={collection.id} value={collection.id}>
                     {collection.name}
@@ -323,19 +325,31 @@ export default function OpportunitiesPage() {
         isSubmitting={importSamGovUrl.isPending}
       />
 
-      <section aria-label="Overview" className="mt-2 shrink-0 rounded-md border bg-card">
+      <section
+        aria-label={t('opportunities.overviewAriaLabel')}
+        className="mt-2 shrink-0 rounded-md border bg-card"
+      >
         <div className="flex divide-x divide-border overflow-x-auto lg:grid lg:grid-cols-6 lg:overflow-visible">
-          <OverviewMetric label="New" value={dashboard?.new ?? 0} />
-          <OverviewMetric label="High-fit" value={dashboard?.high_fit ?? 0} />
+          <OverviewMetric label={t('opportunities.metricNew')} value={dashboard?.new ?? 0} />
           <OverviewMetric
-            label="Due 7d"
+            label={t('opportunities.metricHighFit')}
+            value={dashboard?.high_fit ?? 0}
+          />
+          <OverviewMetric
+            label={t('opportunities.metricDue7d')}
             value={dashboard?.due_soon ?? 0}
             warning={(dashboard?.due_soon ?? 0) > 0}
           />
-          <OverviewMetric label="In progress" value={dashboard?.pursuing ?? 0} />
-          <OverviewMetric label="Submitted" value={dashboard?.submitted ?? 0} />
           <OverviewMetric
-            label="Pipeline"
+            label={t('opportunities.metricInProgress')}
+            value={dashboard?.pursuing ?? 0}
+          />
+          <OverviewMetric
+            label={t('opportunities.metricSubmitted')}
+            value={dashboard?.submitted ?? 0}
+          />
+          <OverviewMetric
+            label={t('opportunities.metricPipeline')}
             value={formatMoney(dashboard?.pipeline_value_max ?? 0)}
           />
         </div>
@@ -361,7 +375,7 @@ export default function OpportunitiesPage() {
               className="min-h-0 min-w-0 overflow-hidden"
             >
               <section
-                aria-label="Opportunity list"
+                aria-label={t('opportunities.listAriaLabel')}
                 className="@container flex h-full w-full min-h-0 min-w-0 flex-col overflow-hidden rounded-md border bg-card"
               >
                 {listPanel}
@@ -380,7 +394,7 @@ export default function OpportunitiesPage() {
               className="min-h-0 min-w-0 overflow-hidden"
             >
               <section
-                aria-label="Opportunity details"
+                aria-label={t('opportunities.detailsAriaLabel')}
                 className="@container flex h-full w-full min-h-0 min-w-0 flex-col overflow-hidden rounded-md border bg-card"
               >
                 <OpportunityDetailsPanel selected={selected} />
@@ -391,14 +405,14 @@ export default function OpportunitiesPage() {
       ) : (
         <div className="mt-2 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
           <section
-            aria-label="Opportunity list"
+            aria-label={t('opportunities.listAriaLabel')}
             className="@container flex min-h-[280px] min-w-0 flex-col overflow-hidden rounded-md border bg-card"
           >
             {listPanel}
           </section>
           <section
             ref={detailsRef}
-            aria-label="Opportunity details"
+            aria-label={t('opportunities.detailsAriaLabel')}
             className="@container flex min-h-[280px] min-w-0 flex-col overflow-hidden rounded-md border bg-card"
           >
             <OpportunityDetailsPanel selected={selected} />

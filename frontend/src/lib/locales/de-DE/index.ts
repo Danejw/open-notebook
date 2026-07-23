@@ -1,3 +1,5 @@
+import { opportunitiesEn } from '../sections/opportunities'
+
 export const deDE = {
   "agentSteps": {
     "loading_skills": "Loading skills…",
@@ -1394,6 +1396,7 @@ export const deDE = {
     "decryptionError": "Entschlüsselungsfehler",
     "decryptionErrorDescription": "Der API-Schlüssel dieser Zugangsdaten konnte nicht entschlüsselt werden. Möglicherweise hat sich der Verschlüsselungsschlüssel geändert. Lösche diese Zugangsdaten und erstelle sie mit dem richtigen Schlüssel neu."
   },
+  "opportunities": opportunitiesEn,
   "setupBanner": {
     "encryptionRequired": "Verschlüsselungsschlüssel nicht konfiguriert",
     "encryptionRequiredDescription": "Setze die Umgebungsvariable CONSTRUCTION_OS_ENCRYPTION_KEY, um Zugangsdaten sicher zu speichern.",

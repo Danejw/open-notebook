@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import type { TFunction } from 'i18next'
 import {
   AlertTriangle,
   Check,
@@ -28,24 +29,38 @@ import {
   useOpportunityChanges,
 } from '@/lib/hooks/use-opportunities'
 import { useToast } from '@/lib/hooks/use-toast'
+import { useTranslation } from '@/lib/hooks/use-translation'
 import type { OpportunityMonitoringHealth } from '@/lib/types/opportunities'
 import { cn } from '@/lib/utils'
 
-const HEALTH_LABELS: Record<OpportunityMonitoringHealth, string> = {
-  inactive: 'Inactive',
-  pending: 'Checking',
-  healthy: 'Healthy',
-  delayed: 'Delayed',
-  failing: 'Failing',
-  authentication_required: 'API key required',
-  source_unavailable: 'Source unavailable',
+function healthLabel(t: TFunction, health: OpportunityMonitoringHealth): string {
+  switch (health) {
+    case 'inactive':
+      return t('opportunities.monitoringHealthInactive')
+    case 'pending':
+      return t('opportunities.monitoringHealthPending')
+    case 'healthy':
+      return t('opportunities.monitoringHealthHealthy')
+    case 'delayed':
+      return t('opportunities.monitoringHealthDelayed')
+    case 'failing':
+      return t('opportunities.monitoringHealthFailing')
+    case 'authentication_required':
+      return t('opportunities.monitoringHealthAuthRequired')
+    case 'source_unavailable':
+      return t('opportunities.monitoringHealthSourceUnavailable')
+    default: {
+      const exhaustive: never = health
+      return exhaustive
+    }
+  }
 }
 
-function formatDate(value: string | null): string {
-  if (!value) return 'Not scheduled'
+function formatMonitoringDate(t: TFunction, value: string | null): string {
+  if (!value) return t('opportunities.notScheduled')
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'Not scheduled'
-  return new Intl.DateTimeFormat('en-US', {
+  if (Number.isNaN(date.getTime())) return t('opportunities.notScheduled')
+  return new Intl.DateTimeFormat(undefined, {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
@@ -55,7 +70,9 @@ function formatDate(value: string | null): string {
 
 function healthVariant(health: OpportunityMonitoringHealth) {
   if (health === 'healthy') return 'secondary' as const
-  if (health === 'failing' || health === 'authentication_required') return 'destructive' as const
+  if (health === 'failing' || health === 'authentication_required') {
+    return 'destructive' as const
+  }
   return 'outline' as const
 }
 
@@ -75,7 +92,18 @@ function formatMonitoringError(error: string): string {
   })
 }
 
+function changeSeverityLabel(t: TFunction, severity: string): string {
+  if (severity === 'critical') {
+    return t('opportunities.changeSeverityCritical')
+  }
+  if (severity === 'informational') {
+    return t('opportunities.changeSeverityInformational')
+  }
+  return severity
+}
+
 function OpportunityMonitoringPanel() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { data } = useOpportunities({})
@@ -84,7 +112,8 @@ function OpportunityMonitoringPanel() {
     [data?.items]
   )
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const selected = monitored.find((opportunity) => opportunity.id === selectedId) ?? monitored[0] ?? null
+  const selected =
+    monitored.find((opportunity) => opportunity.id === selectedId) ?? monitored[0] ?? null
   const { data: changes = [] } = useOpportunityChanges(selected?.id ?? null)
   const checkNow = useCheckOpportunityNow()
   const acknowledge = useAcknowledgeOpportunityChanges()
@@ -99,15 +128,20 @@ function OpportunityMonitoringPanel() {
     mutationFn: opportunitiesApi.unwatch,
     onSuccess: (opportunity) => {
       queryClient.invalidateQueries({ queryKey: ['opportunities'] })
-      queryClient.invalidateQueries({ queryKey: ['opportunity-changes', opportunity.id] })
+      queryClient.invalidateQueries({
+        queryKey: ['opportunity-changes', opportunity.id],
+      })
       toast({
-        title: 'Monitoring stopped',
-        description: `${opportunity.title} returned to open review.`,
+        title: t('opportunities.monitoringStoppedTitle'),
+        description: t('opportunities.monitoringStoppedDescription').replace(
+          '{title}',
+          opportunity.title
+        ),
       })
     },
     onError: () => {
       toast({
-        title: 'Monitoring could not be stopped',
+        title: t('opportunities.monitoringStopFailedTitle'),
         variant: 'destructive',
       })
     },
@@ -125,7 +159,12 @@ function OpportunityMonitoringPanel() {
     <details className="group border-b bg-background px-2 py-1 open:bg-muted/20">
       <summary className="flex min-w-0 cursor-pointer list-none items-center gap-1.5 text-xs font-medium">
         <Eye className="size-3.5 shrink-0" />
-        <span className="truncate">{monitored.length} monitored</span>
+        <span className="truncate">
+          {t('opportunities.monitoredCount').replace(
+            '{count}',
+            String(monitored.length)
+          )}
+        </span>
         {unread > 0 ? (
           <Badge variant="destructive" className="shrink-0">
             {unread}
@@ -160,11 +199,14 @@ function OpportunityMonitoringPanel() {
                   <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-muted-foreground">
                     {isAttentionHealth(opportunity.monitoring_health) ? (
                       <Badge variant={healthVariant(opportunity.monitoring_health)}>
-                        {HEALTH_LABELS[opportunity.monitoring_health]}
+                        {healthLabel(t, opportunity.monitoring_health)}
                       </Badge>
                     ) : null}
                     <span className="truncate">
-                      Next {formatDate(opportunity.monitoring_next_check_at)}
+                      {t('opportunities.nextCheck').replace(
+                        '{date}',
+                        formatMonitoringDate(t, opportunity.monitoring_next_check_at)
+                      )}
                     </span>
                   </div>
                 </div>
@@ -181,16 +223,24 @@ function OpportunityMonitoringPanel() {
                 <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-muted-foreground">
                   {isAttentionHealth(selected.monitoring_health) ? (
                     <Badge variant={healthVariant(selected.monitoring_health)}>
-                      {HEALTH_LABELS[selected.monitoring_health]}
+                      {healthLabel(t, selected.monitoring_health)}
                     </Badge>
                   ) : (
-                    <span>{HEALTH_LABELS[selected.monitoring_health]}</span>
+                    <span>{healthLabel(t, selected.monitoring_health)}</span>
                   )}
                   <span aria-hidden>·</span>
-                  <span className="truncate">Official: {selected.source_status}</span>
+                  <span className="truncate">
+                    {t('opportunities.officialStatus').replace(
+                      '{status}',
+                      selected.source_status
+                    )}
+                  </span>
                   <span aria-hidden>·</span>
                   <span className="truncate">
-                    Checked {formatDate(selected.monitoring_last_checked_at)}
+                    {t('opportunities.checkedAt').replace(
+                      '{date}',
+                      formatMonitoringDate(t, selected.monitoring_last_checked_at)
+                    )}
                   </span>
                 </div>
               </div>
@@ -202,7 +252,7 @@ function OpportunityMonitoringPanel() {
                       size="icon"
                       variant="outline"
                       disabled={checkNow.isPending}
-                      aria-label="Check now"
+                      aria-label={t('opportunities.checkNowAriaLabel')}
                       onClick={() => checkNow.mutate(selected.id)}
                     >
                       <RefreshCw
@@ -210,7 +260,7 @@ function OpportunityMonitoringPanel() {
                       />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Check now</TooltipContent>
+                  <TooltipContent>{t('opportunities.checkNowTooltip')}</TooltipContent>
                 </Tooltip>
 
                 {selected.monitoring_unread_changes > 0 ? (
@@ -220,13 +270,13 @@ function OpportunityMonitoringPanel() {
                         size="icon"
                         variant="outline"
                         disabled={acknowledge.isPending}
-                        aria-label="Mark read"
+                        aria-label={t('opportunities.markReadAriaLabel')}
                         onClick={() => acknowledge.mutate(selected.id)}
                       >
                         <Check className="size-3.5" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Mark read</TooltipContent>
+                    <TooltipContent>{t('opportunities.markReadTooltip')}</TooltipContent>
                   </Tooltip>
                 ) : null}
 
@@ -236,13 +286,15 @@ function OpportunityMonitoringPanel() {
                       size="icon"
                       variant="ghost"
                       disabled={unwatch.isPending}
-                      aria-label="Stop monitoring"
+                      aria-label={t('opportunities.stopMonitoringAriaLabel')}
                       onClick={() => unwatch.mutate(selected.id)}
                     >
                       <X className="size-3.5" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Stop monitoring</TooltipContent>
+                  <TooltipContent>
+                    {t('opportunities.stopMonitoringTooltip')}
+                  </TooltipContent>
                 </Tooltip>
               </div>
             </div>
@@ -262,7 +314,7 @@ function OpportunityMonitoringPanel() {
             <div className="mt-1.5 min-w-0">
               <div className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
                 <Clock3 className="size-3 shrink-0" />
-                Recent changes
+                {t('opportunities.recentChanges')}
               </div>
               {latestChanges.length > 0 ? (
                 <div className="mt-0.5 divide-y rounded-md border">
@@ -271,16 +323,20 @@ function OpportunityMonitoringPanel() {
                       <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
                         {change.severity !== 'informational' ? (
                           <Badge
-                            variant={change.severity === 'critical' ? 'destructive' : 'outline'}
+                            variant={
+                              change.severity === 'critical' ? 'destructive' : 'outline'
+                            }
                           >
-                            {change.severity}
+                            {changeSeverityLabel(t, change.severity)}
                           </Badge>
                         ) : null}
                         <span className="text-[11px] text-muted-foreground">
-                          {formatDate(change.detected_at)}
+                          {formatMonitoringDate(t, change.detected_at)}
                         </span>
                         {change.acknowledged ? (
-                          <span className="text-[11px] text-muted-foreground">Read</span>
+                          <span className="text-[11px] text-muted-foreground">
+                            {t('opportunities.changeRead')}
+                          </span>
                         ) : null}
                       </div>
                       <div className="mt-0.5 break-words font-medium">{change.summary}</div>
@@ -289,7 +345,7 @@ function OpportunityMonitoringPanel() {
                 </div>
               ) : (
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Snapshot established — new changes appear here.
+                  {t('opportunities.changesEmpty')}
                 </p>
               )}
             </div>

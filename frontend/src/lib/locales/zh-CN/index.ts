@@ -1,3 +1,5 @@
+import { opportunitiesEn } from '../sections/opportunities'
+
 export const zhCN = {
   "agentSteps": {
     "loading_skills": "Loading skills…",
@@ -1394,6 +1396,7 @@ export const zhCN = {
     "decryptionError": "解密错误",
     "decryptionErrorDescription": "此凭证的 API 密钥无法解密。加密密钥可能已更改。请删除此凭证并使用正确的密钥重新创建。"
   },
+  "opportunities": opportunitiesEn,
   "setupBanner": {
     "encryptionRequired": "未配置加密密钥",
     "encryptionRequiredDescription": "请设置 CONSTRUCTION_OS_ENCRYPTION_KEY 环境变量以启用安全凭据存储。",

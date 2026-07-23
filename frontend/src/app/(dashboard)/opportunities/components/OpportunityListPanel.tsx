@@ -12,6 +12,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import type { Opportunity } from '@/lib/types/opportunities'
+import { useTranslation } from '@/lib/hooks/use-translation'
 import { OpportunityDetail } from '@/app/(dashboard)/opportunities/components/OpportunityDetail'
 import {
   OpportunityFilterBar,
@@ -22,17 +23,6 @@ import {
   OpportunityRow,
 } from '@/app/(dashboard)/opportunities/components/OpportunityListItems'
 import { SamGovActionButtons } from '@/app/(dashboard)/opportunities/components/SamGovActionButtons'
-
-export const OPPORTUNITY_INBOX_EMPTY_TITLE = {
-  filtered: 'No opportunities match these filters',
-  ready: 'The inbox is ready',
-} as const
-
-export const OPPORTUNITY_INBOX_EMPTY_DESCRIPTION = {
-  filtered: 'Clear a filter or broaden the search.',
-  ready:
-    'Sync recent federal Hawaii notices, or paste a SAM.gov opportunity link to add one by hand.',
-} as const
 
 export interface OpportunityListPanelProps {
   opportunities: Opportunity[]
@@ -64,6 +54,8 @@ export function OpportunityListCollapsedRail({
   filtersActive: boolean
   onSelect: (id: string) => void
 }) {
+  const { t } = useTranslation()
+
   return (
     <TooltipProvider delayDuration={0}>
       <div className="flex h-full min-h-0 min-w-0 flex-col items-center overflow-hidden py-2">
@@ -76,7 +68,12 @@ export function OpportunityListCollapsedRail({
               <Inbox className="size-4" />
             </div>
           </TooltipTrigger>
-          <TooltipContent side="right">Opportunity inbox · {total}</TooltipContent>
+          <TooltipContent side="right">
+            {t('opportunities.inboxRailTooltip').replace(
+              '{total}',
+              String(total)
+            )}
+          </TooltipContent>
         </Tooltip>
 
         <ScrollArea className="min-h-0 w-full flex-1">
@@ -103,8 +100,8 @@ export function OpportunityListCollapsedRail({
                 </TooltipTrigger>
                 <TooltipContent side="right">
                   {filtersActive
-                    ? OPPORTUNITY_INBOX_EMPTY_TITLE.filtered
-                    : OPPORTUNITY_INBOX_EMPTY_TITLE.ready}
+                    ? t('opportunities.emptyFilteredTitle')
+                    : t('opportunities.emptyReadyTitle')}
                 </TooltipContent>
               </Tooltip>
             )}
@@ -129,6 +126,8 @@ export function OpportunityListPanel({
   onOpenImportUrl,
   syncPending,
 }: OpportunityListPanelProps) {
+  const { t } = useTranslation()
+
   if (collapsed) {
     return (
       <OpportunityListCollapsedRail
@@ -166,13 +165,13 @@ export function OpportunityListPanel({
               icon={Inbox}
               title={
                 filtersActive
-                  ? OPPORTUNITY_INBOX_EMPTY_TITLE.filtered
-                  : OPPORTUNITY_INBOX_EMPTY_TITLE.ready
+                  ? t('opportunities.emptyFilteredTitle')
+                  : t('opportunities.emptyReadyTitle')
               }
               description={
                 filtersActive
-                  ? OPPORTUNITY_INBOX_EMPTY_DESCRIPTION.filtered
-                  : OPPORTUNITY_INBOX_EMPTY_DESCRIPTION.ready
+                  ? t('opportunities.emptyFilteredDescription')
+                  : t('opportunities.emptyReadyDescription')
               }
               className="flex min-h-[280px] flex-col items-center justify-center px-6"
               action={
@@ -185,7 +184,7 @@ export function OpportunityListPanel({
                   />
                 ) : (
                   <Button size="sm" variant="outline" onClick={onClearFilters}>
-                    Clear filters
+                    {t('opportunities.clearFilters')}
                   </Button>
                 )
               }
@@ -202,12 +201,16 @@ export function OpportunityDetailsPanel({
 }: {
   selected: Opportunity | null
 }) {
+  const { t } = useTranslation()
+
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
       <div className="flex min-w-0 shrink-0 items-center justify-between gap-2 border-b px-2.5 py-2">
-        <h2 className="shrink-0 text-sm font-semibold">Details</h2>
+        <h2 className="shrink-0 text-sm font-semibold">
+          {t('opportunities.detailsHeading')}
+        </h2>
         <span className="min-w-0 truncate text-[11px] text-muted-foreground">
-          {selected ? selected.title : 'No selection'}
+          {selected ? selected.title : t('opportunities.noSelection')}
         </span>
       </div>
 
@@ -217,8 +220,8 @@ export function OpportunityDetailsPanel({
         ) : (
           <EmptyState
             icon={FileSearch}
-            title="Select an opportunity"
-            description="Pick a notice from the list, then review scope, deadline, fit, risks, and bid actions here."
+            title={t('opportunities.selectOpportunityTitle')}
+            description={t('opportunities.selectOpportunityDescription')}
             className="flex flex-1 flex-col items-center justify-center border-0 px-6"
           />
         )}

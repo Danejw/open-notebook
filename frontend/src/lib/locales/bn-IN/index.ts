@@ -1,3 +1,5 @@
+import { opportunitiesEn } from '../sections/opportunities'
+
 export const bnIN = {
   "agentSteps": {
     "loading_skills": "Loading skills…",
@@ -1394,6 +1396,7 @@ export const bnIN = {
     "decryptionError": "ডিক্রিপশন ত্রুটি",
     "decryptionErrorDescription": "এই শংসাপত্রের API কী ডিক্রিপ্ট করা যায়নি। এনক্রিপশন কী পরিবর্তন হয়ে থাকতে পারে। এই শংসাপত্রটি মুছে সঠিক কী দিয়ে পুনরায় তৈরি করুন।"
   },
+  "opportunities": opportunitiesEn,
   "setupBanner": {
     "encryptionRequired": "এনক্রিপশন কী কনফিগার করা হয়নি",
     "encryptionRequiredDescription": "নিরাপদ credential স্টোরেজ সক্ষম করতে CONSTRUCTION_OS_ENCRYPTION_KEY environment variable সেট করুন।",

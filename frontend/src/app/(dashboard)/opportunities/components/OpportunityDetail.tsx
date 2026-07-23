@@ -25,13 +25,14 @@ import {
   usePursueOpportunity,
   useSetOpportunityStatus,
 } from '@/lib/hooks/use-opportunities'
+import { useTranslation } from '@/lib/hooks/use-translation'
 import type { Opportunity, OpportunityStatus } from '@/lib/types/opportunities'
 import {
-  WORKFLOW_STATUS_LABELS,
   deadlineLabel,
   documentLabel,
   formatDate,
   formatMoney,
+  getWorkflowStatusLabel,
   ingestStatusLabel,
   pipelineStatusLabel,
   sourceStageVariant,
@@ -49,12 +50,12 @@ function DetailField({ label, value }: { label: string; value: React.ReactNode }
   )
 }
 
-
 export function OpportunityDetail({
   opportunity: listOpportunity,
 }: {
   opportunity: Opportunity
 }) {
+  const { t } = useTranslation()
   const router = useRouter()
   const { data: detailOpportunity } = useOpportunity(listOpportunity.id)
   const opportunity = detailOpportunity ?? listOpportunity
@@ -80,22 +81,59 @@ export function OpportunityDetail({
     Boolean(opportunity.contact_phone) ||
     Boolean(opportunity.contact_title)
 
+  const bidBondValue =
+    opportunity.bid_bond_required === null
+      ? t('opportunities.unknown')
+      : opportunity.bid_bond_required
+        ? opportunity.bid_bond_percent
+          ? t('opportunities.bidBondRequiredWithPercent').replace(
+              '{percent}',
+              String(opportunity.bid_bond_percent)
+            )
+          : t('opportunities.bidBondRequired')
+        : t('opportunities.bidBondNotRequired')
+
+  const yesNoUnknown = (value: boolean | null): string => {
+    if (value === null) return t('opportunities.unknown')
+    return value ? t('opportunities.required') : t('opportunities.notIdentified')
+  }
+
+  const estimatedValue =
+    opportunity.estimated_value_min !== null || opportunity.estimated_value_max !== null
+      ? t('opportunities.valueRange')
+          .replace(
+            '{min}',
+            formatMoney(opportunity.estimated_value_min ?? 0)
+          )
+          .replace(
+            '{max}',
+            formatMoney(
+              opportunity.estimated_value_max ??
+                opportunity.estimated_value_min ??
+                0
+            )
+          )
+      : t('opportunities.notProvided')
+
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <div className="min-w-0 shrink-0 border-b p-3">
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge variant="outline">{opportunity.procurement_type}</Badge>
           <Badge variant={sourceStageVariant(opportunity.source_stage)}>
-            {pipelineStatusLabel(opportunity)}
+            {pipelineStatusLabel(t, opportunity)}
           </Badge>
           {opportunity.status !== 'none' ? (
             <Badge variant={workflowStatusVariant(opportunity.status)}>
-              {WORKFLOW_STATUS_LABELS[opportunity.status]}
+              {getWorkflowStatusLabel(t, opportunity.status)}
             </Badge>
           ) : null}
           {opportunity.fit_score !== null ? (
             <Badge variant={opportunity.fit_score >= 75 ? 'default' : 'secondary'}>
-              {opportunity.fit_score}% company fit
+              {t('opportunities.fitScoreBadge').replace(
+                '{score}',
+                String(opportunity.fit_score)
+              )}
             </Badge>
           ) : null}
         </div>
@@ -129,16 +167,28 @@ export function OpportunityDetail({
       <ScrollArea className="min-h-0 min-w-0 flex-1">
         <div className="min-w-0 space-y-4 p-3">
           <div className="grid grid-cols-1 gap-2 rounded-md border bg-muted/20 p-2.5 @sm:grid-cols-2">
-            <DetailField label="Bid deadline" value={formatDate(opportunity.bid_due_at)} />
-            <DetailField label="Time remaining" value={deadlineLabel(opportunity)} />
-            <DetailField label="Questions due" value={formatDate(opportunity.questions_due_at)} />
-            <DetailField label="Pre-bid / site visit" value={formatDate(opportunity.prebid_at)} />
+            <DetailField
+              label={t('opportunities.fieldBidDeadline')}
+              value={formatDate(t, opportunity.bid_due_at)}
+            />
+            <DetailField
+              label={t('opportunities.fieldTimeRemaining')}
+              value={deadlineLabel(t, opportunity)}
+            />
+            <DetailField
+              label={t('opportunities.fieldQuestionsDue')}
+              value={formatDate(t, opportunity.questions_due_at)}
+            />
+            <DetailField
+              label={t('opportunities.fieldPrebidSiteVisit')}
+              value={formatDate(t, opportunity.prebid_at)}
+            />
           </div>
 
           <div className="min-w-0 space-y-1.5">
             <div className="flex items-center gap-1.5 text-xs font-semibold">
               <FileSearch className="size-3.5 shrink-0" />
-              Plain-English scope
+              {t('opportunities.scopeHeading')}
             </div>
             {opportunity.scope_summary || opportunity.description ? (
               <MarkdownRenderer
@@ -149,14 +199,14 @@ export function OpportunityDetail({
               </MarkdownRenderer>
             ) : (
               <p className="text-xs leading-relaxed text-muted-foreground">
-                Scope has not been extracted yet.
+                {t('opportunities.scopeNotExtracted')}
               </p>
             )}
           </div>
 
           <div className="grid gap-3 @sm:grid-cols-2">
             <DetailField
-              label="Primary point of contact"
+              label={t('opportunities.fieldPrimaryContact')}
               value={
                 hasContact ? (
                   <div className="space-y-0.5">
@@ -184,19 +234,19 @@ export function OpportunityDetail({
                     {opportunity.contact_phone ? <div>{opportunity.contact_phone}</div> : null}
                   </div>
                 ) : (
-                  'Not provided'
+                  t('opportunities.notProvided')
                 )
               }
             />
             <DetailField
-              label="Contracting office"
-              value={opportunity.office_address || 'Not provided'}
+              label={t('opportunities.fieldContractingOffice')}
+              value={opportunity.office_address || t('opportunities.notProvided')}
             />
           </div>
 
           <div className="grid gap-3 @sm:grid-cols-2">
             <DetailField
-              label="Relevant trades"
+              label={t('opportunities.fieldRelevantTrades')}
               value={
                 opportunity.trades.length > 0 ? (
                   <div className="flex flex-wrap gap-1">
@@ -207,16 +257,16 @@ export function OpportunityDetail({
                     ))}
                   </div>
                 ) : (
-                  'Not identified'
+                  t('opportunities.notIdentified')
                 )
               }
             />
             <DetailField
-              label="License requirements"
+              label={t('opportunities.fieldLicenseRequirements')}
               value={
                 opportunity.license_requirements.length > 0
                   ? opportunity.license_requirements.join(', ')
-                  : 'Not identified'
+                  : t('opportunities.notIdentified')
               }
             />
           </div>
@@ -225,7 +275,7 @@ export function OpportunityDetail({
             <div className="rounded-md border border-emerald-500/25 bg-emerald-500/5 p-2.5">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
                 <Target className="size-3.5" />
-                Why this may fit
+                {t('opportunities.fitReasonsHeading')}
               </div>
               <div className="mt-1.5 space-y-1 text-xs">
                 {opportunity.fit_reasons.map((reason) => (
@@ -242,7 +292,7 @@ export function OpportunityDetail({
             <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
                 <ShieldAlert className="size-3.5" />
-                Risks and requirements to verify
+                {t('opportunities.risksHeading')}
               </div>
               <div className="mt-1.5 space-y-1 text-xs">
                 {opportunity.risk_flags.map((risk) => (
@@ -257,66 +307,50 @@ export function OpportunityDetail({
 
           <div className="grid gap-3 @sm:grid-cols-2">
             <DetailField
-              label="Estimated value"
-              value={
-                opportunity.estimated_value_min !== null || opportunity.estimated_value_max !== null
-                  ? `${formatMoney(opportunity.estimated_value_min ?? 0)} – ${formatMoney(
-                      opportunity.estimated_value_max ?? opportunity.estimated_value_min ?? 0
-                    )}`
-                  : 'Not provided'
-              }
+              label={t('opportunities.fieldEstimatedValue')}
+              value={estimatedValue}
+            />
+            <DetailField label={t('opportunities.fieldBidBond')} value={bidBondValue} />
+            <DetailField
+              label={t('opportunities.fieldPrevailingWage')}
+              value={yesNoUnknown(opportunity.prevailing_wage_required)}
             />
             <DetailField
-              label="Bid bond"
-              value={
-                opportunity.bid_bond_required === null
-                  ? 'Unknown'
-                  : opportunity.bid_bond_required
-                    ? `Required${opportunity.bid_bond_percent ? ` (${opportunity.bid_bond_percent}%)` : ''}`
-                    : 'Not required'
-              }
-            />
-            <DetailField
-              label="Prevailing wage"
-              value={
-                opportunity.prevailing_wage_required === null
-                  ? 'Unknown'
-                  : opportunity.prevailing_wage_required
-                    ? 'Required'
-                    : 'Not identified'
-              }
-            />
-            <DetailField
-              label="Mandatory site visit"
-              value={
-                opportunity.mandatory_site_visit === null
-                  ? 'Unknown'
-                  : opportunity.mandatory_site_visit
-                    ? 'Required'
-                    : 'Not identified'
-              }
+              label={t('opportunities.fieldMandatorySiteVisit')}
+              value={yesNoUnknown(opportunity.mandatory_site_visit)}
             />
           </div>
 
           <div className="grid gap-3 @sm:grid-cols-2">
             <DetailField
-              label="Solicitation number"
+              label={t('opportunities.fieldSolicitationNumber')}
               value={opportunity.solicitation_number || opportunity.external_id}
             />
-            <DetailField label="Source" value={opportunity.source_key} />
-            <DetailField label="Addenda" value={`${opportunity.addenda.length} detected`} />
+            <DetailField
+              label={t('opportunities.fieldSource')}
+              value={opportunity.source_key}
+            />
+            <DetailField
+              label={t('opportunities.fieldAddenda')}
+              value={t('opportunities.addendaDetected').replace(
+                '{count}',
+                String(opportunity.addenda.length)
+              )}
+            />
           </div>
 
           <div className="min-w-0 space-y-1.5">
             <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Documents
+              {t('opportunities.documentsHeading')}
             </div>
             {opportunity.documents.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No documents discovered</p>
+              <p className="text-xs text-muted-foreground">
+                {t('opportunities.documentsEmpty')}
+              </p>
             ) : (
               <ul className="grid grid-cols-1 gap-1.5 md:grid-cols-2">
                 {opportunity.documents.map((doc, index) => {
-                  const statusLabel = ingestStatusLabel(doc.ingest_status)
+                  const statusLabel = ingestStatusLabel(t, doc.ingest_status)
                   return (
                     <li
                       key={`${doc.url}-${doc.source_id ?? ''}-${index}`}
@@ -328,7 +362,7 @@ export function OpportunityDetail({
                         rel="noreferrer"
                         className="inline-flex min-w-0 max-w-full items-center gap-1 font-medium hover:text-primary hover:underline"
                       >
-                        <span className="truncate">{documentLabel(doc, index)}</span>
+                        <span className="truncate">{documentLabel(t, doc, index)}</span>
                         <ArrowUpRight className="size-3 shrink-0 opacity-60" />
                       </a>
                       {statusLabel ? (
@@ -345,7 +379,7 @@ export function OpportunityDetail({
                           href={`/projects/${opportunity.project_id}`}
                           className="text-[10px] text-muted-foreground hover:text-primary hover:underline"
                         >
-                          Open in workspace
+                          {t('opportunities.openInWorkspace')}
                         </Link>
                       ) : null}
                     </li>
@@ -358,7 +392,7 @@ export function OpportunityDetail({
           <div className="flex flex-wrap gap-1.5 border-t pt-3">
             <Button asChild size="sm" variant="outline" className="h-8 text-xs">
               <a href={opportunity.source_url} target="_blank" rel="noreferrer">
-                Original notice
+                {t('opportunities.originalNotice')}
                 <ArrowUpRight className="ml-1 size-3.5" />
               </a>
             </Button>
@@ -366,7 +400,7 @@ export function OpportunityDetail({
             {opportunity.project_id ? (
               <Button asChild size="sm" className="h-8 text-xs">
                 <Link href={`/projects/${opportunity.project_id}`}>
-                  Open bid workspace
+                  {t('opportunities.openBidWorkspace')}
                   <ArrowUpRight className="ml-1 size-3.5" />
                 </Link>
               </Button>
@@ -377,7 +411,7 @@ export function OpportunityDetail({
                 disabled={actionPending}
                 onClick={pursue}
               >
-                Pursue and create workspace
+                {t('opportunities.pursueAndCreateWorkspace')}
                 <Target className="ml-1 size-3.5" />
               </Button>
             )}
@@ -394,7 +428,9 @@ export function OpportunityDetail({
                 }
               >
                 <Eye className="mr-1 size-3.5" />
-                {opportunity.status === 'watching' ? 'Watching' : 'Watch'}
+                {opportunity.status === 'watching'
+                  ? t('opportunities.watching')
+                  : t('opportunities.watch')}
               </Button>
             ) : null}
 
@@ -407,7 +443,7 @@ export function OpportunityDetail({
                 onClick={() => setStatus('ignored')}
               >
                 <X className="mr-1 size-3.5" />
-                Ignore
+                {t('opportunities.ignore')}
               </Button>
             ) : null}
 
@@ -418,7 +454,7 @@ export function OpportunityDetail({
               disabled={actionPending}
               onClick={() => archiveMutation.mutate(opportunity.id)}
             >
-              Archive
+              {t('opportunities.archive')}
             </Button>
           </div>
         </div>
@@ -426,5 +462,3 @@ export function OpportunityDetail({
     </div>
   )
 }
-
-

@@ -1,3 +1,5 @@
+import { opportunitiesEn } from '../sections/opportunities'
+
 export const jaJP = {
   "agentSteps": {
     "loading_skills": "Loading skills…",
@@ -1394,6 +1396,7 @@ export const jaJP = {
     "decryptionError": "復号エラー",
     "decryptionErrorDescription": "この認証情報のAPIキーを復号できませんでした。暗号化キーが変更された可能性があります。この認証情報を削除し、正しいキーで再作成してください。"
   },
+  "opportunities": opportunitiesEn,
   "setupBanner": {
     "encryptionRequired": "暗号化キーが設定されていません",
     "encryptionRequiredDescription": "CONSTRUCTION_OS_ENCRYPTION_KEY 環境変数を設定して、安全な認証情報の保存を有効にしてください。",

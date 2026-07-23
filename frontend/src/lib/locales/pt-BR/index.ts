@@ -1,3 +1,5 @@
+import { opportunitiesEn } from '../sections/opportunities'
+
 export const ptBR = {
   "agentSteps": {
     "loading_skills": "Loading skills…",
@@ -1394,6 +1396,7 @@ export const ptBR = {
     "decryptionError": "Erro de Descriptografia",
     "decryptionErrorDescription": "A chave de API desta credencial não pôde ser descriptografada. A chave de criptografia pode ter sido alterada. Exclua esta credencial e recrie-a com a chave correta."
   },
+  "opportunities": opportunitiesEn,
   "setupBanner": {
     "encryptionRequired": "Chave de criptografia não configurada",
     "encryptionRequiredDescription": "Configure a variável de ambiente CONSTRUCTION_OS_ENCRYPTION_KEY para habilitar o armazenamento seguro de credenciais.",

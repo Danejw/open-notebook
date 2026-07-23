@@ -11,14 +11,17 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { HawaiiIsland, OpportunitySort } from '@/lib/types/opportunities'
+import { useTranslation } from '@/lib/hooks/use-translation'
 import { cn } from '@/lib/utils'
 import {
-  ISLAND_OPTIONS,
-  SORT_OPTIONS,
-  SORT_SHORT_LABELS,
-  STATUS_OPTIONS,
-  STATUS_SHORT_LABELS,
+  ISLAND_OPTION_VALUES,
+  getIslandLabel,
+  getSortOptions,
+  getSortShortLabel,
+  getStatusOptions,
+  getStatusShortLabel,
   type InboxFilter,
+  type IslandOptionValue,
 } from '@/app/(dashboard)/opportunities/components/opportunityUtils'
 
 export interface OpportunitySourceOption {
@@ -61,14 +64,24 @@ export function OpportunityFilterBar({
   onClearFilters,
   progressiveFilters,
 }: OpportunityFilterBarProps) {
+  const { t } = useTranslation()
+  const statusOptions = getStatusOptions(t)
+  const sortOptions = getSortOptions(t)
   const statusLabel =
-    STATUS_OPTIONS.find((option) => option.value === inboxFilter)?.label ?? 'All active'
-  const sortLabel = SORT_OPTIONS.find((option) => option.value === sort)?.label ?? 'Due date'
+    statusOptions.find((option) => option.value === inboxFilter)?.label ??
+    t('opportunities.filterAllActive')
+  const sortLabel =
+    sortOptions.find((option) => option.value === sort)?.label ??
+    t('opportunities.sortDueDate')
   const sourceLabel =
     sourceKey === 'all'
-      ? 'All sources'
-      : (sources ?? []).find((source) => source.key === sourceKey)?.name ?? 'Source'
-  const islandLabel = island === 'all' ? 'All islands' : island
+      ? t('opportunities.filterAllSources')
+      : (sources ?? []).find((source) => source.key === sourceKey)?.name ??
+        t('opportunities.filterSource')
+  const islandLabel =
+    island === 'all'
+      ? t('opportunities.filterAllIslands')
+      : getIslandLabel(t, island as IslandOptionValue)
   const filterTriggerClass = cn(
     'h-7 min-w-0 flex-1 text-xs',
     progressiveFilters && '@min-[480px]:min-w-[5rem]'
@@ -78,7 +91,7 @@ export function OpportunityFilterBar({
       variant="ghost"
       size="icon"
       className="size-7 shrink-0"
-      aria-label="Clear filters"
+      aria-label={t('opportunities.clearFiltersAriaLabel')}
       onClick={onClearFilters}
     >
       <X className="size-3.5" />
@@ -94,15 +107,19 @@ export function OpportunityFilterBar({
             progressiveFilters && 'hidden @min-[360px]:flex'
           )}
         >
-          <h2 className="truncate text-sm font-semibold leading-none">Opportunity inbox</h2>
-          <span className="shrink-0 text-[11px] text-muted-foreground">· {total}</span>
+          <h2 className="truncate text-sm font-semibold leading-none">
+            {t('opportunities.inboxHeading')}
+          </h2>
+          <span className="shrink-0 text-[11px] text-muted-foreground">
+            {t('opportunities.inboxCount').replace('{total}', String(total))}
+          </span>
         </div>
         <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="Search…"
+            placeholder={t('opportunities.searchPlaceholder')}
             className={cn(
               'h-7 w-full min-w-0 pl-7 text-xs',
               filtersActive && progressiveFilters && 'pr-8 @min-[300px]:pr-2'
@@ -130,16 +147,18 @@ export function OpportunityFilterBar({
             {progressiveFilters ? (
               <>
                 <span className="truncate @min-[480px]:hidden">
-                  {STATUS_SHORT_LABELS[inboxFilter]}
+                  {getStatusShortLabel(t, inboxFilter)}
                 </span>
-                <span className="hidden truncate @min-[480px]:inline">{statusLabel}</span>
+                <span className="hidden truncate @min-[480px]:inline">
+                  {statusLabel}
+                </span>
               </>
             ) : (
               <SelectValue />
             )}
           </SelectTrigger>
           <SelectContent>
-            {STATUS_OPTIONS.map((option) => (
+            {statusOptions.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
               </SelectItem>
@@ -149,7 +168,9 @@ export function OpportunityFilterBar({
 
         <Select
           value={island}
-          onValueChange={(value) => onIslandChange(value as HawaiiIsland | 'all')}
+          onValueChange={(value) =>
+            onIslandChange(value as HawaiiIsland | 'all')
+          }
         >
           <SelectTrigger
             className={cn(
@@ -160,18 +181,20 @@ export function OpportunityFilterBar({
             {progressiveFilters ? (
               <>
                 <span className="truncate @min-[480px]:hidden">
-                  {island === 'all' ? 'Island' : island}
+                  {island === 'all' ? t('opportunities.filterIsland') : island}
                 </span>
-                <span className="hidden truncate @min-[480px]:inline">{islandLabel}</span>
+                <span className="hidden truncate @min-[480px]:inline">
+                  {islandLabel}
+                </span>
               </>
             ) : (
               <SelectValue />
             )}
           </SelectTrigger>
           <SelectContent>
-            {ISLAND_OPTIONS.map((option) => (
+            {ISLAND_OPTION_VALUES.map((option) => (
               <SelectItem key={option} value={option}>
-                {option === 'all' ? 'All islands' : option}
+                {getIslandLabel(t, option)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -187,16 +210,22 @@ export function OpportunityFilterBar({
             {progressiveFilters ? (
               <>
                 <span className="truncate @min-[480px]:hidden">
-                  {sourceKey === 'all' ? 'Source' : sourceLabel}
+                  {sourceKey === 'all'
+                    ? t('opportunities.filterSource')
+                    : sourceLabel}
                 </span>
-                <span className="hidden truncate @min-[480px]:inline">{sourceLabel}</span>
+                <span className="hidden truncate @min-[480px]:inline">
+                  {sourceLabel}
+                </span>
               </>
             ) : (
-              <SelectValue placeholder="Source" />
+              <SelectValue placeholder={t('opportunities.filterSource')} />
             )}
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All sources</SelectItem>
+            <SelectItem value="all">
+              {t('opportunities.filterAllSources')}
+            </SelectItem>
             {(sources ?? []).map((source) => (
               <SelectItem key={source.key} value={source.key}>
                 {source.name}
@@ -205,19 +234,26 @@ export function OpportunityFilterBar({
           </SelectContent>
         </Select>
 
-        <Select value={sort} onValueChange={(value) => onSortChange(value as OpportunitySort)}>
+        <Select
+          value={sort}
+          onValueChange={(value) => onSortChange(value as OpportunitySort)}
+        >
           <SelectTrigger className={filterTriggerClass}>
             {progressiveFilters ? (
               <>
-                <span className="truncate @min-[480px]:hidden">{SORT_SHORT_LABELS[sort]}</span>
-                <span className="hidden truncate @min-[480px]:inline">{sortLabel}</span>
+                <span className="truncate @min-[480px]:hidden">
+                  {getSortShortLabel(t, sort)}
+                </span>
+                <span className="hidden truncate @min-[480px]:inline">
+                  {sortLabel}
+                </span>
               </>
             ) : (
               <SelectValue />
             )}
           </SelectTrigger>
           <SelectContent>
-            {SORT_OPTIONS.map((option) => (
+            {sortOptions.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
               </SelectItem>

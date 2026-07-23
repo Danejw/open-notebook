@@ -1,3 +1,5 @@
+import { opportunitiesEn } from '../sections/opportunities'
+
 export const trTR = {
   "agentSteps": {
     "loading_skills": "Loading skills…",
@@ -1394,6 +1396,7 @@ export const trTR = {
     "decryptionError": "Şifre Çözme Hatası",
     "decryptionErrorDescription": "Bu kimlik bilgisinin API anahtarı çözülemedi. Şifreleme anahtarı değişmiş olabilir. Bu kimlik bilgisini silin ve doğru anahtarla yeniden oluşturun."
   },
+  "opportunities": opportunitiesEn,
   "setupBanner": {
     "encryptionRequired": "Şifreleme anahtarı yapılandırılmadı",
     "encryptionRequiredDescription": "Güvenli kimlik bilgisi depolamayı etkinleştirmek için CONSTRUCTION_OS_ENCRYPTION_KEY ortam değişkenini ayarlayın.",

@@ -1,3 +1,5 @@
+import { opportunitiesEn } from '../sections/opportunities'
+
 export const ruRU = {
   "agentSteps": {
     "loading_skills": "Loading skills…",
@@ -1394,6 +1396,7 @@ export const ruRU = {
     "decryptionError": "Ошибка расшифровки",
     "decryptionErrorDescription": "API-ключ этих учётных данных не удалось расшифровать. Возможно, ключ шифрования был изменён. Удалите эти учётные данные и создайте заново с правильным ключом."
   },
+  "opportunities": opportunitiesEn,
   "setupBanner": {
     "encryptionRequired": "Ключ шифрования не настроен",
     "encryptionRequiredDescription": "Установите переменную окружения CONSTRUCTION_OS_ENCRYPTION_KEY для безопасного хранения учётных данных.",
